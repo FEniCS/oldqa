@@ -1,0 +1,383 @@
+<html><!-- Powered by Question2Answer - http://www.question2answer.org/ --><head>
+		<meta http-equiv="content-type" content="text/html; charset=utf-8">
+		<title>Error in NewtonSolver(). TypeError: in method 'NewtonSolver_solve', argument 3 of type 'dolfin::GenericVector &amp;' - FEniCS Q&amp;A</title>
+		<meta name="description" content="Hi am solving a nonlinear time dependent system of pde and am following the cahnHilliard demo. I got this error  ... -6 T_total = 50*dt t=0.0 while (t">
+		<meta name="keywords" content="newton-solver,nonlinear,cahn-hilliard,boundary-conditions,jacobian">
+		<link rel="stylesheet" type="text/css" href="../../qa-theme/Snow/qa-styles.css">
+		<link rel="canonical" href="http://fenicsproject.org/qa/8704/newtonsolver-typeerror-newtonsolver_solve-genericvector">
+		<script type="text/x-mathjax-config">
+  MathJax.Hub.Config({
+    extensions: ["tex2jax.js"],
+    jax: ["input/TeX","output/HTML-CSS"],
+    tex2jax: {inlineMath: [["$","$"],["\\(","\\)"]]},
+    TeX: { extensions: ["AMSmath.js","AMSsymbols.js"]}
+  });
+</script>
+<script type="text/javascript" src="../../mathjax/MathJax.js"></script>
+		<script src="../../jquery-1.7.2.min.js" type="text/javascript"></script>
+		<script src="../../highlight.min.js"></script>
+<script type="text/javascript">
+$(function(){
+	$('.wmd-input').keypress(function(){
+		window.clearTimeout(hljs.Timeout);
+		hljs.Timeout = window.setTimeout(function() {
+			hljs.initHighlighting.called = false;
+			hljs.initHighlighting();
+		}, 500);
+	});
+	window.setTimeout(function() {
+		hljs.initHighlighting.called = false;
+		hljs.initHighlighting();
+	}, 500);
+});
+</script>
+
+
+	</head>
+	<body class="qa-template-question qa-body-js-off">
+		<div class="qa-body-wrapper">
+			
+			<div class="qa-header">
+				<div class="qa-logo">
+					<a href="../../" class="qa-logo-link" title="FEniCS Q&amp;A"><img src="../../qa-theme/fenics_qa.png" border="0" alt="FEniCS Q&amp;A"></a>
+				</div>
+				<div class="qa-header-clear">
+				</div>
+			</div> <!-- END qa-header -->
+			
+			<div class="qa-main-shadow">
+				
+				<div class="qa-main-wrapper">
+					
+					<div class="qa-sidepanel">
+						<div class="qa-sidebar">
+							This is a read only copy of the old FEniCS QA forum. Please visit the <a href="https://www.allanswered.com/community/s/fenics-project/">new QA forum</a> to ask questions
+						</div>
+						
+					</div>
+					
+					<div class="qa-main">
+						<h1>
+							<span class="entry-title">Error in NewtonSolver(). TypeError: in method 'NewtonSolver_solve', argument 3 of type 'dolfin::GenericVector &amp;'</span>
+						</h1>
+						<div class="qa-part-q-view">
+							<div class="qa-q-view  hentry question" id="q8704">
+								<form method="post" action="../../8704/newtonsolver-typeerror-newtonsolver_solve-genericvector">
+									<div class="qa-q-view-stats">
+										<div class="qa-voting qa-voting-net" id="voting_8704">
+											<div class="qa-vote-count qa-vote-count-net">
+												<span class="qa-netvote-count">
+													<span class="qa-netvote-count-data">0<span class="votes-up"><span class="value-title" title="0"></span></span><span class="votes-down"><span class="value-title" title="0"></span></span></span><span class="qa-netvote-count-pad"> votes</span>
+												</span>
+											</div>
+											<div class="qa-vote-clear">
+											</div>
+										</div>
+									</div>
+									<input type="hidden" name="code" value="0-1516468188-b0b37f92e8c485bcc5c4efcde9bc1b52e76c5a6e">
+								</form>
+								<div class="qa-q-view-main">
+									<form method="post" action="../../8704/newtonsolver-typeerror-newtonsolver_solve-genericvector">
+										<div class="qa-q-view-content">
+											<a name="8704"></a><div class="entry-content"><p>Hi am solving a nonlinear time dependent system of pde and am following the cahnHilliard demo. I got this error in the newton solver which I dont quiet understand. Below is my complete code</p>
+
+<pre><code>from dolfin import *
+
+
+# Class representing initial conditions
+class InitialConditions(Expression):
+def eval(self, values, x):
+    values[0] = x[1]
+    values[1] = x[1]
+    values[2] = x[1]
+    values[3] = x[1]
+    values[4] = 0.01
+    values[5] = 0
+def value_shape(self):
+    return (6,)
+
+#constants
+c = Constant(2/3)
+xi0= Constant(1)
+n = Constant(2)
+alpha = Constant(25)
+
+# Class interfacing with newton solver
+class MyEquations(NonlinearProblem):
+def __init__(self, a, L, bcs):
+    NonlinearProblem.__init__(self)
+    self.L = L
+    self.a = a
+self.bcs = bcs
+    self.reset_sparsity = True
+def F(self, b, x):
+    assemble(self.L, tensor=b, bcs = self.bcs)
+def J(self, A, x):
+    assemble(self.a, tensor=A, reset_sparsity=self.reset_sparsity, bcs=self.bcs)
+    self.reset_sparsity = False
+
+class PeriodicBoundary(SubDomain):
+
+# left boundary is "target domain"
+def inside(self, x, on_boundary):
+    return bool(x[0]&lt; DOLFIN_EPS and x[0]&gt; - DOLFIN_EPS and on_boundary)
+
+# Map right boundary to left boundary
+def map(self, x, y):
+    y[0] = x[0] - 1.0
+    y[1] = x[1]
+
+
+ pbc = PeriodicBoundary()
+
+ mesh = RectangleMesh(Point(-1,-1),Point(1,1),20,20) #Domain[-1,1]*[-1,1]
+
+V1= VectorFunctionSpace(mesh, 'Lagrange',degree=2, constrained_domain = pbc)
+V2=VectorFunctionSpace(mesh, 'Lagrange', degree=2, constrained_domain= pbc)
+Q1 = FunctionSpace(mesh, 'Lagrange', degree=1, constrained_domain = pbc )
+Q2 = FunctionSpace(mesh, 'Lagrange', degree=1, constrained_domain = pbc)
+VQ = MixedFunctionSpace([V1,V2, Q1, Q2])
+
+# Define trial and test functions
+m,h,q,r = TestFunctions(VQ)
+duu = TrialFunction(VQ)
+
+H= Function(VQ)  # Current solution
+H0 = Function(VQ)   # solution from previous converged steps
+
+
+#dUU, du, dphi, dp = split(duu)
+U, u, phi, p = split(H)
+U0, u0, phi0, p0 = split(H0)
+
+#Create initial conditions and interpolate
+u_init = InitialConditions()
+H.interpolate(u_init)
+H0.interpolate(u_init)
+
+# Sub domain for Dirichlet boundary condition
+class Top(SubDomain):
+def inside(self, x, on_boundary):
+    return (x[1]&gt;1 - DOLFIN_EPS and on_boundary)
+
+class Bottom(SubDomain):
+def inside(self, x, on_boundary):
+    return (x[1]&lt; -1 + DOLFIN_EPS and on_boundary)
+
+ UB= Constant((-1,0))
+UT= Constant((1,0))
+ub= Constant((-1,0))
+ut= Constant((1,0))
+
+ top= Top()
+bott = Bottom()
+
+bcUB= DirichletBC(VQ.sub(0), UB  ,bott)
+bcUT= DirichletBC(VQ.sub(0), UB  ,top)
+bcub= DirichletBC(VQ.sub(1), ub  ,bott )
+bcut= DirichletBC(VQ.sub(1), ub  ,top )
+
+bcs = [bcUB,bcUT, bcub,bcut]
+
+k_phi = (phi/phi0)**n
+eta = exp(-alpha*(phi-phi0))
+ xi = xi0* eta
+ dt=0.0001
+
+
+f1 = phi*q*dx - phi0*q*dx - dt*div((1-phi)*U)*q*dx
+
+f2 = inner(phi*(u-U), m)*dx  + k_phi * p*div(m)*dx   
+
+f3 = p*div(h)*dx + eta*inner(grad(U) + grad(U).T, grad(h))*dx - (xi*div(U)) *div(h)*dx  + c*(eta*div(U))*div(h)*dx 
+
+f4 = div(phi*u + (1-phi)*U)*r*dx     
+
+L = f1 + f2 + f3 + f4    
+
+ a = derivative(L, H, duu )
+ problem = MyEquations(a, L, bcs)
+ solver = NewtonSolver()
+ solver.parameters['linear_solver']='lu'
+solver.parameters['convergence_criterion'] = 'incremental'
+solver.parameters['relative_tolerance'] = 1e-6
+
+T_total = 50*dt
+t=0.0
+while (t&lt;T_total):
+  t+=dt
+  H0 = H
+  solver.solve(problem, H)
+</code></pre>
+
+<h2>The error is below as</h2>
+
+<pre><code>solver.solve(problem, H)
+TypeError: in method 'NewtonSolver_solve', argument 3 of type 'dolfin::GenericVector &amp;'
+</code></pre>
+
+<h2>I dont quiet understand this error. Could anyone help please. Thanks.</h2>
+</div>
+										</div>
+										<div class="qa-q-view-tags">
+											<ul class="qa-q-view-tag-list">
+												<li class="qa-q-view-tag-item"><a href="../../tag/newton-solver" rel="tag" class="qa-tag-link">newton-solver</a></li>
+												<li class="qa-q-view-tag-item"><a href="../../tag/nonlinear" rel="tag" class="qa-tag-link">nonlinear</a></li>
+												<li class="qa-q-view-tag-item"><a href="../../tag/cahn-hilliard" rel="tag" class="qa-tag-link">cahn-hilliard</a></li>
+												<li class="qa-q-view-tag-item"><a href="../../tag/boundary-conditions" rel="tag" class="qa-tag-link">boundary-conditions</a></li>
+												<li class="qa-q-view-tag-item"><a href="../../tag/jacobian" rel="tag" class="qa-tag-link">jacobian</a></li>
+											</ul>
+										</div>
+										<span class="qa-q-view-avatar-meta">
+											<span class="qa-q-view-meta">
+												<a href="../../8704/newtonsolver-typeerror-newtonsolver_solve-genericvector" class="qa-q-view-what">asked</a>
+												<span class="qa-q-view-when">
+													<span class="qa-q-view-when-data"><span class="published"><span class="value-title" title="2015-11-26T21:08:10+0000"></span>Nov 26, 2015</span></span>
+												</span>
+												<span class="qa-q-view-who">
+													<span class="qa-q-view-who-pad">by </span>
+													<span class="qa-q-view-who-data"><span class="vcard author"><a href="../../user/Vivian" class="qa-user-link url nickname">Vivian</a></span></span>
+													<span class="qa-q-view-who-title">FEniCS Novice</span>
+													<span class="qa-q-view-who-points">
+														<span class="qa-q-view-who-points-pad">(</span><span class="qa-q-view-who-points-data">550</span><span class="qa-q-view-who-points-pad"> points)</span>
+													</span>
+												</span>
+											</span>
+										</span>
+										<div class="qa-q-view-buttons">
+										</div>
+										
+										<div class="qa-q-view-c-list" style="display:none;" id="c8704_list">
+										</div> <!-- END qa-c-list -->
+										
+										<input type="hidden" name="code" value="0-1516468188-4c5349f07c67416b2837c34ab2b19ca1e60858c2">
+										<input type="hidden" name="qa_click" value="">
+									</form>
+									<div class="qa-c-form">
+									</div> <!-- END qa-c-form -->
+									
+								</div> <!-- END qa-q-view-main -->
+								<div class="qa-q-view-clear">
+								</div>
+							</div> <!-- END qa-q-view -->
+							
+						</div>
+						<div class="qa-part-a-list">
+							<h2 id="a_list_title">1 Answer</h2>
+							<div class="qa-a-list" id="a_list">
+								
+								<div class="qa-a-list-item  hentry answer" id="a8754">
+									<form method="post" action="../../8704/newtonsolver-typeerror-newtonsolver_solve-genericvector">
+										<div class="qa-voting qa-voting-net" id="voting_8754">
+											<div class="qa-vote-count qa-vote-count-net">
+												<span class="qa-netvote-count">
+													<span class="qa-netvote-count-data">0<span class="votes-up"><span class="value-title" title="0"></span></span><span class="votes-down"><span class="value-title" title="0"></span></span></span><span class="qa-netvote-count-pad"> votes</span>
+												</span>
+											</div>
+											<div class="qa-vote-clear">
+											</div>
+										</div>
+										<input type="hidden" name="code" value="0-1516468188-b0b37f92e8c485bcc5c4efcde9bc1b52e76c5a6e">
+									</form>
+									<div class="qa-a-item-main">
+										<form method="post" action="../../8704/newtonsolver-typeerror-newtonsolver_solve-genericvector">
+											<div class="qa-a-selection">
+											</div>
+											<div class="qa-a-item-content">
+												<a name="8754"></a><div class="entry-content"><p>You need to pass a vector to the solver. Try the following for the time loop.</p>
+
+<pre><code>while (t &lt; T_total):
+    t += dt
+    H0.vector()[:] = H.vector()
+    solver.solve(problem, H.vector())
+</code></pre>
+</div>
+											</div>
+											<span class="qa-a-item-avatar-meta">
+												<span class="qa-a-item-meta">
+													<a href="../../8704/newtonsolver-typeerror-newtonsolver_solve-genericvector?show=8754#a8754" class="qa-a-item-what">answered</a>
+													<span class="qa-a-item-when">
+														<span class="qa-a-item-when-data"><span class="published"><span class="value-title" title="2015-12-01T09:12:56+0000"></span>Dec 1, 2015</span></span>
+													</span>
+													<span class="qa-a-item-who">
+														<span class="qa-a-item-who-pad">by </span>
+														<span class="qa-a-item-who-data"><span class="vcard author"><a href="../../user/Magne+Nordaas" class="qa-user-link url nickname">Magne Nordaas</a></span></span>
+														<span class="qa-a-item-who-title">FEniCS Expert</span>
+														<span class="qa-a-item-who-points">
+															<span class="qa-a-item-who-points-pad">(</span><span class="qa-a-item-who-points-data">13,820</span><span class="qa-a-item-who-points-pad"> points)</span>
+														</span>
+													</span>
+												</span>
+											</span>
+											<div class="qa-a-item-buttons">
+												</div>
+											
+											<div class="qa-a-item-c-list" id="c8754_list">
+												<div class="qa-c-list-item  hentry comment" id="c8767">
+													<div class="qa-c-item-content">
+														<a name="8767"></a><div class="entry-content"><p>Thank you Magne. I tried as you suggested but now it says got an unexpected keyword argument. Below is my error</p>
+
+<pre><code>Traceback (most recent call last):
+File "copy_math8112.py", line 144, in &lt;module&gt;
+solver.solve(problem, H.vector())
+File "copy_math8112.py", line 31, in F
+assemble(self.L, tensor=b, bcs = self.bcs)
+TypeError: assemble() got an unexpected keyword argument 'bcs'
+</code></pre>
+
+<h2>Is that not where tthe boundary condition should be applied</h2>
+</div>
+													</div>
+													<div class="qa-c-item-footer">
+														<span class="qa-c-item-avatar-meta">
+															<span class="qa-c-item-meta">
+																<a href="../../8704/newtonsolver-typeerror-newtonsolver_solve-genericvector?show=8767#c8767" class="qa-c-item-what">commented</a>
+																<span class="qa-c-item-when">
+																	<span class="qa-c-item-when-data"><span class="published"><span class="value-title" title="2015-12-02T02:23:18+0000"></span>Dec 2, 2015</span></span>
+																</span>
+																<span class="qa-c-item-who">
+																	<span class="qa-c-item-who-pad">by </span>
+																	<span class="qa-c-item-who-data"><span class="vcard author"><a href="../../user/Vivian" class="qa-user-link url nickname">Vivian</a></span></span>
+																	<span class="qa-c-item-who-title">FEniCS Novice</span>
+																	<span class="qa-c-item-who-points">
+																		<span class="qa-c-item-who-points-pad">(</span><span class="qa-c-item-who-points-data">550</span><span class="qa-c-item-who-points-pad"> points)</span>
+																	</span>
+																</span>
+															</span>
+														</span>
+														<div class="qa-c-item-buttons">
+														</div>
+													</div>
+													<div class="qa-c-item-clear">
+													</div>
+												</div> <!-- END qa-c-item -->
+											</div> <!-- END qa-c-list -->
+											
+											<input type="hidden" name="code" value="0-1516468188-9ccdeda8ac1059afd08695233438b8b6bd41ee7e">
+											<input type="hidden" name="qa_click" value="">
+										</form>
+										<div class="qa-c-form">
+										</div> <!-- END qa-c-form -->
+										
+									</div> <!-- END qa-a-item-main -->
+									<div class="qa-a-item-clear">
+									</div>
+								</div> <!-- END qa-a-list-item -->
+								
+							</div> <!-- END qa-a-list -->
+							
+						</div>
+					</div> <!-- END qa-main -->
+					
+				</div> <!-- END main-wrapper -->
+			</div> <!-- END main-shadow -->
+		</div> <!-- END body-wrapper -->
+		<!-- END footer-bottom-group -->
+		
+		<div style="position:absolute; left:-9999px; top:-9999px;">
+			<span id="qa-waiting-template" class="qa-waiting">...</span>
+		</div>
+	
+	
+
+</body><!-- Powered by Question2Answer - http://www.question2answer.org/ --></html>

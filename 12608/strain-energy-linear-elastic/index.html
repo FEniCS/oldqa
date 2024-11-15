@@ -1,0 +1,306 @@
+<html><!-- Powered by Question2Answer - http://www.question2answer.org/ --><head>
+		<meta http-equiv="content-type" content="text/html; charset=utf-8">
+		<title>strain energy linear elastic - FEniCS Q&amp;A</title>
+		<meta name="description" content="Hi, I am solving a linear elastic problem, I have to solve and get strain energy. I have  ...  interactive = True) strr = en_dens(u) print strr">
+		<link rel="stylesheet" type="text/css" href="../../qa-theme/Snow/qa-styles.css">
+		<link rel="canonical" href="http://fenicsproject.org/qa/12608/strain-energy-linear-elastic">
+		<script type="text/x-mathjax-config">
+  MathJax.Hub.Config({
+    extensions: ["tex2jax.js"],
+    jax: ["input/TeX","output/HTML-CSS"],
+    tex2jax: {inlineMath: [["$","$"],["\\(","\\)"]]},
+    TeX: { extensions: ["AMSmath.js","AMSsymbols.js"]}
+  });
+</script>
+<script type="text/javascript" src="../../mathjax/MathJax.js"></script>
+		<script src="../../jquery-1.7.2.min.js" type="text/javascript"></script>
+		<script src="../../highlight.min.js"></script>
+<script type="text/javascript">
+$(function(){
+	$('.wmd-input').keypress(function(){
+		window.clearTimeout(hljs.Timeout);
+		hljs.Timeout = window.setTimeout(function() {
+			hljs.initHighlighting.called = false;
+			hljs.initHighlighting();
+		}, 500);
+	});
+	window.setTimeout(function() {
+		hljs.initHighlighting.called = false;
+		hljs.initHighlighting();
+	}, 500);
+});
+</script>
+
+
+	</head>
+	<body class="qa-template-question qa-body-js-off">
+		<div class="qa-body-wrapper">
+			
+			<div class="qa-header">
+				<div class="qa-logo">
+					<a href="../../" class="qa-logo-link" title="FEniCS Q&amp;A"><img src="../../qa-theme/fenics_qa.png" border="0" alt="FEniCS Q&amp;A"></a>
+				</div>
+				<div class="qa-header-clear">
+				</div>
+			</div> <!-- END qa-header -->
+			
+			<div class="qa-main-shadow">
+				
+				<div class="qa-main-wrapper">
+					
+					<div class="qa-sidepanel">
+						<div class="qa-sidebar">
+							This is a read only copy of the old FEniCS QA forum. Please visit the <a href="https://www.allanswered.com/community/s/fenics-project/">new QA forum</a> to ask questions
+						</div>
+						
+					</div>
+					
+					<div class="qa-main">
+						<h1>
+							<span class="entry-title">strain energy linear elastic</span>
+						</h1>
+						<div class="qa-part-q-view">
+							<div class="qa-q-view  hentry question" id="q12608">
+								<form method="post" action="../../12608/strain-energy-linear-elastic">
+									<div class="qa-q-view-stats">
+										<div class="qa-voting qa-voting-net" id="voting_12608">
+											<div class="qa-vote-count qa-vote-count-net">
+												<span class="qa-netvote-count">
+													<span class="qa-netvote-count-data">0<span class="votes-up"><span class="value-title" title="0"></span></span><span class="votes-down"><span class="value-title" title="0"></span></span></span><span class="qa-netvote-count-pad"> votes</span>
+												</span>
+											</div>
+											<div class="qa-vote-clear">
+											</div>
+										</div>
+									</div>
+									<input type="hidden" name="code" value="0-1516467831-5565b795f8438532ca00511808acf66506e407a9">
+								</form>
+								<div class="qa-q-view-main">
+									<form method="post" action="../../12608/strain-energy-linear-elastic">
+										<div class="qa-q-view-content">
+											<a name="12608"></a><div class="entry-content"><p>Hi, I am solving a linear elastic problem, I have to solve and get strain energy.  I have calculated but i am not getting the correct solution.  It will be great if anybody can help to figure it out the possible error. </p>
+
+<p>Thanks in advance.</p>
+
+<pre><code>from dolfin import *
+n = 50        
+mesh  = UnitSquareMesh(n,n)
+print "number of unknown",mesh.num_vertices()
+elements = mesh.num_cells()
+print elements
+plot(mesh)
+interactive()
+
+
+W = VectorFunctionSpace(mesh,'CG',1)
+u , v = TrialFunction(W), TestFunction(W)
+E = 20.8e3
+u = 0.3
+
+lmbda, mu = Constant(E*nu/((1.0 + nu )*(1.0-2.0*nu))) , Constant(E/(2*(1+nu)))
+
+class top(SubDomain):
+       def inside(self,x,on_boundary):
+             tol = 1e-10
+             return abs(x[1]-1) &lt; tol and on_boundary
+
+class bottom(SubDomain):
+          def inside(self,x,on_boundary):
+             tol = 1e-10
+             return abs(x[1]) &lt; tol and on_boundary
+
+Top = top()
+Bottom = bottom()
+
+fix_b_bottom_x =  DirichletBC(W.sub(0),Constant(0.0),Bottom)
+fix_b_bottom_y =  DirichletBC(W.sub(1),Constant(0.0),Bottom)
+
+ disp_topy = DirichletBC(W.sub(0),Constant(0.1),Top)
+
+
+ bc_disp = [fix_b_bottom_x, fix_b_bottom_y, disp_topy ]
+
+def epsilon(v):
+       return 0.5*(grad(v)  + grad(v).T)
+
+ def sigma(u):
+       return 2.0*mu*epsilon(u) + lmbda*tr(epsilon(u))*Identity(2)
+def en_dens(u):
+       str_ele = 0.5*(grad(u) + grad(u).T)
+       IC = tr(str_ele)
+       ICC = tr(str_ele * str_ele)
+       return (0.5*lmbda*IC**2) + mu*ICC
+
+
+ E_du = inner(grad(v),sigma(u))*dx
+
+ u = Function(W)
+ problem_disp = LinearVariationalProblem(lhs(E_du),rhs(E_du),u,bc_disp)
+ solver_disp = LinearVariationalSolver(problem_disp)
+ solver_disp.solve()
+
+ plot(u, interactive  = True)
+
+ strr = en_dens(u)
+
+ print strr
+</code></pre>
+</div>
+										</div>
+										<span class="qa-q-view-avatar-meta">
+											<span class="qa-q-view-meta">
+												<a href="../../12608/strain-energy-linear-elastic" class="qa-q-view-what">asked</a>
+												<span class="qa-q-view-when">
+													<span class="qa-q-view-when-data"><span class="published"><span class="value-title" title="2017-03-04T17:43:02+0000"></span>Mar 4, 2017</span></span>
+												</span>
+												<span class="qa-q-view-who">
+													<span class="qa-q-view-who-pad">by </span>
+													<span class="qa-q-view-who-data"><span class="vcard author"><a href="../../user/hirshikesh" class="qa-user-link url nickname">hirshikesh</a></span></span>
+													<span class="qa-q-view-who-title">FEniCS User</span>
+													<span class="qa-q-view-who-points">
+														<span class="qa-q-view-who-points-pad">(</span><span class="qa-q-view-who-points-data">1,890</span><span class="qa-q-view-who-points-pad"> points)</span>
+													</span>
+												</span>
+											</span>
+										</span>
+										<div class="qa-q-view-buttons">
+										</div>
+										
+										<div class="qa-q-view-c-list" style="display:none;" id="c12608_list">
+										</div> <!-- END qa-c-list -->
+										
+										<input type="hidden" name="code" value="0-1516467831-9e964526e8568891a6641da5b09ab2af322937dc">
+										<input type="hidden" name="qa_click" value="">
+									</form>
+									<div class="qa-c-form">
+									</div> <!-- END qa-c-form -->
+									
+								</div> <!-- END qa-q-view-main -->
+								<div class="qa-q-view-clear">
+								</div>
+							</div> <!-- END qa-q-view -->
+							
+						</div>
+						<div class="qa-part-a-list">
+							<h2 id="a_list_title">1 Answer</h2>
+							<div class="qa-a-list" id="a_list">
+								
+								<div class="qa-a-list-item  hentry answer answer-selected qa-a-list-item-selected" id="a12650">
+									<form method="post" action="../../12608/strain-energy-linear-elastic">
+										<div class="qa-voting qa-voting-net" id="voting_12650">
+											<div class="qa-vote-count qa-vote-count-net">
+												<span class="qa-netvote-count">
+													<span class="qa-netvote-count-data">0<span class="votes-up"><span class="value-title" title="0"></span></span><span class="votes-down"><span class="value-title" title="0"></span></span></span><span class="qa-netvote-count-pad"> votes</span>
+												</span>
+											</div>
+											<div class="qa-vote-clear">
+											</div>
+										</div>
+										<input type="hidden" name="code" value="0-1516467831-5565b795f8438532ca00511808acf66506e407a9">
+									</form>
+									<div class="qa-a-item-main">
+										<form method="post" action="../../12608/strain-energy-linear-elastic">
+											<div class="qa-a-item-selected">
+												<div class="qa-a-selection">
+													<div class="qa-a-selected">&#160;</div>
+													<div class="qa-a-selected-text">Best answer</div>
+												</div>
+												<div class="qa-a-item-content">
+													<a name="12650"></a><div class="entry-content"><p>To obtain the energy density function you need to project en_dens(u) to a scalar function space, let say:</p>
+
+<pre><code>F = FunctionSpace(mesh, 'DG', 0)
+W = project(en_dens(u), F)
+plot(W, interactive=True)
+</code></pre>
+</div>
+												</div>
+												<span class="qa-a-item-avatar-meta">
+													<span class="qa-a-item-avatar">
+														<a href="../../user/hernan_mella" class="qa-avatar-link"><img src="../../?qa=image&amp;qa_blobid=14920815903966845416&amp;qa_size=40" width="40" height="22" class="qa-avatar-image" alt=""></a>
+													</span>
+													<span class="qa-a-item-meta">
+														<a href="../../12608/strain-energy-linear-elastic?show=12650#a12650" class="qa-a-item-what">answered</a>
+														<span class="qa-a-item-when">
+															<span class="qa-a-item-when-data"><span class="published"><span class="value-title" title="2017-03-09T02:04:17+0000"></span>Mar 9, 2017</span></span>
+														</span>
+														<span class="qa-a-item-who">
+															<span class="qa-a-item-who-pad">by </span>
+															<span class="qa-a-item-who-data"><span class="vcard author"><a href="../../user/hernan_mella" class="qa-user-link url nickname">hernan_mella</a></span></span>
+															<span class="qa-a-item-who-title">FEniCS Expert</span>
+															<span class="qa-a-item-who-points">
+																<span class="qa-a-item-who-points-pad">(</span><span class="qa-a-item-who-points-data">19,460</span><span class="qa-a-item-who-points-pad"> points)</span>
+															</span>
+														</span>
+														<br>
+														<span class="qa-a-item-what">selected</span>
+														<span class="qa-a-item-when">
+															<span class="qa-a-item-when-data"><span class="updated"><span class="value-title" title="2017-04-19T16:43:30+0000"></span>Apr 19, 2017</span></span>
+														</span>
+														<span class="qa-a-item-who">
+															<span class="qa-a-item-who-pad">by </span><span class="qa-a-item-who-data"><a href="../../user/hirshikesh" class="qa-user-link url nickname">hirshikesh</a></span>
+														</span>
+													</span>
+												</span>
+											</div>
+											<div class="qa-a-item-buttons">
+												</div>
+											
+											<div class="qa-a-item-c-list" id="c12650_list">
+												<div class="qa-c-list-item  hentry comment" id="c12664">
+													<div class="qa-c-item-content">
+														<a name="12664"></a><div class="entry-content"><p>Thanks for answer</p>
+</div>
+													</div>
+													<div class="qa-c-item-footer">
+														<span class="qa-c-item-avatar-meta">
+															<span class="qa-c-item-meta">
+																<a href="../../12608/strain-energy-linear-elastic?show=12664#c12664" class="qa-c-item-what">commented</a>
+																<span class="qa-c-item-when">
+																	<span class="qa-c-item-when-data"><span class="published"><span class="value-title" title="2017-03-10T04:38:32+0000"></span>Mar 10, 2017</span></span>
+																</span>
+																<span class="qa-c-item-who">
+																	<span class="qa-c-item-who-pad">by </span>
+																	<span class="qa-c-item-who-data"><span class="vcard author"><a href="../../user/hirshikesh" class="qa-user-link url nickname">hirshikesh</a></span></span>
+																	<span class="qa-c-item-who-title">FEniCS User</span>
+																	<span class="qa-c-item-who-points">
+																		<span class="qa-c-item-who-points-pad">(</span><span class="qa-c-item-who-points-data">1,890</span><span class="qa-c-item-who-points-pad"> points)</span>
+																	</span>
+																</span>
+															</span>
+														</span>
+														<div class="qa-c-item-buttons">
+														</div>
+													</div>
+													<div class="qa-c-item-clear">
+													</div>
+												</div> <!-- END qa-c-item -->
+											</div> <!-- END qa-c-list -->
+											
+											<input type="hidden" name="code" value="0-1516467831-2d60adbe4a278aa3053a1262fe3d44c15c172f73">
+											<input type="hidden" name="qa_click" value="">
+										</form>
+										<div class="qa-c-form">
+										</div> <!-- END qa-c-form -->
+										
+									</div> <!-- END qa-a-item-main -->
+									<div class="qa-a-item-clear">
+									</div>
+								</div> <!-- END qa-a-list-item -->
+								
+							</div> <!-- END qa-a-list -->
+							
+						</div>
+					</div> <!-- END qa-main -->
+					
+				</div> <!-- END main-wrapper -->
+			</div> <!-- END main-shadow -->
+		</div> <!-- END body-wrapper -->
+		<!-- END footer-bottom-group -->
+		
+		<div style="position:absolute; left:-9999px; top:-9999px;">
+			<span id="qa-waiting-template" class="qa-waiting">...</span>
+		</div>
+	
+	
+
+</body><!-- Powered by Question2Answer - http://www.question2answer.org/ --></html>

@@ -1,0 +1,393 @@
+<html><!-- Powered by Question2Answer - http://www.question2answer.org/ --><head>
+		<meta http-equiv="content-type" content="text/html; charset=utf-8">
+		<title>How do I make the expression of K that contains the values of k in the domain? - FEniCS Q&amp;A</title>
+		<meta name="description" content='I have this code that works in the case of a 2x2 matrix, which varies in the domain from dolfin import *  ... v)) * dx" for cell.midpoint (). X ()'>
+		<link rel="stylesheet" type="text/css" href="../../qa-theme/Snow/qa-styles.css">
+		<link rel="canonical" href="http://fenicsproject.org/qa/11055/how-make-the-expression-that-contains-the-values-the-domain">
+		<script type="text/x-mathjax-config">
+  MathJax.Hub.Config({
+    extensions: ["tex2jax.js"],
+    jax: ["input/TeX","output/HTML-CSS"],
+    tex2jax: {inlineMath: [["$","$"],["\\(","\\)"]]},
+    TeX: { extensions: ["AMSmath.js","AMSsymbols.js"]}
+  });
+</script>
+<script type="text/javascript" src="../../mathjax/MathJax.js"></script>
+		<script src="../../jquery-1.7.2.min.js" type="text/javascript"></script>
+		<script src="../../highlight.min.js"></script>
+<script type="text/javascript">
+$(function(){
+	$('.wmd-input').keypress(function(){
+		window.clearTimeout(hljs.Timeout);
+		hljs.Timeout = window.setTimeout(function() {
+			hljs.initHighlighting.called = false;
+			hljs.initHighlighting();
+		}, 500);
+	});
+	window.setTimeout(function() {
+		hljs.initHighlighting.called = false;
+		hljs.initHighlighting();
+	}, 500);
+});
+</script>
+
+
+	</head>
+	<body class="qa-template-question qa-body-js-off">
+		<div class="qa-body-wrapper">
+			
+			<div class="qa-header">
+				<div class="qa-logo">
+					<a href="../../" class="qa-logo-link" title="FEniCS Q&amp;A"><img src="../../qa-theme/fenics_qa.png" border="0" alt="FEniCS Q&amp;A"></a>
+				</div>
+				<div class="qa-header-clear">
+				</div>
+			</div> <!-- END qa-header -->
+			
+			<div class="qa-main-shadow">
+				
+				<div class="qa-main-wrapper">
+					
+					<div class="qa-sidepanel">
+						<div class="qa-sidebar">
+							This is a read only copy of the old FEniCS QA forum. Please visit the <a href="https://www.allanswered.com/community/s/fenics-project/">new QA forum</a> to ask questions
+						</div>
+						
+					</div>
+					
+					<div class="qa-main">
+						<h1>
+							<span class="entry-title">How do I make the expression of K that contains the values of k in the domain?</span>
+						</h1>
+						<div class="qa-part-q-view">
+							<div class="qa-q-view  hentry question" id="q11055">
+								<form method="post" action="../../11055/how-make-the-expression-that-contains-the-values-the-domain">
+									<div class="qa-q-view-stats">
+										<div class="qa-voting qa-voting-net" id="voting_11055">
+											<div class="qa-vote-count qa-vote-count-net">
+												<span class="qa-netvote-count">
+													<span class="qa-netvote-count-data">0<span class="votes-up"><span class="value-title" title="0"></span></span><span class="votes-down"><span class="value-title" title="0"></span></span></span><span class="qa-netvote-count-pad"> votes</span>
+												</span>
+											</div>
+											<div class="qa-vote-clear">
+											</div>
+										</div>
+									</div>
+									<input type="hidden" name="code" value="0-1516467091-99a6be26a1f94f3a29f3bce564ed7f1fc1746bc8">
+								</form>
+								<div class="qa-q-view-main">
+									<form method="post" action="../../11055/how-make-the-expression-that-contains-the-values-the-domain">
+										<div class="qa-q-view-content">
+											<a name="11055"></a><div class="entry-content"><p>I have this code that works in the case of a 2x2 matrix, which varies in the domain</p>
+
+<pre><code>from dolfin import *
+import math
+
+mesh = UnitSquareMesh(32, 32)
+V = FunctionSpace(mesh, "Lagrange", 1)
+
+u0 = Expression("1 + x[0]*x[0] + 2*x[1]*x[1]")
+def u0_boundary(x, on_boundary):
+    return on_boundary
+bc = DirichletBC(V, u0, u0_boundary)
+
+c00 = MeshFunction("double", mesh, 2)
+c01 = MeshFunction("double", mesh, 2)
+c11 = MeshFunction("double", mesh, 2)
+
+def function1(x):
+    y = 5*x&#178; + 1
+    return(y)
+def function2(x):
+    y = 0.8*math.sqrt(x) + 0.1
+    return(y)
+def function3(x):
+    y = 9*x + 1
+    return(y)
+
+for cell in cells(mesh):
+    if cell.midpoint().x() &lt; 0.5:
+        c00[cell] = function1(cell.midpoint().x())
+        c01[cell] = function2(cell.midpoint().x())
+        c11[cell] = function3(cell.midpoint().x())
+    else:
+        c00[cell] = function1(cell.midpoint().y())
+        c01[cell] = function2(cell.midpoint().y())
+        c11[cell] = function3(cell.midpoint().y())
+
+
+conductivity_code = """
+
+class Conductivity : public Expression
+{
+public:
+
+  // Create expression with 3 components
+  Conductivity() : Expression(3) {}
+
+  // Function for evaluating expression on each cell
+  void eval(Array&lt;double&gt;&amp; values, const Array&lt;double&gt;&amp; x, const ufc::cell&amp; cell) const
+  {
+    const uint D = cell.topological_dimension;
+    const uint cell_index = cell.index;
+    values[0] = (*c00)[cell_index];
+    values[1] = (*c01)[cell_index];
+    values[2] = (*c11)[cell_index];
+  }
+
+  // The data stored in mesh functions
+  std::shared_ptr&lt;MeshFunction&lt;double&gt; &gt; c00;
+  std::shared_ptr&lt;MeshFunction&lt;double&gt; &gt; c01;
+  std::shared_ptr&lt;MeshFunction&lt;double&gt; &gt; c11;
+
+};
+"""
+
+
+c = Expression(cppcode=conductivity_code)
+c.c00 = c00
+c.c01 = c01
+c.c11 = c11
+C = as_matrix(((c[0], c[1]), (c[1], c[2])))
+
+u= TrialFunction(V)
+v= TestFunction(V)
+f= Constant(-6.0)
+a= inner(C*grad(u), grad(v))*dx
+L= f*v*dx
+
+u = Function(V)
+solve(a == L, u, bc)
+
+plot(u)
+plot(mesh)
+</code></pre>
+
+<p>Now I want to do something like this</p>
+
+<pre><code>A = inner (10 * grad (u), grad (v)) * dx" for cell.midpoint (). X () &lt;0.5
+</code></pre>
+
+<p>and</p>
+
+<pre><code>A = inner (20 * grad (u), grad (v)) * dx" for cell.midpoint (). X ()&gt; = 0.5
+</code></pre>
+
+<p>This would be like saying</p>
+
+<pre><code>A = inner (K &#8203;&#8203;* grad (u), grad (v)) * dx
+</code></pre>
+
+<p>where K varies in the domain, for which I do the following</p>
+
+<pre><code>k = MeshFunction ( "double", mesh, 2)
+def function1 (x):
+&#160;&#160;&#160;&#160;y = 9 * x  + 1
+for cell in cells (mesh):
+&#160;&#160;&#160;&#160;if cell.midpoint () x () &lt;0.5.:
+&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;k [cell] = function1 (cell.midpoint (). x ())
+&#160;&#160;&#160;&#160;else:
+&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;k [cell] = function1 (cell.midpoint (). y ())
+</code></pre>
+
+<p>and now is the problem, making the expression of K</p>
+
+<p>Before I wrote an expression of C as a matrix containing the values &#8203;&#8203;c00, c01 and c11 in the domain, such as:</p>
+
+<pre><code>conductivity_code = """
+
+class Conductivity : public Expression
+{
+public:
+
+  // Create expression with 3 components
+  Conductivity() : Expression(3) {}
+
+  // Function for evaluating expression on each cell
+  void eval(Array&lt;double&gt;&amp; values, const Array&lt;double&gt;&amp; x, const ufc::cell&amp; cell) const
+  {
+    const uint D = cell.topological_dimension;
+    const uint cell_index = cell.index;
+    values[0] = (*c00)[cell_index];
+    values[1] = (*c01)[cell_index];
+    values[2] = (*c11)[cell_index];
+  }
+
+  // The data stored in mesh functions
+  std::shared_ptr&lt;MeshFunction&lt;double&gt; &gt; c00;
+  std::shared_ptr&lt;MeshFunction&lt;double&gt; &gt; c01;
+  std::shared_ptr&lt;MeshFunction&lt;double&gt; &gt; c11;
+
+};
+"""
+
+
+c = Expression(cppcode=conductivity_code)
+c.c00 = c00
+c.c01 = c01
+c.c11 = c11
+C = as_matrix(((c[0], c[1]), (c[1], c[2])))
+</code></pre>
+
+<p>How do I make the expression of K that contains the values of k in the domain? to enter it in this way</p>
+
+<pre><code>A = inner (K * grad (u), grad (v)) * dx
+</code></pre>
+
+<p>and resolve it</p>
+
+<p>thanks and sorry if it is not well understood, I do not speak much English</p>
+</div>
+										</div>
+										<span class="qa-q-view-avatar-meta">
+											<span class="qa-q-view-avatar">
+												<a href="../../user/chaky.xw" class="qa-avatar-link"><img src="../../?qa=image&amp;qa_blobid=9485907703786887508&amp;qa_size=50" width="50" height="38" class="qa-avatar-image" alt=""></a>
+											</span>
+											<span class="qa-q-view-meta">
+												<a href="../../11055/how-make-the-expression-that-contains-the-values-the-domain" class="qa-q-view-what">asked</a>
+												<span class="qa-q-view-when">
+													<span class="qa-q-view-when-data"><span class="published"><span class="value-title" title="2016-09-07T01:12:10+0000"></span>Sep 7, 2016</span></span>
+												</span>
+												<span class="qa-q-view-who">
+													<span class="qa-q-view-who-pad">by </span>
+													<span class="qa-q-view-who-data"><span class="vcard author"><a href="../../user/chaky.xw" class="qa-user-link url nickname">chaky.xw</a></span></span>
+													<span class="qa-q-view-who-title">FEniCS Novice</span>
+													<span class="qa-q-view-who-points">
+														<span class="qa-q-view-who-points-pad">(</span><span class="qa-q-view-who-points-data">120</span><span class="qa-q-view-who-points-pad"> points)</span>
+													</span>
+												</span>
+											</span>
+										</span>
+										<div class="qa-q-view-buttons">
+										</div>
+										
+										<div class="qa-q-view-c-list" id="c11055_list">
+											<div class="qa-c-list-item  hentry comment" id="c11058">
+												<div class="qa-c-item-content">
+													<a name="11058"></a><div class="entry-content"><p>Is there a reason for using <code>CellFunction</code> and not a DG0 FE space?</p>
+</div>
+												</div>
+												<div class="qa-c-item-footer">
+													<span class="qa-c-item-avatar-meta">
+														<span class="qa-c-item-avatar">
+															<a href="../../user/nate" class="qa-avatar-link"><img src="../../?qa=image&amp;qa_blobid=969593914916706065&amp;qa_size=20" width="20" height="20" class="qa-avatar-image" alt=""></a>
+														</span>
+														<span class="qa-c-item-meta">
+															<a href="../../11055/how-make-the-expression-that-contains-the-values-the-domain?show=11058#c11058" class="qa-c-item-what">commented</a>
+															<span class="qa-c-item-when">
+																<span class="qa-c-item-when-data"><span class="published"><span class="value-title" title="2016-09-07T12:34:27+0000"></span>Sep 7, 2016</span></span>
+															</span>
+															<span class="qa-c-item-who">
+																<span class="qa-c-item-who-pad">by </span>
+																<span class="qa-c-item-who-data"><span class="vcard author"><a href="../../user/nate" class="qa-user-link url nickname">nate</a></span></span>
+																<span class="qa-c-item-who-title">FEniCS Expert</span>
+																<span class="qa-c-item-who-points">
+																	<span class="qa-c-item-who-points-pad">(</span><span class="qa-c-item-who-points-data">17,050</span><span class="qa-c-item-who-points-pad"> points)</span>
+																</span>
+															</span>
+														</span>
+													</span>
+													<div class="qa-c-item-buttons">
+													</div>
+												</div>
+												<div class="qa-c-item-clear">
+												</div>
+											</div> <!-- END qa-c-item -->
+										</div> <!-- END qa-c-list -->
+										
+										<input type="hidden" name="code" value="0-1516467091-589e99ae4ada89f8b67123e55ee2632b1124681e">
+										<input type="hidden" name="qa_click" value="">
+									</form>
+									<div class="qa-c-form">
+									</div> <!-- END qa-c-form -->
+									
+								</div> <!-- END qa-q-view-main -->
+								<div class="qa-q-view-clear">
+								</div>
+							</div> <!-- END qa-q-view -->
+							
+						</div>
+						<div class="qa-part-a-list">
+							<h2 id="a_list_title">1 Answer</h2>
+							<div class="qa-a-list" id="a_list">
+								
+								<div class="qa-a-list-item  hentry answer" id="a11282">
+									<form method="post" action="../../11055/how-make-the-expression-that-contains-the-values-the-domain">
+										<div class="qa-voting qa-voting-net" id="voting_11282">
+											<div class="qa-vote-count qa-vote-count-net">
+												<span class="qa-netvote-count">
+													<span class="qa-netvote-count-data">0<span class="votes-up"><span class="value-title" title="0"></span></span><span class="votes-down"><span class="value-title" title="0"></span></span></span><span class="qa-netvote-count-pad"> votes</span>
+												</span>
+											</div>
+											<div class="qa-vote-clear">
+											</div>
+										</div>
+										<input type="hidden" name="code" value="0-1516467091-99a6be26a1f94f3a29f3bce564ed7f1fc1746bc8">
+									</form>
+									<div class="qa-a-item-main">
+										<form method="post" action="../../11055/how-make-the-expression-that-contains-the-values-the-domain">
+											<div class="qa-a-selection">
+											</div>
+											<div class="qa-a-item-content">
+												<a name="11282"></a><div class="entry-content"><p>Probably you want something like this. <br>
+When you put this in bilinear forms, it is safe to use its interpolation in DG0 space to avoid quadrature evaluation issues at discontinuous coefficients.</p>
+
+<p></p><pre><code><code>class MyExpression(Expression):
+    def eval(self, value, x):
+        if x[1]&gt;0.25 and x[1]&lt;0.75 and x[0]&gt;0.25 and x[0]&lt;0.75:
+            value[0]= 1.0e-1
+        else:
+            value[0] = 1.0e1
+K = MyExpression()</code>
+</code></pre></div>
+											</div>
+											<span class="qa-a-item-avatar-meta">
+												<span class="qa-a-item-meta">
+													<a href="../../11055/how-make-the-expression-that-contains-the-values-the-domain?show=11282#a11282" class="qa-a-item-what">answered</a>
+													<span class="qa-a-item-when">
+														<span class="qa-a-item-when-data"><span class="published"><span class="value-title" title="2016-10-04T17:40:01+0000"></span>Oct 4, 2016</span></span>
+													</span>
+													<span class="qa-a-item-who">
+														<span class="qa-a-item-who-pad">by </span>
+														<span class="qa-a-item-who-data"><span class="vcard author"><a href="../../user/JeonghunLee" class="qa-user-link url nickname">JeonghunLee</a></span></span>
+														<span class="qa-a-item-who-title">FEniCS User</span>
+														<span class="qa-a-item-who-points">
+															<span class="qa-a-item-who-points-pad">(</span><span class="qa-a-item-who-points-data">1,050</span><span class="qa-a-item-who-points-pad"> points)</span>
+														</span>
+													</span>
+												</span>
+											</span>
+											<div class="qa-a-item-buttons">
+												</div>
+											
+											<div class="qa-a-item-c-list" style="display:none;" id="c11282_list">
+											</div> <!-- END qa-c-list -->
+											
+											<input type="hidden" name="code" value="0-1516467091-7d22d8d9025ecb95676e330f1c330550c7eb13e7">
+											<input type="hidden" name="qa_click" value="">
+										</form>
+										<div class="qa-c-form">
+										</div> <!-- END qa-c-form -->
+										
+									</div> <!-- END qa-a-item-main -->
+									<div class="qa-a-item-clear">
+									</div>
+								</div> <!-- END qa-a-list-item -->
+								
+							</div> <!-- END qa-a-list -->
+							
+						</div>
+					</div> <!-- END qa-main -->
+					
+				</div> <!-- END main-wrapper -->
+			</div> <!-- END main-shadow -->
+		</div> <!-- END body-wrapper -->
+		<!-- END footer-bottom-group -->
+		
+		<div style="position:absolute; left:-9999px; top:-9999px;">
+			<span id="qa-waiting-template" class="qa-waiting">...</span>
+		</div>
+	
+	
+
+</body><!-- Powered by Question2Answer - http://www.question2answer.org/ --></html>

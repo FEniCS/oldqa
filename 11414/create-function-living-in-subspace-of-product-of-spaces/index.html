@@ -1,0 +1,763 @@
+<html><!-- Powered by Question2Answer - http://www.question2answer.org/ --><head>
+		<meta http-equiv="content-type" content="text/html; charset=utf-8">
+		<title>Create function living in subspace of product of spaces - FEniCS Q&amp;A</title>
+		<meta name="description" content='I am working with a mixed formulation problem, where in my .ufl file I defined V = FiniteElement(" ... ); plot(p_real); interactive(); return 0; }'>
+		<meta name="keywords" content="subspace,c,mixed-formulation">
+		<link rel="stylesheet" type="text/css" href="../../qa-theme/Snow/qa-styles.css">
+		<link rel="canonical" href="http://fenicsproject.org/qa/11414/create-function-living-in-subspace-of-product-of-spaces">
+		<script type="text/x-mathjax-config">
+  MathJax.Hub.Config({
+    extensions: ["tex2jax.js"],
+    jax: ["input/TeX","output/HTML-CSS"],
+    tex2jax: {inlineMath: [["$","$"],["\\(","\\)"]]},
+    TeX: { extensions: ["AMSmath.js","AMSsymbols.js"]}
+  });
+</script>
+<script type="text/javascript" src="../../mathjax/MathJax.js"></script>
+		<script src="../../jquery-1.7.2.min.js" type="text/javascript"></script>
+		<script src="../../highlight.min.js"></script>
+<script type="text/javascript">
+$(function(){
+	$('.wmd-input').keypress(function(){
+		window.clearTimeout(hljs.Timeout);
+		hljs.Timeout = window.setTimeout(function() {
+			hljs.initHighlighting.called = false;
+			hljs.initHighlighting();
+		}, 500);
+	});
+	window.setTimeout(function() {
+		hljs.initHighlighting.called = false;
+		hljs.initHighlighting();
+	}, 500);
+});
+</script>
+
+
+	</head>
+	<body class="qa-template-question qa-body-js-off">
+		<div class="qa-body-wrapper">
+			
+			<div class="qa-header">
+				<div class="qa-logo">
+					<a href="../../" class="qa-logo-link" title="FEniCS Q&amp;A"><img src="../../qa-theme/fenics_qa.png" border="0" alt="FEniCS Q&amp;A"></a>
+				</div>
+				<div class="qa-header-clear">
+				</div>
+			</div> <!-- END qa-header -->
+			
+			<div class="qa-main-shadow">
+				
+				<div class="qa-main-wrapper">
+					
+					<div class="qa-sidepanel">
+						<div class="qa-sidebar">
+							This is a read only copy of the old FEniCS QA forum. Please visit the <a href="https://www.allanswered.com/community/s/fenics-project/">new QA forum</a> to ask questions
+						</div>
+						
+					</div>
+					
+					<div class="qa-main">
+						<h1>
+							<span class="entry-title">Create function living in subspace of product of spaces</span>
+						</h1>
+						<div class="qa-part-q-view">
+							<div class="qa-q-view  hentry question" id="q11414">
+								<form method="post" action="../../11414/create-function-living-in-subspace-of-product-of-spaces">
+									<div class="qa-q-view-stats">
+										<div class="qa-voting qa-voting-net" id="voting_11414">
+											<div class="qa-vote-count qa-vote-count-net">
+												<span class="qa-netvote-count">
+													<span class="qa-netvote-count-data">0<span class="votes-up"><span class="value-title" title="0"></span></span><span class="votes-down"><span class="value-title" title="0"></span></span></span><span class="qa-netvote-count-pad"> votes</span>
+												</span>
+											</div>
+											<div class="qa-vote-clear">
+											</div>
+										</div>
+									</div>
+									<input type="hidden" name="code" value="0-1516467765-a6e8ba699882243f48704055c410eb1a30ce6199">
+								</form>
+								<div class="qa-q-view-main">
+									<form method="post" action="../../11414/create-function-living-in-subspace-of-product-of-spaces">
+										<div class="qa-q-view-content">
+											<a name="11414"></a><div class="entry-content"><p>I am working with a mixed formulation problem, where in my .ufl file I defined </p>
+
+<pre><code>V = FiniteElement("Lagrange", triangle, 1)
+W = V*V
+</code></pre>
+
+<p>In the .cpp file I obtain a solution $p$ living in the dual space W which components I can plot without concern</p>
+
+<pre><code>Function p(W);
+solve(a == L, p, bcs);  
+
+Function&amp; p1 = p[0];
+Function&amp; p2 = p[1];
+
+plot(p1,"Real part");
+plot(p2,"Imaginary part");
+interactive();
+</code></pre>
+
+<p>I would now like to plot the sources as well, so I tried doing</p>
+
+<pre><code>Function f1(W-&gt;sub(0));
+Function f2(W-&gt;sub(1));
+
+Source1 source1;
+Source2 source2;
+
+f1.interpolate(source1);
+f2.interpolate(source2);
+</code></pre>
+
+<p>But I get the error</p>
+
+<pre><code>Error:   Unable to create function.
+Reason:  Cannot be created from subspace. Consider collapsing the function space.
+</code></pre>
+
+<p>So, how do I access (or define) a subspace of my dual space?</p>
+
+<hr>
+
+<p>As a small (not) working example consider</p>
+
+<pre><code># Compile this form with FFC: ffc -l dolfin Complex.ufl.
+
+V = FiniteElement("CG", triangle, 1)
+W = V*V
+
+(u_r, u_i)      = TrialFunction(W)
+(v_r, v_i)      = TestFunction(W)
+f_r                     = Coefficient(V)
+f_i                     = Coefficient(V)
+
+a_r = inner(grad(u_r),grad(v_r))*dx - inner(grad(u_i),grad(v_i))*dx
+a_i = inner(grad(u_r),grad(v_i))*dx + inner(grad(u_i),grad(v_r))*dx
+
+L_r = inner(f_r,v_r)*dx - inner(f_i,v_i)*dx
+L_i = inner(f_r, v_i)*dx + inner(f_i,v_r)*dx
+
+a = a_r + a_i
+L = L_r + L_i
+</code></pre>
+
+<hr>
+
+<pre><code>#include &lt;dolfin.h&gt;
+#include "Complex.h"
+#include &lt;mshr.h&gt;
+
+using namespace dolfin;
+
+// Source term
+class SourceReal : public Expression
+{
+    public:
+  void eval(Array&lt;double&gt;&amp; values, const Array&lt;double&gt;&amp; x) const
+  {
+    values[0] = cos(2*DOLFIN_PI * x[0]);
+  }
+};
+
+class SourceImag : public Expression
+{
+    public:
+  void eval(Array&lt;double&gt;&amp; values, const Array&lt;double&gt;&amp; x) const
+  {
+    values[0] = sin(2*DOLFIN_PI * x[0]);
+  }
+};
+
+class BoundaryValue : public Expression
+{
+    public:
+  void eval(Array&lt;double&gt;&amp; values, const Array&lt;double&gt;&amp; x) const
+  {
+    values[0] = 0.0;
+  }
+};
+
+// Sub domains for Dirichlet boundary conditions
+class DirichletBCBox : public SubDomain
+{
+  bool inside(const Array&lt;double&gt;&amp; x, bool on_boundary) const
+  {
+    return ((x[0] &lt; -1 + sqrt(DOLFIN_EPS) or x[0] &gt; 1 - sqrt(DOLFIN_EPS) or x[1] &lt; 1 + sqrt(DOLFIN_EPS) or x[1] &gt; 1 - sqrt(DOLFIN_EPS)) and on_boundary);
+  }
+};
+
+
+int main()
+{
+
+    //File file("results/Round_no_cloak.pvd");
+
+    // Mesh definition
+    auto rectangle = std::make_shared&lt;mshr::Rectangle&gt;(dolfin::Point(-1.0, 1.0, 0.0), dolfin::Point(1.0, -1.0, 0.0));
+    auto mesh = mshr::generate_mesh(*rectangle, 100);
+
+    auto W = std::make_shared&lt;Complex::FunctionSpace&gt;(mesh);
+
+    auto f_real = std::make_shared&lt;SourceReal&gt;();
+    auto f_imag = std::make_shared&lt;SourceImag&gt;();
+
+    auto boundary = std::make_shared&lt;DirichletBCBox&gt;();
+
+    DirichletBC bc1(W-&gt;sub(0), std::make_shared&lt;BoundaryValue&gt;(), boundary);
+    DirichletBC bc2(W-&gt;sub(1), std::make_shared&lt;BoundaryValue&gt;(), boundary);
+    std::vector&lt;const DirichletBC*&gt; bcs;
+    bcs.push_back(&amp;bc1);
+    bcs.push_back(&amp;bc2);
+
+    Complex::BilinearForm a(W, W);
+    Complex::LinearForm L(W);
+
+    L.f_r = f_real;
+    L.f_i = f_imag;
+
+  Function w(W);
+  solve(a == L, w, bcs);
+
+  // Extract sub functions (function views)
+  Function&amp; u_real = w[0];
+  Function&amp; u_imag = w[1];
+
+    plot(u_real,"Real part");
+  plot(u_imag,"Imaginary part");
+
+  Function p_real(W-&gt;sub(0));
+    Function p_imag(W-&gt;sub(1)); 
+
+    SourceReal source1;
+    SourceImag source2;
+
+    p_real.interpolate(source1);
+    p_imag.interpolate(source2);
+
+    plot(p_real);
+    interactive();
+
+  return 0;
+}
+</code></pre>
+</div>
+										</div>
+										<div class="qa-q-view-tags">
+											<ul class="qa-q-view-tag-list">
+												<li class="qa-q-view-tag-item"><a href="../../tag/subspace" rel="tag" class="qa-tag-link">subspace</a></li>
+												<li class="qa-q-view-tag-item"><a href="../../tag/c" rel="tag" class="qa-tag-link">c</a></li>
+												<li class="qa-q-view-tag-item"><a href="../../tag/mixed-formulation" rel="tag" class="qa-tag-link">mixed-formulation</a></li>
+											</ul>
+										</div>
+										<span class="qa-q-view-avatar-meta">
+											<span class="qa-q-view-meta">
+												<a href="../../11414/create-function-living-in-subspace-of-product-of-spaces" class="qa-q-view-what">asked</a>
+												<span class="qa-q-view-when">
+													<span class="qa-q-view-when-data"><span class="published"><span class="value-title" title="2016-10-18T12:13:51+0000"></span>Oct 18, 2016</span></span>
+												</span>
+												<span class="qa-q-view-who">
+													<span class="qa-q-view-who-pad">by </span>
+													<span class="qa-q-view-who-data"><span class="vcard author"><a href="../../user/anfneub" class="qa-user-link url nickname">anfneub</a></span></span>
+													<span class="qa-q-view-who-title">FEniCS Novice</span>
+													<span class="qa-q-view-who-points">
+														<span class="qa-q-view-who-points-pad">(</span><span class="qa-q-view-who-points-data">580</span><span class="qa-q-view-who-points-pad"> points)</span>
+													</span>
+												</span>
+												<br>
+												<span class="qa-q-view-what">edited</span>
+												<span class="qa-q-view-when">
+													<span class="qa-q-view-when-data"><span class="updated"><span class="value-title" title="2016-10-18T16:19:02+0000"></span>Oct 18, 2016</span></span>
+												</span>
+												<span class="qa-q-view-who">
+													<span class="qa-q-view-who-pad">by </span><span class="qa-q-view-who-data"><a href="../../user/anfneub" class="qa-user-link url nickname">anfneub</a></span>
+												</span>
+											</span>
+										</span>
+										<div class="qa-q-view-buttons">
+										</div>
+										
+										<div class="qa-q-view-c-list" id="c11414_list">
+											<div class="qa-c-list-item  hentry comment" id="c11423">
+												<div class="qa-c-item-content">
+													<a name="11423"></a><div class="entry-content"><p>In the end I decided to create a Test.ufl file containing the definition of V plus some random terms a and L and call it in my .cpp file.   </p>
+
+<pre><code>auto W = std::make_shared&lt;Cloaking::FunctionSpace&gt;(mesh);
+auto V = std::make_shared&lt;Test::FunctionSpace&gt;(mesh);
+</code></pre>
+
+<p>So I can now plot my function easily </p>
+
+<pre><code>Function p_real(V);
+Function p_imag(V);
+
+Source1 source1;
+Source2 source2;
+
+p_real.interpolate(source1);
+p_imag.interpolate(source2);
+</code></pre>
+
+<hr>
+
+<p>However, I now want to examine the sum of my previous function, i.e.</p>
+
+<pre><code>Function q_real(V);
+Function q_imag(V);
+
+q_real = u_real + p_real;
+q_imag = u_imag + p_imag;
+</code></pre>
+
+<p>But this generates the error </p>
+
+<pre><code>*** Error:   Unable to Construct FunctionAXPY.
+*** Reason:  Expected Functions to be in the same FunctionSpace.
+*** Where:   This error was encountered inside FunctionAXPY.cpp.
+*** Process: 0
+</code></pre>
+
+<p>since FEniCS does not seem to recognize my functions to be in the same space, although they ARE.</p>
+</div>
+												</div>
+												<div class="qa-c-item-footer">
+													<span class="qa-c-item-avatar-meta">
+														<span class="qa-c-item-meta">
+															<a href="../../11414/create-function-living-in-subspace-of-product-of-spaces?show=11423#c11423" class="qa-c-item-what">commented</a>
+															<span class="qa-c-item-when">
+																<span class="qa-c-item-when-data"><span class="published"><span class="value-title" title="2016-10-19T09:01:20+0000"></span>Oct 19, 2016</span></span>
+															</span>
+															<span class="qa-c-item-who">
+																<span class="qa-c-item-who-pad">by </span>
+																<span class="qa-c-item-who-data"><span class="vcard author"><a href="../../user/anfneub" class="qa-user-link url nickname">anfneub</a></span></span>
+																<span class="qa-c-item-who-title">FEniCS Novice</span>
+																<span class="qa-c-item-who-points">
+																	<span class="qa-c-item-who-points-pad">(</span><span class="qa-c-item-who-points-data">580</span><span class="qa-c-item-who-points-pad"> points)</span>
+																</span>
+															</span>
+														</span>
+													</span>
+													<div class="qa-c-item-buttons">
+													</div>
+												</div>
+												<div class="qa-c-item-clear">
+												</div>
+											</div> <!-- END qa-c-item -->
+										</div> <!-- END qa-c-list -->
+										
+										<input type="hidden" name="code" value="0-1516467765-56210ce7827f9f4faa0dd286c044435e6f1d3266">
+										<input type="hidden" name="qa_click" value="">
+									</form>
+									<div class="qa-c-form">
+									</div> <!-- END qa-c-form -->
+									
+								</div> <!-- END qa-q-view-main -->
+								<div class="qa-q-view-clear">
+								</div>
+							</div> <!-- END qa-q-view -->
+							
+						</div>
+						<div class="qa-part-a-list">
+							<h2 id="a_list_title">1 Answer</h2>
+							<div class="qa-a-list" id="a_list">
+								
+								<div class="qa-a-list-item  hentry answer answer-selected qa-a-list-item-selected" id="a11426">
+									<form method="post" action="../../11414/create-function-living-in-subspace-of-product-of-spaces">
+										<div class="qa-voting qa-voting-net" id="voting_11426">
+											<div class="qa-vote-count qa-vote-count-net">
+												<span class="qa-netvote-count">
+													<span class="qa-netvote-count-data">+1<span class="votes-up"><span class="value-title" title="1"></span></span><span class="votes-down"><span class="value-title" title="0"></span></span></span><span class="qa-netvote-count-pad"> vote</span>
+												</span>
+											</div>
+											<div class="qa-vote-clear">
+											</div>
+										</div>
+										<input type="hidden" name="code" value="0-1516467765-a6e8ba699882243f48704055c410eb1a30ce6199">
+									</form>
+									<div class="qa-a-item-main">
+										<form method="post" action="../../11414/create-function-living-in-subspace-of-product-of-spaces">
+											<div class="qa-a-item-selected">
+												<div class="qa-a-selection">
+													<div class="qa-a-selected">&#160;</div>
+													<div class="qa-a-selected-text">Best answer</div>
+												</div>
+												<div class="qa-a-item-content">
+													<a name="11426"></a><div class="entry-content"><pre><code>Reason:  Cannot be created from subspace. Consider collapsing the function space.
+</code></pre>
+
+<p>As the error says, you need to "collapse" the subspace. Try</p>
+
+<pre><code>Function f1(W-&gt;sub(0)-&gt;collapse());
+</code></pre>
+</div>
+												</div>
+												<span class="qa-a-item-avatar-meta">
+													<span class="qa-a-item-meta">
+														<a href="../../11414/create-function-living-in-subspace-of-product-of-spaces?show=11426#a11426" class="qa-a-item-what">answered</a>
+														<span class="qa-a-item-when">
+															<span class="qa-a-item-when-data"><span class="published"><span class="value-title" title="2016-10-19T17:35:35+0000"></span>Oct 19, 2016</span></span>
+														</span>
+														<span class="qa-a-item-who">
+															<span class="qa-a-item-who-pad">by </span>
+															<span class="qa-a-item-who-data"><span class="vcard author"><a href="../../user/dajuno" class="qa-user-link url nickname">dajuno</a></span></span>
+															<span class="qa-a-item-who-title">FEniCS User</span>
+															<span class="qa-a-item-who-points">
+																<span class="qa-a-item-who-points-pad">(</span><span class="qa-a-item-who-points-data">4,140</span><span class="qa-a-item-who-points-pad"> points)</span>
+															</span>
+														</span>
+														<br>
+														<span class="qa-a-item-what">selected</span>
+														<span class="qa-a-item-when">
+															<span class="qa-a-item-when-data"><span class="updated"><span class="value-title" title="2016-10-20T07:43:15+0000"></span>Oct 20, 2016</span></span>
+														</span>
+														<span class="qa-a-item-who">
+															<span class="qa-a-item-who-pad">by </span><span class="qa-a-item-who-data"><a href="../../user/anfneub" class="qa-user-link url nickname">anfneub</a></span>
+														</span>
+													</span>
+												</span>
+											</div>
+											<div class="qa-a-item-buttons">
+												</div>
+											
+											<div class="qa-a-item-c-list" id="c11426_list">
+												<div class="qa-c-list-item  hentry comment" id="c11427">
+													<div class="qa-c-item-content">
+														<a name="11427"></a><div class="entry-content"><p>Thank you for your answer!</p>
+
+<p>I thought collapsing meant some obscure mathematical idea, I didn't even check if there was a method with that name.</p>
+
+<p>Anyway, I tried implementing your suggestion and I can now create function in the subspaces of W. However, new problems arise when I try to manipulate these functions. For instance, I'm interested in plotting the sum of the solution and the source, i.e.</p>
+
+<pre><code>    Function w(W);
+    solve(a == L, w, bcs);
+
+    Function&amp; w_r = w[0];
+    Function&amp; w_i = w[1];       
+
+    SourceReal source1;
+    SourceImag source2;
+
+    Function f_r(W-&gt;sub(0)-&gt;collapse());
+    Function f_i(W-&gt;sub(1)-&gt;collapse());
+    Function sum_r(W-&gt;sub(0)-&gt;collapse());
+    Function sum_i(W-&gt;sub(1)-&gt;collapse());
+    f_r.interpolate(source1);
+    f_i.interpolate(source2);
+
+    sum_r = w_r + f_r;
+    sum_i = w_i + f_i;
+
+        plot(w_r, "Solution real");
+        plot(w_i, "Solution imag");
+        plot(f_r, "Source real");
+        plot(f_i, "Source imag");
+        plot(sum_r, "Sum real");
+        plot(sum_i, "Sum imag");
+
+    interactive();
+</code></pre>
+
+<p>The error I get seems to suggest FEniCS doesn't understand I'm dealing with the same space over and over :/</p>
+
+<pre><code>*** Error:   Unable to Construct FunctionAXPY.
+*** Reason:  Expected Functions to be in the same FunctionSpace.
+*** Where:   This error was encountered inside FunctionAXPY.cpp.
+*** Process: 0
+</code></pre>
+</div>
+													</div>
+													<div class="qa-c-item-footer">
+														<span class="qa-c-item-avatar-meta">
+															<span class="qa-c-item-meta">
+																<a href="../../11414/create-function-living-in-subspace-of-product-of-spaces?show=11427#c11427" class="qa-c-item-what">commented</a>
+																<span class="qa-c-item-when">
+																	<span class="qa-c-item-when-data"><span class="published"><span class="value-title" title="2016-10-19T18:04:03+0000"></span>Oct 19, 2016</span></span>
+																</span>
+																<span class="qa-c-item-who">
+																	<span class="qa-c-item-who-pad">by </span>
+																	<span class="qa-c-item-who-data"><span class="vcard author"><a href="../../user/anfneub" class="qa-user-link url nickname">anfneub</a></span></span>
+																	<span class="qa-c-item-who-title">FEniCS Novice</span>
+																	<span class="qa-c-item-who-points">
+																		<span class="qa-c-item-who-points-pad">(</span><span class="qa-c-item-who-points-data">580</span><span class="qa-c-item-who-points-pad"> points)</span>
+																	</span>
+																</span>
+															</span>
+														</span>
+														<div class="qa-c-item-buttons">
+														</div>
+													</div>
+													<div class="qa-c-item-clear">
+													</div>
+												</div> <!-- END qa-c-item -->
+												<div class="qa-c-list-item  hentry comment" id="c11429">
+													<div class="qa-c-item-content">
+														<a name="11429"></a><div class="entry-content"><p>You can't just add two functions, but you can add their attached vectors via "axpy"</p>
+
+<pre><code>*sum_r.vector() = *w_r.vector();
+*sum_r.vector() += *f_r.vector();
+# same for sum_i
+</code></pre>
+
+<p>This should work. Maybe there are better solutions, I don't really use c++!</p>
+</div>
+													</div>
+													<div class="qa-c-item-footer">
+														<span class="qa-c-item-avatar-meta">
+															<span class="qa-c-item-meta">
+																<a href="../../11414/create-function-living-in-subspace-of-product-of-spaces?show=11429#c11429" class="qa-c-item-what">commented</a>
+																<span class="qa-c-item-when">
+																	<span class="qa-c-item-when-data"><span class="published"><span class="value-title" title="2016-10-19T18:36:37+0000"></span>Oct 19, 2016</span></span>
+																</span>
+																<span class="qa-c-item-who">
+																	<span class="qa-c-item-who-pad">by </span>
+																	<span class="qa-c-item-who-data"><span class="vcard author"><a href="../../user/dajuno" class="qa-user-link url nickname">dajuno</a></span></span>
+																	<span class="qa-c-item-who-title">FEniCS User</span>
+																	<span class="qa-c-item-who-points">
+																		<span class="qa-c-item-who-points-pad">(</span><span class="qa-c-item-who-points-data">4,140</span><span class="qa-c-item-who-points-pad"> points)</span>
+																	</span>
+																</span>
+															</span>
+														</span>
+														<div class="qa-c-item-buttons">
+														</div>
+													</div>
+													<div class="qa-c-item-clear">
+													</div>
+												</div> <!-- END qa-c-item -->
+												<div class="qa-c-list-item  hentry comment" id="c11430">
+													<div class="qa-c-item-content">
+														<a name="11430"></a><div class="entry-content"><p>Again, thanks a lot.</p>
+
+<p>Seems like a good idea, but for now I have another error</p>
+
+<pre><code>*** Error:   Unable to access vector of degrees of freedom.
+*** Reason:  Cannot access a non-const vector from a subfunction.
+*** Where:   This error was encountered inside Function.cpp.
+*** Process: 0
+</code></pre>
+
+<p>I'll look into it more in detail again tomorrow.</p>
+</div>
+													</div>
+													<div class="qa-c-item-footer">
+														<span class="qa-c-item-avatar-meta">
+															<span class="qa-c-item-meta">
+																<a href="../../11414/create-function-living-in-subspace-of-product-of-spaces?show=11430#c11430" class="qa-c-item-what">commented</a>
+																<span class="qa-c-item-when">
+																	<span class="qa-c-item-when-data"><span class="published"><span class="value-title" title="2016-10-19T18:44:36+0000"></span>Oct 19, 2016</span></span>
+																</span>
+																<span class="qa-c-item-who">
+																	<span class="qa-c-item-who-pad">by </span>
+																	<span class="qa-c-item-who-data"><span class="vcard author"><a href="../../user/anfneub" class="qa-user-link url nickname">anfneub</a></span></span>
+																	<span class="qa-c-item-who-title">FEniCS Novice</span>
+																	<span class="qa-c-item-who-points">
+																		<span class="qa-c-item-who-points-pad">(</span><span class="qa-c-item-who-points-data">580</span><span class="qa-c-item-who-points-pad"> points)</span>
+																	</span>
+																</span>
+															</span>
+														</span>
+														<div class="qa-c-item-buttons">
+														</div>
+													</div>
+													<div class="qa-c-item-clear">
+													</div>
+												</div> <!-- END qa-c-item -->
+												<div class="qa-c-list-item  hentry comment" id="c11432">
+													<div class="qa-c-item-content">
+														<a name="11432"></a><div class="entry-content"><p>You were right, it works now!<br>
+I forgot a pointer somewhere which was invalidating the whole thing.</p>
+
+<p>Thank you so much for your help!</p>
+
+<p>For anyone who cares, here's complete code:</p>
+
+<pre><code>#include &lt;dolfin.h&gt;
+#include "Complex.h"
+#include &lt;mshr.h&gt;
+
+using namespace dolfin;
+
+// Source term
+class SourceReal : public Expression
+{
+    public:
+  void eval(Array&lt;double&gt;&amp; values, const Array&lt;double&gt;&amp; x) const
+  {
+    values[0] = cos(2*DOLFIN_PI * x[0]);
+  }
+};
+
+class SourceImag : public Expression
+{
+    public:
+  void eval(Array&lt;double&gt;&amp; values, const Array&lt;double&gt;&amp; x) const
+  {
+    values[0] = sin(2*DOLFIN_PI * x[0]);
+  }
+};
+
+class BoundaryValue : public Expression
+{
+    public:
+  void eval(Array&lt;double&gt;&amp; values, const Array&lt;double&gt;&amp; x) const
+  {
+    values[0] = 0.0;
+  }
+};
+
+// Sub domains for Dirichlet boundary conditions
+class DirichletBCBox : public SubDomain
+{
+  bool inside(const Array&lt;double&gt;&amp; x, bool on_boundary) const
+  {
+    return ((x[0] &lt; -1 + sqrt(DOLFIN_EPS) or x[0] &gt; 1 - sqrt(DOLFIN_EPS) or x[1] &lt; 1 + sqrt(DOLFIN_EPS) or x[1] &gt; 1 - sqrt(DOLFIN_EPS)) and on_boundary);
+  }
+};
+
+
+int main()
+{
+
+    //File file("results/Round_no_cloak.pvd");
+
+    // Mesh definition
+    auto rectangle = std::make_shared&lt;mshr::Rectangle&gt;(dolfin::Point(-1.0, 1.0, 0.0), dolfin::Point(1.0, -1.0, 0.0));
+    auto mesh = mshr::generate_mesh(*rectangle, 100);
+
+    auto W = std::make_shared&lt;Complex::FunctionSpace&gt;(mesh);
+    //auto V = W-&gt;sub(0);                                                                                           //This won't work 
+    //auto V = std::make_shared&lt;Test::FunctionSpace&gt;(mesh);
+
+    auto f_real = std::make_shared&lt;SourceReal&gt;();
+    auto f_imag = std::make_shared&lt;SourceImag&gt;();
+
+    auto boundary = std::make_shared&lt;DirichletBCBox&gt;();
+
+    DirichletBC bc1(W-&gt;sub(0), std::make_shared&lt;BoundaryValue&gt;(), boundary);
+    DirichletBC bc2(W-&gt;sub(1), std::make_shared&lt;BoundaryValue&gt;(), boundary);
+    std::vector&lt;const DirichletBC*&gt; bcs;
+    bcs.push_back(&amp;bc1);
+    bcs.push_back(&amp;bc2);
+
+    Complex::BilinearForm a(W, W);
+    Complex::LinearForm L(W);
+
+    L.f_r = f_real;
+    L.f_i = f_imag;
+
+        Function w(W);
+        solve(a == L, w, bcs);
+
+        Function w_r = w[0];
+        Function w_i = w[1];        
+
+    SourceReal source1;
+    SourceImag source2;
+
+    Function f_r(W-&gt;sub(0)-&gt;collapse());
+    Function f_i(W-&gt;sub(1)-&gt;collapse());
+    Function sum_r(W-&gt;sub(0)-&gt;collapse());
+    Function sum_i(W-&gt;sub(1)-&gt;collapse());
+    f_r.interpolate(source1);
+    f_i.interpolate(source2);
+
+        *sum_r.vector() = *w_r.vector();
+        *sum_r.vector() += *f_r.vector();
+        *sum_i.vector() = *w_i.vector();
+        *sum_i.vector() += *f_i.vector();
+
+        plot(w_r, "Solution real");
+        plot(w_i, "Solution imag");
+        plot(f_r, "Source real");
+        plot(f_i, "Source imag");
+        plot(sum_r, "Sum real");
+        plot(sum_i, "Sum imag");
+
+    interactive();
+
+  return 0;
+}
+</code></pre>
+</div>
+													</div>
+													<div class="qa-c-item-footer">
+														<span class="qa-c-item-avatar-meta">
+															<span class="qa-c-item-meta">
+																<a href="../../11414/create-function-living-in-subspace-of-product-of-spaces?show=11432#c11432" class="qa-c-item-what">commented</a>
+																<span class="qa-c-item-when">
+																	<span class="qa-c-item-when-data"><span class="published"><span class="value-title" title="2016-10-20T07:43:05+0000"></span>Oct 20, 2016</span></span>
+																</span>
+																<span class="qa-c-item-who">
+																	<span class="qa-c-item-who-pad">by </span>
+																	<span class="qa-c-item-who-data"><span class="vcard author"><a href="../../user/anfneub" class="qa-user-link url nickname">anfneub</a></span></span>
+																	<span class="qa-c-item-who-title">FEniCS Novice</span>
+																	<span class="qa-c-item-who-points">
+																		<span class="qa-c-item-who-points-pad">(</span><span class="qa-c-item-who-points-data">580</span><span class="qa-c-item-who-points-pad"> points)</span>
+																	</span>
+																</span>
+															</span>
+														</span>
+														<div class="qa-c-item-buttons">
+														</div>
+													</div>
+													<div class="qa-c-item-clear">
+													</div>
+												</div> <!-- END qa-c-item -->
+												<div class="qa-c-list-item  hentry comment" id="c11439">
+													<div class="qa-c-item-content">
+														<a name="11439"></a><div class="entry-content"><p>you're welcome, glad it worked!</p>
+</div>
+													</div>
+													<div class="qa-c-item-footer">
+														<span class="qa-c-item-avatar-meta">
+															<span class="qa-c-item-meta">
+																<a href="../../11414/create-function-living-in-subspace-of-product-of-spaces?show=11439#c11439" class="qa-c-item-what">commented</a>
+																<span class="qa-c-item-when">
+																	<span class="qa-c-item-when-data"><span class="published"><span class="value-title" title="2016-10-20T17:07:42+0000"></span>Oct 20, 2016</span></span>
+																</span>
+																<span class="qa-c-item-who">
+																	<span class="qa-c-item-who-pad">by </span>
+																	<span class="qa-c-item-who-data"><span class="vcard author"><a href="../../user/dajuno" class="qa-user-link url nickname">dajuno</a></span></span>
+																	<span class="qa-c-item-who-title">FEniCS User</span>
+																	<span class="qa-c-item-who-points">
+																		<span class="qa-c-item-who-points-pad">(</span><span class="qa-c-item-who-points-data">4,140</span><span class="qa-c-item-who-points-pad"> points)</span>
+																	</span>
+																</span>
+															</span>
+														</span>
+														<div class="qa-c-item-buttons">
+														</div>
+													</div>
+													<div class="qa-c-item-clear">
+													</div>
+												</div> <!-- END qa-c-item -->
+											</div> <!-- END qa-c-list -->
+											
+											<input type="hidden" name="code" value="0-1516467765-b9c2c371e8b6852e47772510e8641840d640c793">
+											<input type="hidden" name="qa_click" value="">
+										</form>
+										<div class="qa-c-form">
+										</div> <!-- END qa-c-form -->
+										
+									</div> <!-- END qa-a-item-main -->
+									<div class="qa-a-item-clear">
+									</div>
+								</div> <!-- END qa-a-list-item -->
+								
+							</div> <!-- END qa-a-list -->
+							
+						</div>
+					</div> <!-- END qa-main -->
+					
+				</div> <!-- END main-wrapper -->
+			</div> <!-- END main-shadow -->
+		</div> <!-- END body-wrapper -->
+		<!-- END footer-bottom-group -->
+		
+		<div style="position:absolute; left:-9999px; top:-9999px;">
+			<span id="qa-waiting-template" class="qa-waiting">...</span>
+		</div>
+	
+	
+
+</body><!-- Powered by Question2Answer - http://www.question2answer.org/ --></html>

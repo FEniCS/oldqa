@@ -1,0 +1,494 @@
+<html><!-- Powered by Question2Answer - http://www.question2answer.org/ --><head>
+		<meta http-equiv="content-type" content="text/html; charset=utf-8">
+		<title>How to apply Dirichlet boundary conditions using a matrix free method - FEniCS Q&amp;A</title>
+		<meta name="description" content='In a matrix-free method, there is no step like `A = assemble(a)` hence no `DirichletBC.apply( ... ("cg", "hypre_amg") solver.set_operators(A_B, P)'>
+		<meta name="keywords" content="boundary-conditions,matrix-free,krylov-solver">
+		<link rel="stylesheet" type="text/css" href="../../qa-theme/Snow/qa-styles.css">
+		<link rel="canonical" href="http://fenicsproject.org/qa/7954/apply-dirichlet-boundary-conditions-using-matrix-free-method">
+		<script type="text/x-mathjax-config">
+  MathJax.Hub.Config({
+    extensions: ["tex2jax.js"],
+    jax: ["input/TeX","output/HTML-CSS"],
+    tex2jax: {inlineMath: [["$","$"],["\\(","\\)"]]},
+    TeX: { extensions: ["AMSmath.js","AMSsymbols.js"]}
+  });
+</script>
+<script type="text/javascript" src="../../mathjax/MathJax.js"></script>
+		<script src="../../jquery-1.7.2.min.js" type="text/javascript"></script>
+		<script src="../../highlight.min.js"></script>
+<script type="text/javascript">
+$(function(){
+	$('.wmd-input').keypress(function(){
+		window.clearTimeout(hljs.Timeout);
+		hljs.Timeout = window.setTimeout(function() {
+			hljs.initHighlighting.called = false;
+			hljs.initHighlighting();
+		}, 500);
+	});
+	window.setTimeout(function() {
+		hljs.initHighlighting.called = false;
+		hljs.initHighlighting();
+	}, 500);
+});
+</script>
+
+
+	</head>
+	<body class="qa-template-question qa-body-js-off">
+		<div class="qa-body-wrapper">
+			
+			<div class="qa-header">
+				<div class="qa-logo">
+					<a href="../../" class="qa-logo-link" title="FEniCS Q&amp;A"><img src="../../qa-theme/fenics_qa.png" border="0" alt="FEniCS Q&amp;A"></a>
+				</div>
+				<div class="qa-header-clear">
+				</div>
+			</div> <!-- END qa-header -->
+			
+			<div class="qa-main-shadow">
+				
+				<div class="qa-main-wrapper">
+					
+					<div class="qa-sidepanel">
+						<div class="qa-sidebar">
+							This is a read only copy of the old FEniCS QA forum. Please visit the <a href="https://www.allanswered.com/community/s/fenics-project/">new QA forum</a> to ask questions
+						</div>
+						
+					</div>
+					
+					<div class="qa-main">
+						<h1>
+							<span class="entry-title">How to apply Dirichlet boundary conditions using a matrix free method</span>
+						</h1>
+						<div class="qa-part-q-view">
+							<div class="qa-q-view  hentry question" id="q7954">
+								<form method="post" action="../../7954/apply-dirichlet-boundary-conditions-using-matrix-free-method">
+									<div class="qa-q-view-stats">
+										<div class="qa-voting qa-voting-net" id="voting_7954">
+											<div class="qa-vote-count qa-vote-count-net">
+												<span class="qa-netvote-count">
+													<span class="qa-netvote-count-data">0<span class="votes-up"><span class="value-title" title="0"></span></span><span class="votes-down"><span class="value-title" title="0"></span></span></span><span class="qa-netvote-count-pad"> votes</span>
+												</span>
+											</div>
+											<div class="qa-vote-clear">
+											</div>
+										</div>
+									</div>
+									<input type="hidden" name="code" value="0-1516468147-2cc05441617dd1d1be068a062f73c3007ff68c38">
+								</form>
+								<div class="qa-q-view-main">
+									<form method="post" action="../../7954/apply-dirichlet-boundary-conditions-using-matrix-free-method">
+										<div class="qa-q-view-content">
+											<a name="7954"></a><div class="entry-content"><p>In a matrix-free method, there is no step like <code>A = assemble(a)</code> hence no <code>DirichletBC.apply(A)</code>. The <code>PETScKrylovSolver</code> takes no boundary condition argument. How to apply a Dirichlet boundary condition in this case?</p>
+
+<p>(example from <a rel="nofollow" href="http://fenicsproject.org/qa/7541/ufl-unsupported-operand-type-s-for-form-and-form)">http://fenicsproject.org/qa/7541/ufl-unsupported-operand-type-s-for-form-and-form)</a></p>
+
+<pre><code>a = inner(grad(u), grad(v))* dx
+b = f * v * ds(1)
+p = a + u * v * dx
+
+A = assemble(a)
+B = assemble(b)
+P = assemble(p)
+
+class CompositeOperator(object):
+    def __init__(self, A, B):
+        self.A_mat = as_backend_type(A).mat()
+        self.B_vec = as_backend_type(B).vec()
+    def mult(self, mat, x, y):
+        self.A_mat.mult(x, y)
+        a = self.B_vec.dot(x)
+        y.axpy(a, self.B_vec)
+
+    def as_petscmatrix(self):
+        from petsc4py import PETSc
+        mat = PETSc.Mat().createPython(self.A_mat.getSizes(), 
+                                       comm = mpi_comm_world())
+
+        mat.setPythonContext(self)
+        return PETScMatrix(mat)
+
+
+A_B = CompositeOperator(A, B).as_petscmatrix()
+
+solver = PETScKrylovSolver("cg", "hypre_amg")
+solver.set_operators(A_B, P)
+</code></pre>
+</div>
+										</div>
+										<div class="qa-q-view-tags">
+											<ul class="qa-q-view-tag-list">
+												<li class="qa-q-view-tag-item"><a href="../../tag/boundary-conditions" rel="tag" class="qa-tag-link">boundary-conditions</a></li>
+												<li class="qa-q-view-tag-item"><a href="../../tag/matrix-free" rel="tag" class="qa-tag-link">matrix-free</a></li>
+												<li class="qa-q-view-tag-item"><a href="../../tag/krylov-solver" rel="tag" class="qa-tag-link">krylov-solver</a></li>
+											</ul>
+										</div>
+										<span class="qa-q-view-avatar-meta">
+											<span class="qa-q-view-meta">
+												<a href="../../7954/apply-dirichlet-boundary-conditions-using-matrix-free-method" class="qa-q-view-what">asked</a>
+												<span class="qa-q-view-when">
+													<span class="qa-q-view-when-data"><span class="published"><span class="value-title" title="2015-08-28T16:13:22+0000"></span>Aug 28, 2015</span></span>
+												</span>
+												<span class="qa-q-view-who">
+													<span class="qa-q-view-who-pad">by </span>
+													<span class="qa-q-view-who-data"><span class="vcard author"><a href="../../user/maartent" class="qa-user-link url nickname">maartent</a></span></span>
+													<span class="qa-q-view-who-title">FEniCS User</span>
+													<span class="qa-q-view-who-points">
+														<span class="qa-q-view-who-points-pad">(</span><span class="qa-q-view-who-points-data">3,910</span><span class="qa-q-view-who-points-pad"> points)</span>
+													</span>
+												</span>
+											</span>
+										</span>
+										<div class="qa-q-view-buttons">
+										</div>
+										
+										<div class="qa-q-view-c-list" id="c7954_list">
+											<div class="qa-c-list-item  hentry comment" id="c7962">
+												<div class="qa-c-item-content">
+													<a name="7962"></a><div class="entry-content"><p>Hi, you could consider the <a rel="nofollow" href="https://bitbucket.org/fenics-project/dolfin/src/master/dolfin/fem/DirichletBC.h?at=master#DirichletBC.h-334">get_boundary_values</a> of the <code>DirichletBC</code> class and use the map(boundary dofs and boundary values) to modify the matvec/mult methods of your operators.</p>
+</div>
+												</div>
+												<div class="qa-c-item-footer">
+													<span class="qa-c-item-avatar-meta">
+														<span class="qa-c-item-avatar">
+															<a href="../../user/MiroK" class="qa-avatar-link"><img src="https://www.gravatar.com/avatar/f566be3274ec73e3a6dda27bca11631c?s=20" width="20" height="20" class="qa-avatar-image" alt=""></a>
+														</span>
+														<span class="qa-c-item-meta">
+															<a href="../../7954/apply-dirichlet-boundary-conditions-using-matrix-free-method?show=7962#c7962" class="qa-c-item-what">commented</a>
+															<span class="qa-c-item-when">
+																<span class="qa-c-item-when-data"><span class="published"><span class="value-title" title="2015-08-29T19:50:00+0000"></span>Aug 29, 2015</span></span>
+															</span>
+															<span class="qa-c-item-who">
+																<span class="qa-c-item-who-pad">by </span>
+																<span class="qa-c-item-who-data"><span class="vcard author"><a href="../../user/MiroK" class="qa-user-link url nickname">MiroK</a></span></span>
+																<span class="qa-c-item-who-title">FEniCS Expert</span>
+																<span class="qa-c-item-who-points">
+																	<span class="qa-c-item-who-points-pad">(</span><span class="qa-c-item-who-points-data">80,920</span><span class="qa-c-item-who-points-pad"> points)</span>
+																</span>
+															</span>
+														</span>
+													</span>
+													<div class="qa-c-item-buttons">
+													</div>
+												</div>
+												<div class="qa-c-item-clear">
+												</div>
+											</div> <!-- END qa-c-item -->
+										</div> <!-- END qa-c-list -->
+										
+										<input type="hidden" name="code" value="0-1516468147-2c8f84867e45cef767704ea9e3fa5c99b48773a8">
+										<input type="hidden" name="qa_click" value="">
+									</form>
+									<div class="qa-c-form">
+									</div> <!-- END qa-c-form -->
+									
+								</div> <!-- END qa-q-view-main -->
+								<div class="qa-q-view-clear">
+								</div>
+							</div> <!-- END qa-q-view -->
+							
+						</div>
+						<div class="qa-part-a-list">
+							<h2 id="a_list_title">1 Answer</h2>
+							<div class="qa-a-list" id="a_list">
+								
+								<div class="qa-a-list-item  hentry answer answer-selected qa-a-list-item-selected" id="a7979">
+									<form method="post" action="../../7954/apply-dirichlet-boundary-conditions-using-matrix-free-method">
+										<div class="qa-voting qa-voting-net" id="voting_7979">
+											<div class="qa-vote-count qa-vote-count-net">
+												<span class="qa-netvote-count">
+													<span class="qa-netvote-count-data">0<span class="votes-up"><span class="value-title" title="0"></span></span><span class="votes-down"><span class="value-title" title="0"></span></span></span><span class="qa-netvote-count-pad"> votes</span>
+												</span>
+											</div>
+											<div class="qa-vote-clear">
+											</div>
+										</div>
+										<input type="hidden" name="code" value="0-1516468147-2cc05441617dd1d1be068a062f73c3007ff68c38">
+									</form>
+									<div class="qa-a-item-main">
+										<form method="post" action="../../7954/apply-dirichlet-boundary-conditions-using-matrix-free-method">
+											<div class="qa-a-item-selected">
+												<div class="qa-a-selection">
+													<div class="qa-a-selected">&#160;</div>
+													<div class="qa-a-selected-text">Best answer</div>
+												</div>
+												<div class="qa-a-item-content">
+													<a name="7979"></a><div class="entry-content"><p>When you apply DirichletBC to a matrix, the diagonal entries for the relevant dofs are set to 1, and all off-diagonal entries in the same rows are set to zero. For your operator you get the same effect by applying DirichletBC to the matrix A and modifying the operator to take two vectors, with homogenized BC applied to one of them.</p>
+
+<p>Note that this approach breaks symmetry.</p>
+
+<pre><code>a = inner(grad(u), grad(v))* dx
+b = f * v * ds(1)
+p = a + u * v * dx
+
+A = assemble(a)
+B = assemble(b)
+P = assemble(p)
+
+class CompositeOperator(object):
+    def __init__(self, A, B, C):
+        self.A_mat = as_backend_type(A).mat()
+        self.B_vec = as_backend_type(B).vec()
+        self.C_vec = as_backend_type(C).vec()
+
+    def mult(self, mat, x, y):
+        self.A_mat.mult(x, y)
+        a = self.C_vec.dot(x)
+        y.axpy(a, self.B_vec)
+
+    def as_petscmatrix(self):
+        from petsc4py import PETSc
+        mat = PETSc.Mat().createPython(self.A_mat.getSizes(), 
+                                       comm = mpi_comm_world())
+
+        mat.setPythonContext(self)
+        return PETScMatrix(mat)
+
+# Apply boundary conditions
+bc = DirichletBC(V, 1., "x[1]&lt;DOLFIN_EPS")
+bc.apply(A)
+bc.apply(P)
+C = B.copy()
+bc.homogenize()
+bc.apply(B)
+
+
+A_B = CompositeOperator(A, B, C).as_petscmatrix()
+
+solver = PETScKrylovSolver("cg", "hypre_amg")
+solver.set_operators(A_B, P)
+</code></pre>
+
+<p>You have to apply the DirichletBC to the right hand side before homogenizing it.</p>
+</div>
+												</div>
+												<span class="qa-a-item-avatar-meta">
+													<span class="qa-a-item-meta">
+														<a href="../../7954/apply-dirichlet-boundary-conditions-using-matrix-free-method?show=7979#a7979" class="qa-a-item-what">answered</a>
+														<span class="qa-a-item-when">
+															<span class="qa-a-item-when-data"><span class="published"><span class="value-title" title="2015-08-31T09:00:50+0000"></span>Aug 31, 2015</span></span>
+														</span>
+														<span class="qa-a-item-who">
+															<span class="qa-a-item-who-pad">by </span>
+															<span class="qa-a-item-who-data"><span class="vcard author"><a href="../../user/Magne+Nordaas" class="qa-user-link url nickname">Magne Nordaas</a></span></span>
+															<span class="qa-a-item-who-title">FEniCS Expert</span>
+															<span class="qa-a-item-who-points">
+																<span class="qa-a-item-who-points-pad">(</span><span class="qa-a-item-who-points-data">13,820</span><span class="qa-a-item-who-points-pad"> points)</span>
+															</span>
+														</span>
+														<br>
+														<span class="qa-a-item-what">selected</span>
+														<span class="qa-a-item-when">
+															<span class="qa-a-item-when-data"><span class="updated"><span class="value-title" title="2015-09-01T15:22:52+0000"></span>Sep 1, 2015</span></span>
+														</span>
+														<span class="qa-a-item-who">
+															<span class="qa-a-item-who-pad">by </span><span class="qa-a-item-who-data"><a href="../../user/maartent" class="qa-user-link url nickname">maartent</a></span>
+														</span>
+													</span>
+												</span>
+											</div>
+											<div class="qa-a-item-buttons">
+												</div>
+											
+											<div class="qa-a-item-c-list" id="c7979_list">
+												<div class="qa-c-list-item  hentry comment" id="c7985">
+													<div class="qa-c-item-content">
+														<a name="7985"></a><div class="entry-content"><p>That seems like a good solution. Two problems still though: </p>
+
+<p>1) In my example, I have several matrices <code>A</code> in the <code>CompositeOperator</code> object, so I should apply the boundary condition to one of them, and somehow make the corresponding rows in the others zero (including the diagonal element). Another option would be to multiply the Dirichlet values by the amount of such matrices <code>A</code>. Neither seems like an elegant solution though?</p>
+
+<p>2) I added some lines to make the sample code executable. I also set the Krylov method and preconditioner to default since 'hypre_amg' is not installed. When running the code below, I get:</p>
+
+<pre><code>*** Error:   Unable to successfully call PETSc function 'KSPSolve'.
+*** Reason:  PETSc error code is: 73.
+*** Where:   This error was encountered inside /home/juanlu/miniconda/conda-bld/work/dolfin-1.4.0/dolfin/la/PETScKrylovSolver.cpp.
+*** Process: unknown
+*** 
+*** DOLFIN version: 1.4.0
+*** Git changeset:  
+</code></pre>
+
+<p>Granted, the example does not relate to anything physical, but why it doesn't work? Am I passing the wrong types to the solver? Or is it possible that there is an error in the build for anaconda: the folder /home/juanlu/... is not mine but probably belongs to the maintainer of fenics on anaconda?</p>
+
+<p>Thanks</p>
+
+<pre><code>from dolfin import *
+mesh = UnitSquareMesh(5, 5)
+V = FunctionSpace(mesh, 'CG', 1)
+u = TrialFunction(V)
+v = TestFunction(V)
+a = inner(grad(u), grad(v))* dx
+f = Expression('x[0]*x[1]')
+b = f * v * dx
+p = a + u * v * dx
+
+A = assemble(a)
+B = assemble(b)
+P = assemble(p)
+
+class CompositeOperator(object):
+    def __init__(self, A, B, C):
+        self.A_mat = as_backend_type(A).mat()
+        self.B_vec = as_backend_type(B).vec()
+        self.C_vec = as_backend_type(C).vec()
+
+    def mult(self, mat, x, y):
+        self.A_mat.mult(x, y)
+        a = self.C_vec.dot(x)
+        y.axpy(a, self.B_vec)
+
+    def as_petscmatrix(self):
+        from petsc4py import PETSc
+        mat = PETSc.Mat().createPython(self.A_mat.getSizes(),
+                                       comm = mpi_comm_world())
+
+        mat.setPythonContext(self)
+        return PETScMatrix(mat)
+
+# Apply boundary conditions
+bc = DirichletBC(V, 1., "x[1]&lt;DOLFIN_EPS")
+bc.apply(A)
+bc.apply(P)
+C = B.copy()
+bc.homogenize()
+bc.apply(B)
+
+
+A_B = CompositeOperator(A, B, C).as_petscmatrix()
+
+solver = PETScKrylovSolver('default', 'default')
+solver.set_operators(A_B, P)
+
+solution = Function(V)
+solver.solve(solution.vector(), C)
+</code></pre>
+</div>
+													</div>
+													<div class="qa-c-item-footer">
+														<span class="qa-c-item-avatar-meta">
+															<span class="qa-c-item-meta">
+																<a href="../../7954/apply-dirichlet-boundary-conditions-using-matrix-free-method?show=7985#c7985" class="qa-c-item-what">commented</a>
+																<span class="qa-c-item-when">
+																	<span class="qa-c-item-when-data"><span class="published"><span class="value-title" title="2015-08-31T13:41:43+0000"></span>Aug 31, 2015</span></span>
+																</span>
+																<span class="qa-c-item-who">
+																	<span class="qa-c-item-who-pad">by </span>
+																	<span class="qa-c-item-who-data"><span class="vcard author"><a href="../../user/maartent" class="qa-user-link url nickname">maartent</a></span></span>
+																	<span class="qa-c-item-who-title">FEniCS User</span>
+																	<span class="qa-c-item-who-points">
+																		<span class="qa-c-item-who-points-pad">(</span><span class="qa-c-item-who-points-data">3,910</span><span class="qa-c-item-who-points-pad"> points)</span>
+																	</span>
+																</span>
+																<br>
+																<span class="qa-c-item-what">edited</span>
+																<span class="qa-c-item-when">
+																	<span class="qa-c-item-when-data"><span class="updated"><span class="value-title" title="2015-08-31T13:51:00+0000"></span>Aug 31, 2015</span></span>
+																</span>
+																<span class="qa-c-item-who">
+																	<span class="qa-c-item-who-pad">by </span><span class="qa-c-item-who-data"><a href="../../user/maartent" class="qa-user-link url nickname">maartent</a></span>
+																</span>
+															</span>
+														</span>
+														<div class="qa-c-item-buttons">
+														</div>
+													</div>
+													<div class="qa-c-item-clear">
+													</div>
+												</div> <!-- END qa-c-item -->
+												<div class="qa-c-list-item  hentry comment" id="c7987">
+													<div class="qa-c-item-content">
+														<a name="7987"></a><div class="entry-content"><p>1) You can zero out the relevant rows of a matrix with </p>
+
+<pre><code>bc.zero(A)
+</code></pre>
+
+<p>Alternatively, you could assemble all the integrals into one matrix.</p>
+
+<p>I don't know what you would consider to be a more elegant solution? It breaks symmetry, but usually conjugate gradients still works fine with this kind of asymmetry.</p>
+
+<p>2) The code runs fine for me (dolfin master, petsc 3.5.4, petsc4py 3.5.1).</p>
+</div>
+													</div>
+													<div class="qa-c-item-footer">
+														<span class="qa-c-item-avatar-meta">
+															<span class="qa-c-item-meta">
+																<a href="../../7954/apply-dirichlet-boundary-conditions-using-matrix-free-method?show=7987#c7987" class="qa-c-item-what">commented</a>
+																<span class="qa-c-item-when">
+																	<span class="qa-c-item-when-data"><span class="published"><span class="value-title" title="2015-08-31T17:44:15+0000"></span>Aug 31, 2015</span></span>
+																</span>
+																<span class="qa-c-item-who">
+																	<span class="qa-c-item-who-pad">by </span>
+																	<span class="qa-c-item-who-data"><span class="vcard author"><a href="../../user/Magne+Nordaas" class="qa-user-link url nickname">Magne Nordaas</a></span></span>
+																	<span class="qa-c-item-who-title">FEniCS Expert</span>
+																	<span class="qa-c-item-who-points">
+																		<span class="qa-c-item-who-points-pad">(</span><span class="qa-c-item-who-points-data">13,820</span><span class="qa-c-item-who-points-pad"> points)</span>
+																	</span>
+																</span>
+															</span>
+														</span>
+														<div class="qa-c-item-buttons">
+														</div>
+													</div>
+													<div class="qa-c-item-clear">
+													</div>
+												</div> <!-- END qa-c-item -->
+												<div class="qa-c-list-item  hentry comment" id="c7995">
+													<div class="qa-c-item-content">
+														<a name="7995"></a><div class="entry-content"><p>1) Mathematically I have no problems with the solution (my problem is not symmetric to begin with anyway.) What I meant was not elegant in that it requires a user to abandon yet another abstraction level and manually edit rows corresponding to a <code>DirichletBC</code> object. Clearly, it was naive of me to believe the developers had not already provided a method to do just that :-) So thanks!</p>
+
+<p>2) It also works on my computer at home (1.6.0 from FEniCS PPA) so that must be a separate problem.</p>
+</div>
+													</div>
+													<div class="qa-c-item-footer">
+														<span class="qa-c-item-avatar-meta">
+															<span class="qa-c-item-meta">
+																<a href="../../7954/apply-dirichlet-boundary-conditions-using-matrix-free-method?show=7995#c7995" class="qa-c-item-what">commented</a>
+																<span class="qa-c-item-when">
+																	<span class="qa-c-item-when-data"><span class="published"><span class="value-title" title="2015-09-01T15:22:47+0000"></span>Sep 1, 2015</span></span>
+																</span>
+																<span class="qa-c-item-who">
+																	<span class="qa-c-item-who-pad">by </span>
+																	<span class="qa-c-item-who-data"><span class="vcard author"><a href="../../user/maartent" class="qa-user-link url nickname">maartent</a></span></span>
+																	<span class="qa-c-item-who-title">FEniCS User</span>
+																	<span class="qa-c-item-who-points">
+																		<span class="qa-c-item-who-points-pad">(</span><span class="qa-c-item-who-points-data">3,910</span><span class="qa-c-item-who-points-pad"> points)</span>
+																	</span>
+																</span>
+															</span>
+														</span>
+														<div class="qa-c-item-buttons">
+														</div>
+													</div>
+													<div class="qa-c-item-clear">
+													</div>
+												</div> <!-- END qa-c-item -->
+											</div> <!-- END qa-c-list -->
+											
+											<input type="hidden" name="code" value="0-1516468147-37647e9790efd15bf921b05a2f1d2b3dd77127c9">
+											<input type="hidden" name="qa_click" value="">
+										</form>
+										<div class="qa-c-form">
+										</div> <!-- END qa-c-form -->
+										
+									</div> <!-- END qa-a-item-main -->
+									<div class="qa-a-item-clear">
+									</div>
+								</div> <!-- END qa-a-list-item -->
+								
+							</div> <!-- END qa-a-list -->
+							
+						</div>
+					</div> <!-- END qa-main -->
+					
+				</div> <!-- END main-wrapper -->
+			</div> <!-- END main-shadow -->
+		</div> <!-- END body-wrapper -->
+		<!-- END footer-bottom-group -->
+		
+		<div style="position:absolute; left:-9999px; top:-9999px;">
+			<span id="qa-waiting-template" class="qa-waiting">...</span>
+		</div>
+	
+	
+
+</body><!-- Powered by Question2Answer - http://www.question2answer.org/ --></html>

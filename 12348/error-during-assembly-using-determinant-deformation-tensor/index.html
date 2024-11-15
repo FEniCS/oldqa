@@ -1,0 +1,311 @@
+<html><!-- Powered by Question2Answer - http://www.question2answer.org/ --><head>
+		<meta http-equiv="content-type" content="text/html; charset=utf-8">
+		<title>Error during assembly while using determinant of the deformation tensor F - FEniCS Q&amp;A</title>
+		<meta name="description" content='I am trying a solve a simple hyperelastic model where the energy is given by J*\bs{E}:\bs{E},  ... ) file_u = File("u.pvd") solver_u.solve() file_u'>
+		<meta name="keywords" content="assemblyerror,solid,mechanics,hyperelasticity,jacobian">
+		<link rel="stylesheet" type="text/css" href="../../qa-theme/Snow/qa-styles.css">
+		<link rel="canonical" href="http://fenicsproject.org/qa/12348/error-during-assembly-using-determinant-deformation-tensor">
+		<script type="text/x-mathjax-config">
+  MathJax.Hub.Config({
+    extensions: ["tex2jax.js"],
+    jax: ["input/TeX","output/HTML-CSS"],
+    tex2jax: {inlineMath: [["$","$"],["\\(","\\)"]]},
+    TeX: { extensions: ["AMSmath.js","AMSsymbols.js"]}
+  });
+</script>
+<script type="text/javascript" src="../../mathjax/MathJax.js"></script>
+		<script src="../../jquery-1.7.2.min.js" type="text/javascript"></script>
+		<script src="../../highlight.min.js"></script>
+<script type="text/javascript">
+$(function(){
+	$('.wmd-input').keypress(function(){
+		window.clearTimeout(hljs.Timeout);
+		hljs.Timeout = window.setTimeout(function() {
+			hljs.initHighlighting.called = false;
+			hljs.initHighlighting();
+		}, 500);
+	});
+	window.setTimeout(function() {
+		hljs.initHighlighting.called = false;
+		hljs.initHighlighting();
+	}, 500);
+});
+</script>
+
+
+	</head>
+	<body class="qa-template-question qa-body-js-off">
+		<div class="qa-body-wrapper">
+			
+			<div class="qa-header">
+				<div class="qa-logo">
+					<a href="../../" class="qa-logo-link" title="FEniCS Q&amp;A"><img src="../../qa-theme/fenics_qa.png" border="0" alt="FEniCS Q&amp;A"></a>
+				</div>
+				<div class="qa-header-clear">
+				</div>
+			</div> <!-- END qa-header -->
+			
+			<div class="qa-main-shadow">
+				
+				<div class="qa-main-wrapper">
+					
+					<div class="qa-sidepanel">
+						<div class="qa-sidebar">
+							This is a read only copy of the old FEniCS QA forum. Please visit the <a href="https://www.allanswered.com/community/s/fenics-project/">new QA forum</a> to ask questions
+						</div>
+						
+					</div>
+					
+					<div class="qa-main">
+						<h1>
+							<span class="entry-title">Error during assembly while using determinant of the deformation tensor F</span>
+						</h1>
+						<div class="qa-part-q-view">
+							<div class="qa-q-view  hentry question" id="q12348">
+								<form method="post" action="../../12348/error-during-assembly-using-determinant-deformation-tensor">
+									<div class="qa-q-view-stats">
+										<div class="qa-voting qa-voting-net" id="voting_12348">
+											<div class="qa-vote-count qa-vote-count-net">
+												<span class="qa-netvote-count">
+													<span class="qa-netvote-count-data">+1<span class="votes-up"><span class="value-title" title="1"></span></span><span class="votes-down"><span class="value-title" title="0"></span></span></span><span class="qa-netvote-count-pad"> vote</span>
+												</span>
+											</div>
+											<div class="qa-vote-clear">
+											</div>
+										</div>
+									</div>
+									<input type="hidden" name="code" value="0-1516467818-705442dee9010cfd56968bc9b41e343d2bbac099">
+								</form>
+								<div class="qa-q-view-main">
+									<form method="post" action="../../12348/error-during-assembly-using-determinant-deformation-tensor">
+										<div class="qa-q-view-content">
+											<a name="12348"></a><div class="entry-content"><p>I am trying a solve a simple hyperelastic model where the energy is given by J*\bs{E}:\bs{E}, where E is the small strain tensor and J is determinant of F = \bs{E} + \bs{I}.</p>
+
+<pre><code>from dolfin import *
+mesh = UnitSquareMesh(2, 2)
+S = FunctionSpace(mesh, 'CG', 1)
+V_u = VectorFunctionSpace(mesh, 'CG', 1)
+T = TensorFunctionSpace(mesh, 'CG', 1)
+
+#----------------------------------------------------------------------------
+# Define boundary sets for boundary conditions
+#----------------------------------------------------------------------------
+class Left(SubDomain):
+    def inside(self, x, on_boundary):
+        tol = 1E-5 # tolerance for coordinate comparisons
+        return on_boundary and abs(x[0] - 0) &lt; tol
+
+class Right(SubDomain):
+    def inside(self, x, on_boundary):
+        tol = 1E-5 # tolerance for coordinate comparisons
+        return on_boundary and abs(x[0] - 1) &lt; tol
+# Initialize sub-domain instances
+left = Left() 
+right = Right()
+# define meshfunction to identify boundaries by numbers
+boundaries = FacetFunction("size_t", mesh)
+boundaries.set_all(0)
+left.mark(boundaries, 1) # mark left as 1
+right.mark(boundaries, 2) # mark right as 2
+# Define new measure including boundary naming 
+ds = Measure("ds")[boundaries] # left: ds(1), right: ds(2)   
+def eps(v):
+    return sym(grad(v))
+# Define function spaces and test, trial functions
+u, du, v = Function(V_u), TrialFunction(V_u), TestFunction(V_u)
+
+# Define boundary condiition                                  
+zero = Constant(0.0)
+zero2 = Constant((0.0,0.0))
+# Dirichlet boundary condition for a traction test boundary
+u_L = zero2
+u_R = Expression(("0.0","0.02"),degree=1) 
+# Dispalcement boundary conditions
+bc1 = DirichletBC(V_u, u_L, boundaries, 1) 
+bc2 = DirichletBC(V_u, u_R, boundaries, 2) 
+bc_u = [bc1, bc2]
+# Formulation
+E = sym(grad(u))
+F = Identity(2) + E
+J = det(F)
+total_energy = J*(inner(E,E))*dx 
+E_u = derivative(total_energy,u,v)
+E_u_u = derivative(E_u,u,du)
+E_du = replace(E_u,{u:du})
+bc_u = []    
+# Variational problem for the displacement
+problem_u = LinearVariationalProblem(lhs(E_du), rhs(E_du), u, bc_u)
+
+solver_u = LinearVariationalSolver(problem_u)
+file_u = File("u.pvd")
+solver_u.solve()
+file_u &lt;&lt; u
+</code></pre>
+
+<p>If i define the <br>
+total_energy = inner(E,E)<em>dx there is no error <br>
+while if i define<br>
+total_energy = J</em>inner(E,E)*dx then i get error in the assembly</p>
+
+<p>A part of the error is as follows</p>
+
+<pre><code>Calling FFC just-in-time (JIT) compiler, this may take some time.
+Traceback (most recent call last):
+  File "Post.py", line 54, in &lt;module&gt;
+    problem_u = LinearVariationalProblem(lhs(E_du), rhs(E_du), u, bc_u)
+  File "/usr/local/lib/python2.7/dist-packages/dolfin/fem/solving.py", line 82, in __init__
+    a = Form(a, form_compiler_parameters=form_compiler_parameters) 
+</code></pre>
+
+<p>I feel that using determinant of a tensor in the formulation is causing the error. I would appreciate any help on this.</p>
+
+<p>Thanks<br>
+Kaushik</p>
+</div>
+										</div>
+										<div class="qa-q-view-tags">
+											<ul class="qa-q-view-tag-list">
+												<li class="qa-q-view-tag-item"><a href="../../tag/assemblyerror" rel="tag" class="qa-tag-link">assemblyerror</a></li>
+												<li class="qa-q-view-tag-item"><a href="../../tag/solid" rel="tag" class="qa-tag-link">solid</a></li>
+												<li class="qa-q-view-tag-item"><a href="../../tag/mechanics" rel="tag" class="qa-tag-link">mechanics</a></li>
+												<li class="qa-q-view-tag-item"><a href="../../tag/hyperelasticity" rel="tag" class="qa-tag-link">hyperelasticity</a></li>
+												<li class="qa-q-view-tag-item"><a href="../../tag/jacobian" rel="tag" class="qa-tag-link">jacobian</a></li>
+											</ul>
+										</div>
+										<span class="qa-q-view-avatar-meta">
+											<span class="qa-q-view-meta">
+												<a href="../../12348/error-during-assembly-using-determinant-deformation-tensor" class="qa-q-view-what">asked</a>
+												<span class="qa-q-view-when">
+													<span class="qa-q-view-when-data"><span class="published"><span class="value-title" title="2017-02-03T16:05:49+0000"></span>Feb 3, 2017</span></span>
+												</span>
+												<span class="qa-q-view-who">
+													<span class="qa-q-view-who-pad">by </span>
+													<span class="qa-q-view-who-data"><span class="vcard author"><a href="../../user/kaushikv123" class="qa-user-link url nickname">kaushikv123</a></span></span>
+													<span class="qa-q-view-who-title">FEniCS Novice</span>
+													<span class="qa-q-view-who-points">
+														<span class="qa-q-view-who-points-pad">(</span><span class="qa-q-view-who-points-data">390</span><span class="qa-q-view-who-points-pad"> points)</span>
+													</span>
+												</span>
+											</span>
+										</span>
+										<div class="qa-q-view-buttons">
+										</div>
+										
+										<div class="qa-q-view-c-list" style="display:none;" id="c12348_list">
+										</div> <!-- END qa-c-list -->
+										
+										<input type="hidden" name="code" value="0-1516467818-cabef764041ef1e23a7e22bec4504e82ed4736bb">
+										<input type="hidden" name="qa_click" value="">
+									</form>
+									<div class="qa-c-form">
+									</div> <!-- END qa-c-form -->
+									
+								</div> <!-- END qa-q-view-main -->
+								<div class="qa-q-view-clear">
+								</div>
+							</div> <!-- END qa-q-view -->
+							
+						</div>
+						<div class="qa-part-a-list">
+							<h2 id="a_list_title">1 Answer</h2>
+							<div class="qa-a-list" id="a_list">
+								
+								<div class="qa-a-list-item  hentry answer" id="a12349">
+									<form method="post" action="../../12348/error-during-assembly-using-determinant-deformation-tensor">
+										<div class="qa-voting qa-voting-net" id="voting_12349">
+											<div class="qa-vote-count qa-vote-count-net">
+												<span class="qa-netvote-count">
+													<span class="qa-netvote-count-data">+2<span class="votes-up"><span class="value-title" title="2"></span></span><span class="votes-down"><span class="value-title" title="0"></span></span></span><span class="qa-netvote-count-pad"> votes</span>
+												</span>
+											</div>
+											<div class="qa-vote-clear">
+											</div>
+										</div>
+										<input type="hidden" name="code" value="0-1516467818-705442dee9010cfd56968bc9b41e343d2bbac099">
+									</form>
+									<div class="qa-a-item-main">
+										<form method="post" action="../../12348/error-during-assembly-using-determinant-deformation-tensor">
+											<div class="qa-a-selection">
+											</div>
+											<div class="qa-a-item-content">
+												<a name="12349"></a><div class="entry-content"><p>Since the energy functional is not a quadratic form you should use the classes <code>NonlinearVariationalProblem</code> and <code>NonlinearVariationalSolver</code>.</p>
+</div>
+											</div>
+											<span class="qa-a-item-avatar-meta">
+												<span class="qa-a-item-meta">
+													<a href="../../12348/error-during-assembly-using-determinant-deformation-tensor?show=12349#a12349" class="qa-a-item-what">answered</a>
+													<span class="qa-a-item-when">
+														<span class="qa-a-item-when-data"><span class="published"><span class="value-title" title="2017-02-03T16:57:16+0000"></span>Feb 3, 2017</span></span>
+													</span>
+													<span class="qa-a-item-who">
+														<span class="qa-a-item-who-pad">by </span>
+														<span class="qa-a-item-who-data"><span class="vcard author"><a href="../../user/umberto" class="qa-user-link url nickname">umberto</a></span></span>
+														<span class="qa-a-item-who-title">FEniCS User</span>
+														<span class="qa-a-item-who-points">
+															<span class="qa-a-item-who-points-pad">(</span><span class="qa-a-item-who-points-data">6,440</span><span class="qa-a-item-who-points-pad"> points)</span>
+														</span>
+													</span>
+												</span>
+											</span>
+											<div class="qa-a-item-buttons">
+												</div>
+											
+											<div class="qa-a-item-c-list" id="c12349_list">
+												<div class="qa-c-list-item  hentry comment" id="c12351">
+													<div class="qa-c-item-content">
+														<a name="12351"></a><div class="entry-content"><p>Thanks umberto. It works when i use nonlinearsolver.</p>
+</div>
+													</div>
+													<div class="qa-c-item-footer">
+														<span class="qa-c-item-avatar-meta">
+															<span class="qa-c-item-meta">
+																<a href="../../12348/error-during-assembly-using-determinant-deformation-tensor?show=12351#c12351" class="qa-c-item-what">commented</a>
+																<span class="qa-c-item-when">
+																	<span class="qa-c-item-when-data"><span class="published"><span class="value-title" title="2017-02-03T18:54:19+0000"></span>Feb 3, 2017</span></span>
+																</span>
+																<span class="qa-c-item-who">
+																	<span class="qa-c-item-who-pad">by </span>
+																	<span class="qa-c-item-who-data"><span class="vcard author"><a href="../../user/kaushikv123" class="qa-user-link url nickname">kaushikv123</a></span></span>
+																	<span class="qa-c-item-who-title">FEniCS Novice</span>
+																	<span class="qa-c-item-who-points">
+																		<span class="qa-c-item-who-points-pad">(</span><span class="qa-c-item-who-points-data">390</span><span class="qa-c-item-who-points-pad"> points)</span>
+																	</span>
+																</span>
+															</span>
+														</span>
+														<div class="qa-c-item-buttons">
+														</div>
+													</div>
+													<div class="qa-c-item-clear">
+													</div>
+												</div> <!-- END qa-c-item -->
+											</div> <!-- END qa-c-list -->
+											
+											<input type="hidden" name="code" value="0-1516467818-1e8d378c7414fdb9e1d4b2612ce84a0d73be706e">
+											<input type="hidden" name="qa_click" value="">
+										</form>
+										<div class="qa-c-form">
+										</div> <!-- END qa-c-form -->
+										
+									</div> <!-- END qa-a-item-main -->
+									<div class="qa-a-item-clear">
+									</div>
+								</div> <!-- END qa-a-list-item -->
+								
+							</div> <!-- END qa-a-list -->
+							
+						</div>
+					</div> <!-- END qa-main -->
+					
+				</div> <!-- END main-wrapper -->
+			</div> <!-- END main-shadow -->
+		</div> <!-- END body-wrapper -->
+		<!-- END footer-bottom-group -->
+		
+		<div style="position:absolute; left:-9999px; top:-9999px;">
+			<span id="qa-waiting-template" class="qa-waiting">...</span>
+		</div>
+	
+	
+
+</body><!-- Powered by Question2Answer - http://www.question2answer.org/ --></html>

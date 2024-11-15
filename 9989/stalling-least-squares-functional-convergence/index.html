@@ -1,0 +1,320 @@
+<html><!-- Powered by Question2Answer - http://www.question2answer.org/ --><head>
+		<meta http-equiv="content-type" content="text/html; charset=utf-8">
+		<title>Stalling least squares functional convergence - FEniCS Q&amp;A</title>
+		<meta name="description" content="I am seeing stalling convergence of the least squares functional when solving a least squares discretization of  ... ) # plot(dU[2]) # interactive()">
+		<meta name="keywords" content="functional,convergence">
+		<link rel="stylesheet" type="text/css" href="../../qa-theme/Snow/qa-styles.css">
+		<link rel="canonical" href="http://fenicsproject.org/qa/9989/stalling-least-squares-functional-convergence">
+		<script type="text/x-mathjax-config">
+  MathJax.Hub.Config({
+    extensions: ["tex2jax.js"],
+    jax: ["input/TeX","output/HTML-CSS"],
+    tex2jax: {inlineMath: [["$","$"],["\\(","\\)"]]},
+    TeX: { extensions: ["AMSmath.js","AMSsymbols.js"]}
+  });
+</script>
+<script type="text/javascript" src="../../mathjax/MathJax.js"></script>
+		<script src="../../jquery-1.7.2.min.js" type="text/javascript"></script>
+		<script src="../../highlight.min.js"></script>
+<script type="text/javascript">
+$(function(){
+	$('.wmd-input').keypress(function(){
+		window.clearTimeout(hljs.Timeout);
+		hljs.Timeout = window.setTimeout(function() {
+			hljs.initHighlighting.called = false;
+			hljs.initHighlighting();
+		}, 500);
+	});
+	window.setTimeout(function() {
+		hljs.initHighlighting.called = false;
+		hljs.initHighlighting();
+	}, 500);
+});
+</script>
+
+
+	</head>
+	<body class="qa-template-question qa-body-js-off">
+		<div class="qa-body-wrapper">
+			
+			<div class="qa-header">
+				<div class="qa-logo">
+					<a href="../" class="qa-logo-link" title="FEniCS Q&amp;A"><img src="../../qa-theme/fenics_qa.png" border="0" alt="FEniCS Q&amp;A"></a>
+				</div>
+				<div class="qa-header-clear">
+				</div>
+			</div> <!-- END qa-header -->
+			
+			<div class="qa-main-shadow">
+				
+				<div class="qa-main-wrapper">
+					
+					<div class="qa-sidepanel">
+						<div class="qa-sidebar">
+							This is a read only copy of the old FEniCS QA forum. Please visit the <a href="https://www.allanswered.com/community/s/fenics-project/">new QA forum</a> to ask questions
+						</div>
+						
+					</div>
+					
+					<div class="qa-main">
+						<h1>
+							<span class="entry-title">Stalling least squares functional convergence</span>
+						</h1>
+						<div class="qa-part-q-view">
+							<div class="qa-q-view qa-q-closed hentry question" id="q9989">
+								<form method="post" action="../9989">
+									<div class="qa-q-view-stats">
+										<div class="qa-voting qa-voting-net" id="voting_9989">
+											<div class="qa-vote-count qa-vote-count-net">
+												<span class="qa-netvote-count">
+													<span class="qa-netvote-count-data">0<span class="votes-up"><span class="value-title" title="0"></span></span><span class="votes-down"><span class="value-title" title="0"></span></span></span><span class="qa-netvote-count-pad"> votes</span>
+												</span>
+											</div>
+											<div class="qa-vote-clear">
+											</div>
+										</div>
+									</div>
+									<input type="hidden" name="code" value="0-1516478050-6f5c97d780fcb7fff13fd9cf58a98777db3b75c1">
+								</form>
+								<div class="qa-q-view-main">
+									<form method="post" action="../9989">
+										<div class="qa-q-view-content">
+											<a name="9989"></a><div class="entry-content"><p>I am seeing stalling convergence of the least squares functional when solving a least squares discretization of Poisson. This is part of a larger algorithm in which I solve the problem on a coarse mesh, then solve a residual equation (where the residual is calculated using the coarse solution) on a refined mesh. Furthermore, the right hand side for the residual problem is "chopped" such that it is non-zero only over a subset of the domain and set to zero elsewhere. As I refine the mesh for the residual equation and measure the least squares functional, I see convergence stall. Theory says that this should not happen. Have I implemented something incorrectly in my calculation of the least squares functional, or is Fenics doing some incorrect calculation somewhere here? A minimal example code which displays this stalling convergence behavior is below.</p>
+
+<pre><code>from dolfin import *
+
+# Global options and files
+#set_log_level(PROGRESS)
+outfile = open('lsf.txt', 'w')
+n_coarse = 2
+n_refine = 7
+order = 1
+
+# Define expressions and subdomains used later
+##############################################
+##############################################
+
+class HomeTurf(SubDomain):
+    def inside(self, x, on_boundary):
+        return True if (x[0] &lt;= 0.5 and x[1] &lt;= 0.5) else False
+
+class Chopper(Expression):  
+    def __init__(self, homeTurf):
+        self.homeTurf = homeTurf
+    def eval(self, values, x):
+        if self.homeTurf.inside(x, False):
+            values[0] = 1.0
+        else:
+            values[0] = 0.0
+
+class allBoundary(SubDomain):
+    def inside(self, x, on_boundary):
+        return x[0] &lt; DOLFIN_EPS or x[0] &gt; 1.0 - DOLFIN_EPS or x[1] &lt; DOLFIN_EPS or x[1] &gt; 1.0 - DOLFIN_EPS
+
+class westeastBoundary(SubDomain):
+    def inside(self, x, on_boundary):
+        return x[0] &lt; DOLFIN_EPS or x[0] &gt; 1.0 - DOLFIN_EPS
+
+class southnorthBoundary(SubDomain):
+    def inside(self, x, on_boundary):
+        return x[1] &lt; DOLFIN_EPS or x[1] &gt; 1.0 - DOLFIN_EPS
+
+# Create boundary objects
+boundarySN  = southnorthBoundary()
+boundaryWE  = westeastBoundary()
+boundaryALL = allBoundary()
+home_turf   = HomeTurf()
+
+
+# Define the PDE
+##############################################
+##############################################
+
+def L(U):
+    # definitions
+    (ux, uy, p) = split(U)
+    u = as_vector((ux,uy))
+
+    # equations
+    eq1 = u - grad(p)
+    eq2 = div(u)
+    eq3 = curl(u)
+    return (eq1,eq2,eq3)
+
+
+def f():
+    # right hand side equations
+    rhs1 = Expression(('0.0','0.0'))
+    rhs2 = Expression('-2.0*x[0]*(x[0]-1.0) - 2.0*x[1]*(x[1]-1.0)')
+    rhs3 = Expression('0.0')
+    return (rhs1, rhs2, rhs3)
+
+# Compute solution on coarse mesh
+##############################################
+##############################################
+
+# Create initial mesh on unit square
+mesh0 = UnitSquareMesh(n_coarse, n_coarse,"crossed")
+
+# Create Vector Space  [ux, uy, p]
+V0 = VectorFunctionSpace(mesh0, "Lagrange", order, 3)
+
+u0 = TrialFunction(V0)
+v0 = TestFunction(V0)
+
+bilinear_form = 0
+for Lu,Lv in zip(L(u0),L(v0)):
+    bilinear_form += inner(Lu,Lv)*dx
+
+linear_form = 0
+for rhs,Lv in  zip(f(),L(v0)):
+    linear_form += inner(rhs,Lv)*dx
+
+# Setup boundary conditions and solve
+bc_ux = DirichletBC(V0.sub(0), Expression('0.0'), boundarySN)
+bc_uy = DirichletBC(V0.sub(1), Expression('0.0'), boundaryWE)
+bc_p = DirichletBC(V0.sub(2), Expression('0.0'), boundaryALL)
+BCs = [bc_ux, bc_uy, bc_p];
+
+U0 = Function(V0)
+
+solve(bilinear_form == linear_form, U0, bcs=BCs, solver_parameters={"linear_solver": "cg"})#,"preconditioner":"hypre_amg"})
+
+# Compute solution to chopped residual equation on refined meshes
+##############################################
+##############################################
+
+# Initialize new mesh
+mesh = UnitSquareMesh(n_coarse, n_coarse,"crossed")
+
+for iteration in range(n_refine):
+
+    # Refine mesh
+    mesh = refine(mesh)
+
+    # Create Chi function (this chops the right hand side)
+    DG_0 = FunctionSpace(mesh, "DG", 0)
+    Chi = interpolate(Chopper(home_turf), DG_0);
+
+    # Update vectorspace and trial/test function
+    V = VectorFunctionSpace(mesh, "Lagrange", order, 3)
+    u = TrialFunction(V)
+    v = TestFunction(V)
+
+    # Fine grid representation of coarse grid solution
+    U0_curr = interpolate(U0, V)
+
+    # Setup chopped right hand side
+    ChiRes = []
+    for Lu0,rhs in zip(L(U0_curr),f()):
+            ChiRes.append(Chi*(rhs - Lu0))
+
+    # Build bilinear/linear forms
+    bilinear_form = 0
+    for Lu,Lv in zip(L(u),L(v)):
+            bilinear_form += inner(Lu,Lv)*dx
+
+    linear_form = 0
+    for rhs,Lv in  zip(ChiRes,L(v)):
+            linear_form += inner(rhs,Lv)*dx
+
+    # Construct BCs
+    bc_ux = DirichletBC(V.sub(0), Expression('0.0'), boundarySN)
+    bc_uy = DirichletBC(V.sub(1), Expression('0.0'), boundaryWE)
+    bc_p = DirichletBC(V.sub(2), Expression('0.0'), boundaryALL)
+    BCs = [bc_ux, bc_uy, bc_p];
+
+    # Compute solution
+    dU = Function(V)
+    solve(bilinear_form == linear_form, dU, bcs=BCs, solver_parameters={"linear_solver": "cg"})#,"preconditioner":"hypre_amg"})
+
+    # Compute LSF
+    LSF = 0
+    for Lu,rhs in zip(L(dU),ChiRes):
+            LSF += inner(Lu-rhs,Lu-rhs)*dx
+
+    lsf = sqrt(assemble(LSF))
+    print "    dofs = ", mesh.num_cells()
+    print "    LSF = ", lsf
+    outfile.write(str(mesh.num_cells())+' '+str(lsf)+'\n')
+
+# plot(dU[2])
+# interactive()
+</code></pre>
+</div>
+										</div>
+										<div class="qa-q-view-closed">
+											closed with the note:
+											<span class="qa-q-view-closed-content">
+												On further examination, we found a theoretical reason for the stalling convergence here. There is no problem with the above code.
+											</span>
+										</div>
+										<div class="qa-q-view-tags">
+											<ul class="qa-q-view-tag-list">
+												<li class="qa-q-view-tag-item"><a href="../tag/functional" rel="tag" class="qa-tag-link">functional</a></li>
+												<li class="qa-q-view-tag-item"><a href="../tag/convergence" rel="tag" class="qa-tag-link">convergence</a></li>
+											</ul>
+										</div>
+										<span class="qa-q-view-avatar-meta">
+											<span class="qa-q-view-meta">
+												<a href="../9989/stalling-least-squares-functional-convergence" class="qa-q-view-what">asked</a>
+												<span class="qa-q-view-when">
+													<span class="qa-q-view-when-data"><span class="published"><span class="value-title" title="2016-05-02T17:45:43+0000"></span>May 2, 2016</span></span>
+												</span>
+												<span class="qa-q-view-who">
+													<span class="qa-q-view-who-pad">by </span>
+													<span class="qa-q-view-who-data"><span class="vcard author"><a href="../../user/wayne.b.mitchell" class="qa-user-link url nickname">wayne.b.mitchell</a></span></span>
+													<span class="qa-q-view-who-title">FEniCS Novice</span>
+													<span class="qa-q-view-who-points">
+														<span class="qa-q-view-who-points-pad">(</span><span class="qa-q-view-who-points-data">160</span><span class="qa-q-view-who-points-pad"> points)</span>
+													</span>
+												</span>
+												<br>
+												<span class="qa-q-view-what">closed</span>
+												<span class="qa-q-view-when">
+													<span class="qa-q-view-when-data"><span class="updated"><span class="value-title" title="2016-05-09T17:47:49+0000"></span>May 9, 2016</span></span>
+												</span>
+												<span class="qa-q-view-who">
+													<span class="qa-q-view-who-pad">by </span><span class="qa-q-view-who-data"><a href="../../user/wayne.b.mitchell" class="qa-user-link url nickname">wayne.b.mitchell</a></span>
+												</span>
+											</span>
+										</span>
+										<div class="qa-q-view-buttons">
+										</div>
+										
+										<div class="qa-q-view-c-list" style="display:none;" id="c9989_list">
+										</div> <!-- END qa-c-list -->
+										
+										<input type="hidden" name="code" value="0-1516478050-914b3fe73939160714b5c06a12bab54bca10f726">
+										<input type="hidden" name="qa_click" value="">
+									</form>
+									<div class="qa-c-form">
+									</div> <!-- END qa-c-form -->
+									
+								</div> <!-- END qa-q-view-main -->
+								<div class="qa-q-view-clear">
+								</div>
+							</div> <!-- END qa-q-view -->
+							
+						</div>
+						<div class="qa-part-a-list">
+							<h2 id="a_list_title" style="display:none;"></h2>
+							<div class="qa-a-list" id="a_list">
+								
+							</div> <!-- END qa-a-list -->
+							
+						</div>
+					</div> <!-- END qa-main -->
+					
+				</div> <!-- END main-wrapper -->
+			</div> <!-- END main-shadow -->
+		</div> <!-- END body-wrapper -->
+		<!-- END footer-bottom-group -->
+		
+		<div style="position:absolute; left:-9999px; top:-9999px;">
+			<span id="qa-waiting-template" class="qa-waiting">...</span>
+		</div>
+	
+	
+
+</body><!-- Powered by Question2Answer - http://www.question2answer.org/ --></html>

@@ -1,0 +1,629 @@
+<html><!-- Powered by Question2Answer - http://www.question2answer.org/ --><head>
+		<meta http-equiv="content-type" content="text/html; charset=utf-8">
+		<title>Nedelec Curl-Conforming Elements Do Not Converge for a Simple Test Problem - FEniCS Q&amp;A</title>
+		<meta name="description" content="The following minimum example tries to solve the problem curl(curl(A)) = f A subject to  ... print dolfin.__version__ 2016.1.0 Thanks in advance.">
+		<meta name="keywords" content="curlcurl,nedelec">
+		<link rel="stylesheet" type="text/css" href="../../qa-theme/Snow/qa-styles.css">
+		<link rel="canonical" href="http://fenicsproject.org/qa/11451/nedelec-conforming-elements-converge-simple-test-problem">
+		<script type="text/x-mathjax-config">
+  MathJax.Hub.Config({
+    extensions: ["tex2jax.js"],
+    jax: ["input/TeX","output/HTML-CSS"],
+    tex2jax: {inlineMath: [["$","$"],["\\(","\\)"]]},
+    TeX: { extensions: ["AMSmath.js","AMSsymbols.js"]}
+  });
+</script>
+<script type="text/javascript" src="../../mathjax/MathJax.js"></script>
+		<script src="../../jquery-1.7.2.min.js" type="text/javascript"></script>
+		<script src="../../highlight.min.js"></script>
+<script type="text/javascript">
+$(function(){
+	$('.wmd-input').keypress(function(){
+		window.clearTimeout(hljs.Timeout);
+		hljs.Timeout = window.setTimeout(function() {
+			hljs.initHighlighting.called = false;
+			hljs.initHighlighting();
+		}, 500);
+	});
+	window.setTimeout(function() {
+		hljs.initHighlighting.called = false;
+		hljs.initHighlighting();
+	}, 500);
+});
+</script>
+
+
+	</head>
+	<body class="qa-template-question qa-body-js-off">
+		<div class="qa-body-wrapper">
+			
+			<div class="qa-header">
+				<div class="qa-logo">
+					<a href="../../" class="qa-logo-link" title="FEniCS Q&amp;A"><img src="../../qa-theme/fenics_qa.png" border="0" alt="FEniCS Q&amp;A"></a>
+				</div>
+				<div class="qa-header-clear">
+				</div>
+			</div> <!-- END qa-header -->
+			
+			<div class="qa-main-shadow">
+				
+				<div class="qa-main-wrapper">
+					
+					<div class="qa-sidepanel">
+						<div class="qa-sidebar">
+							This is a read only copy of the old FEniCS QA forum. Please visit the <a href="https://www.allanswered.com/community/s/fenics-project/">new QA forum</a> to ask questions
+						</div>
+						
+					</div>
+					
+					<div class="qa-main">
+						<h1>
+							<span class="entry-title">Nedelec Curl-Conforming Elements Do Not Converge for a Simple Test Problem</span>
+						</h1>
+						<div class="qa-part-q-view">
+							<div class="qa-q-view  hentry question" id="q11451">
+								<form method="post" action="../../11451/nedelec-conforming-elements-converge-simple-test-problem">
+									<div class="qa-q-view-stats">
+										<div class="qa-voting qa-voting-net" id="voting_11451">
+											<div class="qa-vote-count qa-vote-count-net">
+												<span class="qa-netvote-count">
+													<span class="qa-netvote-count-data">0<span class="votes-up"><span class="value-title" title="0"></span></span><span class="votes-down"><span class="value-title" title="0"></span></span></span><span class="qa-netvote-count-pad"> votes</span>
+												</span>
+											</div>
+											<div class="qa-vote-clear">
+											</div>
+										</div>
+									</div>
+									<input type="hidden" name="code" value="0-1516467767-6706c7d838d26194ffe4e8eaf3572341fb402645">
+								</form>
+								<div class="qa-q-view-main">
+									<form method="post" action="../../11451/nedelec-conforming-elements-converge-simple-test-problem">
+										<div class="qa-q-view-content">
+											<a name="11451"></a><div class="entry-content"><p>The following minimum example tries to solve the problem</p>
+
+<pre><code>curl(curl(A)) = f
+A subject to boundary conditions
+</code></pre>
+
+<p>using curl-conforming Nedelec elements.<br>
+For test purposes I set the vector field A to be constant, yielding f = 0.</p>
+
+<pre><code>from fenics import *
+
+
+def boundary(_, on_boundary):
+    return on_boundary
+
+mesh = UnitSquareMesh(3, 3)
+V = FunctionSpace(mesh, 'Nedelec 1st kind H(curl)', 1)
+
+A = TrialFunction(V)
+N = TestFunction(V)
+
+A_D = Constant((0, 1))
+bc = DirichletBC(V, A_D, boundary)
+f = Constant((0, 0))
+
+a = inner(curl(A), curl(N)) * dx
+b = inner(f, N) * dx
+
+A_ = Function(V)
+solve(a == b, A_, bc)
+
+print errornorm(A_D, A_, 'Hcurl')
+plot(A_, interactive=True)
+</code></pre>
+
+<p>The result however is entirely wrong.<br>
+The norm of the error is between one and two, depending on whether I run FEniCS from a docker image or a self-compiled version, but it is nowhere near zero.<br>
+Plotting shows that the result is totally wrong.<br>
+The vectors point in all possible directions and their norm varies between zero and hundred on a mesh with 10x10 triangles (the error is then 24.3).</p>
+
+<p>Note, that the test function I use for A is just a constant and thus the error should be zero with respect to machine precision, since it is contained in the space of basis functions.<br>
+Surprisingly, the error drops to magnitude 1e-16, when I use a mesh with only 1x1 or 2x2 triangles.<br>
+Increasing the number of triangles destroys everything.<br>
+Increasing the order of the function space increases the error even further.</p>
+
+<p>What is wrong here?</p>
+
+<p>Replacing the line</p>
+
+<pre><code>V = FunctionSpace(mesh, 'Nedelec 1st kind H(curl)', 1)
+</code></pre>
+
+<p>with</p>
+
+<pre><code>V = VectorFunctionSpace(mesh, 'Lagrange', 1)
+</code></pre>
+
+<p>solves the problem exactly, but is not what we want / need.</p>
+
+<pre><code>print dolfin.__version__
+2016.1.0
+</code></pre>
+
+<p>Thanks in advance.</p>
+</div>
+										</div>
+										<div class="qa-q-view-tags">
+											<ul class="qa-q-view-tag-list">
+												<li class="qa-q-view-tag-item"><a href="../../tag/curlcurl" rel="tag" class="qa-tag-link">curlcurl</a></li>
+												<li class="qa-q-view-tag-item"><a href="../../tag/nedelec" rel="tag" class="qa-tag-link">nedelec</a></li>
+											</ul>
+										</div>
+										<span class="qa-q-view-avatar-meta">
+											<span class="qa-q-view-meta">
+												<a href="../../11451/nedelec-conforming-elements-converge-simple-test-problem" class="qa-q-view-what">asked</a>
+												<span class="qa-q-view-when">
+													<span class="qa-q-view-when-data"><span class="published"><span class="value-title" title="2016-10-24T14:50:57+0000"></span>Oct 24, 2016</span></span>
+												</span>
+												<span class="qa-q-view-who">
+													<span class="qa-q-view-who-pad">by </span>
+													<span class="qa-q-view-who-data"><span class="vcard author"><a href="../../user/hoelzlw" class="qa-user-link url nickname">hoelzlw</a></span></span>
+													<span class="qa-q-view-who-title">FEniCS Novice</span>
+													<span class="qa-q-view-who-points">
+														<span class="qa-q-view-who-points-pad">(</span><span class="qa-q-view-who-points-data">160</span><span class="qa-q-view-who-points-pad"> points)</span>
+													</span>
+												</span>
+											</span>
+										</span>
+										<div class="qa-q-view-buttons">
+										</div>
+										
+										<div class="qa-q-view-c-list" style="display:none;" id="c11451_list">
+										</div> <!-- END qa-c-list -->
+										
+										<input type="hidden" name="code" value="0-1516467767-146d1a2aaf74e52877a3c0c6a1caa70475ca5d75">
+										<input type="hidden" name="qa_click" value="">
+									</form>
+									<div class="qa-c-form">
+									</div> <!-- END qa-c-form -->
+									
+								</div> <!-- END qa-q-view-main -->
+								<div class="qa-q-view-clear">
+								</div>
+							</div> <!-- END qa-q-view -->
+							
+						</div>
+						<div class="qa-part-a-list">
+							<h2 id="a_list_title">1 Answer</h2>
+							<div class="qa-a-list" id="a_list">
+								
+								<div class="qa-a-list-item  hentry answer answer-selected qa-a-list-item-selected" id="a11470">
+									<form method="post" action="../../11451/nedelec-conforming-elements-converge-simple-test-problem">
+										<div class="qa-voting qa-voting-net" id="voting_11470">
+											<div class="qa-vote-count qa-vote-count-net">
+												<span class="qa-netvote-count">
+													<span class="qa-netvote-count-data">+1<span class="votes-up"><span class="value-title" title="1"></span></span><span class="votes-down"><span class="value-title" title="0"></span></span></span><span class="qa-netvote-count-pad"> vote</span>
+												</span>
+											</div>
+											<div class="qa-vote-clear">
+											</div>
+										</div>
+										<input type="hidden" name="code" value="0-1516467767-6706c7d838d26194ffe4e8eaf3572341fb402645">
+									</form>
+									<div class="qa-a-item-main">
+										<form method="post" action="../../11451/nedelec-conforming-elements-converge-simple-test-problem">
+											<div class="qa-a-item-selected">
+												<div class="qa-a-selection">
+													<div class="qa-a-selected">&#160;</div>
+													<div class="qa-a-selected-text">Best answer</div>
+												</div>
+												<div class="qa-a-item-content">
+													<a name="11470"></a><div class="entry-content"><p>The code is doing the correct thing, but the mathematics is wrong :)</p>
+
+<p>The problem</p>
+
+<p>$$ curl(curl(A)) = f, $$</p>
+
+<p>has a large nullspace. More specifically, if $A$ is a solution also $A + \nabla \phi$ is a solution for any $\phi \in H^1$.</p>
+
+<p>Cosider solving the following saddle point system where you constain $A$ to be L^2 orthogonal to the space $\nabla H^1$, i.e.</p>
+
+<p>Find $(A, phi) \in H(curl) \times H^1$<br>
+$(curl A, curl N) + (\nabla \phi, N) = (f, N) \forall N \in H(curl)$<br>
+$(A, \nabla \psi) = 0 \forall \psi \in H^1$</p>
+
+<p>Best,</p>
+
+<p>U.</p>
+</div>
+												</div>
+												<span class="qa-a-item-avatar-meta">
+													<span class="qa-a-item-meta">
+														<a href="../../11451/nedelec-conforming-elements-converge-simple-test-problem?show=11470#a11470" class="qa-a-item-what">answered</a>
+														<span class="qa-a-item-when">
+															<span class="qa-a-item-when-data"><span class="published"><span class="value-title" title="2016-10-25T18:52:52+0000"></span>Oct 25, 2016</span></span>
+														</span>
+														<span class="qa-a-item-who">
+															<span class="qa-a-item-who-pad">by </span>
+															<span class="qa-a-item-who-data"><span class="vcard author"><a href="../../user/umberto" class="qa-user-link url nickname">umberto</a></span></span>
+															<span class="qa-a-item-who-title">FEniCS User</span>
+															<span class="qa-a-item-who-points">
+																<span class="qa-a-item-who-points-pad">(</span><span class="qa-a-item-who-points-data">6,440</span><span class="qa-a-item-who-points-pad"> points)</span>
+															</span>
+														</span>
+														<br>
+														<span class="qa-a-item-what">selected</span>
+														<span class="qa-a-item-when">
+															<span class="qa-a-item-when-data"><span class="updated"><span class="value-title" title="2016-10-27T07:55:40+0000"></span>Oct 27, 2016</span></span>
+														</span>
+														<span class="qa-a-item-who">
+															<span class="qa-a-item-who-pad">by </span><span class="qa-a-item-who-data"><a href="../../user/hoelzlw" class="qa-user-link url nickname">hoelzlw</a></span>
+														</span>
+													</span>
+												</span>
+											</div>
+											<div class="qa-a-item-buttons">
+												</div>
+											
+											<div class="qa-a-item-c-list" id="c11470_list">
+												<div class="qa-c-list-item  hentry comment" id="c11473">
+													<div class="qa-c-item-content">
+														<a name="11473"></a><div class="entry-content"><p>If I'm not mistaken, this is equivalent to setting the gauge, right?<br>
+In this case, it's the Coulomb gauge, leading to $\nabla\cdot A=0$.</p>
+
+<p>When testing with some more interesting functions, I can see, that the curl of the solution is actually correct.</p>
+
+<p>I always thought, the Coulomb gauge condition is already intrinsically embedded in the Nedelec elements, where the ansatz functions have zero divergence per construction?</p>
+
+<p>When I plot the divergence of the solution of the code posted above, I can see that it is nearly zero everywhere.<br>
+Correct me, if I'm wrong, but there should be only one unique vector field that fulfills<br>
+$ \nabla\times\nabla\times A = f $<br>
+$ \nabla\cdot A = 0 $<br>
+and the boundary conditions at the same time.<br>
+In my example above, this is the vector field $A^\ast = (0, 1)$, which is divergence free.<br>
+So, I don't understand, how the code above can produce a (nearly) divergence free solution, which differs from $A^\ast$ by several orders of magnitude.</p>
+
+<p>When I incorporate your suggestions, the result gets even worse. The error is of order 1e15 then.<br>
+Here is my code:</p>
+
+<pre><code>from fenics import *
+
+
+def boundary(_, on_boundary):
+    return on_boundary
+
+mesh = UnitSquareMesh(3, 3)
+NE = FiniteElement('N1curl', triangle, 1)
+LA = FiniteElement('Lagrange', triangle, 1)
+V = FunctionSpace(mesh, NE * LA)
+
+(A, phi) = TrialFunctions(V)
+(N, psi) = TestFunctions(V)
+
+A_D = Constant((0, 1))
+bc = DirichletBC(V.sub(0), A_D, boundary)
+f = Constant((0, 0))
+
+a = inner(curl(A), curl(N)) * dx + inner(grad(phi), N) * dx \
+  + inner(A, grad(psi)) * dx
+b = inner(f, N) * dx
+
+w = Function(V)
+solve(a == b, w, bc)
+(A_, _) = w.split()
+
+print errornorm(A_D, A_, 'Hcurl')
+plot(A_, title='A')
+interactive()
+</code></pre>
+
+<p>Moreover, when incorporating your suggestions, the curl of the solution does not converge anymore, as it used to do before.<br>
+Here is a more complicated example:</p>
+
+<pre><code>from fenics import *
+
+
+def boundary(_, on_boundary):
+    return on_boundary
+
+mesh = UnitSquareMesh(3, 3)
+NE = FiniteElement('N1curl', triangle, 1)
+LA = FiniteElement('Lagrange', triangle, 1)
+V = FunctionSpace(mesh, NE * LA)
+
+(A, phi) = TrialFunctions(V)
+(N, psi) = TestFunctions(V)
+
+A_D = Expression(('-x[1]*x[1]', 'x[0]*x[0]'))
+B_D = Expression('2*x[0] + 2*x[1]')
+bc = DirichletBC(V.sub(0), A_D, boundary)
+f = Constant((2, -2))
+
+a = inner(curl(A), curl(N)) * dx + inner(grad(phi), N) * dx \
+  + inner(A, grad(psi)) * dx
+b = inner(f, N) * dx
+
+w = Function(V)
+solve(a == b, w, bc)
+(A_, _) = w.split()
+B = project(curl(A_), FunctionSpace(mesh, 'Lagrange', 1))
+
+print errornorm(A_D, A_, 'Hcurl')
+print errornorm(B_D, B, 'L2')
+plot(A_, title='A')
+plot(B, title='B = curl(A)')
+
+interactive()
+</code></pre>
+
+<p>It worked before for $B$, but not for $A$.<br>
+Now it works for none of the two.</p>
+
+<p>Is there anywhere an example, that shows how to properly solve the curl-curl problem?<br>
+The examples I found so far immediately take the curl and don't care for setting the gauge.<br>
+However, I really need the vector potential.</p>
+
+<p>Regards</p>
+</div>
+													</div>
+													<div class="qa-c-item-footer">
+														<span class="qa-c-item-avatar-meta">
+															<span class="qa-c-item-meta">
+																<a href="../../11451/nedelec-conforming-elements-converge-simple-test-problem?show=11473#c11473" class="qa-c-item-what">commented</a>
+																<span class="qa-c-item-when">
+																	<span class="qa-c-item-when-data"><span class="published"><span class="value-title" title="2016-10-26T08:13:02+0000"></span>Oct 26, 2016</span></span>
+																</span>
+																<span class="qa-c-item-who">
+																	<span class="qa-c-item-who-pad">by </span>
+																	<span class="qa-c-item-who-data"><span class="vcard author"><a href="../../user/hoelzlw" class="qa-user-link url nickname">hoelzlw</a></span></span>
+																	<span class="qa-c-item-who-title">FEniCS Novice</span>
+																	<span class="qa-c-item-who-points">
+																		<span class="qa-c-item-who-points-pad">(</span><span class="qa-c-item-who-points-data">160</span><span class="qa-c-item-who-points-pad"> points)</span>
+																	</span>
+																</span>
+															</span>
+														</span>
+														<div class="qa-c-item-buttons">
+														</div>
+													</div>
+													<div class="qa-c-item-clear">
+													</div>
+												</div> <!-- END qa-c-item -->
+												<div class="qa-c-list-item  hentry comment" id="c11475">
+													<div class="qa-c-item-content">
+														<a name="11475"></a><div class="entry-content"><p>I think I got it now.<br>
+When I add homogeneous boundary conditions for the second subspace, everything works as expected.</p>
+
+<p>Is it correct, that I have to add boundary conditions for the second subspace?</p>
+
+<p>All the literature I found characterizes the saddle point problem as: Find $(A, \phi)\in (H(\operatorname{curl})\times H^1 / \mathbb{R})$ such that<br>
+$\int (\nabla\times A)\cdot(\nabla\times v)\,\mathrm{d}\Omega + \int \nabla\phi\cdot v\,\mathrm{d}\Omega = \int f\cdot v\,\mathrm{d}\Omega\qquad \forall v\in H(\operatorname{curl})$</p>
+
+<p>$\int A\cdot \nabla\psi\,\mathrm{d}\Omega = 0 \qquad \forall \psi\in H^1 / \mathbb{R}$</p>
+
+<p>I have no idea, what the space $H^1 / \mathbb{R}$ actually is, but it seems to me, it is $H^1$ without constant valued functions, which can be modeled as $H^1_0$, is that correct?</p>
+
+<p>Before switching to FEniCS, I had a Diffpack implementation that solved the same problem, but without any problems and without specifying $\nabla\cdot A = 0$ in any way.<br>
+I wonder why that worked...</p>
+</div>
+													</div>
+													<div class="qa-c-item-footer">
+														<span class="qa-c-item-avatar-meta">
+															<span class="qa-c-item-meta">
+																<a href="../../11451/nedelec-conforming-elements-converge-simple-test-problem?show=11475#c11475" class="qa-c-item-what">commented</a>
+																<span class="qa-c-item-when">
+																	<span class="qa-c-item-when-data"><span class="published"><span class="value-title" title="2016-10-26T12:55:02+0000"></span>Oct 26, 2016</span></span>
+																</span>
+																<span class="qa-c-item-who">
+																	<span class="qa-c-item-who-pad">by </span>
+																	<span class="qa-c-item-who-data"><span class="vcard author"><a href="../../user/hoelzlw" class="qa-user-link url nickname">hoelzlw</a></span></span>
+																	<span class="qa-c-item-who-title">FEniCS Novice</span>
+																	<span class="qa-c-item-who-points">
+																		<span class="qa-c-item-who-points-pad">(</span><span class="qa-c-item-who-points-data">160</span><span class="qa-c-item-who-points-pad"> points)</span>
+																	</span>
+																</span>
+																<br>
+																<span class="qa-c-item-what">edited</span>
+																<span class="qa-c-item-when">
+																	<span class="qa-c-item-when-data"><span class="updated"><span class="value-title" title="2016-10-26T13:47:50+0000"></span>Oct 26, 2016</span></span>
+																</span>
+																<span class="qa-c-item-who">
+																	<span class="qa-c-item-who-pad">by </span><span class="qa-c-item-who-data"><a href="../../user/hoelzlw" class="qa-user-link url nickname">hoelzlw</a></span>
+																</span>
+															</span>
+														</span>
+														<div class="qa-c-item-buttons">
+														</div>
+													</div>
+													<div class="qa-c-item-clear">
+													</div>
+												</div> <!-- END qa-c-item -->
+												<div class="qa-c-list-item  hentry comment" id="c11476">
+													<div class="qa-c-item-content">
+														<a name="11476"></a><div class="entry-content"><p>Hi,</p>
+
+<p>I am glad you figured out the issues of the boundary conditions. That was a very important point I overlooked in my previous answer.</p>
+
+<p>Just to clarify the definition of the functional spaces:</p>
+
+<p>$$ H^1/\mathbb{R} := { v \in H^1(\Omega) \, | \, \int_{\Omega} v d\Omega = 0 }$$<br>
+and<br>
+$$ H^1_0 := { v \in H^1(\Omega) \, | \,  v  = 0 \quad \text{on} \, \partial \Omega }$$</p>
+
+<p>Regarding your Diffpack implementation, it is true that one can solve directly the curl-curl problem. However one needs to be extremely careful.</p>
+
+<p>In fact, you can solve directly the problem<br>
+$$ curl \, curl A = f $$<br>
+using an iterative method (such as conjugate gradient) provided that<br>
+1) $f \perp \nabla \phi$ for all $\phi \in H^1$ (or $\phi \in H^1_0$ depending on your bc) .<br>
+2) You are using a preconditioner that does not see the singularity of the operator (i.e. Gauss-Seidel or Jacobi will work fine but slowly, incomplete factorization will most likely fail.)</p>
+
+<p>Finally, in HYPRE there is a specific solver called HYPRE_AMS to solve the singular curl-curl problem.</p>
+
+<p>see:<br>
+<a rel="nofollow" href="http://www.jstor.org/stable/43693530">http://www.jstor.org/stable/43693530</a><br>
+and<br>
+<a rel="nofollow" href="http://epubs.siam.org/doi/ref/10.1137/110859361">http://epubs.siam.org/doi/ref/10.1137/110859361</a></p>
+
+<p>Unfortunately, I don't think that FEniCS is able to support HYPRE_AMS yet.</p>
+
+<p>MFEM (<a rel="nofollow" href="http://mfem.org/)">http://mfem.org/)</a> is a finite element library that does support HYPRE_AMS, but requires you to get your hands dirty with c++ and the finite element assembly.</p>
+
+<p>Best,</p>
+
+<p>U.</p>
+</div>
+													</div>
+													<div class="qa-c-item-footer">
+														<span class="qa-c-item-avatar-meta">
+															<span class="qa-c-item-meta">
+																<a href="../../11451/nedelec-conforming-elements-converge-simple-test-problem?show=11476#c11476" class="qa-c-item-what">commented</a>
+																<span class="qa-c-item-when">
+																	<span class="qa-c-item-when-data"><span class="published"><span class="value-title" title="2016-10-26T16:11:44+0000"></span>Oct 26, 2016</span></span>
+																</span>
+																<span class="qa-c-item-who">
+																	<span class="qa-c-item-who-pad">by </span>
+																	<span class="qa-c-item-who-data"><span class="vcard author"><a href="../../user/umberto" class="qa-user-link url nickname">umberto</a></span></span>
+																	<span class="qa-c-item-who-title">FEniCS User</span>
+																	<span class="qa-c-item-who-points">
+																		<span class="qa-c-item-who-points-pad">(</span><span class="qa-c-item-who-points-data">6,440</span><span class="qa-c-item-who-points-pad"> points)</span>
+																	</span>
+																</span>
+															</span>
+														</span>
+														<div class="qa-c-item-buttons">
+														</div>
+													</div>
+													<div class="qa-c-item-clear">
+													</div>
+												</div> <!-- END qa-c-item -->
+												<div class="qa-c-list-item  hentry comment" id="c11477">
+													<div class="qa-c-item-content">
+														<a name="11477"></a><div class="entry-content"><blockquote>
+  <p>Is it correct, that I have to add boundary conditions for the second<br>
+  subspace?</p>
+</blockquote>
+
+<p>Yes, the orthogonal decomposition of $H_0(curl)$ is given for example in</p>
+
+<p>Toselli-Widlund, Domain Decomposition Methods &#8211; Algorithms and Theory<br>
+page 276, section 10.1.1 equation 10.7</p>
+
+<p>And it uses the Grad H^1_0 (i.e. the space with dirichlet bc)</p>
+
+<p>Best,</p>
+
+<p>U.</p>
+</div>
+													</div>
+													<div class="qa-c-item-footer">
+														<span class="qa-c-item-avatar-meta">
+															<span class="qa-c-item-meta">
+																<a href="../../11451/nedelec-conforming-elements-converge-simple-test-problem?show=11477#c11477" class="qa-c-item-what">commented</a>
+																<span class="qa-c-item-when">
+																	<span class="qa-c-item-when-data"><span class="published"><span class="value-title" title="2016-10-26T16:28:02+0000"></span>Oct 26, 2016</span></span>
+																</span>
+																<span class="qa-c-item-who">
+																	<span class="qa-c-item-who-pad">by </span>
+																	<span class="qa-c-item-who-data"><span class="vcard author"><a href="../../user/umberto" class="qa-user-link url nickname">umberto</a></span></span>
+																	<span class="qa-c-item-who-title">FEniCS User</span>
+																	<span class="qa-c-item-who-points">
+																		<span class="qa-c-item-who-points-pad">(</span><span class="qa-c-item-who-points-data">6,440</span><span class="qa-c-item-who-points-pad"> points)</span>
+																	</span>
+																</span>
+															</span>
+														</span>
+														<div class="qa-c-item-buttons">
+														</div>
+													</div>
+													<div class="qa-c-item-clear">
+													</div>
+												</div> <!-- END qa-c-item -->
+												<div class="qa-c-list-item  hentry comment" id="c11690">
+													<div class="qa-c-item-content">
+														<a name="11690"></a><div class="entry-content"><p>Could you please tell me how to impliment the boundary condition, which if the problem's boundary condition is A in H0(curl)?</p>
+
+<p>I can do Dirichlet boundary condition, Neumann boundary condition, Robin boundary condition, but not H0(curl).</p>
+
+<p>I will appreciate your any help. Thanks!!!</p>
+</div>
+													</div>
+													<div class="qa-c-item-footer">
+														<span class="qa-c-item-avatar-meta">
+															<span class="qa-c-item-meta">
+																<a href="../../11451/nedelec-conforming-elements-converge-simple-test-problem?show=11690#c11690" class="qa-c-item-what">commented</a>
+																<span class="qa-c-item-when">
+																	<span class="qa-c-item-when-data"><span class="published"><span class="value-title" title="2016-11-21T11:36:02+0000"></span>Nov 21, 2016</span></span>
+																</span>
+																<span class="qa-c-item-who">
+																	<span class="qa-c-item-who-pad">by </span>
+																	<span class="qa-c-item-who-data"><span class="vcard author"><a href="../../user/fanronghong" class="qa-user-link url nickname">fanronghong</a></span></span>
+																	<span class="qa-c-item-who-title">FEniCS User</span>
+																	<span class="qa-c-item-who-points">
+																		<span class="qa-c-item-who-points-pad">(</span><span class="qa-c-item-who-points-data">1,680</span><span class="qa-c-item-who-points-pad"> points)</span>
+																	</span>
+																</span>
+															</span>
+														</span>
+														<div class="qa-c-item-buttons">
+														</div>
+													</div>
+													<div class="qa-c-item-clear">
+													</div>
+												</div> <!-- END qa-c-item -->
+												<div class="qa-c-list-item  hentry comment" id="c11694">
+													<div class="qa-c-item-content">
+														<a name="11694"></a><div class="entry-content"><p>Hi,</p>
+
+<p>I simply used Dirichlet boundary conditions for the second subspace and thus used $H^1_0$ rather than $H^1 / \mathbb{R}$.</p>
+
+<p>The details are given in "Toselli-Widlund, Domain Decomposition Methods &#8211; Algorithms and Theory", as said above by umberto.</p>
+
+<p>Hope this helps you.</p>
+</div>
+													</div>
+													<div class="qa-c-item-footer">
+														<span class="qa-c-item-avatar-meta">
+															<span class="qa-c-item-meta">
+																<a href="../../11451/nedelec-conforming-elements-converge-simple-test-problem?show=11694#c11694" class="qa-c-item-what">commented</a>
+																<span class="qa-c-item-when">
+																	<span class="qa-c-item-when-data"><span class="published"><span class="value-title" title="2016-11-21T11:51:39+0000"></span>Nov 21, 2016</span></span>
+																</span>
+																<span class="qa-c-item-who">
+																	<span class="qa-c-item-who-pad">by </span>
+																	<span class="qa-c-item-who-data"><span class="vcard author"><a href="../../user/hoelzlw" class="qa-user-link url nickname">hoelzlw</a></span></span>
+																	<span class="qa-c-item-who-title">FEniCS Novice</span>
+																	<span class="qa-c-item-who-points">
+																		<span class="qa-c-item-who-points-pad">(</span><span class="qa-c-item-who-points-data">160</span><span class="qa-c-item-who-points-pad"> points)</span>
+																	</span>
+																</span>
+															</span>
+														</span>
+														<div class="qa-c-item-buttons">
+														</div>
+													</div>
+													<div class="qa-c-item-clear">
+													</div>
+												</div> <!-- END qa-c-item -->
+											</div> <!-- END qa-c-list -->
+											
+											<input type="hidden" name="code" value="0-1516467767-977252a3fe45d0bddd60fe2fee8049421e89cd60">
+											<input type="hidden" name="qa_click" value="">
+										</form>
+										<div class="qa-c-form">
+										</div> <!-- END qa-c-form -->
+										
+									</div> <!-- END qa-a-item-main -->
+									<div class="qa-a-item-clear">
+									</div>
+								</div> <!-- END qa-a-list-item -->
+								
+							</div> <!-- END qa-a-list -->
+							
+						</div>
+					</div> <!-- END qa-main -->
+					
+				</div> <!-- END main-wrapper -->
+			</div> <!-- END main-shadow -->
+		</div> <!-- END body-wrapper -->
+		<!-- END footer-bottom-group -->
+		
+		<div style="position:absolute; left:-9999px; top:-9999px;">
+			<span id="qa-waiting-template" class="qa-waiting">...</span>
+		</div>
+	
+	
+
+</body><!-- Powered by Question2Answer - http://www.question2answer.org/ --></html>

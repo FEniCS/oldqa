@@ -1,0 +1,360 @@
+<html><!-- Powered by Question2Answer - http://www.question2answer.org/ --><head>
+		<meta http-equiv="content-type" content="text/html; charset=utf-8">
+		<title>Specify boundary in dual-mixed formulation - FEniCS Q&amp;A</title>
+		<meta name="description" content="Hi friends, I can't seem to find out how to specify boundaries correctly for the  ... 0/python/demo/documented/mixed-poisson/python/documentation.html">
+		<meta name="keywords" content="mixed-function-space,mixed-poisson,dirichlet">
+		<link rel="stylesheet" type="text/css" href="../../qa-theme/Snow/qa-styles.css">
+		<link rel="canonical" href="http://fenicsproject.org/qa/9930/specify-boundary-in-dual-mixed-formulation">
+		<script type="text/x-mathjax-config">
+  MathJax.Hub.Config({
+    extensions: ["tex2jax.js"],
+    jax: ["input/TeX","output/HTML-CSS"],
+    tex2jax: {inlineMath: [["$","$"],["\\(","\\)"]]},
+    TeX: { extensions: ["AMSmath.js","AMSsymbols.js"]}
+  });
+</script>
+<script type="text/javascript" src="../../mathjax/MathJax.js"></script>
+		<script src="../../jquery-1.7.2.min.js" type="text/javascript"></script>
+		<script src="../../highlight.min.js"></script>
+<script type="text/javascript">
+$(function(){
+	$('.wmd-input').keypress(function(){
+		window.clearTimeout(hljs.Timeout);
+		hljs.Timeout = window.setTimeout(function() {
+			hljs.initHighlighting.called = false;
+			hljs.initHighlighting();
+		}, 500);
+	});
+	window.setTimeout(function() {
+		hljs.initHighlighting.called = false;
+		hljs.initHighlighting();
+	}, 500);
+});
+</script>
+
+
+	</head>
+	<body class="qa-template-question qa-body-js-off">
+		<div class="qa-body-wrapper">
+			
+			<div class="qa-header">
+				<div class="qa-logo">
+					<a href="../../" class="qa-logo-link" title="FEniCS Q&amp;A"><img src="../../qa-theme/fenics_qa.png" border="0" alt="FEniCS Q&amp;A"></a>
+				</div>
+				<div class="qa-header-clear">
+				</div>
+			</div> <!-- END qa-header -->
+			
+			<div class="qa-main-shadow">
+				
+				<div class="qa-main-wrapper">
+					
+					<div class="qa-sidepanel">
+						<div class="qa-sidebar">
+							This is a read only copy of the old FEniCS QA forum. Please visit the <a href="https://www.allanswered.com/community/s/fenics-project/">new QA forum</a> to ask questions
+						</div>
+						
+					</div>
+					
+					<div class="qa-main">
+						<h1>
+							<span class="entry-title">Specify boundary in dual-mixed formulation</span>
+						</h1>
+						<div class="qa-part-q-view">
+							<div class="qa-q-view  hentry question" id="q9930">
+								<form method="post" action="../../9930/specify-boundary-in-dual-mixed-formulation">
+									<div class="qa-q-view-stats">
+										<div class="qa-voting qa-voting-net" id="voting_9930">
+											<div class="qa-vote-count qa-vote-count-net">
+												<span class="qa-netvote-count">
+													<span class="qa-netvote-count-data">0<span class="votes-up"><span class="value-title" title="0"></span></span><span class="votes-down"><span class="value-title" title="0"></span></span></span><span class="qa-netvote-count-pad"> votes</span>
+												</span>
+											</div>
+											<div class="qa-vote-clear">
+											</div>
+										</div>
+									</div>
+									<input type="hidden" name="code" value="0-1516468245-486b2c97d2b872a8972fcfe8534a150e41a26e4a">
+								</form>
+								<div class="qa-q-view-main">
+									<form method="post" action="../../9930/specify-boundary-in-dual-mixed-formulation">
+										<div class="qa-q-view-content">
+											<a name="9930"></a><div class="entry-content"><p>Hi friends, </p>
+
+<p>I can't seem to find out how to specify boundaries correctly for the dual mixed Poisson problem. <br>
+I want to give left and right a fixed potential (1 and 0) and on the lower and upper boundary zero outward flux. <br>
+I used this example as guide <a rel="nofollow" href="http://fenicsproject.org/documentation/dolfin/1.6.0/python/demo/documented/mixed-poisson/python/documentation.html">here</a></p>
+
+<p>The Dirichlet Boundary Conditions are here natural (due to the formulation). I tried to put g = 1-x into the formulation. Is it correct that when I specify upper and lower edge as DirichletBC (although physically Neumann) , then left and right remain to be evaluated as natural boundary domains? Hence I thought my function g would only be evaluated at left and right bound to 1 and 0 respectively. Hence the right side $g\cdot vm\cdot ds$. Is that correct? </p>
+
+<p>Then I tried to make the outward flux at upper and lower edge 0, which I tried to express like in the example with the overloaded eval_cell function. </p>
+
+<p>Yet neither seems to work, I cannot get the $\sigma$ on the upper and lower bound to be tangential to the bound (always normal, why?), nor does the left boundary seem to be 1.<br>
+What am I doing wrong? </p>
+
+<p>As solution we expect a linearly decreasing potential from 1 to 0.   </p>
+
+<pre><code>from dolfin import *
+nn = 150
+mesh = UnitSquareMesh(nn,nn)
+
+HDIV = FunctionSpace(mesh,"RT",1)
+DG = FunctionSpace(mesh,"DG",0)
+W = HDIV * DG
+
+(sigma,um) = TrialFunctions(W)
+(tau,vm) = TestFunctions(W)
+
+J = Expression("0.0")
+
+def neumann(x):
+    return near(x[1], 0.0) or near(x[1],1.0)
+
+class BoundarySource(Expression):
+    def __init__(self, mesh):
+        self.mesh = mesh
+    def eval_cell(self, values, x, ufc_cell):
+        cell = Cell(self.mesh, ufc_cell.index)
+        n = cell.normal(ufc_cell.local_facet)
+        g = 0
+        values[0] = g*n[0]
+        values[1] = g*n[1]
+    def value_shape(self):
+        return (2,)
+
+G = BoundarySource(mesh)
+bc_neumann = DirichletBC(W.sub(0), G, neumann)
+
+g= Expression("1.0-x[0]")
+
+am = (dot(sigma,tau) + div(tau)*um + div(sigma)*vm)*dx
+fm = -g*vm*dx   
+w = Function(W)
+solve(am == fm, w,bc_neumann)
+(sigma,um) = w.split()
+
+plot(um)
+interactive()
+
+from dolfin import *
+
+nn = 150
+mesh = UnitSquareMesh(nn,nn)
+
+HDIV = FunctionSpace(mesh,"RT",1)
+DG = FunctionSpace(mesh,"DG",0)
+W = HDIV * DG
+
+(sigma,um) = TrialFunctions(W)
+(tau,vm) = TestFunctions(W)
+
+J = Expression("0.0")
+
+def neumann(x):
+    return near(x[1], 0.0) or near(x[1],1.0)
+
+class BoundarySource(Expression):
+    def __init__(self, mesh):
+        self.mesh = mesh
+    def eval_cell(self, values, x, ufc_cell):
+        cell = Cell(self.mesh, ufc_cell.index)
+        n = cell.normal(ufc_cell.local_facet)
+        g = 0
+        values[0] = g*n[0]
+        values[1] = g*n[1]
+    def value_shape(self):
+        return (2,)
+
+G = BoundarySource(mesh)
+bc_neumann = DirichletBC(W.sub(0), G, neumann)
+
+g= Expression("1.0-x[0]")
+
+am = (dot(sigma,tau) + div(tau)*um + div(sigma)*vm)*dx
+fm = -g*vm*ds   
+w = Function(W)
+solve(am == fm, w,bc_neumann)
+(sigma,um) = w.split()
+
+plot(um)
+interactive()
+</code></pre>
+</div>
+										</div>
+										<div class="qa-q-view-tags">
+											<ul class="qa-q-view-tag-list">
+												<li class="qa-q-view-tag-item"><a href="../../tag/mixed-function-space" rel="tag" class="qa-tag-link">mixed-function-space</a></li>
+												<li class="qa-q-view-tag-item"><a href="../../tag/mixed-poisson" rel="tag" class="qa-tag-link">mixed-poisson</a></li>
+												<li class="qa-q-view-tag-item"><a href="../../tag/dirichlet" rel="tag" class="qa-tag-link">dirichlet</a></li>
+											</ul>
+										</div>
+										<span class="qa-q-view-avatar-meta">
+											<span class="qa-q-view-meta">
+												<a href="../../9930/specify-boundary-in-dual-mixed-formulation" class="qa-q-view-what">asked</a>
+												<span class="qa-q-view-when">
+													<span class="qa-q-view-when-data"><span class="published"><span class="value-title" title="2016-04-21T23:32:47+0000"></span>Apr 22, 2016</span></span>
+												</span>
+												<span class="qa-q-view-who">
+													<span class="qa-q-view-who-pad">by </span>
+													<span class="qa-q-view-who-data"><span class="vcard author"><a href="../../user/jayjay" class="qa-user-link url nickname">jayjay</a></span></span>
+													<span class="qa-q-view-who-title">FEniCS Novice</span>
+													<span class="qa-q-view-who-points">
+														<span class="qa-q-view-who-points-pad">(</span><span class="qa-q-view-who-points-data">340</span><span class="qa-q-view-who-points-pad"> points)</span>
+													</span>
+												</span>
+											</span>
+										</span>
+										<div class="qa-q-view-buttons">
+										</div>
+										
+										<div class="qa-q-view-c-list" style="display:none;" id="c9930_list">
+										</div> <!-- END qa-c-list -->
+										
+										<input type="hidden" name="code" value="0-1516468245-3c129a2296520decfb0da0077914c80553ce885d">
+										<input type="hidden" name="qa_click" value="">
+									</form>
+									<div class="qa-c-form">
+									</div> <!-- END qa-c-form -->
+									
+								</div> <!-- END qa-q-view-main -->
+								<div class="qa-q-view-clear">
+								</div>
+							</div> <!-- END qa-q-view -->
+							
+						</div>
+						<div class="qa-part-a-list">
+							<h2 id="a_list_title">1 Answer</h2>
+							<div class="qa-a-list" id="a_list">
+								
+								<div class="qa-a-list-item  hentry answer answer-selected qa-a-list-item-selected" id="a9937">
+									<form method="post" action="../../9930/specify-boundary-in-dual-mixed-formulation">
+										<div class="qa-voting qa-voting-net" id="voting_9937">
+											<div class="qa-vote-count qa-vote-count-net">
+												<span class="qa-netvote-count">
+													<span class="qa-netvote-count-data">+2<span class="votes-up"><span class="value-title" title="2"></span></span><span class="votes-down"><span class="value-title" title="0"></span></span></span><span class="qa-netvote-count-pad"> votes</span>
+												</span>
+											</div>
+											<div class="qa-vote-clear">
+											</div>
+										</div>
+										<input type="hidden" name="code" value="0-1516468245-486b2c97d2b872a8972fcfe8534a150e41a26e4a">
+									</form>
+									<div class="qa-a-item-main">
+										<form method="post" action="../../9930/specify-boundary-in-dual-mixed-formulation">
+											<div class="qa-a-item-selected">
+												<div class="qa-a-selection">
+													<div class="qa-a-selected">&#160;</div>
+													<div class="qa-a-selected-text">Best answer</div>
+												</div>
+												<div class="qa-a-item-content">
+													<a name="9937"></a><div class="entry-content"><p>The right hand side is incorrect. You are correct in that the Dirichlet boundary condition becomes a natural boundary boundary condition, but it should be integrated against a testfunction in the $H(\operatorname{div})$ space. Also, the integral should only cover the Dirichlet part of the boundary. </p>
+
+<p>If the Dirichlet boundary condition reads </p>
+
+<p>$$ u = g\, \mbox{ on }\Gamma_D, $$</p>
+
+<p>then the right hand side should have the form</p>
+
+<p>$$ L = \int_{\Gamma_D} (q\cdot n)g \, ds $$</p>
+
+<p>where $q\in H(\operatorname{div})$. See also example below.</p>
+
+<pre><code>from dolfin import *
+
+N = 32
+mesh = UnitSquareMesh(N, N)
+
+G_N = CompiledSubDomain("(x[1]&lt;DOLFIN_EPS)||(x[1]&gt;1-DOLFIN_EPS)")
+G_D = CompiledSubDomain("(x[0]&lt;DOLFIN_EPS)||(x[0]&gt;1-DOLFIN_EPS)")
+
+facet_domains = FacetFunction("size_t", mesh)
+G_N.mark(facet_domains, 1)
+G_D.mark(facet_domains, 2)
+
+ds = Measure("ds", domain = mesh, subdomain_data = facet_domains)
+
+RT = FiniteElement("RT", triangle, 1)
+DG = FiniteElement("DG", triangle, 0)
+P1 = FiniteElement("CG", triangle, 1)
+W  = FunctionSpace(mesh, RT * DG)
+
+n = FacetNormal(mesh)
+U = Expression("1-x[0]", P1)
+f = Constant(0)
+g = Expression("1-x[0]", P1)
+h = Constant((0., 0.))
+
+(p, u) = TrialFunctions(W)
+(q, v) = TestFunctions(W)
+
+a = (inner(p,q) + u * div(q) + v * div(p)) * dx
+L = f * v * dx + g * inner(q, n) * ds(2)
+
+bc = DirichletBC(W.sub(0), h, facet_domains, 1)
+
+w = Function(W); p, u = w.split()
+solve(a == L, w, bc)
+
+print errornorm(U, u)
+</code></pre>
+</div>
+												</div>
+												<span class="qa-a-item-avatar-meta">
+													<span class="qa-a-item-meta">
+														<a href="../../9930/specify-boundary-in-dual-mixed-formulation?show=9937#a9937" class="qa-a-item-what">answered</a>
+														<span class="qa-a-item-when">
+															<span class="qa-a-item-when-data"><span class="published"><span class="value-title" title="2016-04-22T22:07:34+0000"></span>Apr 23, 2016</span></span>
+														</span>
+														<span class="qa-a-item-who">
+															<span class="qa-a-item-who-pad">by </span>
+															<span class="qa-a-item-who-data"><span class="vcard author"><a href="../../user/Magne+Nordaas" class="qa-user-link url nickname">Magne Nordaas</a></span></span>
+															<span class="qa-a-item-who-title">FEniCS Expert</span>
+															<span class="qa-a-item-who-points">
+																<span class="qa-a-item-who-points-pad">(</span><span class="qa-a-item-who-points-data">13,820</span><span class="qa-a-item-who-points-pad"> points)</span>
+															</span>
+														</span>
+														<br>
+														<span class="qa-a-item-what">selected</span>
+														<span class="qa-a-item-when">
+															<span class="qa-a-item-when-data"><span class="updated"><span class="value-title" title="2016-04-23T22:13:09+0000"></span>Apr 24, 2016</span></span>
+														</span>
+														<span class="qa-a-item-who">
+															<span class="qa-a-item-who-pad">by </span><span class="qa-a-item-who-data"><a href="../../user/jayjay" class="qa-user-link url nickname">jayjay</a></span>
+														</span>
+													</span>
+												</span>
+											</div>
+											<div class="qa-a-item-buttons">
+												</div>
+											
+											<div class="qa-a-item-c-list" style="display:none;" id="c9937_list">
+											</div> <!-- END qa-c-list -->
+											
+											<input type="hidden" name="code" value="0-1516468245-c15cfaaac8f183e33c97de51eaa425d5d75253d8">
+											<input type="hidden" name="qa_click" value="">
+										</form>
+										<div class="qa-c-form">
+										</div> <!-- END qa-c-form -->
+										
+									</div> <!-- END qa-a-item-main -->
+									<div class="qa-a-item-clear">
+									</div>
+								</div> <!-- END qa-a-list-item -->
+								
+							</div> <!-- END qa-a-list -->
+							
+						</div>
+					</div> <!-- END qa-main -->
+					
+				</div> <!-- END main-wrapper -->
+			</div> <!-- END main-shadow -->
+		</div> <!-- END body-wrapper -->
+		<!-- END footer-bottom-group -->
+		
+		<div style="position:absolute; left:-9999px; top:-9999px;">
+			<span id="qa-waiting-template" class="qa-waiting">...</span>
+		</div>
+	
+	
+
+</body><!-- Powered by Question2Answer - http://www.question2answer.org/ --></html>

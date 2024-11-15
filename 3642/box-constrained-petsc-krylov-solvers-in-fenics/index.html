@@ -1,0 +1,418 @@
+<html><!-- Powered by Question2Answer - http://www.question2answer.org/ --><head>
+		<meta http-equiv="content-type" content="text/html; charset=utf-8">
+		<title>box constrained (PETSc) krylov solvers in FEniCS - FEniCS Q&amp;A</title>
+		<meta name="description" content="Is it possible to use box constrained Krylov solvers in FEniCS project? Can I put a non-negative restriction  ... (z) plot(u, title='u') interactive()">
+		<meta name="keywords" content="box-constrains,krylovsolvers">
+		<link rel="stylesheet" type="text/css" href="../../qa-theme/Snow/qa-styles.css">
+		<link rel="canonical" href="http://fenicsproject.org/qa/3642/box-constrained-petsc-krylov-solvers-in-fenics">
+		<script type="text/x-mathjax-config">
+  MathJax.Hub.Config({
+    extensions: ["tex2jax.js"],
+    jax: ["input/TeX","output/HTML-CSS"],
+    tex2jax: {inlineMath: [["$","$"],["\\(","\\)"]]},
+    TeX: { extensions: ["AMSmath.js","AMSsymbols.js"]}
+  });
+</script>
+<script type="text/javascript" src="../../mathjax/MathJax.js"></script>
+		<script src="../../jquery-1.7.2.min.js" type="text/javascript"></script>
+		<script src="../../highlight.min.js"></script>
+<script type="text/javascript">
+$(function(){
+	$('.wmd-input').keypress(function(){
+		window.clearTimeout(hljs.Timeout);
+		hljs.Timeout = window.setTimeout(function() {
+			hljs.initHighlighting.called = false;
+			hljs.initHighlighting();
+		}, 500);
+	});
+	window.setTimeout(function() {
+		hljs.initHighlighting.called = false;
+		hljs.initHighlighting();
+	}, 500);
+});
+</script>
+
+
+	</head>
+	<body class="qa-template-question qa-body-js-off">
+		<div class="qa-body-wrapper">
+			
+			<div class="qa-header">
+				<div class="qa-logo">
+					<a href="../../" class="qa-logo-link" title="FEniCS Q&amp;A"><img src="../../qa-theme/fenics_qa.png" border="0" alt="FEniCS Q&amp;A"></a>
+				</div>
+				<div class="qa-header-clear">
+				</div>
+			</div> <!-- END qa-header -->
+			
+			<div class="qa-main-shadow">
+				
+				<div class="qa-main-wrapper">
+					
+					<div class="qa-sidepanel">
+						<div class="qa-sidebar">
+							This is a read only copy of the old FEniCS QA forum. Please visit the <a href="https://www.allanswered.com/community/s/fenics-project/">new QA forum</a> to ask questions
+						</div>
+						
+					</div>
+					
+					<div class="qa-main">
+						<h1>
+							<span class="entry-title">box constrained (PETSc) krylov solvers in FEniCS</span>
+						</h1>
+						<div class="qa-part-q-view">
+							<div class="qa-q-view  hentry question" id="q3642">
+								<form method="post" action="../../3642/box-constrained-petsc-krylov-solvers-in-fenics">
+									<div class="qa-q-view-stats">
+										<div class="qa-voting qa-voting-net" id="voting_3642">
+											<div class="qa-vote-count qa-vote-count-net">
+												<span class="qa-netvote-count">
+													<span class="qa-netvote-count-data">+2<span class="votes-up"><span class="value-title" title="2"></span></span><span class="votes-down"><span class="value-title" title="0"></span></span></span><span class="qa-netvote-count-pad"> votes</span>
+												</span>
+											</div>
+											<div class="qa-vote-clear">
+											</div>
+										</div>
+									</div>
+									<input type="hidden" name="code" value="0-1516467980-eb2f0661c6161755b3663652a56846d53f56bbaf">
+								</form>
+								<div class="qa-q-view-main">
+									<form method="post" action="../../3642/box-constrained-petsc-krylov-solvers-in-fenics">
+										<div class="qa-q-view-content">
+											<a name="3642"></a><div class="entry-content"><p>Is it possible to use box constrained Krylov solvers in FEniCS project?</p>
+
+<p>Can I put a non-negative restriction in z.vector() of the code below?</p>
+
+<pre><code>from dolfin import *
+
+parameters["linear_algebra_backend"] = "PETSc"
+
+n = 100
+mesh = UnitSquareMesh(n, n)
+
+U = FunctionSpace(mesh, "CG", 1)
+V = FunctionSpace(mesh, "CG", 1)
+
+Z = MixedFunctionSpace([U, V])
+
+z = Function(Z)
+(u, v) = split(z)
+
+#variational problem
+g = Expression("-10.0 * x[0] * x[0] * sin(25 * x[0])")
+
+l = g * v * ds
+F = inner(grad(u), grad(v))*dx - l
+
+#functional
+J = inner(u, u) * dx
+# J = u * dx    # Is it possible to put non-negative constrains on u.vector() ? 
+
+#optimaly conditions
+L = J + F    # What about J = u * dx and subject to u.vector() &gt;= 0 ?
+kkt = derivative(L, z, TestFunction(Z))
+
+#system assembler (without boudary conditions)
+bcs = []
+kkt_lin = replace(kkt, {z: TrialFunction(Z)})
+kkt_lhs, kkt_rhs = assemble_system(lhs(kkt_lin), rhs(kkt_lin), bcs)
+
+#Krylov solver
+solver = KrylovSolver(kkt_lhs, "tfqmr", "icc")
+
+solver.parameters["absolute_tolerance"] = 1e-6
+solver.parameters["relative_tolerance"] = 1e-4
+solver.parameters["maximum_iterations"] = 1000
+solver.parameters["monitor_convergence"] = True
+
+#vector that spans the null space
+z = Function(Z)
+null_vec = Vector(z.vector())
+Z.dofmap().set(null_vec, 1.0)
+null_vec *= 1.0/null_vec.norm("l2")
+
+null_space = VectorSpaceBasis([null_vec])
+solver.set_nullspace(null_space)
+
+null_space.orthogonalize(kkt_rhs);
+
+#solve
+solver.solve(z.vector(), kkt_rhs)    # Can we do something like 
+                                     # solver.solve(z.vector(), kkt_rhs, z.vector() &gt;= 0.0) ?
+
+#plot
+(u, lmbd) = split(z)
+plot(u, title='u')
+interactive()
+</code></pre>
+</div>
+										</div>
+										<div class="qa-q-view-tags">
+											<ul class="qa-q-view-tag-list">
+												<li class="qa-q-view-tag-item"><a href="../../tag/box-constrains" rel="tag" class="qa-tag-link">box-constrains</a></li>
+												<li class="qa-q-view-tag-item"><a href="../../tag/krylovsolvers" rel="tag" class="qa-tag-link">krylovsolvers</a></li>
+											</ul>
+										</div>
+										<span class="qa-q-view-avatar-meta">
+											<span class="qa-q-view-meta">
+												<a href="../../3642/box-constrained-petsc-krylov-solvers-in-fenics" class="qa-q-view-what">asked</a>
+												<span class="qa-q-view-when">
+													<span class="qa-q-view-when-data"><span class="published"><span class="value-title" title="2014-05-23T19:41:17+0000"></span>May 23, 2014</span></span>
+												</span>
+												<span class="qa-q-view-who">
+													<span class="qa-q-view-who-pad">by </span>
+													<span class="qa-q-view-who-data"><span class="vcard author"><a href="../../user/Andre+Machado" class="qa-user-link url nickname">Andre Machado</a></span></span>
+													<span class="qa-q-view-who-title">FEniCS User</span>
+													<span class="qa-q-view-who-points">
+														<span class="qa-q-view-who-points-pad">(</span><span class="qa-q-view-who-points-data">1,040</span><span class="qa-q-view-who-points-pad"> points)</span>
+													</span>
+												</span>
+												<br>
+												<span class="qa-q-view-what">edited</span>
+												<span class="qa-q-view-when">
+													<span class="qa-q-view-when-data"><span class="updated"><span class="value-title" title="2014-05-24T06:37:07+0000"></span>May 24, 2014</span></span>
+												</span>
+												<span class="qa-q-view-who">
+													<span class="qa-q-view-who-pad">by </span><span class="qa-q-view-who-data"><a href="../../user/Andre+Machado" class="qa-user-link url nickname">Andre Machado</a></span>
+												</span>
+											</span>
+										</span>
+										<div class="qa-q-view-buttons">
+										</div>
+										
+										<div class="qa-q-view-c-list" id="c3642_list">
+											<div class="qa-c-list-item  hentry comment" id="c3672">
+												<div class="qa-c-item-content">
+													<a name="3672"></a><div class="entry-content"><p>I've done with with the PETScSNESSolver, but not the krylov linear solver. Would the TAOLinearBoundSolver be suitable?</p>
+
+<p><a rel="nofollow" href="http://fenicsproject.org/documentation/dolfin/dev/cpp/programmers-reference/nls/TAOLinearBoundSolver.html">http://fenicsproject.org/documentation/dolfin/dev/cpp/programmers-reference/nls/TAOLinearBoundSolver.html</a></p>
+</div>
+												</div>
+												<div class="qa-c-item-footer">
+													<span class="qa-c-item-avatar-meta">
+														<span class="qa-c-item-avatar">
+															<a href="../../user/mwelland" class="qa-avatar-link"><img src="https://www.gravatar.com/avatar/af936799ea3fe5bd1cb6abb922ebbe83?s=20" width="20" height="20" class="qa-avatar-image" alt=""></a>
+														</span>
+														<span class="qa-c-item-meta">
+															<a href="../../3642/box-constrained-petsc-krylov-solvers-in-fenics?show=3672#c3672" class="qa-c-item-what">commented</a>
+															<span class="qa-c-item-when">
+																<span class="qa-c-item-when-data"><span class="published"><span class="value-title" title="2014-05-27T15:24:41+0000"></span>May 27, 2014</span></span>
+															</span>
+															<span class="qa-c-item-who">
+																<span class="qa-c-item-who-pad">by </span>
+																<span class="qa-c-item-who-data"><span class="vcard author"><a href="../../user/mwelland" class="qa-user-link url nickname">mwelland</a></span></span>
+																<span class="qa-c-item-who-title">FEniCS User</span>
+																<span class="qa-c-item-who-points">
+																	<span class="qa-c-item-who-points-pad">(</span><span class="qa-c-item-who-points-data">8,410</span><span class="qa-c-item-who-points-pad"> points)</span>
+																</span>
+															</span>
+														</span>
+													</span>
+													<div class="qa-c-item-buttons">
+													</div>
+												</div>
+												<div class="qa-c-item-clear">
+												</div>
+											</div> <!-- END qa-c-item -->
+											<div class="qa-c-list-item  hentry comment" id="c3676">
+												<div class="qa-c-item-content">
+													<a name="3676"></a><div class="entry-content"><p>Thank you very much for the feedback. </p>
+
+<p>Unfortunately I really can not compile Dolfin with TAO and use this TAOLinearBoundSolver. </p>
+
+<p>( I tried several suggestions of experts from some mailing lists. <br>
+Nothing worked on my Ubuntu 12.04 of Parallels 9 virtual machine<br>
+on osx 10.9. All the others solvers of FEniCS works very well! )</p>
+
+<p>Mwelland, do you think that I can try with PETScSNESSolver puting some<br>
+(weak) non-linear regularization penality togheter the linear system?</p>
+
+<p>Can you show some simple example of how to put the box constrains <br>
+restrictions on PETScSNESSolver (e.g., non-negativity) to solve a non-linear <br>
+system with FEniCS project? </p>
+
+<p>Thank you very much for the help.</p>
+
+<p>Andre Machado</p>
+</div>
+												</div>
+												<div class="qa-c-item-footer">
+													<span class="qa-c-item-avatar-meta">
+														<span class="qa-c-item-meta">
+															<a href="../../3642/box-constrained-petsc-krylov-solvers-in-fenics?show=3676#c3676" class="qa-c-item-what">commented</a>
+															<span class="qa-c-item-when">
+																<span class="qa-c-item-when-data"><span class="published"><span class="value-title" title="2014-05-27T17:49:39+0000"></span>May 27, 2014</span></span>
+															</span>
+															<span class="qa-c-item-who">
+																<span class="qa-c-item-who-pad">by </span>
+																<span class="qa-c-item-who-data"><span class="vcard author"><a href="../../user/Andre+Machado" class="qa-user-link url nickname">Andre Machado</a></span></span>
+																<span class="qa-c-item-who-title">FEniCS User</span>
+																<span class="qa-c-item-who-points">
+																	<span class="qa-c-item-who-points-pad">(</span><span class="qa-c-item-who-points-data">1,040</span><span class="qa-c-item-who-points-pad"> points)</span>
+																</span>
+															</span>
+															<br>
+															<span class="qa-c-item-what">edited</span>
+															<span class="qa-c-item-when">
+																<span class="qa-c-item-when-data"><span class="updated"><span class="value-title" title="2014-05-27T18:20:18+0000"></span>May 27, 2014</span></span>
+															</span>
+															<span class="qa-c-item-who">
+																<span class="qa-c-item-who-pad">by </span><span class="qa-c-item-who-data"><a href="../../user/Andre+Machado" class="qa-user-link url nickname">Andre Machado</a></span>
+															</span>
+														</span>
+													</span>
+													<div class="qa-c-item-buttons">
+													</div>
+												</div>
+												<div class="qa-c-item-clear">
+												</div>
+											</div> <!-- END qa-c-item -->
+											<div class="qa-c-list-item  hentry comment" id="c3678">
+												<div class="qa-c-item-content">
+													<a name="3678"></a><div class="entry-content"><p>A quick and dirty example below. The regular solve has the entire vector &lt;0, the bounded limits it to the trivial / initial guess of 0 everywhere. </p>
+
+<pre><code>from dolfin import *
+
+
+class nlp(NonlinearProblem):
+    def __init__(self, a, L, bc):
+        NonlinearProblem.__init__(self)
+        self.L = L
+        self.a = a
+        self.bc = bc
+    def F(self, b, x):
+        assemble(self.L, tensor=b)
+        self.bc.apply(b)
+    def J(self, A, x):
+        assemble(self.a, tensor=A) 
+        self.bc.apply(A)
+
+
+n = 100
+mesh = UnitSquareMesh(n, n)
+
+V = FunctionSpace(mesh, "CG", 1)
+u = Function(V)
+du = TrialFunction(V)
+u_test = TestFunction(V)
+
+left = CompiledSubDomain("(std::abs(x[0]) &lt; DOLFIN_EPS) &amp;&amp; on_boundary")
+
+bc = DirichletBC(V, 0, left)
+
+F = inner(grad(u), grad(u_test))*dx + 1*u_test*ds
+
+problem = nlp(derivative(F, u, du), F, bc)
+
+solver = PETScSNESSolver()
+
+# You need a vector for the lower and upper bound. Here are some simple ones.
+lb = interpolate(Constant(0), V)
+ub = interpolate(Constant(100), V)
+
+
+solver.solve(problem, u.vector()) # regular solve
+#solver.solve(problem, u.vector(), lb.vector(), ub.vector())  # Bounded solve
+
+
+plot(u, title='u')
+interactive()
+</code></pre>
+</div>
+												</div>
+												<div class="qa-c-item-footer">
+													<span class="qa-c-item-avatar-meta">
+														<span class="qa-c-item-avatar">
+															<a href="../../user/mwelland" class="qa-avatar-link"><img src="https://www.gravatar.com/avatar/af936799ea3fe5bd1cb6abb922ebbe83?s=20" width="20" height="20" class="qa-avatar-image" alt=""></a>
+														</span>
+														<span class="qa-c-item-meta">
+															<a href="../../3642/box-constrained-petsc-krylov-solvers-in-fenics?show=3678#c3678" class="qa-c-item-what">commented</a>
+															<span class="qa-c-item-when">
+																<span class="qa-c-item-when-data"><span class="published"><span class="value-title" title="2014-05-27T19:20:13+0000"></span>May 27, 2014</span></span>
+															</span>
+															<span class="qa-c-item-who">
+																<span class="qa-c-item-who-pad">by </span>
+																<span class="qa-c-item-who-data"><span class="vcard author"><a href="../../user/mwelland" class="qa-user-link url nickname">mwelland</a></span></span>
+																<span class="qa-c-item-who-title">FEniCS User</span>
+																<span class="qa-c-item-who-points">
+																	<span class="qa-c-item-who-points-pad">(</span><span class="qa-c-item-who-points-data">8,410</span><span class="qa-c-item-who-points-pad"> points)</span>
+																</span>
+															</span>
+														</span>
+													</span>
+													<div class="qa-c-item-buttons">
+													</div>
+												</div>
+												<div class="qa-c-item-clear">
+												</div>
+											</div> <!-- END qa-c-item -->
+											<div class="qa-c-list-item  hentry comment" id="c3679">
+												<div class="qa-c-item-content">
+													<a name="3679"></a><div class="entry-content"><p>Dear Mwelland, the exemple of this is script is perfect to me!</p>
+
+<p>Thank you very much for all the help.</p>
+
+<p>Andre Machado.</p>
+
+<p>( p.s. I hope that in the future the TAOLinearBoundSolver is also available <br>
+as a standart method for box constrained linear problems... )</p>
+</div>
+												</div>
+												<div class="qa-c-item-footer">
+													<span class="qa-c-item-avatar-meta">
+														<span class="qa-c-item-meta">
+															<a href="../../3642/box-constrained-petsc-krylov-solvers-in-fenics?show=3679#c3679" class="qa-c-item-what">commented</a>
+															<span class="qa-c-item-when">
+																<span class="qa-c-item-when-data"><span class="published"><span class="value-title" title="2014-05-27T20:07:43+0000"></span>May 27, 2014</span></span>
+															</span>
+															<span class="qa-c-item-who">
+																<span class="qa-c-item-who-pad">by </span>
+																<span class="qa-c-item-who-data"><span class="vcard author"><a href="../../user/Andre+Machado" class="qa-user-link url nickname">Andre Machado</a></span></span>
+																<span class="qa-c-item-who-title">FEniCS User</span>
+																<span class="qa-c-item-who-points">
+																	<span class="qa-c-item-who-points-pad">(</span><span class="qa-c-item-who-points-data">1,040</span><span class="qa-c-item-who-points-pad"> points)</span>
+																</span>
+															</span>
+														</span>
+													</span>
+													<div class="qa-c-item-buttons">
+													</div>
+												</div>
+												<div class="qa-c-item-clear">
+												</div>
+											</div> <!-- END qa-c-item -->
+										</div> <!-- END qa-c-list -->
+										
+										<input type="hidden" name="code" value="0-1516467980-1556bc3d57b886a90cfa4b1918beb7289a6af973">
+										<input type="hidden" name="qa_click" value="">
+									</form>
+									<div class="qa-c-form">
+									</div> <!-- END qa-c-form -->
+									
+								</div> <!-- END qa-q-view-main -->
+								<div class="qa-q-view-clear">
+								</div>
+							</div> <!-- END qa-q-view -->
+							
+						</div>
+						<div class="qa-part-a-list">
+							<h2 id="a_list_title" style="display:none;"></h2>
+							<div class="qa-a-list" id="a_list">
+								
+							</div> <!-- END qa-a-list -->
+							
+						</div>
+					</div> <!-- END qa-main -->
+					
+				</div> <!-- END main-wrapper -->
+			</div> <!-- END main-shadow -->
+		</div> <!-- END body-wrapper -->
+		<!-- END footer-bottom-group -->
+		
+		<div style="position:absolute; left:-9999px; top:-9999px;">
+			<span id="qa-waiting-template" class="qa-waiting">...</span>
+		</div>
+	
+	
+
+</body><!-- Powered by Question2Answer - http://www.question2answer.org/ --></html>

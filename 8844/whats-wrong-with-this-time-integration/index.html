@@ -1,0 +1,282 @@
+<html><!-- Powered by Question2Answer - http://www.question2answer.org/ --><head>
+		<meta http-equiv="content-type" content="text/html; charset=utf-8">
+		<title>What's wrong with this time integration? - FEniCS Q&amp;A</title>
+		<meta name="description" content="Hi, I'm trying to integrate elastodynamic equation using leapfrog algorythm, but my solution with initial  ... um am1 = am vm1 = vm interactive()">
+		<meta name="keywords" content="elastodynamics,wave-equation,fenics-solid-mechanics,elasticity">
+		<link rel="stylesheet" type="text/css" href="../../qa-theme/Snow/qa-styles.css">
+		<link rel="canonical" href="http://fenicsproject.org/qa/8844/whats-wrong-with-this-time-integration">
+		<script type="text/x-mathjax-config">
+  MathJax.Hub.Config({
+    extensions: ["tex2jax.js"],
+    jax: ["input/TeX","output/HTML-CSS"],
+    tex2jax: {inlineMath: [["$","$"],["\\(","\\)"]]},
+    TeX: { extensions: ["AMSmath.js","AMSsymbols.js"]}
+  });
+</script>
+<script type="text/javascript" src="../../mathjax/MathJax.js"></script>
+		<script src="../../jquery-1.7.2.min.js" type="text/javascript"></script>
+		<script src="../../highlight.min.js"></script>
+<script type="text/javascript">
+$(function(){
+	$('.wmd-input').keypress(function(){
+		window.clearTimeout(hljs.Timeout);
+		hljs.Timeout = window.setTimeout(function() {
+			hljs.initHighlighting.called = false;
+			hljs.initHighlighting();
+		}, 500);
+	});
+	window.setTimeout(function() {
+		hljs.initHighlighting.called = false;
+		hljs.initHighlighting();
+	}, 500);
+});
+</script>
+
+
+	</head>
+	<body class="qa-template-question qa-body-js-off">
+		<div class="qa-body-wrapper">
+			
+			<div class="qa-header">
+				<div class="qa-logo">
+					<a href="../../" class="qa-logo-link" title="FEniCS Q&amp;A"><img src="../../qa-theme/fenics_qa.png" border="0" alt="FEniCS Q&amp;A"></a>
+				</div>
+				<div class="qa-header-clear">
+				</div>
+			</div> <!-- END qa-header -->
+			
+			<div class="qa-main-shadow">
+				
+				<div class="qa-main-wrapper">
+					
+					<div class="qa-sidepanel">
+						<div class="qa-sidebar">
+							This is a read only copy of the old FEniCS QA forum. Please visit the <a href="https://www.allanswered.com/community/s/fenics-project/">new QA forum</a> to ask questions
+						</div>
+						
+					</div>
+					
+					<div class="qa-main">
+						<h1>
+							<span class="entry-title">What's wrong with this time integration?</span>
+						</h1>
+						<div class="qa-part-q-view">
+							<div class="qa-q-view  hentry question" id="q8844">
+								<form method="post" action="../../8844/whats-wrong-with-this-time-integration">
+									<div class="qa-q-view-stats">
+										<div class="qa-voting qa-voting-net" id="voting_8844">
+											<div class="qa-vote-count qa-vote-count-net">
+												<span class="qa-netvote-count">
+													<span class="qa-netvote-count-data">0<span class="votes-up"><span class="value-title" title="0"></span></span><span class="votes-down"><span class="value-title" title="0"></span></span></span><span class="qa-netvote-count-pad"> votes</span>
+												</span>
+											</div>
+											<div class="qa-vote-clear">
+											</div>
+										</div>
+									</div>
+									<input type="hidden" name="code" value="0-1516468195-8aeeddd983a5c85cbd57b75a73fac098b732c0c6">
+								</form>
+								<div class="qa-q-view-main">
+									<form method="post" action="../../8844/whats-wrong-with-this-time-integration">
+										<div class="qa-q-view-content">
+											<a name="8844"></a><div class="entry-content"><p>Hi,<br>
+I'm trying to integrate elastodynamic equation using leapfrog algorythm, but my solution with initial velocity is accelerating, instead of "slowing down" due to stifness. Here is my code:</p>
+
+<pre><code># wave equation in 2D
+
+from dolfin import *
+import math
+import numpy as np
+
+left =  CompiledSubDomain("near(x[0], side) &amp;&amp; on_boundary", side = 0.0)
+right = CompiledSubDomain("near(x[0], side) &amp;&amp; on_boundary", side = 20.0)
+
+mesh = RectangleMesh(Point(0.0, 0.0), Point(20.0, 5.0), 60, 15)
+
+polyDeg = 1
+V = VectorFunctionSpace(mesh, "CG", polyDeg)
+
+rho = 10.0
+E, nu = 1.0, 0.3
+mu, lmbd = Constant(E/(2*(1 + nu))), Constant(E*nu/((1 + nu)*(1 - 2*nu)))
+
+u = TrialFunction(V)
+v = TestFunction(V)
+
+d = u.geometric_dimension()
+I = Identity(d)
+
+def L(q):
+    return lmbd * tr(q) * I + mu * (q + q.T)
+
+k = inner(L(grad(u)),grad(v))*dx
+
+m = rho * inner(u, v) * dx
+
+f = Expression(('0.0','0.0'))
+b = inner(f,v) * dx
+
+T = 10
+dt = 0.001
+nts = int(math.ceil(T/dt))
+
+u = Function(V)
+v = Function(V)
+
+u0 = interpolate(Expression(('0','0')), V)
+v0 = interpolate(Expression(('0','0')), V)
+
+u0m = u0.vector().array()
+v0m = v0.vector().array()
+
+for initC in range(1700, 1952):
+    v0m[initC] = 0.1
+
+um1 = u0m
+vm1 = v0m
+
+K = assemble(k)
+M = assemble(m)
+B = assemble(b)
+
+K = -K.array()
+B = -B.array()
+M = M.array()
+Mi = np.linalg.inv(M)
+
+am1 = np.dot(Mi, np.dot(K, u0m))
+
+for ts in range(1, nts) :
+    t = ts * dt
+
+K = assemble(k)
+M = assemble(m)
+B = assemble(b)
+
+K = -K.array()
+B = -B.array()
+M = M.array()
+Mi = np.linalg.inv(M)
+
+um = um1 + vm1 * dt + 0.5 * am1 * dt*dt
+
+for dirBC in range(0, 40):
+    um[dirBC] = 0
+
+u.vector()[:] = um
+plot(u, mode = "color", key = "displ", title = str(t))
+
+am = np.dot(Mi, np.dot(K, um))
+
+vm = vm1 + 0.5 * (am1 + am) * dt
+print(max(vm))
+
+v.vector()[:] = vm
+plot(v, mode = "color", key = "velo", range_max=1.0, range_min=0.0, title = str(t))
+
+um1 = um
+am1 = am
+vm1 = vm
+
+interactive()
+</code></pre>
+</div>
+										</div>
+										<div class="qa-q-view-tags">
+											<ul class="qa-q-view-tag-list">
+												<li class="qa-q-view-tag-item"><a href="../../tag/elastodynamics" rel="tag" class="qa-tag-link">elastodynamics</a></li>
+												<li class="qa-q-view-tag-item"><a href="../../tag/wave-equation" rel="tag" class="qa-tag-link">wave-equation</a></li>
+												<li class="qa-q-view-tag-item"><a href="../../tag/fenics-solid-mechanics" rel="tag" class="qa-tag-link">fenics-solid-mechanics</a></li>
+												<li class="qa-q-view-tag-item"><a href="../../tag/elasticity" rel="tag" class="qa-tag-link">elasticity</a></li>
+											</ul>
+										</div>
+										<span class="qa-q-view-avatar-meta">
+											<span class="qa-q-view-meta">
+												<a href="../../8844/whats-wrong-with-this-time-integration" class="qa-q-view-what">asked</a>
+												<span class="qa-q-view-when">
+													<span class="qa-q-view-when-data"><span class="published"><span class="value-title" title="2015-12-12T12:10:30+0000"></span>Dec 12, 2015</span></span>
+												</span>
+												<span class="qa-q-view-who">
+													<span class="qa-q-view-who-pad">by </span>
+													<span class="qa-q-view-who-data"><span class="vcard author"><a href="../../user/bp" class="qa-user-link url nickname">bp</a></span></span>
+													<span class="qa-q-view-who-title">FEniCS Novice</span>
+													<span class="qa-q-view-who-points">
+														<span class="qa-q-view-who-points-pad">(</span><span class="qa-q-view-who-points-data">520</span><span class="qa-q-view-who-points-pad"> points)</span>
+													</span>
+												</span>
+											</span>
+										</span>
+										<div class="qa-q-view-buttons">
+										</div>
+										
+										<div class="qa-q-view-c-list" id="c8844_list">
+											<div class="qa-c-list-item  hentry comment" id="c9692">
+												<div class="qa-c-item-content">
+													<a name="9692"></a><div class="entry-content"><p>Hello bp,</p>
+
+<p>What kind of problem are you trying to solve with the wave equation?</p>
+
+<p>Maybe if you can enter some informative tags between your code along with a snapshot photo or link of the leapfrog scheme, we can understand better what you are doing in the code and check it.</p>
+</div>
+												</div>
+												<div class="qa-c-item-footer">
+													<span class="qa-c-item-avatar-meta">
+														<span class="qa-c-item-avatar">
+															<a href="../../user/Chaitanya_Raj_Goyal" class="qa-avatar-link"><img src="../../?qa=image&amp;qa_blobid=5557427273671820211&amp;qa_size=20" width="20" height="12" class="qa-avatar-image" alt=""></a>
+														</span>
+														<span class="qa-c-item-meta">
+															<a href="../../8844/whats-wrong-with-this-time-integration?show=9692#c9692" class="qa-c-item-what">commented</a>
+															<span class="qa-c-item-when">
+																<span class="qa-c-item-when-data"><span class="published"><span class="value-title" title="2016-03-25T17:41:19+0000"></span>Mar 25, 2016</span></span>
+															</span>
+															<span class="qa-c-item-who">
+																<span class="qa-c-item-who-pad">by </span>
+																<span class="qa-c-item-who-data"><span class="vcard author"><a href="../../user/Chaitanya_Raj_Goyal" class="qa-user-link url nickname">Chaitanya_Raj_Goyal</a></span></span>
+																<span class="qa-c-item-who-title">FEniCS User</span>
+																<span class="qa-c-item-who-points">
+																	<span class="qa-c-item-who-points-pad">(</span><span class="qa-c-item-who-points-data">4,150</span><span class="qa-c-item-who-points-pad"> points)</span>
+																</span>
+															</span>
+														</span>
+													</span>
+													<div class="qa-c-item-buttons">
+													</div>
+												</div>
+												<div class="qa-c-item-clear">
+												</div>
+											</div> <!-- END qa-c-item -->
+										</div> <!-- END qa-c-list -->
+										
+										<input type="hidden" name="code" value="0-1516468195-e1c5657b2cead3101dd88efb933bcfda60e11fc4">
+										<input type="hidden" name="qa_click" value="">
+									</form>
+									<div class="qa-c-form">
+									</div> <!-- END qa-c-form -->
+									
+								</div> <!-- END qa-q-view-main -->
+								<div class="qa-q-view-clear">
+								</div>
+							</div> <!-- END qa-q-view -->
+							
+						</div>
+						<div class="qa-part-a-list">
+							<h2 id="a_list_title" style="display:none;"></h2>
+							<div class="qa-a-list" id="a_list">
+								
+							</div> <!-- END qa-a-list -->
+							
+						</div>
+					</div> <!-- END qa-main -->
+					
+				</div> <!-- END main-wrapper -->
+			</div> <!-- END main-shadow -->
+		</div> <!-- END body-wrapper -->
+		<!-- END footer-bottom-group -->
+		
+		<div style="position:absolute; left:-9999px; top:-9999px;">
+			<span id="qa-waiting-template" class="qa-waiting">...</span>
+		</div>
+	
+	
+
+</body><!-- Powered by Question2Answer - http://www.question2answer.org/ --></html>

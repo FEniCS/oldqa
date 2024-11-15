@@ -1,0 +1,384 @@
+<html><!-- Powered by Question2Answer - http://www.question2answer.org/ --><head>
+		<meta http-equiv="content-type" content="text/html; charset=utf-8">
+		<title>Memory leak running FEniCS 1.6 in parallel - FEniCS Q&amp;A</title>
+		<meta name="description" content="I am seeing a memory leak when running FEniCS 1.6 (installed from HashDist) on more than ... / Prepare statm file std::stringstream filename; filename">
+		<link rel="stylesheet" type="text/css" href="../../qa-theme/Snow/qa-styles.css">
+		<link rel="canonical" href="http://fenicsproject.org/qa/8782/memory-leak-running-fenics-1-6-in-parallel">
+		<script type="text/x-mathjax-config">
+  MathJax.Hub.Config({
+    extensions: ["tex2jax.js"],
+    jax: ["input/TeX","output/HTML-CSS"],
+    tex2jax: {inlineMath: [["$","$"],["\\(","\\)"]]},
+    TeX: { extensions: ["AMSmath.js","AMSsymbols.js"]}
+  });
+</script>
+<script type="text/javascript" src="../../mathjax/MathJax.js"></script>
+		<script src="../../jquery-1.7.2.min.js" type="text/javascript"></script>
+		<script src="../../highlight.min.js"></script>
+<script type="text/javascript">
+$(function(){
+	$('.wmd-input').keypress(function(){
+		window.clearTimeout(hljs.Timeout);
+		hljs.Timeout = window.setTimeout(function() {
+			hljs.initHighlighting.called = false;
+			hljs.initHighlighting();
+		}, 500);
+	});
+	window.setTimeout(function() {
+		hljs.initHighlighting.called = false;
+		hljs.initHighlighting();
+	}, 500);
+});
+</script>
+
+
+	</head>
+	<body class="qa-template-question qa-body-js-off">
+		<div class="qa-body-wrapper">
+			
+			<div class="qa-header">
+				<div class="qa-logo">
+					<a href="../../" class="qa-logo-link" title="FEniCS Q&amp;A"><img src="../../qa-theme/fenics_qa.png" border="0" alt="FEniCS Q&amp;A"></a>
+				</div>
+				<div class="qa-header-clear">
+				</div>
+			</div> <!-- END qa-header -->
+			
+			<div class="qa-main-shadow">
+				
+				<div class="qa-main-wrapper">
+					
+					<div class="qa-sidepanel">
+						<div class="qa-sidebar">
+							This is a read only copy of the old FEniCS QA forum. Please visit the <a href="https://www.allanswered.com/community/s/fenics-project/">new QA forum</a> to ask questions
+						</div>
+						
+					</div>
+					
+					<div class="qa-main">
+						<h1>
+							<span class="entry-title">Memory leak running FEniCS 1.6 in parallel</span>
+						</h1>
+						<div class="qa-part-q-view">
+							<div class="qa-q-view  hentry question" id="q8782">
+								<form method="post" action="../../8782/memory-leak-running-fenics-1-6-in-parallel">
+									<div class="qa-q-view-stats">
+										<div class="qa-voting qa-voting-net" id="voting_8782">
+											<div class="qa-vote-count qa-vote-count-net">
+												<span class="qa-netvote-count">
+													<span class="qa-netvote-count-data">+10<span class="votes-up"><span class="value-title" title="10"></span></span><span class="votes-down"><span class="value-title" title="0"></span></span></span><span class="qa-netvote-count-pad"> votes</span>
+												</span>
+											</div>
+											<div class="qa-vote-clear">
+											</div>
+										</div>
+									</div>
+									<input type="hidden" name="code" value="0-1516468191-27d79ba031177cc10a34d0da62ae0787f10a196a">
+								</form>
+								<div class="qa-q-view-main">
+									<form method="post" action="../../8782/memory-leak-running-fenics-1-6-in-parallel">
+										<div class="qa-q-view-content">
+											<a name="8782"></a><div class="entry-content"><p>I am seeing a memory leak when running FEniCS 1.6 (installed from HashDist) on more than a couple of processors on our cluster (using GCC 4.8.4 and OpenMPI 1.8.6). As an example, the following slightly modified version of the demo advection-diffusion code uses 3GB after timestep 100 and 8GB after timestep 10000 when run on 24 cores, but stays steady at 300MB when run on 2 cores. Has anyone seen this kind of issue before? Also, why does the total required memory scale with the number of processors: shouldn't it be relatively independent of the number of processors?</p>
+
+<pre><code># Copyright (C) 2007 Kristian B. Oelgaard
+#
+# This file is part of DOLFIN.
+#
+# DOLFIN is free software: you can redistribute it and/or modify
+# it under the terms of the GNU Lesser General Public License as published by
+# the Free Software Foundation, either version 3 of the License, or
+# (at your option) any later version.
+#
+# DOLFIN is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
+# GNU Lesser General Public License for more details.
+#
+# You should have received a copy of the GNU Lesser General Public License
+# along with DOLFIN. If not, see &lt;http://www.gnu.org/licenses/&gt;.
+#
+# Modified by Anders Logg, 2008
+# Modified by Johan Hake, 2008
+# Modified by Garth N. Wells, 2009
+#
+# This demo solves the time-dependent convection-diffusion equation by
+# a SUPG stabilized method. The velocity field used in the simulation
+# is the output from the Stokes (Taylor-Hood) demo.  The sub domains
+# for the different boundary conditions are computed by the demo
+# program in src/demo/subdomains.
+
+from dolfin import *
+import numpy as np
+
+set_log_level(50)
+
+parameters['form_compiler']['representation'] = 'quadrature'
+parameters['form_compiler']['optimize'] = True
+parameters['form_compiler']['cpp_optimize'] = True
+
+rank = MPI.rank(mpi_comm_world())
+
+# Memory analysis code borrowed from fenicstools
+memory_code = '''
+#include "dolfin.h"
+#include &lt;sys/types.h&gt;
+#include &lt;unistd.h&gt;
+#include &lt;fstream&gt;
+
+namespace dolfin
+{
+  std::size_t getMemoryUsage(bool rss=true)
+  {
+    // Get process ID and page size
+    const std::size_t pid = getpid();
+    const std::size_t page_size = getpagesize();
+
+    // Prepare statm file
+    std::stringstream filename;
+    filename &lt;&lt; "/proc/" &lt;&lt; pid &lt;&lt; "/statm";
+    std::ifstream statm;
+
+    // Read number of pages from statm
+    statm.open(filename.str().c_str());
+    if (!statm)
+      std::cout &lt;&lt; "Unable to open statm file for process." &lt;&lt; std::endl;
+    std::size_t num_pages;
+    statm &gt;&gt; num_pages;
+    if (rss)
+      statm &gt;&gt; num_pages;
+    statm.close();
+
+    // Convert to MB and report memory usage
+    const std::size_t num_kb = num_pages*page_size / 1024;
+
+    return num_kb;
+  }
+}
+'''
+
+compiled_memory_module = compile_extension_module(code=memory_code)
+get_memory_usage = compiled_memory_module.getMemoryUsage
+
+
+nx = 10
+mesh = UnitCubeMesh(nx, nx, nx)
+h = CellSize(mesh)
+
+# Create FunctionSpaces
+Q = FunctionSpace(mesh, "CG", 2)
+V = VectorFunctionSpace(mesh, "CG", 1)
+
+velocity = interpolate(Expression(('x[1]', '0.', '0.')), V)
+
+u0 = interpolate(Expression('0.'), Q)
+u_sol = interpolate(Expression('0.'), Q)
+
+# Parameters
+T = 10.
+hps = 10000
+dt = T / n_tsteps
+c = 1e-2
+
+# Test and trial functions
+u, v = TrialFunction(Q), TestFunction(Q)
+
+# Mid-point solution
+u_mid = 0.5*(u0 + u)
+
+# Galerkin variational problem
+F = v*(u - u0)*dx + dt*(v*dot(velocity, grad(u_mid))*dx \
+                      + c*dot(grad(v), grad(u_mid))*dx)
+
+# Create bilinear and linear forms
+a = lhs(F)
+L = rhs(F)
+
+# Set up boundary condition
+class Inflow(SubDomain):
+    def inside(self, x, on_boundary):
+        return (x[0] &lt; DOLFIN_EPS and on_boundary)
+class Dirichlet(SubDomain):
+    def inside(self, x, on_boundary):
+        return (x[0] &gt; .25 and x[0] &lt; .75 and x[1] &lt; DOLFIN_EPS and on_boundary)
+facet_domains = MeshFunction("size_t", mesh, mesh.topology().dim()-1)
+facet_domains.set_all(0)
+inflow_bnd = Inflow()
+dirichlet_bnd = Dirichlet()
+inflow_bnd.mark(facet_domains, 1)
+dirichlet_bnd.mark(facet_domains, 2)
+bc1 = DirichletBC(Q, 0., facet_domains, 1)
+bc2 = DirichletBC(Q, 1., facet_domains, 2)
+bcs = [bc1, bc2]
+bc1.apply(u0.vector())
+bc2.apply(u0.vector())
+bc1.apply(u_sol.vector())
+bc2.apply(u_sol.vector())
+
+# Assemble matrix
+A = assemble(a)
+bc1.apply(A)
+bc2.apply(A)
+
+mem_usage = MPI.sum(mpi_comm_world(), get_memory_usage())
+if rank == 0:
+    print 'Memory usage before timestepping loop:', mem_usage
+
+tstep = 0
+# Time-stepping
+while tstep &lt; n_tsteps:
+    tstep += 1
+
+    # Assemble vector and apply boundary conditions
+    b = assemble(L)
+    bc1.apply(b)
+    bc2.apply(b)
+
+    solve(A, u0.vector(), b, 'gmres')
+    # u0.vector().set_local(u_sol.vector().get_local())
+    # u0.vector().apply('')
+
+    mem_usage = MPI.sum(mpi_comm_world(), get_memory_usage())
+    if rank == 0 and tstep % 100 == 0:
+        print 'Memory usage after tstep', tstep, ':', mem_usage
+</code></pre>
+</div>
+										</div>
+										<span class="qa-q-view-avatar-meta">
+											<span class="qa-q-view-meta">
+												<a href="../../8782/memory-leak-running-fenics-1-6-in-parallel" class="qa-q-view-what">asked</a>
+												<span class="qa-q-view-when">
+													<span class="qa-q-view-when-data"><span class="published"><span class="value-title" title="2015-12-04T05:47:38+0000"></span>Dec 4, 2015</span></span>
+												</span>
+												<span class="qa-q-view-who">
+													<span class="qa-q-view-who-pad">by </span>
+													<span class="qa-q-view-who-data"><span class="vcard author"><a href="../../user/khansen" class="qa-user-link url nickname">khansen</a></span></span>
+													<span class="qa-q-view-who-title">FEniCS Novice</span>
+													<span class="qa-q-view-who-points">
+														<span class="qa-q-view-who-points-pad">(</span><span class="qa-q-view-who-points-data">220</span><span class="qa-q-view-who-points-pad"> points)</span>
+													</span>
+												</span>
+											</span>
+										</span>
+										<div class="qa-q-view-buttons">
+										</div>
+										
+										<div class="qa-q-view-c-list" id="c8782_list">
+											<div class="qa-c-list-item  hentry comment" id="c8783">
+												<div class="qa-c-item-content">
+													<a name="8783"></a><div class="entry-content"><p>Unable to reproduce with gcc 4.9.2 and openmpi 1.8.4. Are you able to pinpoint it to the solve-command? Try without reassembling the rhs.</p>
+</div>
+												</div>
+												<div class="qa-c-item-footer">
+													<span class="qa-c-item-avatar-meta">
+														<span class="qa-c-item-meta">
+															<a href="../../8782/memory-leak-running-fenics-1-6-in-parallel?show=8783#c8783" class="qa-c-item-what">commented</a>
+															<span class="qa-c-item-when">
+																<span class="qa-c-item-when-data"><span class="published"><span class="value-title" title="2015-12-04T10:31:21+0000"></span>Dec 4, 2015</span></span>
+															</span>
+															<span class="qa-c-item-who">
+																<span class="qa-c-item-who-pad">by </span>
+																<span class="qa-c-item-who-data"><span class="vcard author"><a href="../../user/%C3%98yvind+Evju" class="qa-user-link url nickname">&#216;yvind Evju</a></span></span>
+																<span class="qa-c-item-who-title">FEniCS Expert</span>
+																<span class="qa-c-item-who-points">
+																	<span class="qa-c-item-who-points-pad">(</span><span class="qa-c-item-who-points-data">17,700</span><span class="qa-c-item-who-points-pad"> points)</span>
+																</span>
+															</span>
+														</span>
+													</span>
+													<div class="qa-c-item-buttons">
+													</div>
+												</div>
+												<div class="qa-c-item-clear">
+												</div>
+											</div> <!-- END qa-c-item -->
+											<div class="qa-c-list-item  hentry comment" id="c8792">
+												<div class="qa-c-item-content">
+													<a name="8792"></a><div class="entry-content"><p>When I put the timestepping loop directly around the solve command the memory leak is still there but not as bad (goes from about 3GB to 4GB over 10000 timesteps rather than 3GB to 8GB).</p>
+</div>
+												</div>
+												<div class="qa-c-item-footer">
+													<span class="qa-c-item-avatar-meta">
+														<span class="qa-c-item-meta">
+															<a href="../../8782/memory-leak-running-fenics-1-6-in-parallel?show=8792#c8792" class="qa-c-item-what">commented</a>
+															<span class="qa-c-item-when">
+																<span class="qa-c-item-when-data"><span class="published"><span class="value-title" title="2015-12-04T21:14:47+0000"></span>Dec 4, 2015</span></span>
+															</span>
+															<span class="qa-c-item-who">
+																<span class="qa-c-item-who-pad">by </span>
+																<span class="qa-c-item-who-data"><span class="vcard author"><a href="../../user/khansen" class="qa-user-link url nickname">khansen</a></span></span>
+																<span class="qa-c-item-who-title">FEniCS Novice</span>
+																<span class="qa-c-item-who-points">
+																	<span class="qa-c-item-who-points-pad">(</span><span class="qa-c-item-who-points-data">220</span><span class="qa-c-item-who-points-pad"> points)</span>
+																</span>
+															</span>
+														</span>
+													</span>
+													<div class="qa-c-item-buttons">
+													</div>
+												</div>
+												<div class="qa-c-item-clear">
+												</div>
+											</div> <!-- END qa-c-item -->
+											<div class="qa-c-list-item  hentry comment" id="c8793">
+												<div class="qa-c-item-content">
+													<a name="8793"></a><div class="entry-content"><p>So I realized that the memory leak only happens when I use more than 16 processors per node. Is there a build flag for one of the Dolfin dependencies that specifies the number of processors per node, or is this likely an issue with my OpenMPI build? I had to create a custom OpenMPI build for FEniCS because Red Hat does not support GCC 4.8+.</p>
+</div>
+												</div>
+												<div class="qa-c-item-footer">
+													<span class="qa-c-item-avatar-meta">
+														<span class="qa-c-item-meta">
+															<a href="../../8782/memory-leak-running-fenics-1-6-in-parallel?show=8793#c8793" class="qa-c-item-what">commented</a>
+															<span class="qa-c-item-when">
+																<span class="qa-c-item-when-data"><span class="published"><span class="value-title" title="2015-12-04T21:53:30+0000"></span>Dec 4, 2015</span></span>
+															</span>
+															<span class="qa-c-item-who">
+																<span class="qa-c-item-who-pad">by </span>
+																<span class="qa-c-item-who-data"><span class="vcard author"><a href="../../user/khansen" class="qa-user-link url nickname">khansen</a></span></span>
+																<span class="qa-c-item-who-title">FEniCS Novice</span>
+																<span class="qa-c-item-who-points">
+																	<span class="qa-c-item-who-points-pad">(</span><span class="qa-c-item-who-points-data">220</span><span class="qa-c-item-who-points-pad"> points)</span>
+																</span>
+															</span>
+														</span>
+													</span>
+													<div class="qa-c-item-buttons">
+													</div>
+												</div>
+												<div class="qa-c-item-clear">
+												</div>
+											</div> <!-- END qa-c-item -->
+										</div> <!-- END qa-c-list -->
+										
+										<input type="hidden" name="code" value="0-1516468191-fa922b73b620eac621369e27299e5e898d8cc0ff">
+										<input type="hidden" name="qa_click" value="">
+									</form>
+									<div class="qa-c-form">
+									</div> <!-- END qa-c-form -->
+									
+								</div> <!-- END qa-q-view-main -->
+								<div class="qa-q-view-clear">
+								</div>
+							</div> <!-- END qa-q-view -->
+							
+						</div>
+						<div class="qa-part-a-list">
+							<h2 id="a_list_title" style="display:none;"></h2>
+							<div class="qa-a-list" id="a_list">
+								
+							</div> <!-- END qa-a-list -->
+							
+						</div>
+					</div> <!-- END qa-main -->
+					
+				</div> <!-- END main-wrapper -->
+			</div> <!-- END main-shadow -->
+		</div> <!-- END body-wrapper -->
+		<!-- END footer-bottom-group -->
+		
+		<div style="position:absolute; left:-9999px; top:-9999px;">
+			<span id="qa-waiting-template" class="qa-waiting">...</span>
+		</div>
+	
+	
+
+</body><!-- Powered by Question2Answer - http://www.question2answer.org/ --></html>

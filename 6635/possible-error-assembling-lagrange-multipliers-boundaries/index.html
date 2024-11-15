@@ -1,0 +1,507 @@
+<html><!-- Powered by Question2Answer - http://www.question2answer.org/ --><head>
+		<meta http-equiv="content-type" content="text/html; charset=utf-8">
+		<title>Possible error in assembling with Lagrange multipliers on boundaries. - FEniCS Q&amp;A</title>
+		<meta name="description" content="Hallo I'm making some tests on the simple problem of the flow around a cylinder with  ... P1 Lagrange multipliers. Thanks for any suggestion. Stefano">
+		<link rel="stylesheet" type="text/css" href="../../qa-theme/Snow/qa-styles.css">
+		<link rel="canonical" href="http://fenicsproject.org/qa/6635/possible-error-assembling-lagrange-multipliers-boundaries">
+		<script type="text/x-mathjax-config">
+  MathJax.Hub.Config({
+    extensions: ["tex2jax.js"],
+    jax: ["input/TeX","output/HTML-CSS"],
+    tex2jax: {inlineMath: [["$","$"],["\\(","\\)"]]},
+    TeX: { extensions: ["AMSmath.js","AMSsymbols.js"]}
+  });
+</script>
+<script type="text/javascript" src="../../mathjax/MathJax.js"></script>
+		<script src="../../jquery-1.7.2.min.js" type="text/javascript"></script>
+		<script src="../../highlight.min.js"></script>
+<script type="text/javascript">
+$(function(){
+	$('.wmd-input').keypress(function(){
+		window.clearTimeout(hljs.Timeout);
+		hljs.Timeout = window.setTimeout(function() {
+			hljs.initHighlighting.called = false;
+			hljs.initHighlighting();
+		}, 500);
+	});
+	window.setTimeout(function() {
+		hljs.initHighlighting.called = false;
+		hljs.initHighlighting();
+	}, 500);
+});
+</script>
+
+
+	</head>
+	<body class="qa-template-question qa-body-js-off">
+		<div class="qa-body-wrapper">
+			
+			<div class="qa-header">
+				<div class="qa-logo">
+					<a href="../../" class="qa-logo-link" title="FEniCS Q&amp;A"><img src="../../qa-theme/fenics_qa.png" border="0" alt="FEniCS Q&amp;A"></a>
+				</div>
+				<div class="qa-header-clear">
+				</div>
+			</div> <!-- END qa-header -->
+			
+			<div class="qa-main-shadow">
+				
+				<div class="qa-main-wrapper">
+					
+					<div class="qa-sidepanel">
+						<div class="qa-sidebar">
+							This is a read only copy of the old FEniCS QA forum. Please visit the <a href="https://www.allanswered.com/community/s/fenics-project/">new QA forum</a> to ask questions
+						</div>
+						
+					</div>
+					
+					<div class="qa-main">
+						<h1>
+							<span class="entry-title">Possible error in assembling with Lagrange multipliers on boundaries.</span>
+						</h1>
+						<div class="qa-part-q-view">
+							<div class="qa-q-view  hentry question" id="q6635">
+								<form method="post" action="../../6635/possible-error-assembling-lagrange-multipliers-boundaries">
+									<div class="qa-q-view-stats">
+										<div class="qa-voting qa-voting-net" id="voting_6635">
+											<div class="qa-vote-count qa-vote-count-net">
+												<span class="qa-netvote-count">
+													<span class="qa-netvote-count-data">0<span class="votes-up"><span class="value-title" title="0"></span></span><span class="votes-down"><span class="value-title" title="0"></span></span></span><span class="qa-netvote-count-pad"> votes</span>
+												</span>
+											</div>
+											<div class="qa-vote-clear">
+											</div>
+										</div>
+									</div>
+									<input type="hidden" name="code" value="0-1516468080-9f14f7f9ae9733767a567fcef6571e0382d3488f">
+								</form>
+								<div class="qa-q-view-main">
+									<form method="post" action="../../6635/possible-error-assembling-lagrange-multipliers-boundaries">
+										<div class="qa-q-view-content">
+											<a name="6635"></a><div class="entry-content"><p>Hallo<br>
+I'm making some tests on the simple problem of the flow around a cylinder with zero tangential stress condition using Newton iterations. I'm imposing null normal velocity on the cylinder and assigned inflow velocity using Lagrange multipliers, as in the code below.</p>
+
+<pre><code>Ppressure = FiniteElement("Lagrange",triangle,1)
+Pvelocity = VectorElement("Lagrange",triangle,2)
+Plegrange = VectorElement("Lagrange",triangle,2)
+
+V = MixedElement([Ppressure,Pvelocity,Plagrange])
+
+n = FacetNormal(triangle)
+
+(p, u, l) = TrialFunctions(V)
+(q, v, m) = TestFunctions(V)
+Re = Constant(triangle)
+U0 = Coefficient(Pvelocity)
+Uinflow = Coefficient(Pvelocity)
+
+A = (1/Re*inner(grad(v), grad(u))+1/Re*inner(grad(v), transpose(grad(u))) - div(v)*p -    q*div(u))*dx  \
++inner(v,grad(U0)*u)*dx + inner(v,grad(u)*U0)*dx  -dot(v,l)*ds(3) -dot(m, u)*ds(3) \
+-dot(m[0], dot(u,n))*ds(2)- l[0]*dot(v,n)*ds(2)
+
+L = + inner(v,grad(U0)*U0)*dx-dot(m, Uinflow)*ds(3)
+
+forms = [A,L]
+</code></pre>
+
+<p>With the elements listed in the code I get the right solution. <br>
+If I try to use MINI elements, so P1-P1bubble, leaving P2 for the multiplier I get nonsense solutions using UMFPACK and this error using MUMPS, that is singularity in the first line.</p>
+
+<p>[0]PETSC ERROR: --------------------- Error Message ------------------------------------<br>
+[0]PETSC ERROR: Error in external library!<br>
+[0]PETSC ERROR: Error reported by MUMPS in numerical factorization phase: INFO(1)=-10, INFO(2)=0</p>
+
+<p>If I use P1 elements for Lagrange multipliers too the solution works but the results have obviously poor accuracy.</p>
+
+<p>So P1-P2-P2 works, P1-P1bubble-P1 works, P1-P1bubble-P2 gives error.</p>
+
+<p>My question is if this error is related to the assembling procedure with this combination of elements. And in case if there is an enrichment that affects also the facets, to improve the accuracy even using P1 Lagrange multipliers.</p>
+
+<p>Thanks for any suggestion.<br>
+Stefano</p>
+</div>
+										</div>
+										<span class="qa-q-view-avatar-meta">
+											<span class="qa-q-view-meta">
+												<a href="../../6635/possible-error-assembling-lagrange-multipliers-boundaries" class="qa-q-view-what">asked</a>
+												<span class="qa-q-view-when">
+													<span class="qa-q-view-when-data"><span class="published"><span class="value-title" title="2015-02-27T22:21:35+0000"></span>Feb 27, 2015</span></span>
+												</span>
+												<span class="qa-q-view-who">
+													<span class="qa-q-view-who-pad">by </span>
+													<span class="qa-q-view-who-data"><span class="vcard author"><a href="../../user/Stefano" class="qa-user-link url nickname">Stefano</a></span></span>
+													<span class="qa-q-view-who-title">FEniCS Novice</span>
+													<span class="qa-q-view-who-points">
+														<span class="qa-q-view-who-points-pad">(</span><span class="qa-q-view-who-points-data">460</span><span class="qa-q-view-who-points-pad"> points)</span>
+													</span>
+												</span>
+											</span>
+										</span>
+										<div class="qa-q-view-buttons">
+										</div>
+										
+										<div class="qa-q-view-c-list" id="c6635_list">
+											<div class="qa-c-list-item  hentry comment" id="c6637">
+												<div class="qa-c-item-content">
+													<a name="6637"></a><div class="entry-content"><p>Are you sure that the combination P1-P1bubble-P2 is uniformly inf-sup stable? And what happens to the DOFs inside the domain? Can you please provide a working example?</p>
+</div>
+												</div>
+												<div class="qa-c-item-footer">
+													<span class="qa-c-item-avatar-meta">
+														<span class="qa-c-item-meta">
+															<a href="../../6635/possible-error-assembling-lagrange-multipliers-boundaries?show=6637#c6637" class="qa-c-item-what">commented</a>
+															<span class="qa-c-item-when">
+																<span class="qa-c-item-when-data"><span class="published"><span class="value-title" title="2015-02-28T08:46:40+0000"></span>Feb 28, 2015</span></span>
+															</span>
+															<span class="qa-c-item-who">
+																<span class="qa-c-item-who-pad">by </span>
+																<span class="qa-c-item-who-data"><span class="vcard author"><a href="../../user/Christian+Waluga" class="qa-user-link url nickname">Christian Waluga</a></span></span>
+																<span class="qa-c-item-who-title">FEniCS Expert</span>
+																<span class="qa-c-item-who-points">
+																	<span class="qa-c-item-who-points-pad">(</span><span class="qa-c-item-who-points-data">12,310</span><span class="qa-c-item-who-points-pad"> points)</span>
+																</span>
+															</span>
+														</span>
+													</span>
+													<div class="qa-c-item-buttons">
+													</div>
+												</div>
+												<div class="qa-c-item-clear">
+												</div>
+											</div> <!-- END qa-c-item -->
+											<div class="qa-c-list-item  hentry comment" id="c6640">
+												<div class="qa-c-item-content">
+													<a name="6640"></a><div class="entry-content"><p>I prepared an example using the demos. Thank you very much.</p>
+</div>
+												</div>
+												<div class="qa-c-item-footer">
+													<span class="qa-c-item-avatar-meta">
+														<span class="qa-c-item-meta">
+															<a href="../../6635/possible-error-assembling-lagrange-multipliers-boundaries?show=6640#c6640" class="qa-c-item-what">commented</a>
+															<span class="qa-c-item-when">
+																<span class="qa-c-item-when-data"><span class="published"><span class="value-title" title="2015-02-28T13:43:06+0000"></span>Feb 28, 2015</span></span>
+															</span>
+															<span class="qa-c-item-who">
+																<span class="qa-c-item-who-pad">by </span>
+																<span class="qa-c-item-who-data"><span class="vcard author"><a href="../../user/Stefano" class="qa-user-link url nickname">Stefano</a></span></span>
+																<span class="qa-c-item-who-title">FEniCS Novice</span>
+																<span class="qa-c-item-who-points">
+																	<span class="qa-c-item-who-points-pad">(</span><span class="qa-c-item-who-points-data">460</span><span class="qa-c-item-who-points-pad"> points)</span>
+																</span>
+															</span>
+														</span>
+													</span>
+													<div class="qa-c-item-buttons">
+													</div>
+												</div>
+												<div class="qa-c-item-clear">
+												</div>
+											</div> <!-- END qa-c-item -->
+										</div> <!-- END qa-c-list -->
+										
+										<input type="hidden" name="code" value="0-1516468080-0c2be467f2a6484909e1261474471587cde430ec">
+										<input type="hidden" name="qa_click" value="">
+									</form>
+									<div class="qa-c-form">
+									</div> <!-- END qa-c-form -->
+									
+								</div> <!-- END qa-q-view-main -->
+								<div class="qa-q-view-clear">
+								</div>
+							</div> <!-- END qa-q-view -->
+							
+						</div>
+						<div class="qa-part-a-list">
+							<h2 id="a_list_title">1 Answer</h2>
+							<div class="qa-a-list" id="a_list">
+								
+								<div class="qa-a-list-item  hentry answer" id="a6641">
+									<form method="post" action="../../6635/possible-error-assembling-lagrange-multipliers-boundaries">
+										<div class="qa-voting qa-voting-net" id="voting_6641">
+											<div class="qa-vote-count qa-vote-count-net">
+												<span class="qa-netvote-count">
+													<span class="qa-netvote-count-data">0<span class="votes-up"><span class="value-title" title="0"></span></span><span class="votes-down"><span class="value-title" title="0"></span></span></span><span class="qa-netvote-count-pad"> votes</span>
+												</span>
+											</div>
+											<div class="qa-vote-clear">
+											</div>
+										</div>
+										<input type="hidden" name="code" value="0-1516468080-9f14f7f9ae9733767a567fcef6571e0382d3488f">
+									</form>
+									<div class="qa-a-item-main">
+										<form method="post" action="../../6635/possible-error-assembling-lagrange-multipliers-boundaries">
+											<div class="qa-a-selection">
+											</div>
+											<div class="qa-a-item-content">
+												<a name="6641"></a><div class="entry-content"><p>I'm working in c++. I prepared an example using parts of the demos. You can take the mesh and CMakeList files from the demo documented/subdomains. <br>
+The UFL file, named LinearizedNS.ufl is</p>
+
+<pre><code>####### Navier Stokes formulation with Lagrange multipliers on boundary.
+Ppressure = FiniteElement("Lagrange",triangle,1)
+
+#### Velocity P2, Lagrange P2.
+####Works.#####
+Pvelocity = VectorElement("Lagrange",triangle,2)
+Plagrange = VectorElement("Lagrange",triangle,2)
+
+#### Velocity P1bubble, Lagrange P1.
+#####Works with poor accuracy(oscillations in presure field).#####
+#Pbubble = VectorElement("Bubble",triangle,3)
+#P1 = VectorElement("Lagrange",triangle,1)
+#Pvelocity = P1+Pbubble
+#Plagrange = VectorElement("Lagrange",triangle,1)
+
+#### Velocity P1bubble, Lagrange P2.             
+#####Does not work.######
+#Pbubble = VectorElement("Bubble",triangle,3)
+#P1 = VectorElement("Lagrange",triangle,1)
+#Pvelocity = P1+Pbubble
+#Plagrange = VectorElement("Lagrange",triangle,2)
+
+V = MixedElement([Ppressure,Pvelocity,Plagrange])
+
+n = FacetNormal(triangle)
+
+(p, u, l) = TrialFunctions(V)
+(q, v, m) = TestFunctions(V)
+
+Re = Constant(triangle)
+
+U = Coefficient(Pvelocity)
+U0 = Coefficient(Pvelocity)
+
+Uinflow = Coefficient(Pvelocity)
+
+A = (1/Re*inner(grad(v), grad(u))+1/Re*inner(grad(v), transpose(grad(u))) - div(v)*p -  q*div(u))*dx  \
++inner(v,grad(U0)*u)*dx + inner(v,grad(u)*U0)*dx  -dot(v,l)*ds(1) -dot(m, u)*ds(1) \
+-dot(m[0], dot(u,n))*ds(2)- l[0]*dot(v,n)*ds(2)
+
+L = + inner(v,grad(U0)*U0)*dx-dot(m, Uinflow)*ds(1)
+
+increment = dot((U-U0),(U-U0))*dx
+
+forms=[A, L, increment]
+</code></pre>
+
+<p>Just uncomment the set of elements you want of the three implemented.<br>
+The main.cpp program.</p>
+
+<pre><code>#include &lt;dolfin.h&gt;
+#include "LinearizedNS.h"
+
+using namespace dolfin;
+
+// Inflow condition.
+class PrescribedValue : public Expression
+{
+     public: PrescribedValue() : Expression(2) {}
+     void eval(Array&lt;double&gt;&amp; values, const Array&lt;double&gt;&amp; x) const{
+             values[0]= -1.0;
+             values[1]= 0.0;
+      }
+};
+
+// Sub domain for no-slip (everything except inflow and outflow)
+class Noslip : public SubDomain
+{
+      bool inside(const Array&lt;double&gt;&amp; x, bool on_boundary) const
+      {
+          return on_boundary;
+       }
+};
+
+// Sub domain for inflow (right)
+class Inflow : public SubDomain
+{
+      bool inside(const Array&lt;double&gt;&amp; x, bool on_boundary) const
+      {
+        return x[0] &gt; 1.0 - DOLFIN_EPS &amp;&amp; on_boundary;
+      }
+};
+
+// Sub domain for outflow (left)
+class Outflow : public SubDomain
+{
+      bool inside(const Array&lt;double&gt;&amp; x, bool on_boundary) const
+      {
+       return x[0] &lt; DOLFIN_EPS &amp;&amp; on_boundary;
+       }
+};
+
+int main()
+{
+// Read mesh.
+Mesh mesh("./dolfin_fine.xml.gz");
+
+// Define paramenters.
+double tollerance = 0.0000001;
+double max = 10;
+double step;
+Constant Re(50.0);
+
+// Define subdomains.
+Noslip noslip;
+Inflow inflow;
+Outflow outflow;
+
+// Mark subdomains for boundary conditions.
+MeshFunction&lt;std::size_t&gt; sub_domains(mesh, mesh.topology().dim() - 1);
+
+sub_domains.set_all(0);
+noslip.mark(sub_domains,2);
+inflow.mark(sub_domains,1);
+outflow.mark(sub_domains,0);
+
+// Define finite element space.
+LinearizedNS::FunctionSpace V(mesh);
+
+// Define function for solution at two iterations.
+Function U(V);
+Function U0(V);
+
+//// Define forms.
+// Bilinear form.
+LinearizedNS::Form_A A(V,V);
+// Linear form.
+LinearizedNS::Form_L L(V);
+// Increment form for stop criteria.
+LinearizedNS::Form_increment increment(mesh);
+
+// Define matrix and vector.
+PETScMatrix K;
+PETScVector b;
+
+// Inflow condition.
+PrescribedValue vinflow;
+
+//// First step. Stokes.
+// Coefficients assigned to forms.
+A.Re = Re;
+A.U0 = U[1];
+A.ds = sub_domains;
+L.U0 =U[1];
+L.ds = sub_domains;
+L.Uinflow = vinflow;
+
+// Assembly of matrix and right hand sise term.
+assemble(K, A);
+assemble(b, L);
+
+// De singularization of matrix.
+K.ident_zeros();
+
+// Solution.
+solve(K,*U.vector(),b,"lu" );
+
+// Calculation of step.
+increment.U = U[1];
+increment.U0 = U0[1];
+step = assemble(increment);
+
+// Update the solution.
+U0 = U;
+printf("(U-U0)L2= %e\n", step);
+
+//// Newton iterations.
+int iterations = 1;
+while (step &gt; tollerance and iterations &lt; max) {
+
+A.U0 = U0[1];
+L.U0 =U0[1];
+
+assemble(K, A);
+assemble(b, L);
+
+K.ident_zeros();
+
+solve(K,*U.vector(),b);
+
+increment.U = U[1];
+increment.U0 = U0[1];
+step = assemble(increment);
+printf("iterations= %i\n", iterations);
+printf("(U-U0)L2= %e\n", step);
+
+U0 = U;
+
+iterations = iterations +1;
+};
+
+// Separate functions for plot.
+Function u = U[1];
+Function p = U[0];
+
+// Save solution in VTK format
+File ufile_pvd("velocity.pvd");
+ufile_pvd &lt;&lt; u;
+File pfile_pvd("pressure.pvd");
+pfile_pvd &lt;&lt; p;
+
+
+// Plot solution
+plot(u);
+plot(p);
+interactive();
+
+return 1;
+};
+</code></pre>
+
+<p>This combination should be stable. Anyway I don't get spurious solutions, but the matrix itself seems wrong. More with the less stable P1-P1bubble-P1 the solution works. </p>
+
+<p>The internal degrees of freedom are put to zero with the ident_zeros() function.</p>
+
+<p>If there is a simpler way to upload examples and codes, I don't know it, sorry.<br>
+Thank you very much.</p>
+</div>
+											</div>
+											<span class="qa-a-item-avatar-meta">
+												<span class="qa-a-item-meta">
+													<a href="../../6635/possible-error-assembling-lagrange-multipliers-boundaries?show=6641#a6641" class="qa-a-item-what">answered</a>
+													<span class="qa-a-item-when">
+														<span class="qa-a-item-when-data"><span class="published"><span class="value-title" title="2015-02-28T13:44:49+0000"></span>Feb 28, 2015</span></span>
+													</span>
+													<span class="qa-a-item-who">
+														<span class="qa-a-item-who-pad">by </span>
+														<span class="qa-a-item-who-data"><span class="vcard author"><a href="../../user/Stefano" class="qa-user-link url nickname">Stefano</a></span></span>
+														<span class="qa-a-item-who-title">FEniCS Novice</span>
+														<span class="qa-a-item-who-points">
+															<span class="qa-a-item-who-points-pad">(</span><span class="qa-a-item-who-points-data">460</span><span class="qa-a-item-who-points-pad"> points)</span>
+														</span>
+													</span>
+												</span>
+											</span>
+											<div class="qa-a-item-buttons">
+												</div>
+											
+											<div class="qa-a-item-c-list" style="display:none;" id="c6641_list">
+											</div> <!-- END qa-c-list -->
+											
+											<input type="hidden" name="code" value="0-1516468080-f9a02f07012970aef16fd2fdfda9f5b8b3e0f682">
+											<input type="hidden" name="qa_click" value="">
+										</form>
+										<div class="qa-c-form">
+										</div> <!-- END qa-c-form -->
+										
+									</div> <!-- END qa-a-item-main -->
+									<div class="qa-a-item-clear">
+									</div>
+								</div> <!-- END qa-a-list-item -->
+								
+							</div> <!-- END qa-a-list -->
+							
+						</div>
+					</div> <!-- END qa-main -->
+					
+				</div> <!-- END main-wrapper -->
+			</div> <!-- END main-shadow -->
+		</div> <!-- END body-wrapper -->
+		<!-- END footer-bottom-group -->
+		
+		<div style="position:absolute; left:-9999px; top:-9999px;">
+			<span id="qa-waiting-template" class="qa-waiting">...</span>
+		</div>
+	
+	
+
+</body><!-- Powered by Question2Answer - http://www.question2answer.org/ --></html>

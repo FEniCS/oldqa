@@ -1,0 +1,331 @@
+<html><!-- Powered by Question2Answer - http://www.question2answer.org/ --><head>
+		<meta http-equiv="content-type" content="text/html; charset=utf-8">
+		<title>Projection of scalar field on DG0 and DG1 on boundary of mesh - FEniCS Q&amp;A</title>
+		<meta name="description" content="I want to calculate a scalar product of the mesh normal and a velocity field on the ... ) v_dot_n_DG0.vector()[:] = v_dot_n_DG0_array file_v_dot_n_DG0">
+		<meta name="keywords" content="projection,discontiuous,boundary,dg0,dg1">
+		<link rel="stylesheet" type="text/css" href="../../qa-theme/Snow/qa-styles.css">
+		<link rel="canonical" href="http://fenicsproject.org/qa/12336/projection-of-scalar-field-on-dg0-and-dg1-on-boundary-of-mesh">
+		<script type="text/x-mathjax-config">
+  MathJax.Hub.Config({
+    extensions: ["tex2jax.js"],
+    jax: ["input/TeX","output/HTML-CSS"],
+    tex2jax: {inlineMath: [["$","$"],["\\(","\\)"]]},
+    TeX: { extensions: ["AMSmath.js","AMSsymbols.js"]}
+  });
+</script>
+<script type="text/javascript" src="../../mathjax/MathJax.js"></script>
+		<script src="../../jquery-1.7.2.min.js" type="text/javascript"></script>
+		<script src="../../highlight.min.js"></script>
+<script type="text/javascript">
+$(function(){
+	$('.wmd-input').keypress(function(){
+		window.clearTimeout(hljs.Timeout);
+		hljs.Timeout = window.setTimeout(function() {
+			hljs.initHighlighting.called = false;
+			hljs.initHighlighting();
+		}, 500);
+	});
+	window.setTimeout(function() {
+		hljs.initHighlighting.called = false;
+		hljs.initHighlighting();
+	}, 500);
+});
+</script>
+
+
+	</head>
+	<body class="qa-template-question qa-body-js-off">
+		<div class="qa-body-wrapper">
+			
+			<div class="qa-header">
+				<div class="qa-logo">
+					<a href="../../" class="qa-logo-link" title="FEniCS Q&amp;A"><img src="../../qa-theme/fenics_qa.png" border="0" alt="FEniCS Q&amp;A"></a>
+				</div>
+				<div class="qa-header-clear">
+				</div>
+			</div> <!-- END qa-header -->
+			
+			<div class="qa-main-shadow">
+				
+				<div class="qa-main-wrapper">
+					
+					<div class="qa-sidepanel">
+						<div class="qa-sidebar">
+							This is a read only copy of the old FEniCS QA forum. Please visit the <a href="https://www.allanswered.com/community/s/fenics-project/">new QA forum</a> to ask questions
+						</div>
+						
+					</div>
+					
+					<div class="qa-main">
+						<h1>
+							<span class="entry-title">Projection of scalar field on DG0 and DG1 on boundary of mesh</span>
+						</h1>
+						<div class="qa-part-q-view">
+							<div class="qa-q-view  hentry question" id="q12336">
+								<form method="post" action="../../12336/projection-of-scalar-field-on-dg0-and-dg1-on-boundary-of-mesh">
+									<div class="qa-q-view-stats">
+										<div class="qa-voting qa-voting-net" id="voting_12336">
+											<div class="qa-vote-count qa-vote-count-net">
+												<span class="qa-netvote-count">
+													<span class="qa-netvote-count-data">+2<span class="votes-up"><span class="value-title" title="2"></span></span><span class="votes-down"><span class="value-title" title="0"></span></span></span><span class="qa-netvote-count-pad"> votes</span>
+												</span>
+											</div>
+											<div class="qa-vote-clear">
+											</div>
+										</div>
+									</div>
+									<input type="hidden" name="code" value="0-1516467818-b12417134b6e1de8f20c9b39f45117fdafe2ef3e">
+								</form>
+								<div class="qa-q-view-main">
+									<form method="post" action="../../12336/projection-of-scalar-field-on-dg0-and-dg1-on-boundary-of-mesh">
+										<div class="qa-q-view-content">
+											<a name="12336"></a><div class="entry-content"><p>I want to calculate a scalar product of the mesh normal and a velocity field on the boundar of a mesh:</p>
+
+<pre><code>v_Expression = Expression(('0.0','-1'), degree=2, domain=mesh)
+
+v = interpolate(v_Expression, SomeVectorSpace)
+N = FacetNormal(mesh)
+
+dot(v,N)
+</code></pre>
+
+<p>I have tried different vectorspaces: DG0 and DG1. In the image you can see the results.</p>
+
+<p><img src="http://i.imgur.com/SeB5LOc.png" alt="problem"></p>
+
+<p>For DG0 (top image): it is working correctly. <br>
+For DG1 (bottom image) : i dont understand the results. Some values are dropped or become zero.</p>
+
+<p>Some values become zero and the absolute value is divided by two (should be 1, but is 0.5). Also some non-zero values appear in the domain, when i use a more complex geometry meshed with gmesh.<br>
+Is this a bug? Is there a way to handle this?</p>
+
+<p>Here is the working example:</p>
+
+<pre><code>from fenics import *
+
+mesh = RectangleMesh(Point(-1,0), Point(1, 1), 10, 10, "right/left")
+
+dA = Measure("ds", domain=mesh)
+dV = Measure("dx", domain=mesh)
+
+N = FacetNormal(mesh)
+h = FacetArea(mesh)
+
+pwd = './results/'
+
+v_Expression = Expression(('0.0','-1'), degree=2, domain=mesh)
+
+###################################################################
+###################################################################
+
+file_v_dot_n_DG0 = File(pwd + 'v_dot_n_DG0.pvd')
+
+ScalarSpaceDG0 = FunctionSpace(mesh,'DG',0)
+VectorSpaceDG0 = VectorFunctionSpace(mesh,'DG',0)
+
+
+v_DG0 = interpolate(v_Expression, VectorSpaceDG0)
+TestFunctionDG0 = TestFunction(ScalarSpaceDG0)
+v_dot_n_DG0_array = assemble( dot(v_DG0,N)/h*TestFunctionDG0*dA).array()
+
+
+v_dot_n_DG0 = Function(ScalarSpaceDG0)
+v_dot_n_DG0.vector()[:] = v_dot_n_DG0_array
+
+
+file_v_dot_n_DG0 &lt;&lt; (v_dot_n_DG0)
+
+###################################################################
+###################################################################
+
+file_v_dot_n_DG1 = File(pwd + 'v_dot_n_DG1.pvd')
+
+ScalarSpaceDG1 = FunctionSpace(mesh,'DG',1)
+VectorSpaceDG1 = VectorFunctionSpace(mesh,'DG',1)
+
+v_DG1 = interpolate(v_Expression, VectorSpaceDG1)
+
+
+TestFunctionDG1 = TestFunction(ScalarSpaceDG1)
+v_dot_n_DG1_array = assemble( dot(v_DG1,N)/h*TestFunctionDG1*dA).array()
+
+
+v_dot_n_DG1 = Function(ScalarSpaceDG1)
+v_dot_n_DG1.vector()[:] = v_dot_n_DG1_array
+
+
+file_v_dot_n_DG1 &lt;&lt; (v_dot_n_DG1)
+</code></pre>
+
+<p>Second question: In the end i want to project the results on CG1. Is there a easy way to calculate the mean values on the node between two DG elements? Or are there any other ways?</p>
+
+<pre><code>file_v_dot_n_DG0_projection_on_CG1 = File(pwd + 'v_dot_n_DG0_projection_on_CG1.pvd')
+
+ScalarSpaceCG1 = FunctionSpace(mesh,'CG',1)
+
+v_dot_n_DG0_projection_on_CG1 = project(v_dot_n_DG0, ScalarSpaceCG1)
+
+file_v_dot_n_DG0_projection_on_CG1 &lt;&lt; (v_dot_n_DG0_projection_on_CG1)
+</code></pre>
+</div>
+										</div>
+										<div class="qa-q-view-tags">
+											<ul class="qa-q-view-tag-list">
+												<li class="qa-q-view-tag-item"><a href="../../tag/projection" rel="tag" class="qa-tag-link">projection</a></li>
+												<li class="qa-q-view-tag-item"><a href="../../tag/discontiuous" rel="tag" class="qa-tag-link">discontiuous</a></li>
+												<li class="qa-q-view-tag-item"><a href="../../tag/boundary" rel="tag" class="qa-tag-link">boundary</a></li>
+												<li class="qa-q-view-tag-item"><a href="../../tag/dg0" rel="tag" class="qa-tag-link">dg0</a></li>
+												<li class="qa-q-view-tag-item"><a href="../../tag/dg1" rel="tag" class="qa-tag-link">dg1</a></li>
+											</ul>
+										</div>
+										<span class="qa-q-view-avatar-meta">
+											<span class="qa-q-view-meta">
+												<a href="../../12336/projection-of-scalar-field-on-dg0-and-dg1-on-boundary-of-mesh" class="qa-q-view-what">asked</a>
+												<span class="qa-q-view-when">
+													<span class="qa-q-view-when-data"><span class="published"><span class="value-title" title="2017-02-02T18:41:49+0000"></span>Feb 2, 2017</span></span>
+												</span>
+												<span class="qa-q-view-who">
+													<span class="qa-q-view-who-pad">by </span>
+													<span class="qa-q-view-who-data"><span class="vcard author"><a href="../../user/titusf" class="qa-user-link url nickname">titusf</a></span></span>
+													<span class="qa-q-view-who-title">FEniCS Novice</span>
+													<span class="qa-q-view-who-points">
+														<span class="qa-q-view-who-points-pad">(</span><span class="qa-q-view-who-points-data">570</span><span class="qa-q-view-who-points-pad"> points)</span>
+													</span>
+												</span>
+												<br>
+												<span class="qa-q-view-what">edited</span>
+												<span class="qa-q-view-when">
+													<span class="qa-q-view-when-data"><span class="updated"><span class="value-title" title="2017-02-02T18:47:15+0000"></span>Feb 2, 2017</span></span>
+												</span>
+												<span class="qa-q-view-who">
+													<span class="qa-q-view-who-pad">by </span><span class="qa-q-view-who-data"><a href="../../user/titusf" class="qa-user-link url nickname">titusf</a></span>
+												</span>
+											</span>
+										</span>
+										<div class="qa-q-view-buttons">
+										</div>
+										
+										<div class="qa-q-view-c-list" style="display:none;" id="c12336_list">
+										</div> <!-- END qa-c-list -->
+										
+										<input type="hidden" name="code" value="0-1516467818-1c6b5ac1efe5240ee3942040ed9acc8cf1b3b80d">
+										<input type="hidden" name="qa_click" value="">
+									</form>
+									<div class="qa-c-form">
+									</div> <!-- END qa-c-form -->
+									
+								</div> <!-- END qa-q-view-main -->
+								<div class="qa-q-view-clear">
+								</div>
+							</div> <!-- END qa-q-view -->
+							
+						</div>
+						<div class="qa-part-a-list">
+							<h2 id="a_list_title">1 Answer</h2>
+							<div class="qa-a-list" id="a_list">
+								
+								<div class="qa-a-list-item  hentry answer" id="a12344">
+									<form method="post" action="../../12336/projection-of-scalar-field-on-dg0-and-dg1-on-boundary-of-mesh">
+										<div class="qa-voting qa-voting-net" id="voting_12344">
+											<div class="qa-vote-count qa-vote-count-net">
+												<span class="qa-netvote-count">
+													<span class="qa-netvote-count-data">+1<span class="votes-up"><span class="value-title" title="1"></span></span><span class="votes-down"><span class="value-title" title="0"></span></span></span><span class="qa-netvote-count-pad"> vote</span>
+												</span>
+											</div>
+											<div class="qa-vote-clear">
+											</div>
+										</div>
+										<input type="hidden" name="code" value="0-1516467818-b12417134b6e1de8f20c9b39f45117fdafe2ef3e">
+									</form>
+									<div class="qa-a-item-main">
+										<form method="post" action="../../12336/projection-of-scalar-field-on-dg0-and-dg1-on-boundary-of-mesh">
+											<div class="qa-a-selection">
+											</div>
+											<div class="qa-a-item-content">
+												<a name="12344"></a><div class="entry-content"><p>Unfortunately I do not think you understand your problem. You are attempting to project a function which is discontinuous on elements, onto a function defined continuous on each element. Recall the DG space of functions:</p>
+
+<p>$$ V^{DG} := \lbrace v_h \in L_2(\Omega) : \left. v_h \right|_{\kappa} \in \mathcal{P}^p (\kappa), \kappa \in \mathcal{T}_h \rbrace $$</p>
+
+<p>Your code is solving the problem: find $u_h \in V^{DG}$ such that</p>
+
+<p>$$ (u_h, v_h) = \langle b \cdot n, v_h \rangle_{\partial \Omega} \quad \forall v_h \in V^{DG}. $$</p>
+
+<p>If your space is DG0 and you have a piecewise constant approximation, the boundary terms of the DG formulation vanish, and you recover your cell-wise constant result as above. </p>
+
+<p>If you solve for any polynomial approximation $p \geq 1$ then your problem is not well posed and you are trying to project a function which is discontinuous on each element onto the element and you get large numerical errors. Try for example setting the polynomial order of your DG approximation space to 2, 3 and 4.</p>
+
+<p>Consider the following example for projecting $b \cdot n$ onto a CG space. Bear in mind that this problem is also ilposed as $n$ is discontinuous at the vertices of the square mesh.</p>
+
+<pre><code>from dolfin import *
+
+mesh = UnitSquareMesh(32, 32)
+V = FunctionSpace(mesh, "CG", 1, restriction="facet")
+
+vel = Expression(("0.0", "-1.0"), degree=4, domain=mesh)
+n = FacetNormal(mesh)
+
+du, v = TrialFunction(V), TestFunction(V)
+u = Function(V)
+a = du*v*ds
+L = dot(vel, n)*v*ds
+
+solve(a == L, u)
+
+plot(u, interactive=True)
+File("out.pvd") &lt;&lt; u
+</code></pre>
+</div>
+											</div>
+											<span class="qa-a-item-avatar-meta">
+												<span class="qa-a-item-avatar">
+													<a href="../../user/nate" class="qa-avatar-link"><img src="../../?qa=image&amp;qa_blobid=969593914916706065&amp;qa_size=40" width="40" height="40" class="qa-avatar-image" alt=""></a>
+												</span>
+												<span class="qa-a-item-meta">
+													<a href="../../12336/projection-of-scalar-field-on-dg0-and-dg1-on-boundary-of-mesh?show=12344#a12344" class="qa-a-item-what">answered</a>
+													<span class="qa-a-item-when">
+														<span class="qa-a-item-when-data"><span class="published"><span class="value-title" title="2017-02-03T12:45:00+0000"></span>Feb 3, 2017</span></span>
+													</span>
+													<span class="qa-a-item-who">
+														<span class="qa-a-item-who-pad">by </span>
+														<span class="qa-a-item-who-data"><span class="vcard author"><a href="../../user/nate" class="qa-user-link url nickname">nate</a></span></span>
+														<span class="qa-a-item-who-title">FEniCS Expert</span>
+														<span class="qa-a-item-who-points">
+															<span class="qa-a-item-who-points-pad">(</span><span class="qa-a-item-who-points-data">17,050</span><span class="qa-a-item-who-points-pad"> points)</span>
+														</span>
+													</span>
+												</span>
+											</span>
+											<div class="qa-a-item-buttons">
+												</div>
+											
+											<div class="qa-a-item-c-list" style="display:none;" id="c12344_list">
+											</div> <!-- END qa-c-list -->
+											
+											<input type="hidden" name="code" value="0-1516467818-286b51db3eed0019a35b763d539fa7ef1d40445c">
+											<input type="hidden" name="qa_click" value="">
+										</form>
+										<div class="qa-c-form">
+										</div> <!-- END qa-c-form -->
+										
+									</div> <!-- END qa-a-item-main -->
+									<div class="qa-a-item-clear">
+									</div>
+								</div> <!-- END qa-a-list-item -->
+								
+							</div> <!-- END qa-a-list -->
+							
+						</div>
+					</div> <!-- END qa-main -->
+					
+				</div> <!-- END main-wrapper -->
+			</div> <!-- END main-shadow -->
+		</div> <!-- END body-wrapper -->
+		<!-- END footer-bottom-group -->
+		
+		<div style="position:absolute; left:-9999px; top:-9999px;">
+			<span id="qa-waiting-template" class="qa-waiting">...</span>
+		</div>
+	
+	
+
+</body><!-- Powered by Question2Answer - http://www.question2answer.org/ --></html>

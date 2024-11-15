@@ -1,0 +1,545 @@
+<html><!-- Powered by Question2Answer - http://www.question2answer.org/ --><head>
+		<meta http-equiv="content-type" content="text/html; charset=utf-8">
+		<title>A better way to integrate the gradient along a boundary? - FEniCS Q&amp;A</title>
+		<meta name="description" content="I'm currently integrating the temperature gradient along a boundary by first solving (seems wrong to need a solver) ... points = 500; for(int j = 0; j">
+		<meta name="keywords" content="grad">
+		<link rel="stylesheet" type="text/css" href="../../qa-theme/Snow/qa-styles.css">
+		<link rel="canonical" href="http://fenicsproject.org/qa/3570/a-better-way-to-integrate-the-gradient-along-a-boundary">
+		<script type="text/x-mathjax-config">
+  MathJax.Hub.Config({
+    extensions: ["tex2jax.js"],
+    jax: ["input/TeX","output/HTML-CSS"],
+    tex2jax: {inlineMath: [["$","$"],["\\(","\\)"]]},
+    TeX: { extensions: ["AMSmath.js","AMSsymbols.js"]}
+  });
+</script>
+<script type="text/javascript" src="../../mathjax/MathJax.js"></script>
+		<script src="../../jquery-1.7.2.min.js" type="text/javascript"></script>
+		<script src="../../highlight.min.js"></script>
+<script type="text/javascript">
+$(function(){
+	$('.wmd-input').keypress(function(){
+		window.clearTimeout(hljs.Timeout);
+		hljs.Timeout = window.setTimeout(function() {
+			hljs.initHighlighting.called = false;
+			hljs.initHighlighting();
+		}, 500);
+	});
+	window.setTimeout(function() {
+		hljs.initHighlighting.called = false;
+		hljs.initHighlighting();
+	}, 500);
+});
+</script>
+
+
+	</head>
+	<body class="qa-template-question qa-body-js-off">
+		<div class="qa-body-wrapper">
+			
+			<div class="qa-header">
+				<div class="qa-logo">
+					<a href="../../" class="qa-logo-link" title="FEniCS Q&amp;A"><img src="../../qa-theme/fenics_qa.png" border="0" alt="FEniCS Q&amp;A"></a>
+				</div>
+				<div class="qa-header-clear">
+				</div>
+			</div> <!-- END qa-header -->
+			
+			<div class="qa-main-shadow">
+				
+				<div class="qa-main-wrapper">
+					
+					<div class="qa-sidepanel">
+						<div class="qa-sidebar">
+							This is a read only copy of the old FEniCS QA forum. Please visit the <a href="https://www.allanswered.com/community/s/fenics-project/">new QA forum</a> to ask questions
+						</div>
+						
+					</div>
+					
+					<div class="qa-main">
+						<h1>
+							<span class="entry-title">A better way to integrate the gradient along a boundary?</span>
+						</h1>
+						<div class="qa-part-q-view">
+							<div class="qa-q-view  hentry question" id="q3570">
+								<form method="post" action="../../3570/a-better-way-to-integrate-the-gradient-along-a-boundary">
+									<div class="qa-q-view-stats">
+										<div class="qa-voting qa-voting-net" id="voting_3570">
+											<div class="qa-vote-count qa-vote-count-net">
+												<span class="qa-netvote-count">
+													<span class="qa-netvote-count-data">+1<span class="votes-up"><span class="value-title" title="1"></span></span><span class="votes-down"><span class="value-title" title="0"></span></span></span><span class="qa-netvote-count-pad"> vote</span>
+												</span>
+											</div>
+											<div class="qa-vote-clear">
+											</div>
+										</div>
+									</div>
+									<input type="hidden" name="code" value="0-1516467977-c460198b20964b7baf8484d1cd6d09f241baafb5">
+								</form>
+								<div class="qa-q-view-main">
+									<form method="post" action="../../3570/a-better-way-to-integrate-the-gradient-along-a-boundary">
+										<div class="qa-q-view-content">
+											<a name="3570"></a><div class="entry-content"><p>I'm currently integrating the temperature gradient along a boundary by first solving (seems wrong to need a solver) for the gradient of the temperature field and then integrating with Simpson's rule.  Is there a cleaner approach with the project I am missing?</p>
+
+<p>I am working in c++, so I have created a ufl file just for calculating the gradient.  I've seen some python snippets that do this cleanly with assembling a matrix with 'grad', but I haven't found the c++ equivalent. (I assume its a ufl -&gt; form -&gt; assemble?)</p>
+
+<p>A general way to integrate the gradient over marked facets would be really convenient :)</p>
+
+<p>Example:</p>
+
+<p>UFL file for gradient</p>
+
+<pre><code>vector = VectorElement("Lagrange", triangle, 2)
+scalar = FiniteElement("Lagrange", triangle, 2)
+
+q = Coefficient(scalar)  
+
+a = inner(u,w)*dx
+L = inner(grad(q),w)*dx
+</code></pre>
+
+<p>Then I would do a simple solve for grad_q</p>
+
+<pre><code>solve(a_grad == L_grad, grad_q);
+</code></pre>
+
+<p>With grad_q I would integrate along an edge, in this case the negative x-normal from (1,0) to y=(1,1)</p>
+
+<pre><code>double Qn = 0;
+int points = 500;
+for(int j = 0; j &lt;= points - 1; j++)
+{
+    double y0 = j / (double)points;
+    double y1 = (j+1) / (double)points;
+    double yab = 0.5*(y0+y1);
+
+    Point pa(x,y0);
+    Point pb(x,y1);
+    Point pab(x, yab);
+    Array&lt;double&gt; values(2);
+
+    grad_q(values, pa);
+    fa = -values[0]; // x-component
+
+    grad_q(values, pab);
+    fab = -values[0]; // x-component
+
+    (grad_q(values, pb);
+    fb = -values[0]; // x-component
+
+    Qn += ((y1-y0)/6.0)*(fa + 4*fab+fb);
+}
+</code></pre>
+
+<p>This works, but only because the path is well defined and the normal is also well defined.  I'm thinking of an unstructured/curved boundary where I would need to integrate along the facets point to point and calculate the normal components as being painful.</p>
+
+<p>If there was a way to integrate a Function (not necessarily gradient) along a marked boundary that would help, unless I am missing a more direct method?</p>
+</div>
+										</div>
+										<div class="qa-q-view-tags">
+											<ul class="qa-q-view-tag-list">
+												<li class="qa-q-view-tag-item"><a href="../../tag/grad" rel="tag" class="qa-tag-link">grad</a></li>
+											</ul>
+										</div>
+										<span class="qa-q-view-avatar-meta">
+											<span class="qa-q-view-avatar">
+												<a href="../../user/Charles" class="qa-avatar-link"><img src="https://www.gravatar.com/avatar/22e56480a5d5f76ee11abebe5dc8d5a6?s=50" width="50" height="50" class="qa-avatar-image" alt=""></a>
+											</span>
+											<span class="qa-q-view-meta">
+												<a href="../../3570/a-better-way-to-integrate-the-gradient-along-a-boundary" class="qa-q-view-what">asked</a>
+												<span class="qa-q-view-when">
+													<span class="qa-q-view-when-data"><span class="published"><span class="value-title" title="2014-05-18T12:41:11+0000"></span>May 18, 2014</span></span>
+												</span>
+												<span class="qa-q-view-who">
+													<span class="qa-q-view-who-pad">by </span>
+													<span class="qa-q-view-who-data"><span class="vcard author"><a href="../../user/Charles" class="qa-user-link url nickname">Charles</a></span></span>
+													<span class="qa-q-view-who-title">FEniCS User</span>
+													<span class="qa-q-view-who-points">
+														<span class="qa-q-view-who-points-pad">(</span><span class="qa-q-view-who-points-data">4,220</span><span class="qa-q-view-who-points-pad"> points)</span>
+													</span>
+												</span>
+												<br>
+												<span class="qa-q-view-what">edited</span>
+												<span class="qa-q-view-when">
+													<span class="qa-q-view-when-data"><span class="updated"><span class="value-title" title="2014-05-20T18:58:06+0000"></span>May 20, 2014</span></span>
+												</span>
+												<span class="qa-q-view-who">
+													<span class="qa-q-view-who-pad">by </span><span class="qa-q-view-who-data"><a href="../../user/Charles" class="qa-user-link url nickname">Charles</a></span>
+												</span>
+											</span>
+										</span>
+										<div class="qa-q-view-buttons">
+										</div>
+										
+										<div class="qa-q-view-c-list" id="c3570_list">
+											<div class="qa-c-list-item  hentry comment" id="c3593">
+												<div class="qa-c-item-content">
+													<a name="3593"></a><div class="entry-content"><p>Please post simple code that illustrates what you're trying to do.</p>
+</div>
+												</div>
+												<div class="qa-c-item-footer">
+													<span class="qa-c-item-avatar-meta">
+														<span class="qa-c-item-meta">
+															<a href="../../3570/a-better-way-to-integrate-the-gradient-along-a-boundary?show=3593#c3593" class="qa-c-item-what">commented</a>
+															<span class="qa-c-item-when">
+																<span class="qa-c-item-when-data"><span class="published"><span class="value-title" title="2014-05-20T13:20:04+0000"></span>May 20, 2014</span></span>
+															</span>
+															<span class="qa-c-item-who">
+																<span class="qa-c-item-who-pad">by </span>
+																<span class="qa-c-item-who-data"><span class="vcard author"><a href="../../user/Garth+N.+Wells" class="qa-user-link url nickname">Garth N. Wells</a></span></span>
+																<span class="qa-c-item-who-title">FEniCS Expert</span>
+																<span class="qa-c-item-who-points">
+																	<span class="qa-c-item-who-points-pad">(</span><span class="qa-c-item-who-points-data">35,930</span><span class="qa-c-item-who-points-pad"> points)</span>
+																</span>
+															</span>
+														</span>
+													</span>
+													<div class="qa-c-item-buttons">
+													</div>
+												</div>
+												<div class="qa-c-item-clear">
+												</div>
+											</div> <!-- END qa-c-item -->
+											<div class="qa-c-list-item  hentry comment" id="c3599">
+												<div class="qa-c-item-content">
+													<a name="3599"></a><div class="entry-content"><p>Added, thank you!</p>
+</div>
+												</div>
+												<div class="qa-c-item-footer">
+													<span class="qa-c-item-avatar-meta">
+														<span class="qa-c-item-avatar">
+															<a href="../../user/Charles" class="qa-avatar-link"><img src="https://www.gravatar.com/avatar/22e56480a5d5f76ee11abebe5dc8d5a6?s=20" width="20" height="20" class="qa-avatar-image" alt=""></a>
+														</span>
+														<span class="qa-c-item-meta">
+															<a href="../../3570/a-better-way-to-integrate-the-gradient-along-a-boundary?show=3599#c3599" class="qa-c-item-what">commented</a>
+															<span class="qa-c-item-when">
+																<span class="qa-c-item-when-data"><span class="published"><span class="value-title" title="2014-05-20T18:58:20+0000"></span>May 20, 2014</span></span>
+															</span>
+															<span class="qa-c-item-who">
+																<span class="qa-c-item-who-pad">by </span>
+																<span class="qa-c-item-who-data"><span class="vcard author"><a href="../../user/Charles" class="qa-user-link url nickname">Charles</a></span></span>
+																<span class="qa-c-item-who-title">FEniCS User</span>
+																<span class="qa-c-item-who-points">
+																	<span class="qa-c-item-who-points-pad">(</span><span class="qa-c-item-who-points-data">4,220</span><span class="qa-c-item-who-points-pad"> points)</span>
+																</span>
+															</span>
+														</span>
+													</span>
+													<div class="qa-c-item-buttons">
+													</div>
+												</div>
+												<div class="qa-c-item-clear">
+												</div>
+											</div> <!-- END qa-c-item -->
+										</div> <!-- END qa-c-list -->
+										
+										<input type="hidden" name="code" value="0-1516467977-f3806aad53003ebba5f36db4c6e6fdfc0c7a135f">
+										<input type="hidden" name="qa_click" value="">
+									</form>
+									<div class="qa-c-form">
+									</div> <!-- END qa-c-form -->
+									
+								</div> <!-- END qa-q-view-main -->
+								<div class="qa-q-view-clear">
+								</div>
+							</div> <!-- END qa-q-view -->
+							
+						</div>
+						<div class="qa-part-a-list">
+							<h2 id="a_list_title">1 Answer</h2>
+							<div class="qa-a-list" id="a_list">
+								
+								<div class="qa-a-list-item  hentry answer answer-selected qa-a-list-item-selected" id="a3602">
+									<form method="post" action="../../3570/a-better-way-to-integrate-the-gradient-along-a-boundary">
+										<div class="qa-voting qa-voting-net" id="voting_3602">
+											<div class="qa-vote-count qa-vote-count-net">
+												<span class="qa-netvote-count">
+													<span class="qa-netvote-count-data">+2<span class="votes-up"><span class="value-title" title="2"></span></span><span class="votes-down"><span class="value-title" title="0"></span></span></span><span class="qa-netvote-count-pad"> votes</span>
+												</span>
+											</div>
+											<div class="qa-vote-clear">
+											</div>
+										</div>
+										<input type="hidden" name="code" value="0-1516467977-c460198b20964b7baf8484d1cd6d09f241baafb5">
+									</form>
+									<div class="qa-a-item-main">
+										<form method="post" action="../../3570/a-better-way-to-integrate-the-gradient-along-a-boundary">
+											<div class="qa-a-item-selected">
+												<div class="qa-a-selection">
+													<div class="qa-a-selected">&#160;</div>
+													<div class="qa-a-selected-text">Best answer</div>
+												</div>
+												<div class="qa-a-item-content">
+													<a name="3602"></a><div class="entry-content"><p>Hi, have a look at <a rel="nofollow" href="https://bitbucket.org/fenics-project/dolfin/src/master/demo/undocumented/lift-drag/python/demo_lift-drag.py?at=master">this</a> demo. There's also a cpp version.</p>
+</div>
+												</div>
+												<span class="qa-a-item-avatar-meta">
+													<span class="qa-a-item-avatar">
+														<a href="../../user/MiroK" class="qa-avatar-link"><img src="https://www.gravatar.com/avatar/f566be3274ec73e3a6dda27bca11631c?s=40" width="40" height="40" class="qa-avatar-image" alt=""></a>
+													</span>
+													<span class="qa-a-item-meta">
+														<a href="../../3570/a-better-way-to-integrate-the-gradient-along-a-boundary?show=3602#a3602" class="qa-a-item-what">answered</a>
+														<span class="qa-a-item-when">
+															<span class="qa-a-item-when-data"><span class="published"><span class="value-title" title="2014-05-20T19:50:40+0000"></span>May 20, 2014</span></span>
+														</span>
+														<span class="qa-a-item-who">
+															<span class="qa-a-item-who-pad">by </span>
+															<span class="qa-a-item-who-data"><span class="vcard author"><a href="../../user/MiroK" class="qa-user-link url nickname">MiroK</a></span></span>
+															<span class="qa-a-item-who-title">FEniCS Expert</span>
+															<span class="qa-a-item-who-points">
+																<span class="qa-a-item-who-points-pad">(</span><span class="qa-a-item-who-points-data">80,920</span><span class="qa-a-item-who-points-pad"> points)</span>
+															</span>
+														</span>
+														<br>
+														<span class="qa-a-item-what">selected</span>
+														<span class="qa-a-item-when">
+															<span class="qa-a-item-when-data"><span class="updated"><span class="value-title" title="2014-05-20T20:50:05+0000"></span>May 20, 2014</span></span>
+														</span>
+														<span class="qa-a-item-who">
+															<span class="qa-a-item-who-pad">by </span><span class="qa-a-item-who-data"><a href="../../user/Charles" class="qa-user-link url nickname">Charles</a></span>
+														</span>
+													</span>
+												</span>
+											</div>
+											<div class="qa-a-item-buttons">
+												</div>
+											
+											<div class="qa-a-item-c-list" id="c3602_list">
+												<div class="qa-c-list-item  hentry comment" id="c3607">
+													<div class="qa-c-item-content">
+														<a name="3607"></a><div class="entry-content"><p>Excellent, thank you.  And just to confirm, is there a better approach to finding the derivative?  I would think I could just apply an operator without the need for a solver?</p>
+</div>
+													</div>
+													<div class="qa-c-item-footer">
+														<span class="qa-c-item-avatar-meta">
+															<span class="qa-c-item-avatar">
+																<a href="../../user/Charles" class="qa-avatar-link"><img src="https://www.gravatar.com/avatar/22e56480a5d5f76ee11abebe5dc8d5a6?s=20" width="20" height="20" class="qa-avatar-image" alt=""></a>
+															</span>
+															<span class="qa-c-item-meta">
+																<a href="../../3570/a-better-way-to-integrate-the-gradient-along-a-boundary?show=3607#c3607" class="qa-c-item-what">commented</a>
+																<span class="qa-c-item-when">
+																	<span class="qa-c-item-when-data"><span class="published"><span class="value-title" title="2014-05-20T20:49:04+0000"></span>May 20, 2014</span></span>
+																</span>
+																<span class="qa-c-item-who">
+																	<span class="qa-c-item-who-pad">by </span>
+																	<span class="qa-c-item-who-data"><span class="vcard author"><a href="../../user/Charles" class="qa-user-link url nickname">Charles</a></span></span>
+																	<span class="qa-c-item-who-title">FEniCS User</span>
+																	<span class="qa-c-item-who-points">
+																		<span class="qa-c-item-who-points-pad">(</span><span class="qa-c-item-who-points-data">4,220</span><span class="qa-c-item-who-points-pad"> points)</span>
+																	</span>
+																</span>
+															</span>
+														</span>
+														<div class="qa-c-item-buttons">
+														</div>
+													</div>
+													<div class="qa-c-item-clear">
+													</div>
+												</div> <!-- END qa-c-item -->
+												<div class="qa-c-list-item  hentry comment" id="c3608">
+													<div class="qa-c-item-content">
+														<a name="3608"></a><div class="entry-content"><p>I can't think of any better(easier) approach. As far as applying <code>grad</code> goes I think there might be some issues. Suppose you have $ f(x) = \sum_{i} F_i \phi_i(x) $ and then you'd apply <code>grad</code> to get $ grad(f)(x) = \sum_{i} F_i grad(\phi_i)(x) $. Now, this vector can be evaluated in the cell interior just fine, but on the boundary it's discontinuous. You could try weighting contributions from connected cells (see <a rel="nofollow" href="https://github.com/mikaem/fenicstools/wiki/Weighted-gradient-matrix">here</a>) to get a unique value, but overall <code>project</code> seems more convenient.</p>
+</div>
+													</div>
+													<div class="qa-c-item-footer">
+														<span class="qa-c-item-avatar-meta">
+															<span class="qa-c-item-avatar">
+																<a href="../../user/MiroK" class="qa-avatar-link"><img src="https://www.gravatar.com/avatar/f566be3274ec73e3a6dda27bca11631c?s=20" width="20" height="20" class="qa-avatar-image" alt=""></a>
+															</span>
+															<span class="qa-c-item-meta">
+																<a href="../../3570/a-better-way-to-integrate-the-gradient-along-a-boundary?show=3608#c3608" class="qa-c-item-what">commented</a>
+																<span class="qa-c-item-when">
+																	<span class="qa-c-item-when-data"><span class="published"><span class="value-title" title="2014-05-21T07:21:03+0000"></span>May 21, 2014</span></span>
+																</span>
+																<span class="qa-c-item-who">
+																	<span class="qa-c-item-who-pad">by </span>
+																	<span class="qa-c-item-who-data"><span class="vcard author"><a href="../../user/MiroK" class="qa-user-link url nickname">MiroK</a></span></span>
+																	<span class="qa-c-item-who-title">FEniCS Expert</span>
+																	<span class="qa-c-item-who-points">
+																		<span class="qa-c-item-who-points-pad">(</span><span class="qa-c-item-who-points-data">80,920</span><span class="qa-c-item-who-points-pad"> points)</span>
+																	</span>
+																</span>
+															</span>
+														</span>
+														<div class="qa-c-item-buttons">
+														</div>
+													</div>
+													<div class="qa-c-item-clear">
+													</div>
+												</div> <!-- END qa-c-item -->
+												<div class="qa-c-list-item  hentry comment" id="c3619">
+													<div class="qa-c-item-content">
+														<a name="3619"></a><div class="entry-content"><p>Very interesting, and why i've been focusing on the gradient so much (that singularity is making converging on the integral of a boundary's gradient rather painful).</p>
+
+<p>How might I do this in c++?</p>
+
+<pre><code>dp_regular = project(p.dx(0), V)
+</code></pre>
+</div>
+													</div>
+													<div class="qa-c-item-footer">
+														<span class="qa-c-item-avatar-meta">
+															<span class="qa-c-item-avatar">
+																<a href="../../user/Charles" class="qa-avatar-link"><img src="https://www.gravatar.com/avatar/22e56480a5d5f76ee11abebe5dc8d5a6?s=20" width="20" height="20" class="qa-avatar-image" alt=""></a>
+															</span>
+															<span class="qa-c-item-meta">
+																<a href="../../3570/a-better-way-to-integrate-the-gradient-along-a-boundary?show=3619#c3619" class="qa-c-item-what">commented</a>
+																<span class="qa-c-item-when">
+																	<span class="qa-c-item-when-data"><span class="published"><span class="value-title" title="2014-05-21T15:02:12+0000"></span>May 21, 2014</span></span>
+																</span>
+																<span class="qa-c-item-who">
+																	<span class="qa-c-item-who-pad">by </span>
+																	<span class="qa-c-item-who-data"><span class="vcard author"><a href="../../user/Charles" class="qa-user-link url nickname">Charles</a></span></span>
+																	<span class="qa-c-item-who-title">FEniCS User</span>
+																	<span class="qa-c-item-who-points">
+																		<span class="qa-c-item-who-points-pad">(</span><span class="qa-c-item-who-points-data">4,220</span><span class="qa-c-item-who-points-pad"> points)</span>
+																	</span>
+																</span>
+																<br>
+																<span class="qa-c-item-what">edited</span>
+																<span class="qa-c-item-when">
+																	<span class="qa-c-item-when-data"><span class="updated"><span class="value-title" title="2014-05-21T15:27:07+0000"></span>May 21, 2014</span></span>
+																</span>
+																<span class="qa-c-item-who">
+																	<span class="qa-c-item-who-pad">by </span><span class="qa-c-item-who-data"><a href="../../user/Charles" class="qa-user-link url nickname">Charles</a></span>
+																</span>
+															</span>
+														</span>
+														<div class="qa-c-item-buttons">
+														</div>
+													</div>
+													<div class="qa-c-item-clear">
+													</div>
+												</div> <!-- END qa-c-item -->
+												<div class="qa-c-list-item  hentry comment" id="c3620">
+													<div class="qa-c-item-content">
+														<a name="3620"></a><div class="entry-content"><p>Some digging, and actually finding your previous answer on projection, it seems to not be possible in c++.</p>
+</div>
+													</div>
+													<div class="qa-c-item-footer">
+														<span class="qa-c-item-avatar-meta">
+															<span class="qa-c-item-avatar">
+																<a href="../../user/Charles" class="qa-avatar-link"><img src="https://www.gravatar.com/avatar/22e56480a5d5f76ee11abebe5dc8d5a6?s=20" width="20" height="20" class="qa-avatar-image" alt=""></a>
+															</span>
+															<span class="qa-c-item-meta">
+																<a href="../../3570/a-better-way-to-integrate-the-gradient-along-a-boundary?show=3620#c3620" class="qa-c-item-what">commented</a>
+																<span class="qa-c-item-when">
+																	<span class="qa-c-item-when-data"><span class="published"><span class="value-title" title="2014-05-21T15:34:44+0000"></span>May 21, 2014</span></span>
+																</span>
+																<span class="qa-c-item-who">
+																	<span class="qa-c-item-who-pad">by </span>
+																	<span class="qa-c-item-who-data"><span class="vcard author"><a href="../../user/Charles" class="qa-user-link url nickname">Charles</a></span></span>
+																	<span class="qa-c-item-who-title">FEniCS User</span>
+																	<span class="qa-c-item-who-points">
+																		<span class="qa-c-item-who-points-pad">(</span><span class="qa-c-item-who-points-data">4,220</span><span class="qa-c-item-who-points-pad"> points)</span>
+																	</span>
+																</span>
+															</span>
+														</span>
+														<div class="qa-c-item-buttons">
+														</div>
+													</div>
+													<div class="qa-c-item-clear">
+													</div>
+												</div> <!-- END qa-c-item -->
+												<div class="qa-c-list-item  hentry comment" id="c3621">
+													<div class="qa-c-item-content">
+														<a name="3621"></a><div class="entry-content"><p>Hi, I am a bit lost. Are you trying to do in cpp what <code>project</code> does in python?</p>
+</div>
+													</div>
+													<div class="qa-c-item-footer">
+														<span class="qa-c-item-avatar-meta">
+															<span class="qa-c-item-avatar">
+																<a href="../../user/MiroK" class="qa-avatar-link"><img src="https://www.gravatar.com/avatar/f566be3274ec73e3a6dda27bca11631c?s=20" width="20" height="20" class="qa-avatar-image" alt=""></a>
+															</span>
+															<span class="qa-c-item-meta">
+																<a href="../../3570/a-better-way-to-integrate-the-gradient-along-a-boundary?show=3621#c3621" class="qa-c-item-what">commented</a>
+																<span class="qa-c-item-when">
+																	<span class="qa-c-item-when-data"><span class="published"><span class="value-title" title="2014-05-21T15:53:38+0000"></span>May 21, 2014</span></span>
+																</span>
+																<span class="qa-c-item-who">
+																	<span class="qa-c-item-who-pad">by </span>
+																	<span class="qa-c-item-who-data"><span class="vcard author"><a href="../../user/MiroK" class="qa-user-link url nickname">MiroK</a></span></span>
+																	<span class="qa-c-item-who-title">FEniCS Expert</span>
+																	<span class="qa-c-item-who-points">
+																		<span class="qa-c-item-who-points-pad">(</span><span class="qa-c-item-who-points-data">80,920</span><span class="qa-c-item-who-points-pad"> points)</span>
+																	</span>
+																</span>
+															</span>
+														</span>
+														<div class="qa-c-item-buttons">
+														</div>
+													</div>
+													<div class="qa-c-item-clear">
+													</div>
+												</div> <!-- END qa-c-item -->
+												<div class="qa-c-list-item  hentry comment" id="c3622">
+													<div class="qa-c-item-content">
+														<a name="3622"></a><div class="entry-content"><p>Apparently I am a bit lost as well ;)</p>
+
+<p>Your results hinted that I might solve an issue with the gradient in a corner of my unit cell by using project, so I was trying to find out how I might do that without doing it through ffc/solver.  I don't think there is an equivalent in c++ of projecting an expression with UFL terms onto a Function, just interpolating of Expressions with c++ or other Functions.  (Is there a way to compile UFL expressions to c++ that can be interpolated?  That seems to be whats missing)</p>
+
+<p>I started digging into your weighted gradient matrix to see how I might do that in c++, but I'm not sure how I would assemble this since its just a UFL expression:</p>
+
+<pre><code>dP = assemble(TrialFunction(S).dx(i)*TestFunction(DG)*dx)
+</code></pre>
+
+<p>Looking into how the weighting works, I think solving for the gradient on a DG space will help me.  (So far testing seems okay)</p>
+</div>
+													</div>
+													<div class="qa-c-item-footer">
+														<span class="qa-c-item-avatar-meta">
+															<span class="qa-c-item-avatar">
+																<a href="../../user/Charles" class="qa-avatar-link"><img src="https://www.gravatar.com/avatar/22e56480a5d5f76ee11abebe5dc8d5a6?s=20" width="20" height="20" class="qa-avatar-image" alt=""></a>
+															</span>
+															<span class="qa-c-item-meta">
+																<a href="../../3570/a-better-way-to-integrate-the-gradient-along-a-boundary?show=3622#c3622" class="qa-c-item-what">commented</a>
+																<span class="qa-c-item-when">
+																	<span class="qa-c-item-when-data"><span class="published"><span class="value-title" title="2014-05-21T16:03:41+0000"></span>May 21, 2014</span></span>
+																</span>
+																<span class="qa-c-item-who">
+																	<span class="qa-c-item-who-pad">by </span>
+																	<span class="qa-c-item-who-data"><span class="vcard author"><a href="../../user/Charles" class="qa-user-link url nickname">Charles</a></span></span>
+																	<span class="qa-c-item-who-title">FEniCS User</span>
+																	<span class="qa-c-item-who-points">
+																		<span class="qa-c-item-who-points-pad">(</span><span class="qa-c-item-who-points-data">4,220</span><span class="qa-c-item-who-points-pad"> points)</span>
+																	</span>
+																</span>
+															</span>
+														</span>
+														<div class="qa-c-item-buttons">
+														</div>
+													</div>
+													<div class="qa-c-item-clear">
+													</div>
+												</div> <!-- END qa-c-item -->
+											</div> <!-- END qa-c-list -->
+											
+											<input type="hidden" name="code" value="0-1516467977-ee97e6c79468318d0fe3fa55561be3d93708f386">
+											<input type="hidden" name="qa_click" value="">
+										</form>
+										<div class="qa-c-form">
+										</div> <!-- END qa-c-form -->
+										
+									</div> <!-- END qa-a-item-main -->
+									<div class="qa-a-item-clear">
+									</div>
+								</div> <!-- END qa-a-list-item -->
+								
+							</div> <!-- END qa-a-list -->
+							
+						</div>
+					</div> <!-- END qa-main -->
+					
+				</div> <!-- END main-wrapper -->
+			</div> <!-- END main-shadow -->
+		</div> <!-- END body-wrapper -->
+		<!-- END footer-bottom-group -->
+		
+		<div style="position:absolute; left:-9999px; top:-9999px;">
+			<span id="qa-waiting-template" class="qa-waiting">...</span>
+		</div>
+	
+	
+
+</body><!-- Powered by Question2Answer - http://www.question2answer.org/ --></html>

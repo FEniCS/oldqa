@@ -1,0 +1,562 @@
+<html><!-- Powered by Question2Answer - http://www.question2answer.org/ --><head>
+		<meta http-equiv="content-type" content="text/html; charset=utf-8">
+		<title>MPI/gathering function vector data for numpy operations - FEniCS Q&amp;A</title>
+		<meta name="description" content="Hello, I would like to access a Function vector and perform numpy operations on values assembled from all MPI  ... )[:]) print newX*1. return x doit()">
+		<meta name="keywords" content="parallel,vector,mpi">
+		<link rel="stylesheet" type="text/css" href="../../qa-theme/Snow/qa-styles.css">
+		<link rel="canonical" href="http://fenicsproject.org/qa/6548/mpi-gathering-function-vector-data-for-numpy-operations">
+		<script type="text/x-mathjax-config">
+  MathJax.Hub.Config({
+    extensions: ["tex2jax.js"],
+    jax: ["input/TeX","output/HTML-CSS"],
+    tex2jax: {inlineMath: [["$","$"],["\\(","\\)"]]},
+    TeX: { extensions: ["AMSmath.js","AMSsymbols.js"]}
+  });
+</script>
+<script type="text/javascript" src="../../mathjax/MathJax.js"></script>
+		<script src="../../jquery-1.7.2.min.js" type="text/javascript"></script>
+		<script src="../../highlight.min.js"></script>
+<script type="text/javascript">
+$(function(){
+	$('.wmd-input').keypress(function(){
+		window.clearTimeout(hljs.Timeout);
+		hljs.Timeout = window.setTimeout(function() {
+			hljs.initHighlighting.called = false;
+			hljs.initHighlighting();
+		}, 500);
+	});
+	window.setTimeout(function() {
+		hljs.initHighlighting.called = false;
+		hljs.initHighlighting();
+	}, 500);
+});
+</script>
+
+
+	</head>
+	<body class="qa-template-question qa-body-js-off">
+		<div class="qa-body-wrapper">
+			
+			<div class="qa-header">
+				<div class="qa-logo">
+					<a href="../../" class="qa-logo-link" title="FEniCS Q&amp;A"><img src="../../qa-theme/fenics_qa.png" border="0" alt="FEniCS Q&amp;A"></a>
+				</div>
+				<div class="qa-header-clear">
+				</div>
+			</div> <!-- END qa-header -->
+			
+			<div class="qa-main-shadow">
+				
+				<div class="qa-main-wrapper">
+					
+					<div class="qa-sidepanel">
+						<div class="qa-sidebar">
+							This is a read only copy of the old FEniCS QA forum. Please visit the <a href="https://www.allanswered.com/community/s/fenics-project/">new QA forum</a> to ask questions
+						</div>
+						
+					</div>
+					
+					<div class="qa-main">
+						<h1>
+							<span class="entry-title">MPI/gathering function vector data for numpy operations</span>
+						</h1>
+						<div class="qa-part-q-view">
+							<div class="qa-q-view  hentry question" id="q6548">
+								<form method="post" action="../../6548/mpi-gathering-function-vector-data-for-numpy-operations">
+									<div class="qa-q-view-stats">
+										<div class="qa-voting qa-voting-net" id="voting_6548">
+											<div class="qa-vote-count qa-vote-count-net">
+												<span class="qa-netvote-count">
+													<span class="qa-netvote-count-data">+1<span class="votes-up"><span class="value-title" title="1"></span></span><span class="votes-down"><span class="value-title" title="0"></span></span></span><span class="qa-netvote-count-pad"> vote</span>
+												</span>
+											</div>
+											<div class="qa-vote-clear">
+											</div>
+										</div>
+									</div>
+									<input type="hidden" name="code" value="0-1516468076-d32dcbfa27368d6b92281a00841eef1f7083f218">
+								</form>
+								<div class="qa-q-view-main">
+									<form method="post" action="../../6548/mpi-gathering-function-vector-data-for-numpy-operations">
+										<div class="qa-q-view-content">
+											<a name="6548"></a><div class="entry-content"><p>Hello, <br>
+I would like to access a Function vector and perform numpy operations on values assembled from all MPI processes. Specifically, I'd like to be able to store data (interpolating the vector data onto a line) into a text/pickle file that I can load</p>
+
+<pre><code>import numpy as np 
+newX = np.asarray(x.vector()[:])
+print newX*1. 
+</code></pre>
+
+<p>Is there a recommended way to do this? I've attached a minimal(ish) example that fails for more than 1 processor? Thanks in advance<br>
+Pete</p>
+
+<pre><code>from dolfin import *
+dolf=1
+
+# Define Dirichlet boundary (x = 0 or x = 1)
+class leftBoundary(SubDomain):
+  def inside(self,x,on_boundary):
+    outer  = x[0] &lt; DOLFIN_EPS 
+    return outer and on_boundary
+
+# Define Dirichlet boundary (x = 0 or x = 1)
+class elseBoundary(SubDomain):
+  def inside(self,x,on_boundary):
+    outer  = x[0] &gt;=DOLFIN_EPS 
+    return outer and on_boundary
+
+class rightBoundary(SubDomain):
+  def inside(self,x,on_boundary):
+    outer  = x[0] &gt;=(1-DOLFIN_EPS)
+    return outer and on_boundary
+
+# Create mesh and define function space
+def doit(filename="none"):
+
+  # Create mesh and define function space
+  if(filename=="none"):
+    #mesh = UnitCube(8,8,8)
+    mesh = UnitCubeMesh(16,16,16)
+  V = FunctionSpace(mesh, "Lagrange", 1)
+  dims = mesh.ufl_cell().geometric_dimension()
+
+  # Define boundary condition
+  subdomains = MeshFunction("size_t",mesh,dims)
+  subsurfaces = MeshFunction("size_t",mesh,dims-1)
+  boundary = leftBoundary()
+  leftmarker = 2
+  boundary.mark(subsurfaces,leftmarker)
+  boundary = rightBoundary()
+  elsemarker = 3
+  boundary.mark(subsurfaces,elsemarker)
+  ds = Measure("ds")[subsurfaces] 
+  dx = Measure('dx')[subdomains]
+
+  # save 
+
+  bcs = []
+  u0 = Constant(1.0)
+  bcs.append(DirichletBC(V, u0, subsurfaces,leftmarker))
+  u0 = Constant(0.0)
+  bcs.append(DirichletBC(V, u0, subsurfaces,elsemarker))
+
+
+  # Define variational problem
+  u = TrialFunction(V)
+  v = TestFunction(V)
+
+  # Solve 
+  pv = Constant(1.)
+  if(dolf==1):
+    form = pv * inner(grad(u), grad(v))*dx(domain=mesh)
+    g = Constant(0.)
+    form += g*v*dx 
+
+  # Compute solution
+  a = lhs(form)
+  L = rhs(form)
+  x = Function(V)
+  solve(a == L, x, bcs)
+
+  tot = assemble(x*dx)
+  vol = assemble(Constant(1.)*dx(domain=mesh))
+  conc = tot/vol
+  print "Tot/Vol/Conc %f %f %f" %(tot,vol,conc)
+
+  # NOT MPI SAFE 
+  #print x([0.5,0.5,0.5])
+  if MPI.rank(mpi_comm_world())==0: 
+    # still unsafe 
+    #print x([0.5,0.5,0.5])
+    1
+    import numpy as np 
+    newX = np.asarray(x.vector()[:])
+    print newX*1.
+
+
+
+  return x 
+
+doit()
+</code></pre>
+</div>
+										</div>
+										<div class="qa-q-view-tags">
+											<ul class="qa-q-view-tag-list">
+												<li class="qa-q-view-tag-item"><a href="../../tag/parallel" rel="tag" class="qa-tag-link">parallel</a></li>
+												<li class="qa-q-view-tag-item"><a href="../../tag/vector" rel="tag" class="qa-tag-link">vector</a></li>
+												<li class="qa-q-view-tag-item"><a href="../../tag/mpi" rel="tag" class="qa-tag-link">mpi</a></li>
+											</ul>
+										</div>
+										<span class="qa-q-view-avatar-meta">
+											<span class="qa-q-view-meta">
+												<a href="../../6548/mpi-gathering-function-vector-data-for-numpy-operations" class="qa-q-view-what">asked</a>
+												<span class="qa-q-view-when">
+													<span class="qa-q-view-when-data"><span class="published"><span class="value-title" title="2015-02-18T17:22:30+0000"></span>Feb 18, 2015</span></span>
+												</span>
+												<span class="qa-q-view-who">
+													<span class="qa-q-view-who-pad">by </span>
+													<span class="qa-q-view-who-data"><span class="vcard author"><a href="../../user/huskeypm" class="qa-user-link url nickname">huskeypm</a></span></span>
+													<span class="qa-q-view-who-title">FEniCS Novice</span>
+													<span class="qa-q-view-who-points">
+														<span class="qa-q-view-who-points-pad">(</span><span class="qa-q-view-who-points-data">330</span><span class="qa-q-view-who-points-pad"> points)</span>
+													</span>
+												</span>
+											</span>
+										</span>
+										<div class="qa-q-view-buttons">
+										</div>
+										
+										<div class="qa-q-view-c-list" style="display:none;" id="c6548_list">
+										</div> <!-- END qa-c-list -->
+										
+										<input type="hidden" name="code" value="0-1516468076-5aafe5394607740dd9b26efbbe632c377c4a4cff">
+										<input type="hidden" name="qa_click" value="">
+									</form>
+									<div class="qa-c-form">
+									</div> <!-- END qa-c-form -->
+									
+								</div> <!-- END qa-q-view-main -->
+								<div class="qa-q-view-clear">
+								</div>
+							</div> <!-- END qa-q-view -->
+							
+						</div>
+						<div class="qa-part-a-list">
+							<h2 id="a_list_title">1 Answer</h2>
+							<div class="qa-a-list" id="a_list">
+								
+								<div class="qa-a-list-item  hentry answer" id="a6552">
+									<form method="post" action="../../6548/mpi-gathering-function-vector-data-for-numpy-operations">
+										<div class="qa-voting qa-voting-net" id="voting_6552">
+											<div class="qa-vote-count qa-vote-count-net">
+												<span class="qa-netvote-count">
+													<span class="qa-netvote-count-data">+1<span class="votes-up"><span class="value-title" title="1"></span></span><span class="votes-down"><span class="value-title" title="0"></span></span></span><span class="qa-netvote-count-pad"> vote</span>
+												</span>
+											</div>
+											<div class="qa-vote-clear">
+											</div>
+										</div>
+										<input type="hidden" name="code" value="0-1516468076-d32dcbfa27368d6b92281a00841eef1f7083f218">
+									</form>
+									<div class="qa-a-item-main">
+										<form method="post" action="../../6548/mpi-gathering-function-vector-data-for-numpy-operations">
+											<div class="qa-a-selection">
+											</div>
+											<div class="qa-a-item-content">
+												<a name="6552"></a><div class="entry-content"><p>It may not fulfil your requirements, but one option is to save the Function using <code>HDF5File</code> which correctly sorts out the mapping in parallel. You can explore the file using things like <code>h5py</code> or just read back in in serial to postprocess.</p>
+
+<pre><code>Hdf=HDF5File(mesh.mpi_comm(), "a.h5", "w")
+Hdf.write(u, "fun_u")
+</code></pre>
+
+<p>I think </p>
+</div>
+											</div>
+											<span class="qa-a-item-avatar-meta">
+												<span class="qa-a-item-avatar">
+													<a href="../../user/chris_richardson" class="qa-avatar-link"><img src="https://www.gravatar.com/avatar/d779daeb727bcec8f6b2c505810042db?s=40" width="40" height="40" class="qa-avatar-image" alt=""></a>
+												</span>
+												<span class="qa-a-item-meta">
+													<a href="../../6548/mpi-gathering-function-vector-data-for-numpy-operations?show=6552#a6552" class="qa-a-item-what">answered</a>
+													<span class="qa-a-item-when">
+														<span class="qa-a-item-when-data"><span class="published"><span class="value-title" title="2015-02-18T20:33:15+0000"></span>Feb 18, 2015</span></span>
+													</span>
+													<span class="qa-a-item-who">
+														<span class="qa-a-item-who-pad">by </span>
+														<span class="qa-a-item-who-data"><span class="vcard author"><a href="../../user/chris_richardson" class="qa-user-link url nickname">chris_richardson</a></span></span>
+														<span class="qa-a-item-who-title">FEniCS Expert</span>
+														<span class="qa-a-item-who-points">
+															<span class="qa-a-item-who-points-pad">(</span><span class="qa-a-item-who-points-data">31,740</span><span class="qa-a-item-who-points-pad"> points)</span>
+														</span>
+													</span>
+												</span>
+											</span>
+											<div class="qa-a-item-buttons">
+												</div>
+											
+											<div class="qa-a-item-c-list" id="c6552_list">
+												<div class="qa-c-list-item  hentry comment" id="c6564">
+													<div class="qa-c-item-content">
+														<a name="6564"></a><div class="entry-content"><p>Hi Chris - thanks for your response. I am currently running 1.4, which apparently doesn't have HDF5File. Is there a similar function in 1.4? I had trouble building 1.5, so I'd like to see what 1.4 could do before reimmersing myself in installing 1.5<br>
+Thanks!<br>
+pete</p>
+</div>
+													</div>
+													<div class="qa-c-item-footer">
+														<span class="qa-c-item-avatar-meta">
+															<span class="qa-c-item-meta">
+																<a href="../../6548/mpi-gathering-function-vector-data-for-numpy-operations?show=6564#c6564" class="qa-c-item-what">commented</a>
+																<span class="qa-c-item-when">
+																	<span class="qa-c-item-when-data"><span class="published"><span class="value-title" title="2015-02-19T17:13:07+0000"></span>Feb 19, 2015</span></span>
+																</span>
+																<span class="qa-c-item-who">
+																	<span class="qa-c-item-who-pad">by </span>
+																	<span class="qa-c-item-who-data"><span class="vcard author"><a href="../../user/huskeypm" class="qa-user-link url nickname">huskeypm</a></span></span>
+																	<span class="qa-c-item-who-title">FEniCS Novice</span>
+																	<span class="qa-c-item-who-points">
+																		<span class="qa-c-item-who-points-pad">(</span><span class="qa-c-item-who-points-data">330</span><span class="qa-c-item-who-points-pad"> points)</span>
+																	</span>
+																</span>
+															</span>
+														</span>
+														<div class="qa-c-item-buttons">
+														</div>
+													</div>
+													<div class="qa-c-item-clear">
+													</div>
+												</div> <!-- END qa-c-item -->
+												<div class="qa-c-list-item  hentry comment" id="c6565">
+													<div class="qa-c-item-content">
+														<a name="6565"></a><div class="entry-content"><p>It should be in 1.4, but it us an optional dependency - you need to have a parallel hdf5 library installed too.</p>
+</div>
+													</div>
+													<div class="qa-c-item-footer">
+														<span class="qa-c-item-avatar-meta">
+															<span class="qa-c-item-avatar">
+																<a href="../../user/chris_richardson" class="qa-avatar-link"><img src="https://www.gravatar.com/avatar/d779daeb727bcec8f6b2c505810042db?s=20" width="20" height="20" class="qa-avatar-image" alt=""></a>
+															</span>
+															<span class="qa-c-item-meta">
+																<a href="../../6548/mpi-gathering-function-vector-data-for-numpy-operations?show=6565#c6565" class="qa-c-item-what">commented</a>
+																<span class="qa-c-item-when">
+																	<span class="qa-c-item-when-data"><span class="published"><span class="value-title" title="2015-02-19T17:47:40+0000"></span>Feb 19, 2015</span></span>
+																</span>
+																<span class="qa-c-item-who">
+																	<span class="qa-c-item-who-pad">by </span>
+																	<span class="qa-c-item-who-data"><span class="vcard author"><a href="../../user/chris_richardson" class="qa-user-link url nickname">chris_richardson</a></span></span>
+																	<span class="qa-c-item-who-title">FEniCS Expert</span>
+																	<span class="qa-c-item-who-points">
+																		<span class="qa-c-item-who-points-pad">(</span><span class="qa-c-item-who-points-data">31,740</span><span class="qa-c-item-who-points-pad"> points)</span>
+																	</span>
+																</span>
+															</span>
+														</span>
+														<div class="qa-c-item-buttons">
+														</div>
+													</div>
+													<div class="qa-c-item-clear">
+													</div>
+												</div> <!-- END qa-c-item -->
+												<div class="qa-c-list-item  hentry comment" id="c6571">
+													<div class="qa-c-item-content">
+														<a name="6571"></a><div class="entry-content"><p>Thanks! Actually, I was able to install v1.5 via the ubuntu repo without difficulty, so I'm able to use the HDF5File writer. </p>
+
+<p>One minor follow-up question - I'm trying to read/write the mesh as part of my routine, but FEniCS complains about my input argument 'mesh'. Is there a recommended way of loading a mesh object after its written to hdf?</p>
+
+<p>Either way, thanks for providing a solution to this problem!!</p>
+
+<p>Pete</p>
+
+<pre><code>      if 1:
+    Hdf=HDF5File(mesh.mpi_comm(), "a.h5", "w")
+    Hdf.write(mesh, "mesh")
+    Hdf.write(x, "x")
+
+
+
+  return x
+
+def readSingle():
+  #mesh = Mesh()
+  mesh = UnitCubeMesh(16,16,16)
+  f = HDF5File(mesh.mpi_comm(),'a.h5','r')
+  mesh = Mesh()
+  f.read(mesh,"mesh")
+  V = FunctionSpace(mesh,"CG",1)
+  x = Function(V)
+  f.read(x,'x')
+</code></pre>
+
+<p>/////////////////</p>
+
+<pre><code>Traceback (most recent call last):
+  File "parallelTest.py", line 162, in &lt;module&gt;
+    readSingle()
+  File "parallelTest.py", line 98, in readSingle
+    f.read(mesh,"mesh")
+TypeError: in method 'HDF5File_read', argument 2 of type 'dolfin::MeshValueCollection&lt; bool &gt;
+</code></pre>
+</div>
+													</div>
+													<div class="qa-c-item-footer">
+														<span class="qa-c-item-avatar-meta">
+															<span class="qa-c-item-meta">
+																<a href="../../6548/mpi-gathering-function-vector-data-for-numpy-operations?show=6571#c6571" class="qa-c-item-what">commented</a>
+																<span class="qa-c-item-when">
+																	<span class="qa-c-item-when-data"><span class="published"><span class="value-title" title="2015-02-19T23:04:05+0000"></span>Feb 20, 2015</span></span>
+																</span>
+																<span class="qa-c-item-who">
+																	<span class="qa-c-item-who-pad">by </span>
+																	<span class="qa-c-item-who-data"><span class="vcard author"><a href="../../user/huskeypm" class="qa-user-link url nickname">huskeypm</a></span></span>
+																	<span class="qa-c-item-who-title">FEniCS Novice</span>
+																	<span class="qa-c-item-who-points">
+																		<span class="qa-c-item-who-points-pad">(</span><span class="qa-c-item-who-points-data">330</span><span class="qa-c-item-who-points-pad"> points)</span>
+																	</span>
+																</span>
+															</span>
+														</span>
+														<div class="qa-c-item-buttons">
+														</div>
+													</div>
+													<div class="qa-c-item-clear">
+													</div>
+												</div> <!-- END qa-c-item -->
+												<div class="qa-c-list-item  hentry comment" id="c6573">
+													<div class="qa-c-item-content">
+														<a name="6573"></a><div class="entry-content"><p>That looks like a bug in dolfin, worryingly. I'll check it oout. You can try using xdmf to save and load meshes. That uses h5 under the hood, but has the simple File interface </p>
+</div>
+													</div>
+													<div class="qa-c-item-footer">
+														<span class="qa-c-item-avatar-meta">
+															<span class="qa-c-item-avatar">
+																<a href="../../user/chris_richardson" class="qa-avatar-link"><img src="https://www.gravatar.com/avatar/d779daeb727bcec8f6b2c505810042db?s=20" width="20" height="20" class="qa-avatar-image" alt=""></a>
+															</span>
+															<span class="qa-c-item-meta">
+																<a href="../../6548/mpi-gathering-function-vector-data-for-numpy-operations?show=6573#c6573" class="qa-c-item-what">commented</a>
+																<span class="qa-c-item-when">
+																	<span class="qa-c-item-when-data"><span class="published"><span class="value-title" title="2015-02-20T07:28:01+0000"></span>Feb 20, 2015</span></span>
+																</span>
+																<span class="qa-c-item-who">
+																	<span class="qa-c-item-who-pad">by </span>
+																	<span class="qa-c-item-who-data"><span class="vcard author"><a href="../../user/chris_richardson" class="qa-user-link url nickname">chris_richardson</a></span></span>
+																	<span class="qa-c-item-who-title">FEniCS Expert</span>
+																	<span class="qa-c-item-who-points">
+																		<span class="qa-c-item-who-points-pad">(</span><span class="qa-c-item-who-points-data">31,740</span><span class="qa-c-item-who-points-pad"> points)</span>
+																	</span>
+																</span>
+															</span>
+														</span>
+														<div class="qa-c-item-buttons">
+														</div>
+													</div>
+													<div class="qa-c-item-clear">
+													</div>
+												</div> <!-- END qa-c-item -->
+												<div class="qa-c-list-item  hentry comment" id="c6576">
+													<div class="qa-c-item-content">
+														<a name="6576"></a><div class="entry-content"><p>OK, I found the reason for your error message.<br>
+You need to do this when reading:</p>
+
+<pre><code>f.read(mesh, "mesh", False)
+</code></pre>
+
+<p>The reason for the final <code>bool</code> argument is to decide whether or not to reuse the partitioning<br>
+information which is saved with the mesh. It is irrelevant when reading in serial, but can speed up the load time when reading back on the same number of nodes as it was saved on.</p>
+</div>
+													</div>
+													<div class="qa-c-item-footer">
+														<span class="qa-c-item-avatar-meta">
+															<span class="qa-c-item-avatar">
+																<a href="../../user/chris_richardson" class="qa-avatar-link"><img src="https://www.gravatar.com/avatar/d779daeb727bcec8f6b2c505810042db?s=20" width="20" height="20" class="qa-avatar-image" alt=""></a>
+															</span>
+															<span class="qa-c-item-meta">
+																<a href="../../6548/mpi-gathering-function-vector-data-for-numpy-operations?show=6576#c6576" class="qa-c-item-what">commented</a>
+																<span class="qa-c-item-when">
+																	<span class="qa-c-item-when-data"><span class="published"><span class="value-title" title="2015-02-20T09:48:51+0000"></span>Feb 20, 2015</span></span>
+																</span>
+																<span class="qa-c-item-who">
+																	<span class="qa-c-item-who-pad">by </span>
+																	<span class="qa-c-item-who-data"><span class="vcard author"><a href="../../user/chris_richardson" class="qa-user-link url nickname">chris_richardson</a></span></span>
+																	<span class="qa-c-item-who-title">FEniCS Expert</span>
+																	<span class="qa-c-item-who-points">
+																		<span class="qa-c-item-who-points-pad">(</span><span class="qa-c-item-who-points-data">31,740</span><span class="qa-c-item-who-points-pad"> points)</span>
+																	</span>
+																</span>
+															</span>
+														</span>
+														<div class="qa-c-item-buttons">
+														</div>
+													</div>
+													<div class="qa-c-item-clear">
+													</div>
+												</div> <!-- END qa-c-item -->
+												<div class="qa-c-list-item  hentry comment" id="c6577">
+													<div class="qa-c-item-content">
+														<a name="6577"></a><div class="entry-content"><p>You can also use <code>mpi_comm_world()</code> when you don't have an existing mpi_comm.</p>
+</div>
+													</div>
+													<div class="qa-c-item-footer">
+														<span class="qa-c-item-avatar-meta">
+															<span class="qa-c-item-avatar">
+																<a href="../../user/chris_richardson" class="qa-avatar-link"><img src="https://www.gravatar.com/avatar/d779daeb727bcec8f6b2c505810042db?s=20" width="20" height="20" class="qa-avatar-image" alt=""></a>
+															</span>
+															<span class="qa-c-item-meta">
+																<a href="../../6548/mpi-gathering-function-vector-data-for-numpy-operations?show=6577#c6577" class="qa-c-item-what">commented</a>
+																<span class="qa-c-item-when">
+																	<span class="qa-c-item-when-data"><span class="published"><span class="value-title" title="2015-02-20T09:50:00+0000"></span>Feb 20, 2015</span></span>
+																</span>
+																<span class="qa-c-item-who">
+																	<span class="qa-c-item-who-pad">by </span>
+																	<span class="qa-c-item-who-data"><span class="vcard author"><a href="../../user/chris_richardson" class="qa-user-link url nickname">chris_richardson</a></span></span>
+																	<span class="qa-c-item-who-title">FEniCS Expert</span>
+																	<span class="qa-c-item-who-points">
+																		<span class="qa-c-item-who-points-pad">(</span><span class="qa-c-item-who-points-data">31,740</span><span class="qa-c-item-who-points-pad"> points)</span>
+																	</span>
+																</span>
+															</span>
+														</span>
+														<div class="qa-c-item-buttons">
+														</div>
+													</div>
+													<div class="qa-c-item-clear">
+													</div>
+												</div> <!-- END qa-c-item -->
+												<div class="qa-c-list-item  hentry comment" id="c6579">
+													<div class="qa-c-item-content">
+														<a name="6579"></a><div class="entry-content"><p>Many thanks for your help. All works well now!<br>
+Pete</p>
+</div>
+													</div>
+													<div class="qa-c-item-footer">
+														<span class="qa-c-item-avatar-meta">
+															<span class="qa-c-item-meta">
+																<a href="../../6548/mpi-gathering-function-vector-data-for-numpy-operations?show=6579#c6579" class="qa-c-item-what">commented</a>
+																<span class="qa-c-item-when">
+																	<span class="qa-c-item-when-data"><span class="published"><span class="value-title" title="2015-02-20T12:05:59+0000"></span>Feb 20, 2015</span></span>
+																</span>
+																<span class="qa-c-item-who">
+																	<span class="qa-c-item-who-pad">by </span>
+																	<span class="qa-c-item-who-data"><span class="vcard author"><a href="../../user/huskeypm" class="qa-user-link url nickname">huskeypm</a></span></span>
+																	<span class="qa-c-item-who-title">FEniCS Novice</span>
+																	<span class="qa-c-item-who-points">
+																		<span class="qa-c-item-who-points-pad">(</span><span class="qa-c-item-who-points-data">330</span><span class="qa-c-item-who-points-pad"> points)</span>
+																	</span>
+																</span>
+															</span>
+														</span>
+														<div class="qa-c-item-buttons">
+														</div>
+													</div>
+													<div class="qa-c-item-clear">
+													</div>
+												</div> <!-- END qa-c-item -->
+											</div> <!-- END qa-c-list -->
+											
+											<input type="hidden" name="code" value="0-1516468076-9b56b8f849cc8dfb03cd05e9642b71e1ad1d17f2">
+											<input type="hidden" name="qa_click" value="">
+										</form>
+										<div class="qa-c-form">
+										</div> <!-- END qa-c-form -->
+										
+									</div> <!-- END qa-a-item-main -->
+									<div class="qa-a-item-clear">
+									</div>
+								</div> <!-- END qa-a-list-item -->
+								
+							</div> <!-- END qa-a-list -->
+							
+						</div>
+					</div> <!-- END qa-main -->
+					
+				</div> <!-- END main-wrapper -->
+			</div> <!-- END main-shadow -->
+		</div> <!-- END body-wrapper -->
+		<!-- END footer-bottom-group -->
+		
+		<div style="position:absolute; left:-9999px; top:-9999px;">
+			<span id="qa-waiting-template" class="qa-waiting">...</span>
+		</div>
+	
+	
+
+</body><!-- Powered by Question2Answer - http://www.question2answer.org/ --></html>

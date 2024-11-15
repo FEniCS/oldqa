@@ -1,0 +1,292 @@
+<html><!-- Powered by Question2Answer - http://www.question2answer.org/ --><head>
+		<meta http-equiv="content-type" content="text/html; charset=utf-8">
+		<title>How to include a function into the UFL formulation? (min. code incl.) - FEniCS Q&amp;A</title>
+		<meta name="description" content="Dear FEniCS community, I would like to ask, whether and how it is possible to include a function  ...  this in the framework of FEniCS `expression()`.">
+		<meta name="keywords" content="expression,custom-function,bilinear-form,ufl,custom">
+		<link rel="stylesheet" type="text/css" href="../../qa-theme/Snow/qa-styles.css">
+		<link rel="canonical" href="http://fenicsproject.org/qa/4119/how-include-function-into-the-ufl-formulation-min-code-incl">
+		<script type="text/x-mathjax-config">
+  MathJax.Hub.Config({
+    extensions: ["tex2jax.js"],
+    jax: ["input/TeX","output/HTML-CSS"],
+    tex2jax: {inlineMath: [["$","$"],["\\(","\\)"]]},
+    TeX: { extensions: ["AMSmath.js","AMSsymbols.js"]}
+  });
+</script>
+<script type="text/javascript" src="../../mathjax/MathJax.js"></script>
+		<script src="../../jquery-1.7.2.min.js" type="text/javascript"></script>
+		<script src="../../highlight.min.js"></script>
+<script type="text/javascript">
+$(function(){
+	$('.wmd-input').keypress(function(){
+		window.clearTimeout(hljs.Timeout);
+		hljs.Timeout = window.setTimeout(function() {
+			hljs.initHighlighting.called = false;
+			hljs.initHighlighting();
+		}, 500);
+	});
+	window.setTimeout(function() {
+		hljs.initHighlighting.called = false;
+		hljs.initHighlighting();
+	}, 500);
+});
+</script>
+
+
+	</head>
+	<body class="qa-template-question qa-body-js-off">
+		<div class="qa-body-wrapper">
+			
+			<div class="qa-header">
+				<div class="qa-logo">
+					<a href="../../" class="qa-logo-link" title="FEniCS Q&amp;A"><img src="../../qa-theme/fenics_qa.png" border="0" alt="FEniCS Q&amp;A"></a>
+				</div>
+				<div class="qa-header-clear">
+				</div>
+			</div> <!-- END qa-header -->
+			
+			<div class="qa-main-shadow">
+				
+				<div class="qa-main-wrapper">
+					
+					<div class="qa-sidepanel">
+						<div class="qa-sidebar">
+							This is a read only copy of the old FEniCS QA forum. Please visit the <a href="https://www.allanswered.com/community/s/fenics-project/">new QA forum</a> to ask questions
+						</div>
+						
+					</div>
+					
+					<div class="qa-main">
+						<h1>
+							<span class="entry-title">How to include a function into the UFL formulation? (min. code incl.)</span>
+						</h1>
+						<div class="qa-part-q-view">
+							<div class="qa-q-view  hentry question" id="q4119">
+								<form method="post" action="../../4119/how-include-function-into-the-ufl-formulation-min-code-incl">
+									<div class="qa-q-view-stats">
+										<div class="qa-voting qa-voting-net" id="voting_4119">
+											<div class="qa-vote-count qa-vote-count-net">
+												<span class="qa-netvote-count">
+													<span class="qa-netvote-count-data">+2<span class="votes-up"><span class="value-title" title="2"></span></span><span class="votes-down"><span class="value-title" title="0"></span></span></span><span class="qa-netvote-count-pad"> votes</span>
+												</span>
+											</div>
+											<div class="qa-vote-clear">
+											</div>
+										</div>
+									</div>
+									<input type="hidden" name="code" value="0-1516468002-c4d3c116f84dee71580d7940f92318ae0dd78ae1">
+								</form>
+								<div class="qa-q-view-main">
+									<form method="post" action="../../4119/how-include-function-into-the-ufl-formulation-min-code-incl">
+										<div class="qa-q-view-content">
+											<a name="4119"></a><div class="entry-content"><p>Dear FEniCS community,</p>
+
+<p>I would like to ask, whether and how it is possible to include a function into a UFL formulation of a bilinear form. I provide a clear example below:</p>
+
+<pre><code>from dolfin import *
+
+# Mesh
+mesh = UnitSquareMesh(10,10)
+
+# FunctionSpaces on the mesh
+V =   FunctionSpace(mesh, "CG", 1)
+DG0 = FunctionSpace(mesh, "DG", 0)
+
+# Boundary conditions
+def whole_boundary(x, on_boundary):
+  return on_boundary
+bcs = DirichletBC(V, 0., whole_boundary)
+
+# Data
+epsilon = Constant(1.e-8)
+c = Constant(0.)
+b = Constant((1., 0.))
+b_perp = Constant((0., 1.)) # define b_perp automatically based on b???
+f = Constant(1.)
+tau = Constant(0.1)
+
+# Trial And Test Functions
+u = TrialFunction(V)
+v = TestFunction(V)
+dg0 = TestFunction(DG0)
+
+# Solve for uh using SDFEM
+a = (epsilon*dot(grad(u),grad(v)) + v*dot(b,grad(u)) + c*u*v)*dx +\
+    inner(-epsilon*div(grad(u))+dot(b,grad(u))+c*u,tau*dot(b,grad(v)))*dx
+L = f*v*dx + inner(f,tau*dot(b,grad(v)))*dx
+uh = Function(V)
+solve(a == L, uh, bcs)
+
+# Compute a value of an indicator
+def fcn_in_ind(x):
+  if (x &gt; 1.):
+    return sqrt(x)
+  else:
+    return 2.5*x*x - 1.5*x*x*x
+
+indicator_ufl = ((-epsilon*div(grad(uh))+dot(b,grad(uh))+c*uh-f)**2 + 
+  sqrt(abs(dot(b_perp,grad(uh)))))*dg0*dx # use fcn_in_ind() in the ufl form instead of sqrt(...)???
+indicator_assemble = assemble(indicator_ufl)
+error_estimate = sum(i for i in indicator_assemble)
+print "error_estimate = ", error_estimate
+
+# Plot solution and mesh
+plot(uh)
+
+# Hold plot
+interactive()
+</code></pre>
+
+<p>I would like to use the function <code>fcn_in_ind()</code> instead of <code>sqrt()</code> in the UFL formulation.</p>
+
+<p><strong>SUBQUESTION:</strong><br>
+Is it possible to define the vector function <code>b_perp</code> somehow as a perpendicular vector to <code>b</code> (in any direction)? I just define it manually, but it should be very easy by some function which assigns e.g. <code>b_perp[x,y] = b[-y,x]</code>. But again, I do not know how to do this in the framework of FEniCS <code>expression()</code>.</p>
+</div>
+										</div>
+										<div class="qa-q-view-tags">
+											<ul class="qa-q-view-tag-list">
+												<li class="qa-q-view-tag-item"><a href="../../tag/expression" rel="tag" class="qa-tag-link">expression</a></li>
+												<li class="qa-q-view-tag-item"><a href="../../tag/custom-function" rel="tag" class="qa-tag-link">custom-function</a></li>
+												<li class="qa-q-view-tag-item"><a href="../../tag/bilinear-form" rel="tag" class="qa-tag-link">bilinear-form</a></li>
+												<li class="qa-q-view-tag-item"><a href="../../tag/ufl" rel="tag" class="qa-tag-link">ufl</a></li>
+												<li class="qa-q-view-tag-item"><a href="../../tag/custom" rel="tag" class="qa-tag-link">custom</a></li>
+											</ul>
+										</div>
+										<span class="qa-q-view-avatar-meta">
+											<span class="qa-q-view-avatar">
+												<a href="../../user/luk.p" class="qa-avatar-link"><img src="https://www.gravatar.com/avatar/118073cf8da85e2ea30249b40213f5d4?s=50" width="50" height="50" class="qa-avatar-image" alt=""></a>
+											</span>
+											<span class="qa-q-view-meta">
+												<a href="../../4119/how-include-function-into-the-ufl-formulation-min-code-incl" class="qa-q-view-what">asked</a>
+												<span class="qa-q-view-when">
+													<span class="qa-q-view-when-data"><span class="published"><span class="value-title" title="2014-07-14T15:37:53+0000"></span>Jul 14, 2014</span></span>
+												</span>
+												<span class="qa-q-view-who">
+													<span class="qa-q-view-who-pad">by </span>
+													<span class="qa-q-view-who-data"><span class="vcard author"><a href="../../user/luk.p" class="qa-user-link url nickname">luk.p</a></span></span>
+													<span class="qa-q-view-who-title">FEniCS User</span>
+													<span class="qa-q-view-who-points">
+														<span class="qa-q-view-who-points-pad">(</span><span class="qa-q-view-who-points-data">3,470</span><span class="qa-q-view-who-points-pad"> points)</span>
+													</span>
+												</span>
+											</span>
+										</span>
+										<div class="qa-q-view-buttons">
+										</div>
+										
+										<div class="qa-q-view-c-list" style="display:none;" id="c4119_list">
+										</div> <!-- END qa-c-list -->
+										
+										<input type="hidden" name="code" value="0-1516468002-e623417d3dc1487f8d7a1a891288bb42efd36a2d">
+										<input type="hidden" name="qa_click" value="">
+									</form>
+									<div class="qa-c-form">
+									</div> <!-- END qa-c-form -->
+									
+								</div> <!-- END qa-q-view-main -->
+								<div class="qa-q-view-clear">
+								</div>
+							</div> <!-- END qa-q-view -->
+							
+						</div>
+						<div class="qa-part-a-list">
+							<h2 id="a_list_title">1 Answer</h2>
+							<div class="qa-a-list" id="a_list">
+								
+								<div class="qa-a-list-item  hentry answer answer-selected qa-a-list-item-selected" id="a4129">
+									<form method="post" action="../../4119/how-include-function-into-the-ufl-formulation-min-code-incl">
+										<div class="qa-voting qa-voting-net" id="voting_4129">
+											<div class="qa-vote-count qa-vote-count-net">
+												<span class="qa-netvote-count">
+													<span class="qa-netvote-count-data">+2<span class="votes-up"><span class="value-title" title="2"></span></span><span class="votes-down"><span class="value-title" title="0"></span></span></span><span class="qa-netvote-count-pad"> votes</span>
+												</span>
+											</div>
+											<div class="qa-vote-clear">
+											</div>
+										</div>
+										<input type="hidden" name="code" value="0-1516468002-c4d3c116f84dee71580d7940f92318ae0dd78ae1">
+									</form>
+									<div class="qa-a-item-main">
+										<form method="post" action="../../4119/how-include-function-into-the-ufl-formulation-min-code-incl">
+											<div class="qa-a-item-selected">
+												<div class="qa-a-selection">
+													<div class="qa-a-selected">&#160;</div>
+													<div class="qa-a-selected-text">Best answer</div>
+												</div>
+												<div class="qa-a-item-content">
+													<a name="4129"></a><div class="entry-content"><p>Hi, for <code>fcn_in_ind()</code> function consider using UFL conditionals</p>
+
+<pre><code>fcn_in_ind = lambda u: conditional(gt(u, 1), sqrt(u), 2.5*u**2 - 1.5*u**3)
+
+indicator_ufl = ((-epsilon*div(grad(uh))+dot(b,grad(uh))+c*uh-f)**2 +\
+    fcn_in_ind(abs(dot(b_perp,grad(uh)))))*dg0*dx 
+</code></pre>
+
+<p>To get a perpendicular vector, you could use</p>
+
+<pre><code>b_perp = as_vector([b[1], -b[0]])
+</code></pre>
+</div>
+												</div>
+												<span class="qa-a-item-avatar-meta">
+													<span class="qa-a-item-avatar">
+														<a href="../../user/MiroK" class="qa-avatar-link"><img src="https://www.gravatar.com/avatar/f566be3274ec73e3a6dda27bca11631c?s=40" width="40" height="40" class="qa-avatar-image" alt=""></a>
+													</span>
+													<span class="qa-a-item-meta">
+														<a href="../../4119/how-include-function-into-the-ufl-formulation-min-code-incl?show=4129#a4129" class="qa-a-item-what">answered</a>
+														<span class="qa-a-item-when">
+															<span class="qa-a-item-when-data"><span class="published"><span class="value-title" title="2014-07-15T06:50:33+0000"></span>Jul 15, 2014</span></span>
+														</span>
+														<span class="qa-a-item-who">
+															<span class="qa-a-item-who-pad">by </span>
+															<span class="qa-a-item-who-data"><span class="vcard author"><a href="../../user/MiroK" class="qa-user-link url nickname">MiroK</a></span></span>
+															<span class="qa-a-item-who-title">FEniCS Expert</span>
+															<span class="qa-a-item-who-points">
+																<span class="qa-a-item-who-points-pad">(</span><span class="qa-a-item-who-points-data">80,920</span><span class="qa-a-item-who-points-pad"> points)</span>
+															</span>
+														</span>
+														<br>
+														<span class="qa-a-item-what">selected</span>
+														<span class="qa-a-item-when">
+															<span class="qa-a-item-when-data"><span class="updated"><span class="value-title" title="2014-07-15T10:58:10+0000"></span>Jul 15, 2014</span></span>
+														</span>
+														<span class="qa-a-item-who">
+															<span class="qa-a-item-who-pad">by </span><span class="qa-a-item-who-data"><a href="../../user/luk.p" class="qa-user-link url nickname">luk.p</a></span>
+														</span>
+													</span>
+												</span>
+											</div>
+											<div class="qa-a-item-buttons">
+												</div>
+											
+											<div class="qa-a-item-c-list" style="display:none;" id="c4129_list">
+											</div> <!-- END qa-c-list -->
+											
+											<input type="hidden" name="code" value="0-1516468002-671f9f5fbb938c3fb7161507a85dd64d2bb2e56d">
+											<input type="hidden" name="qa_click" value="">
+										</form>
+										<div class="qa-c-form">
+										</div> <!-- END qa-c-form -->
+										
+									</div> <!-- END qa-a-item-main -->
+									<div class="qa-a-item-clear">
+									</div>
+								</div> <!-- END qa-a-list-item -->
+								
+							</div> <!-- END qa-a-list -->
+							
+						</div>
+					</div> <!-- END qa-main -->
+					
+				</div> <!-- END main-wrapper -->
+			</div> <!-- END main-shadow -->
+		</div> <!-- END body-wrapper -->
+		<!-- END footer-bottom-group -->
+		
+		<div style="position:absolute; left:-9999px; top:-9999px;">
+			<span id="qa-waiting-template" class="qa-waiting">...</span>
+		</div>
+	
+	
+
+</body><!-- Powered by Question2Answer - http://www.question2answer.org/ --></html>

@@ -1,0 +1,353 @@
+<html><!-- Powered by Question2Answer - http://www.question2answer.org/ --><head>
+		<meta http-equiv="content-type" content="text/html; charset=utf-8">
+		<title>Solving 3 time dependent PDE's simultaneously!! - FEniCS Q&amp;A</title>
+		<meta name="description" content="Hey, I have the following code for solving three different PDE's which are time dependent. They ...  input Please help in solving this problem. Thanks">
+		<link rel="stylesheet" type="text/css" href="../../qa-theme/Snow/qa-styles.css">
+		<link rel="canonical" href="http://fenicsproject.org/qa/2793/solving-3-time-dependent-pdes-simultaneously">
+		<script type="text/x-mathjax-config">
+  MathJax.Hub.Config({
+    extensions: ["tex2jax.js"],
+    jax: ["input/TeX","output/HTML-CSS"],
+    tex2jax: {inlineMath: [["$","$"],["\\(","\\)"]]},
+    TeX: { extensions: ["AMSmath.js","AMSsymbols.js"]}
+  });
+</script>
+<script type="text/javascript" src="../../mathjax/MathJax.js"></script>
+		<script src="../../jquery-1.7.2.min.js" type="text/javascript"></script>
+		<script src="../../highlight.min.js"></script>
+<script type="text/javascript">
+$(function(){
+	$('.wmd-input').keypress(function(){
+		window.clearTimeout(hljs.Timeout);
+		hljs.Timeout = window.setTimeout(function() {
+			hljs.initHighlighting.called = false;
+			hljs.initHighlighting();
+		}, 500);
+	});
+	window.setTimeout(function() {
+		hljs.initHighlighting.called = false;
+		hljs.initHighlighting();
+	}, 500);
+});
+</script>
+
+
+	</head>
+	<body class="qa-template-question qa-body-js-off">
+		<div class="qa-body-wrapper">
+			
+			<div class="qa-header">
+				<div class="qa-logo">
+					<a href="../../" class="qa-logo-link" title="FEniCS Q&amp;A"><img src="../../qa-theme/fenics_qa.png" border="0" alt="FEniCS Q&amp;A"></a>
+				</div>
+				<div class="qa-header-clear">
+				</div>
+			</div> <!-- END qa-header -->
+			
+			<div class="qa-main-shadow">
+				
+				<div class="qa-main-wrapper">
+					
+					<div class="qa-sidepanel">
+						<div class="qa-sidebar">
+							This is a read only copy of the old FEniCS QA forum. Please visit the <a href="https://www.allanswered.com/community/s/fenics-project/">new QA forum</a> to ask questions
+						</div>
+						
+					</div>
+					
+					<div class="qa-main">
+						<h1>
+							<span class="entry-title">Solving 3 time dependent PDE's simultaneously!!</span>
+						</h1>
+						<div class="qa-part-q-view">
+							<div class="qa-q-view  hentry question" id="q2793">
+								<form method="post" action="../../2793/solving-3-time-dependent-pdes-simultaneously">
+									<div class="qa-q-view-stats">
+										<div class="qa-voting qa-voting-net" id="voting_2793">
+											<div class="qa-vote-count qa-vote-count-net">
+												<span class="qa-netvote-count">
+													<span class="qa-netvote-count-data">0<span class="votes-up"><span class="value-title" title="0"></span></span><span class="votes-down"><span class="value-title" title="0"></span></span></span><span class="qa-netvote-count-pad"> votes</span>
+												</span>
+											</div>
+											<div class="qa-vote-clear">
+											</div>
+										</div>
+									</div>
+									<input type="hidden" name="code" value="0-1516467944-c1eae81818ec05ea8b31018bec1d61537527f796">
+								</form>
+								<div class="qa-q-view-main">
+									<form method="post" action="../../2793/solving-3-time-dependent-pdes-simultaneously">
+										<div class="qa-q-view-content">
+											<a name="2793"></a><div class="entry-content"><p>Hey, I have the following code for solving three different PDE's which are time dependent.<br>
+They are subjected to same mesh and all have same initial and boundary condition. During each iteration, I generate new vector element by applying conditions to solution of three PDE's and use this vector as variable values for t-1 seconds in all the PDE's.</p>
+
+<p>My code is as follows:</p>
+
+<pre><code>from dolfin import*
+import numpy
+nx = ny = 50
+mesh = UnitSquareMesh(nx, ny)
+V = FunctionSpace(mesh, "CG", 1)
+
+#plot(mesh)
+
+Tc = Constant(310)
+Tp = Constant(77.0)
+
+def left(x, on_boundary):
+    return on_boundary and x[0] &lt;= 0.05 and x[1] &lt;= 0.05
+
+bcs = [DirichletBC(V, Tp, left)]
+
+# Initial condition
+Tinitial = 'x[0] &lt;= 0.05 &amp;&amp; x[1] &lt;= 0.05 ? Tp : Tc'
+Temp = Expression(Tinitial, Tp = Tp, Tc = Tc)
+T_1 = interpolate(Temp, V)
+
+#print T_1.compute_vertex_values()
+
+dt = 1    # time step
+
+# Parameters
+omegabcb = 40 * 1E3
+tb = 310
+qmet = 33.8 * 1E3
+
+k1 = Constant(0.5 * 1E4)
+k2 = Constant(15.98 * 1E4)
+k3 = 1005 * 1E4 / T_1**1.5
+
+c1 = Constant(3.6 * 1E6)
+c2 = Constant(880 * 1E6) 
+c3 = Constant(0.00415 * 1E6)
+
+# Define variational problem
+T1 = TrialFunction(V)
+v1 = TestFunction(V)
+T2 = TrialFunction(V)
+v2 = TestFunction(V)
+T3 = TrialFunction(V)
+v3 = TestFunction(V)
+
+a1 = (c1 + omegabcb*dt)*T1*v1*dx + dt*k1*inner(nabla_grad(T1), nabla_grad(v1))*dx
+L1 = (c1*T_1 + dt*omegabcb*tb + qmet*dt)*v1*dx
+a2 = (c2)*T2*v2*dx + dt*k2*inner(nabla_grad(T2), nabla_grad(v2))*dx - 3.21*1E6*T2*T_1*v2*dx
+L2 = (c2*T_1)*v2*dx - 3.21*1E6*T_1*T_1*v2*dx
+a3 = dt*k3*inner(nabla_grad(T3), nabla_grad(v3))*dx + c3*T3*T_1*v3*dx
+L3 = c3*T_1*T_1*v3*dx
+
+A1 = None          
+A2 = None          
+A3 = None          
+b1 = None         
+b2 = None          
+b3 = None          
+
+# Compute solution
+T1 = Function(V)  
+T2 = Function(V)   
+T3 = Function(V)   
+duration = 70  # total simulation time
+t = dt
+
+while t &lt;= duration:
+    print 'time =', t
+    A1 = assemble(a1, tensor = A1)
+    A2 = assemble(a2, tensor = A2)
+    A3 = assemble(a3, tensor = A3)
+    b1 = assemble(L1, tensor=b1)
+    b2 = assemble(L2, tensor=b2)
+    b3 = assemble(L3, tensor=b3)
+    for bc in bcs : bc.apply(A1, b1)
+    for bc in bcs : bc.apply(A2, b2)
+    for bc in bcs : bc.apply(A3, b3)
+    solve(A1, T1.vector(), b1)
+    solve(A2, T2.vector(), b2)
+    solve(A3, T3.vector(), b3)
+    T1mat = T1.vector().array()
+    T2mat = T2.vector().array()
+    T3mat = T3.vector().array()
+    T_1mat = T_1.vector().array()
+    T = []
+    for i in range(0, len(T1mat)):
+        if(T_1mat[i] &gt;= 273):
+            T.append(T1mat[i])
+        if(T_1mat[i] &gt;= 251 and T_1mat[i] &lt; 273):
+            T.append(T2mat[i])
+        if(T_1mat[i] &lt; 251):
+            T.append(T3mat[i])
+    T_1.vector()[:] = numpy.array(T)
+    t += dt   
+
+plot (T_1, title = 'T plot')
+interactive()
+</code></pre>
+
+<p>When I run this code for duration greater than or equal to 60 secs. I get an error saying :</p>
+
+<blockquote>
+  <p>File "TestCode14.py", line 94, in <br>
+      T_1.vector()[:] = numpy.array(T)   File "/usr/lib/python2.7/dist-packages/dolfin/cpp/la.py", line 1183, in<br>
+  <strong>setslice</strong><br>
+      self.<strong>setitem</strong>(slice(i, j, 1), values)   File "/usr/lib/python2.7/dist-packages/dolfin/cpp/la.py", line 1214, in<br>
+  <strong>setitem</strong><br>
+      _set_vector_items_array_of_float(self, indices, values)<br>
+  RuntimeError: non matching dimensions on input</p>
+</blockquote>
+
+<p>Please help in solving this problem.<br>
+Thanks</p>
+</div>
+										</div>
+										<span class="qa-q-view-avatar-meta">
+											<span class="qa-q-view-meta">
+												<a href="../../2793/solving-3-time-dependent-pdes-simultaneously" class="qa-q-view-what">asked</a>
+												<span class="qa-q-view-when">
+													<span class="qa-q-view-when-data"><span class="published"><span class="value-title" title="2014-02-21T10:53:16+0000"></span>Feb 21, 2014</span></span>
+												</span>
+												<span class="qa-q-view-who">
+													<span class="qa-q-view-who-pad">by </span>
+													<span class="qa-q-view-who-data"><span class="vcard author"><a href="../../user/iitmayush" class="qa-user-link url nickname">iitmayush</a></span></span>
+													<span class="qa-q-view-who-title">FEniCS Novice</span>
+													<span class="qa-q-view-who-points">
+														<span class="qa-q-view-who-points-pad">(</span><span class="qa-q-view-who-points-data">280</span><span class="qa-q-view-who-points-pad"> points)</span>
+													</span>
+												</span>
+											</span>
+										</span>
+										<div class="qa-q-view-buttons">
+										</div>
+										
+										<div class="qa-q-view-c-list" style="display:none;" id="c2793_list">
+										</div> <!-- END qa-c-list -->
+										
+										<input type="hidden" name="code" value="0-1516467944-41dc611d211edb6aab62ca140a400788357f21a0">
+										<input type="hidden" name="qa_click" value="">
+									</form>
+									<div class="qa-c-form">
+									</div> <!-- END qa-c-form -->
+									
+								</div> <!-- END qa-q-view-main -->
+								<div class="qa-q-view-clear">
+								</div>
+							</div> <!-- END qa-q-view -->
+							
+						</div>
+						<div class="qa-part-a-list">
+							<h2 id="a_list_title">1 Answer</h2>
+							<div class="qa-a-list" id="a_list">
+								
+								<div class="qa-a-list-item  hentry answer" id="a2800">
+									<form method="post" action="../../2793/solving-3-time-dependent-pdes-simultaneously">
+										<div class="qa-voting qa-voting-net" id="voting_2800">
+											<div class="qa-vote-count qa-vote-count-net">
+												<span class="qa-netvote-count">
+													<span class="qa-netvote-count-data">0<span class="votes-up"><span class="value-title" title="0"></span></span><span class="votes-down"><span class="value-title" title="0"></span></span></span><span class="qa-netvote-count-pad"> votes</span>
+												</span>
+											</div>
+											<div class="qa-vote-clear">
+											</div>
+										</div>
+										<input type="hidden" name="code" value="0-1516467944-c1eae81818ec05ea8b31018bec1d61537527f796">
+									</form>
+									<div class="qa-a-item-main">
+										<form method="post" action="../../2793/solving-3-time-dependent-pdes-simultaneously">
+											<div class="qa-a-selection">
+											</div>
+											<div class="qa-a-item-content">
+												<a name="2800"></a><div class="entry-content"><p>Hi, putting </p>
+
+<pre><code>T = []
+#  loop ...
+print len(T)
+</code></pre>
+
+<p>you'll see that before the code crashes <em>len(T)</em> is not equal <em>V.dim()</em> as it should. Inspecting<br>
+T1_mat reveals that it contains quite a few NaNs. You should check stability of your numerical scheme.</p>
+</div>
+											</div>
+											<span class="qa-a-item-avatar-meta">
+												<span class="qa-a-item-avatar">
+													<a href="../../user/MiroK" class="qa-avatar-link"><img src="https://www.gravatar.com/avatar/f566be3274ec73e3a6dda27bca11631c?s=40" width="40" height="40" class="qa-avatar-image" alt=""></a>
+												</span>
+												<span class="qa-a-item-meta">
+													<a href="../../2793/solving-3-time-dependent-pdes-simultaneously?show=2800#a2800" class="qa-a-item-what">answered</a>
+													<span class="qa-a-item-when">
+														<span class="qa-a-item-when-data"><span class="published"><span class="value-title" title="2014-02-21T16:27:09+0000"></span>Feb 21, 2014</span></span>
+													</span>
+													<span class="qa-a-item-who">
+														<span class="qa-a-item-who-pad">by </span>
+														<span class="qa-a-item-who-data"><span class="vcard author"><a href="../../user/MiroK" class="qa-user-link url nickname">MiroK</a></span></span>
+														<span class="qa-a-item-who-title">FEniCS Expert</span>
+														<span class="qa-a-item-who-points">
+															<span class="qa-a-item-who-points-pad">(</span><span class="qa-a-item-who-points-data">80,920</span><span class="qa-a-item-who-points-pad"> points)</span>
+														</span>
+													</span>
+												</span>
+											</span>
+											<div class="qa-a-item-buttons">
+												</div>
+											
+											<div class="qa-a-item-c-list" id="c2800_list">
+												<div class="qa-c-list-item  hentry comment" id="c2821">
+													<div class="qa-c-item-content">
+														<a name="2821"></a><div class="entry-content"><p>Hey,<br>
+I think this is occurring because I am generating T_1 vector (function at time t-1) using solution of  three different PDE's each time which gives discontinuity and hence returns nan value after some iterations depending on the number of elements. <br>
+I am not sure if this is the correct way to address such problems. Can you suggest any other method to solve such problems where each time function at time t-1 is made using solution of three different PDE's over the domain.</p>
+
+<p>Thanks</p>
+</div>
+													</div>
+													<div class="qa-c-item-footer">
+														<span class="qa-c-item-avatar-meta">
+															<span class="qa-c-item-meta">
+																<a href="../../2793/solving-3-time-dependent-pdes-simultaneously?show=2821#c2821" class="qa-c-item-what">commented</a>
+																<span class="qa-c-item-when">
+																	<span class="qa-c-item-when-data"><span class="published"><span class="value-title" title="2014-02-24T16:13:01+0000"></span>Feb 24, 2014</span></span>
+																</span>
+																<span class="qa-c-item-who">
+																	<span class="qa-c-item-who-pad">by </span>
+																	<span class="qa-c-item-who-data"><span class="vcard author"><a href="../../user/iitmayush" class="qa-user-link url nickname">iitmayush</a></span></span>
+																	<span class="qa-c-item-who-title">FEniCS Novice</span>
+																	<span class="qa-c-item-who-points">
+																		<span class="qa-c-item-who-points-pad">(</span><span class="qa-c-item-who-points-data">280</span><span class="qa-c-item-who-points-pad"> points)</span>
+																	</span>
+																</span>
+															</span>
+														</span>
+														<div class="qa-c-item-buttons">
+														</div>
+													</div>
+													<div class="qa-c-item-clear">
+													</div>
+												</div> <!-- END qa-c-item -->
+											</div> <!-- END qa-c-list -->
+											
+											<input type="hidden" name="code" value="0-1516467944-99a8bcec2fac968c9ba26a42c5a36fdd16c5297c">
+											<input type="hidden" name="qa_click" value="">
+										</form>
+										<div class="qa-c-form">
+										</div> <!-- END qa-c-form -->
+										
+									</div> <!-- END qa-a-item-main -->
+									<div class="qa-a-item-clear">
+									</div>
+								</div> <!-- END qa-a-list-item -->
+								
+							</div> <!-- END qa-a-list -->
+							
+						</div>
+					</div> <!-- END qa-main -->
+					
+				</div> <!-- END main-wrapper -->
+			</div> <!-- END main-shadow -->
+		</div> <!-- END body-wrapper -->
+		<!-- END footer-bottom-group -->
+		
+		<div style="position:absolute; left:-9999px; top:-9999px;">
+			<span id="qa-waiting-template" class="qa-waiting">...</span>
+		</div>
+	
+	
+
+</body><!-- Powered by Question2Answer - http://www.question2answer.org/ --></html>

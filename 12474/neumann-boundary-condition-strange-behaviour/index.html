@@ -1,0 +1,495 @@
+<html><!-- Powered by Question2Answer - http://www.question2answer.org/ --><head>
+		<meta http-equiv="content-type" content="text/html; charset=utf-8">
+		<title>Neumann boundary condition strange behaviour - FEniCS Q&amp;A</title>
+		<meta name="description" content="Hi all, I am trying to solve a PDE with Neumann boundary conditions on the unit cube. I can  ... =True) vtkfile = File('Test/solution.pvd') vtkfile">
+		<link rel="stylesheet" type="text/css" href="../../qa-theme/Snow/qa-styles.css">
+		<link rel="canonical" href="http://fenicsproject.org/qa/12474/neumann-boundary-condition-strange-behaviour">
+		<script type="text/x-mathjax-config">
+  MathJax.Hub.Config({
+    extensions: ["tex2jax.js"],
+    jax: ["input/TeX","output/HTML-CSS"],
+    tex2jax: {inlineMath: [["$","$"],["\\(","\\)"]]},
+    TeX: { extensions: ["AMSmath.js","AMSsymbols.js"]}
+  });
+</script>
+<script type="text/javascript" src="../../mathjax/MathJax.js"></script>
+		<script src="../../jquery-1.7.2.min.js" type="text/javascript"></script>
+		<script src="../../highlight.min.js"></script>
+<script type="text/javascript">
+$(function(){
+	$('.wmd-input').keypress(function(){
+		window.clearTimeout(hljs.Timeout);
+		hljs.Timeout = window.setTimeout(function() {
+			hljs.initHighlighting.called = false;
+			hljs.initHighlighting();
+		}, 500);
+	});
+	window.setTimeout(function() {
+		hljs.initHighlighting.called = false;
+		hljs.initHighlighting();
+	}, 500);
+});
+</script>
+
+
+	</head>
+	<body class="qa-template-question qa-body-js-off">
+		<div class="qa-body-wrapper">
+			
+			<div class="qa-header">
+				<div class="qa-logo">
+					<a href="../" class="qa-logo-link" title="FEniCS Q&amp;A"><img src="../../qa-theme/fenics_qa.png" border="0" alt="FEniCS Q&amp;A"></a>
+				</div>
+				<div class="qa-header-clear">
+				</div>
+			</div> <!-- END qa-header -->
+			
+			<div class="qa-main-shadow">
+				
+				<div class="qa-main-wrapper">
+					
+					<div class="qa-sidepanel">
+						<div class="qa-sidebar">
+							This is a read only copy of the old FEniCS QA forum. Please visit the <a href="https://www.allanswered.com/community/s/fenics-project/">new QA forum</a> to ask questions
+						</div>
+						
+					</div>
+					
+					<div class="qa-main">
+						<h1>
+							<span class="entry-title">Neumann boundary condition strange behaviour</span>
+						</h1>
+						<div class="qa-part-q-view">
+							<div class="qa-q-view qa-q-closed hentry question" id="q12474">
+								<form method="post" action="../12474">
+									<div class="qa-q-view-stats">
+										<div class="qa-voting qa-voting-net" id="voting_12474">
+											<div class="qa-vote-count qa-vote-count-net">
+												<span class="qa-netvote-count">
+													<span class="qa-netvote-count-data">+1<span class="votes-up"><span class="value-title" title="1"></span></span><span class="votes-down"><span class="value-title" title="0"></span></span></span><span class="qa-netvote-count-pad"> vote</span>
+												</span>
+											</div>
+											<div class="qa-vote-clear">
+											</div>
+										</div>
+									</div>
+									<input type="hidden" name="code" value="0-1516478276-51b89f40cc027c5363421010385345162d5bf9a1">
+								</form>
+								<div class="qa-q-view-main">
+									<form method="post" action="../12474">
+										<div class="qa-q-view-content">
+											<a name="12474"></a><div class="entry-content"><p>Hi all,</p>
+
+<p>I am trying to solve a PDE with Neumann boundary conditions on the unit cube. I can provide the PDE itself if necessary, but I think the problem already becomes clear from the variational formulation which I used. Here I consider the first component as time and the other two as space. I impose zero Neumann boundary condition in space and a some function in time. This seems to run as I expect and the solution is fine. But if I then compute the gradient of this I get very strange results and the initial condition is not satisfied on the boundary anymore. It looks like it is blurred out and slightly shifted which really surprises me. I used Paraview to visualise the results and to compare them. Is anyone able to comment on that?</p>
+
+<p>Here is my code:</p>
+
+<h2>Loading all relevant packages.</h2>
+
+<p>from fenics import *</p>
+
+<h2>Relevant constants and initial functions</h2>
+
+<p>delta = Constant(0.001)<br>
+g1 = Expression('exp(-150<em>pow(x[1]-0.4,2) - 150</em>pow(x[2]-0.4,2))', degree=0)<br>
+g2 = Expression('exp(-150<em>pow(x[1]-0.6,2) - 150</em>pow(x[2]-0.6,2))', degree=0)</p>
+
+<h2>Create Boundary conditions for PDE</h2>
+
+<h2>Boundary for t=0</h2>
+
+<p>class Boundary0(SubDomain):</p>
+
+<pre><code>def inside(self, x, on_boundary):
+# return True if t=0
+    return bool(near(x[0], 0) and  on_boundary)
+</code></pre>
+
+<h2>Boundary for t=1</h2>
+
+<p>class Boundary1(SubDomain):</p>
+
+<pre><code>def inside(self, x, on_boundary):
+# return True if t=1
+    return bool(near(x[0], 1) and  on_boundary)
+</code></pre>
+
+<h2>Initializing the mesh,ds and functions</h2>
+
+<p>mesh = UnitCubeMesh(12,20,20)<br>
+V = FunctionSpace(mesh, "CG", 1)<br>
+V0 = FunctionSpace(mesh, "DG", 0)<br>
+W = VectorFunctionSpace(mesh, "DG", 0 , 3)#,constrained_domain=PeriodicBoundary()<br>
+mu = interpolate(Expression(('0', "0", "0"), degree=0),  W)<br>
+g1 = interpolate(g1,V0)<br>
+g2 = interpolate(g2,V0)<br>
+boundary_markers = FacetFunction('size_t', mesh,0)<br>
+NB0=Boundary0()<br>
+NB0.mark(boundary_markers, 1)<br>
+NB1=Boundary1()<br>
+NB1.mark(boundary_markers, 2)<br>
+ds = Measure('ds', domain=mesh, subdomain_data=boundary_markers)</p>
+
+<h2>PDE which we want so solve in variational form</h2>
+
+<p>v = TestFunction(V)<br>
+phi = TrialFunction(V)<br>
+a = (delta/2<em>phi</em>v+ dot(grad(phi)/2., grad(v)))<em>dx<br>
+b = -(g1</em>v)<em>ds(1) + (g2</em>v)<em>ds(2) - dot(mu, grad(v))</em>dx<br>
+phi = Function(V)<br>
+solve(a==b,phi)</p>
+
+<h2>Checking boundary condition</h2>
+
+<p>mu = project(grad(phi),W)</p>
+
+<h2>Save files</h2>
+
+<p>musol, m1, m2 = mu.split(deepcopy=True)<br>
+vtkfile = File('Test/solution.pvd')<br>
+vtkfile &lt;&lt; musol<br>
+vtkfile_1 = File('Test/initial1.pvd')<br>
+vtkfile_1 &lt;&lt; g1<br>
+vtkfile_2 = File('Test/initial2.pvd')<br>
+vtkfile_2 &lt;&lt; g2</p>
+
+<p>It would be great if someone can explain this behaviour. I am really confused and can not explain the effect at all.</p>
+
+<p>Thanks,<br>
+Sebastian</p>
+</div>
+										</div>
+										<div class="qa-q-view-closed">
+											closed with the note:
+											<span class="qa-q-view-closed-content">
+												Changed question to a more general formulation.
+											</span>
+										</div>
+										<span class="qa-q-view-avatar-meta">
+											<span class="qa-q-view-meta">
+												<a href="../12474/neumann-boundary-condition-strange-behaviour" class="qa-q-view-what">asked</a>
+												<span class="qa-q-view-when">
+													<span class="qa-q-view-when-data"><span class="published"><span class="value-title" title="2017-02-21T15:55:28+0000"></span>Feb 21, 2017</span></span>
+												</span>
+												<span class="qa-q-view-who">
+													<span class="qa-q-view-who-pad">by </span>
+													<span class="qa-q-view-who-data"><span class="vcard author"><a href="../../user/Sebi9496" class="qa-user-link url nickname">Sebi9496</a></span></span>
+													<span class="qa-q-view-who-title">FEniCS Novice</span>
+													<span class="qa-q-view-who-points">
+														<span class="qa-q-view-who-points-pad">(</span><span class="qa-q-view-who-points-data">290</span><span class="qa-q-view-who-points-pad"> points)</span>
+													</span>
+												</span>
+												<br>
+												<span class="qa-q-view-what">closed</span>
+												<span class="qa-q-view-when">
+													<span class="qa-q-view-when-data"><span class="updated"><span class="value-title" title="2017-02-27T15:55:31+0000"></span>Feb 27, 2017</span></span>
+												</span>
+												<span class="qa-q-view-who">
+													<span class="qa-q-view-who-pad">by </span><span class="qa-q-view-who-data"><a href="../../user/Sebi9496" class="qa-user-link url nickname">Sebi9496</a></span>
+												</span>
+											</span>
+										</span>
+										<div class="qa-q-view-buttons">
+										</div>
+										
+										<div class="qa-q-view-c-list" style="display:none;" id="c12474_list">
+										</div> <!-- END qa-c-list -->
+										
+										<input type="hidden" name="code" value="0-1516478276-5616c259c2c9b34d05e8f5f7060ad93ed517c73b">
+										<input type="hidden" name="qa_click" value="">
+									</form>
+									<div class="qa-c-form">
+									</div> <!-- END qa-c-form -->
+									
+								</div> <!-- END qa-q-view-main -->
+								<div class="qa-q-view-clear">
+								</div>
+							</div> <!-- END qa-q-view -->
+							
+						</div>
+						<div class="qa-part-a-list">
+							<h2 id="a_list_title">1 Answer</h2>
+							<div class="qa-a-list" id="a_list">
+								
+								<div class="qa-a-list-item  hentry answer" id="a12482">
+									<form method="post" action="../12474">
+										<div class="qa-voting qa-voting-net" id="voting_12482">
+											<div class="qa-vote-count qa-vote-count-net">
+												<span class="qa-netvote-count">
+													<span class="qa-netvote-count-data">+1<span class="votes-up"><span class="value-title" title="1"></span></span><span class="votes-down"><span class="value-title" title="0"></span></span></span><span class="qa-netvote-count-pad"> vote</span>
+												</span>
+											</div>
+											<div class="qa-vote-clear">
+											</div>
+										</div>
+										<input type="hidden" name="code" value="0-1516478276-51b89f40cc027c5363421010385345162d5bf9a1">
+									</form>
+									<div class="qa-a-item-main">
+										<form method="post" action="../12474">
+											<div class="qa-a-selection">
+											</div>
+											<div class="qa-a-item-content">
+												<a name="12482"></a><div class="entry-content"><p>Hi there,</p>
+
+<p>the line</p>
+
+<pre><code>phi = Function(V)
+</code></pre>
+
+<p>seems odd, because you have already defined phi above as a trial function. Why do you need that line?</p>
+
+<p>Quoting from the FEniCS tutorial, I would attempt to solve your problem along these lines (making the obvious adjustments):</p>
+
+<pre><code>    # Define variational problem
+     u = TrialFunction(V)
+     v = TestFunction(V)
+     f = Constant(-6.0)
+     a = dot(grad(u), grad(v))*dx
+     L = f*v*dx
+
+    # Compute solution
+    u = Function(V)
+    solve(a == L, u, bc)
+</code></pre>
+
+<p>Does that help?</p>
+</div>
+											</div>
+											<span class="qa-a-item-avatar-meta">
+												<span class="qa-a-item-avatar">
+													<a href="../../user/wilhelmbraun" class="qa-avatar-link"><img src="../?qa=image&amp;qa_blobid=8837047155364839364&amp;qa_size=40" width="40" height="40" class="qa-avatar-image" alt=""></a>
+												</span>
+												<span class="qa-a-item-meta">
+													<a href="../12474/neumann-boundary-condition-strange-behaviour?show=12482#a12482" class="qa-a-item-what">answered</a>
+													<span class="qa-a-item-when">
+														<span class="qa-a-item-when-data"><span class="published"><span class="value-title" title="2017-02-22T16:31:35+0000"></span>Feb 22, 2017</span></span>
+													</span>
+													<span class="qa-a-item-who">
+														<span class="qa-a-item-who-pad">by </span>
+														<span class="qa-a-item-who-data"><span class="vcard author"><a href="../../user/wilhelmbraun" class="qa-user-link url nickname">wilhelmbraun</a></span></span>
+														<span class="qa-a-item-who-title">FEniCS User</span>
+														<span class="qa-a-item-who-points">
+															<span class="qa-a-item-who-points-pad">(</span><span class="qa-a-item-who-points-data">2,070</span><span class="qa-a-item-who-points-pad"> points)</span>
+														</span>
+													</span>
+												</span>
+											</span>
+											<div class="qa-a-item-buttons">
+												</div>
+											
+											<div class="qa-a-item-c-list" id="c12482_list">
+												<div class="qa-c-list-item  hentry comment" id="c12490">
+													<div class="qa-c-item-content">
+														<a name="12490"></a><div class="entry-content"><p>Isn't this example doing exactly the same? First define the variational problem with trial functions and then setting it to a function after?</p>
+</div>
+													</div>
+													<div class="qa-c-item-footer">
+														<span class="qa-c-item-avatar-meta">
+															<span class="qa-c-item-meta">
+																<a href="../12474/neumann-boundary-condition-strange-behaviour?show=12490#c12490" class="qa-c-item-what">commented</a>
+																<span class="qa-c-item-when">
+																	<span class="qa-c-item-when-data"><span class="published"><span class="value-title" title="2017-02-23T08:56:52+0000"></span>Feb 23, 2017</span></span>
+																</span>
+																<span class="qa-c-item-who">
+																	<span class="qa-c-item-who-pad">by </span>
+																	<span class="qa-c-item-who-data"><span class="vcard author"><a href="../../user/Sebi9496" class="qa-user-link url nickname">Sebi9496</a></span></span>
+																	<span class="qa-c-item-who-title">FEniCS Novice</span>
+																	<span class="qa-c-item-who-points">
+																		<span class="qa-c-item-who-points-pad">(</span><span class="qa-c-item-who-points-data">290</span><span class="qa-c-item-who-points-pad"> points)</span>
+																	</span>
+																</span>
+															</span>
+														</span>
+														<div class="qa-c-item-buttons">
+														</div>
+													</div>
+													<div class="qa-c-item-clear">
+													</div>
+												</div> <!-- END qa-c-item -->
+												<div class="qa-c-list-item  hentry comment" id="c12497">
+													<div class="qa-c-item-content">
+														<a name="12497"></a><div class="entry-content"><p>Yes, I think you are right.</p>
+
+<p>How sure are you about the CG/ DG setup of your function spaces? Is that standard? Also, you project phi, an element of the CG space V, to the DG space W, which might be non-trivial or not even well defined.</p>
+</div>
+													</div>
+													<div class="qa-c-item-footer">
+														<span class="qa-c-item-avatar-meta">
+															<span class="qa-c-item-avatar">
+																<a href="../../user/wilhelmbraun" class="qa-avatar-link"><img src="../?qa=image&amp;qa_blobid=8837047155364839364&amp;qa_size=20" width="20" height="20" class="qa-avatar-image" alt=""></a>
+															</span>
+															<span class="qa-c-item-meta">
+																<a href="../12474/neumann-boundary-condition-strange-behaviour?show=12497#c12497" class="qa-c-item-what">commented</a>
+																<span class="qa-c-item-when">
+																	<span class="qa-c-item-when-data"><span class="published"><span class="value-title" title="2017-02-23T13:33:34+0000"></span>Feb 23, 2017</span></span>
+																</span>
+																<span class="qa-c-item-who">
+																	<span class="qa-c-item-who-pad">by </span>
+																	<span class="qa-c-item-who-data"><span class="vcard author"><a href="../../user/wilhelmbraun" class="qa-user-link url nickname">wilhelmbraun</a></span></span>
+																	<span class="qa-c-item-who-title">FEniCS User</span>
+																	<span class="qa-c-item-who-points">
+																		<span class="qa-c-item-who-points-pad">(</span><span class="qa-c-item-who-points-data">2,070</span><span class="qa-c-item-who-points-pad"> points)</span>
+																	</span>
+																</span>
+															</span>
+														</span>
+														<div class="qa-c-item-buttons">
+														</div>
+													</div>
+													<div class="qa-c-item-clear">
+													</div>
+												</div> <!-- END qa-c-item -->
+												<div class="qa-c-list-item  hentry comment" id="c12511">
+													<div class="qa-c-item-content">
+														<a name="12511"></a><div class="entry-content"><p>The idea of this setup is the following. If I compute the derivative of a piecewise linear function I would expect it to be piecewise constant. However, the gradient of a fenics function is not a regular function and you have to project it before you can use it as one again. At least this is my experience with it so far. With the above reasoning, I would expect that the function stays the same under projection, only the type of it changes to a fenics function. Does this make any sense?</p>
+</div>
+													</div>
+													<div class="qa-c-item-footer">
+														<span class="qa-c-item-avatar-meta">
+															<span class="qa-c-item-meta">
+																<a href="../12474/neumann-boundary-condition-strange-behaviour?show=12511#c12511" class="qa-c-item-what">commented</a>
+																<span class="qa-c-item-when">
+																	<span class="qa-c-item-when-data"><span class="published"><span class="value-title" title="2017-02-23T20:40:31+0000"></span>Feb 23, 2017</span></span>
+																</span>
+																<span class="qa-c-item-who">
+																	<span class="qa-c-item-who-pad">by </span>
+																	<span class="qa-c-item-who-data"><span class="vcard author"><a href="../../user/Sebi9496" class="qa-user-link url nickname">Sebi9496</a></span></span>
+																	<span class="qa-c-item-who-title">FEniCS Novice</span>
+																	<span class="qa-c-item-who-points">
+																		<span class="qa-c-item-who-points-pad">(</span><span class="qa-c-item-who-points-data">290</span><span class="qa-c-item-who-points-pad"> points)</span>
+																	</span>
+																</span>
+															</span>
+														</span>
+														<div class="qa-c-item-buttons">
+														</div>
+													</div>
+													<div class="qa-c-item-clear">
+													</div>
+												</div> <!-- END qa-c-item -->
+												<div class="qa-c-list-item  hentry comment" id="c12512">
+													<div class="qa-c-item-content">
+														<a name="12512"></a><div class="entry-content"><p>OK, but why do you need a DG function space? Also, why do you assume that your solution phi will be a piecewise linear function?</p>
+</div>
+													</div>
+													<div class="qa-c-item-footer">
+														<span class="qa-c-item-avatar-meta">
+															<span class="qa-c-item-avatar">
+																<a href="../../user/wilhelmbraun" class="qa-avatar-link"><img src="../?qa=image&amp;qa_blobid=8837047155364839364&amp;qa_size=20" width="20" height="20" class="qa-avatar-image" alt=""></a>
+															</span>
+															<span class="qa-c-item-meta">
+																<a href="../12474/neumann-boundary-condition-strange-behaviour?show=12512#c12512" class="qa-c-item-what">commented</a>
+																<span class="qa-c-item-when">
+																	<span class="qa-c-item-when-data"><span class="published"><span class="value-title" title="2017-02-23T21:04:59+0000"></span>Feb 23, 2017</span></span>
+																</span>
+																<span class="qa-c-item-who">
+																	<span class="qa-c-item-who-pad">by </span>
+																	<span class="qa-c-item-who-data"><span class="vcard author"><a href="../../user/wilhelmbraun" class="qa-user-link url nickname">wilhelmbraun</a></span></span>
+																	<span class="qa-c-item-who-title">FEniCS User</span>
+																	<span class="qa-c-item-who-points">
+																		<span class="qa-c-item-who-points-pad">(</span><span class="qa-c-item-who-points-data">2,070</span><span class="qa-c-item-who-points-pad"> points)</span>
+																	</span>
+																</span>
+															</span>
+														</span>
+														<div class="qa-c-item-buttons">
+														</div>
+													</div>
+													<div class="qa-c-item-clear">
+													</div>
+												</div> <!-- END qa-c-item -->
+												<div class="qa-c-list-item  hentry comment" id="c12514">
+													<div class="qa-c-item-content">
+														<a name="12514"></a><div class="entry-content"><p>Because my space of elements in which I solve the problem is 'CG' 1. So at least my numerical solution phi is continuous, piece wise linear then. And after computing the derivative it will be piece wise constant then. So the gradient of phi should be in 'DG' 0 I would assume...</p>
+</div>
+													</div>
+													<div class="qa-c-item-footer">
+														<span class="qa-c-item-avatar-meta">
+															<span class="qa-c-item-meta">
+																<a href="../12474/neumann-boundary-condition-strange-behaviour?show=12514#c12514" class="qa-c-item-what">commented</a>
+																<span class="qa-c-item-when">
+																	<span class="qa-c-item-when-data"><span class="published"><span class="value-title" title="2017-02-24T10:01:36+0000"></span>Feb 24, 2017</span></span>
+																</span>
+																<span class="qa-c-item-who">
+																	<span class="qa-c-item-who-pad">by </span>
+																	<span class="qa-c-item-who-data"><span class="vcard author"><a href="../../user/Sebi9496" class="qa-user-link url nickname">Sebi9496</a></span></span>
+																	<span class="qa-c-item-who-title">FEniCS Novice</span>
+																	<span class="qa-c-item-who-points">
+																		<span class="qa-c-item-who-points-pad">(</span><span class="qa-c-item-who-points-data">290</span><span class="qa-c-item-who-points-pad"> points)</span>
+																	</span>
+																</span>
+															</span>
+														</span>
+														<div class="qa-c-item-buttons">
+														</div>
+													</div>
+													<div class="qa-c-item-clear">
+													</div>
+												</div> <!-- END qa-c-item -->
+												<div class="qa-c-list-item  hentry comment" id="c12694">
+													<div class="qa-c-item-content">
+														<a name="12694"></a><div class="entry-content"><p>Sorry for my late reply!</p>
+
+<p>Ok, that also makes sense.</p>
+
+<p>I currently can't spot any more issues with your code. A general comment would be to make sure your problem is a well-defined PDE problem in the mathematical sense (see literature) to make sure a solution with the required regularity actually exists.</p>
+
+<p>For example, you have a small constant <code>delta</code> in your code that enters the definition of your linear form <code>a(phi, v)</code>. Maybe increase that constant to see whether the problem persists, because you might have a boundary layer somewhere which are hard to deal with numerically.</p>
+</div>
+													</div>
+													<div class="qa-c-item-footer">
+														<span class="qa-c-item-avatar-meta">
+															<span class="qa-c-item-avatar">
+																<a href="../../user/wilhelmbraun" class="qa-avatar-link"><img src="../?qa=image&amp;qa_blobid=8837047155364839364&amp;qa_size=20" width="20" height="20" class="qa-avatar-image" alt=""></a>
+															</span>
+															<span class="qa-c-item-meta">
+																<a href="../12474/neumann-boundary-condition-strange-behaviour?show=12694#c12694" class="qa-c-item-what">commented</a>
+																<span class="qa-c-item-when">
+																	<span class="qa-c-item-when-data"><span class="published"><span class="value-title" title="2017-03-13T15:19:17+0000"></span>Mar 13, 2017</span></span>
+																</span>
+																<span class="qa-c-item-who">
+																	<span class="qa-c-item-who-pad">by </span>
+																	<span class="qa-c-item-who-data"><span class="vcard author"><a href="../../user/wilhelmbraun" class="qa-user-link url nickname">wilhelmbraun</a></span></span>
+																	<span class="qa-c-item-who-title">FEniCS User</span>
+																	<span class="qa-c-item-who-points">
+																		<span class="qa-c-item-who-points-pad">(</span><span class="qa-c-item-who-points-data">2,070</span><span class="qa-c-item-who-points-pad"> points)</span>
+																	</span>
+																</span>
+															</span>
+														</span>
+														<div class="qa-c-item-buttons">
+														</div>
+													</div>
+													<div class="qa-c-item-clear">
+													</div>
+												</div> <!-- END qa-c-item -->
+											</div> <!-- END qa-c-list -->
+											
+											<input type="hidden" name="code" value="0-1516478276-d8c890bb18557eb7ecb7addb58f0db1bb9368662">
+											<input type="hidden" name="qa_click" value="">
+										</form>
+										<div class="qa-c-form">
+										</div> <!-- END qa-c-form -->
+										
+									</div> <!-- END qa-a-item-main -->
+									<div class="qa-a-item-clear">
+									</div>
+								</div> <!-- END qa-a-list-item -->
+								
+							</div> <!-- END qa-a-list -->
+							
+						</div>
+					</div> <!-- END qa-main -->
+					
+				</div> <!-- END main-wrapper -->
+			</div> <!-- END main-shadow -->
+		</div> <!-- END body-wrapper -->
+		<!-- END footer-bottom-group -->
+		
+		<div style="position:absolute; left:-9999px; top:-9999px;">
+			<span id="qa-waiting-template" class="qa-waiting">...</span>
+		</div>
+	
+	
+
+</body><!-- Powered by Question2Answer - http://www.question2answer.org/ --></html>

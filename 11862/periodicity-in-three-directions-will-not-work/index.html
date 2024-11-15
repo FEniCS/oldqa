@@ -1,0 +1,377 @@
+<html><!-- Powered by Question2Answer - http://www.question2answer.org/ --><head>
+		<meta http-equiv="content-type" content="text/html; charset=utf-8">
+		<title>Periodicity in three directions will not work - FEniCS Q&amp;A</title>
+		<meta name="description" content='Hi all, I have been trying to progress my code from a 2D Octagon with periodicity in x and y  ... (quaffle, 32) # Save mesh File("2Dmesh.xml")'>
+		<meta name="keywords" content="periodicity,3d,fenics,lame,homogenisation">
+		<link rel="stylesheet" type="text/css" href="../../qa-theme/Snow/qa-styles.css">
+		<link rel="canonical" href="http://fenicsproject.org/qa/11862/periodicity-in-three-directions-will-not-work">
+		<script type="text/x-mathjax-config">
+  MathJax.Hub.Config({
+    extensions: ["tex2jax.js"],
+    jax: ["input/TeX","output/HTML-CSS"],
+    tex2jax: {inlineMath: [["$","$"],["\\(","\\)"]]},
+    TeX: { extensions: ["AMSmath.js","AMSsymbols.js"]}
+  });
+</script>
+<script type="text/javascript" src="../../mathjax/MathJax.js"></script>
+		<script src="../../jquery-1.7.2.min.js" type="text/javascript"></script>
+		<script src="../../highlight.min.js"></script>
+<script type="text/javascript">
+$(function(){
+	$('.wmd-input').keypress(function(){
+		window.clearTimeout(hljs.Timeout);
+		hljs.Timeout = window.setTimeout(function() {
+			hljs.initHighlighting.called = false;
+			hljs.initHighlighting();
+		}, 500);
+	});
+	window.setTimeout(function() {
+		hljs.initHighlighting.called = false;
+		hljs.initHighlighting();
+	}, 500);
+});
+</script>
+
+
+	</head>
+	<body class="qa-template-question qa-body-js-off">
+		<div class="qa-body-wrapper">
+			
+			<div class="qa-header">
+				<div class="qa-logo">
+					<a href="../../" class="qa-logo-link" title="FEniCS Q&amp;A"><img src="../../qa-theme/fenics_qa.png" border="0" alt="FEniCS Q&amp;A"></a>
+				</div>
+				<div class="qa-header-clear">
+				</div>
+			</div> <!-- END qa-header -->
+			
+			<div class="qa-main-shadow">
+				
+				<div class="qa-main-wrapper">
+					
+					<div class="qa-sidepanel">
+						<div class="qa-sidebar">
+							This is a read only copy of the old FEniCS QA forum. Please visit the <a href="https://www.allanswered.com/community/s/fenics-project/">new QA forum</a> to ask questions
+						</div>
+						
+					</div>
+					
+					<div class="qa-main">
+						<h1>
+							<span class="entry-title">Periodicity in three directions will not work</span>
+						</h1>
+						<div class="qa-part-q-view">
+							<div class="qa-q-view  hentry question" id="q11862">
+								<form method="post" action="../../11862/periodicity-in-three-directions-will-not-work">
+									<div class="qa-q-view-stats">
+										<div class="qa-voting qa-voting-net" id="voting_11862">
+											<div class="qa-vote-count qa-vote-count-net">
+												<span class="qa-netvote-count">
+													<span class="qa-netvote-count-data">+1<span class="votes-up"><span class="value-title" title="1"></span></span><span class="votes-down"><span class="value-title" title="0"></span></span></span><span class="qa-netvote-count-pad"> vote</span>
+												</span>
+											</div>
+											<div class="qa-vote-clear">
+											</div>
+										</div>
+									</div>
+									<input type="hidden" name="code" value="0-1516467793-de6313fc9e36c89ddf71ec910532f6fdd57caffd">
+								</form>
+								<div class="qa-q-view-main">
+									<form method="post" action="../../11862/periodicity-in-three-directions-will-not-work">
+										<div class="qa-q-view-content">
+											<a name="11862"></a><div class="entry-content"><p>Hi all,</p>
+
+<p>I have been trying to progress my code from a 2D Octagon with periodicity in x and y directions to a 3D truncated sphere with periodicity in x, y and z directions. The solution to my 2D code is indeed periodic in both directions but when I extend this to 3D, the solution is no longer periodic.</p>
+
+<p>I have looked at this case:<br>
+<a rel="nofollow" href="https://fenicsproject.org/qa/262/possible-specify-more-than-one-periodic-boundary-condition">https://fenicsproject.org/qa/262/possible-specify-more-than-one-periodic-boundary-condition</a><br>
+and this is how I implemented the 2D case which works.<br>
+I have looked at this case:<br>
+<a rel="nofollow" href="https://fenicsproject.org/qa/10700/modifying-periodicboundary3-class-to-be-periodic-in-x-y-z">https://fenicsproject.org/qa/10700/modifying-periodicboundary3-class-to-be-periodic-in-x-y-z</a><br>
+but this simply brings me back to the previous post.</p>
+
+<p>The way I define my boundary conditions for the 2D code is:</p>
+
+<pre><code># Sub domain for Periodic boundary condition
+class PeriodicBoundary(SubDomain):
+    # Making the negative parts the reference parts and the positive the slave parts
+    def inside(self, x, on_boundary):
+        return bool((near(x[0], -0.5*L) or near(x[1], -0.5*L)) and \
+                (not ((near(x[0], -0.5*L) and near(x[1], 0.5*L)) or \
+                     (near(x[1], -0.5*L) and near(x[0], 0.5*L)))) and on_boundary)
+    # Map right boundary (H) to left boundary (G)
+    def map(self, x, y):
+        if (near(x[0], 0.5*L) and near(x[1], 0.5*L)):
+            y[0] = x[0] - 1.0*L
+            y[1] = x[1] - 1.0*L
+        elif near(x[0], 0.5*L):
+            y[0] = x[0] - 1.0*L
+            y[1] = x[1]
+        elif near(x[1], 0.5*L):
+            y[0] = x[0]
+            y[1] = x[1] - 1.0*L
+        else:
+            y[0] = 1000.*L
+            y[1] = 1000.*L
+
+#-----------------
+# Create geometry
+#-----------------
+
+L = 1.
+
+# Unit Cell - (corner_1(x,y,z), corner_2(x,y,z))
+square = Rectangle(Point(-.5*L, -.5*L), Point(.5*L, .5*L))
+
+#Sphere - (Centre(x,y,z), radius)
+circle = Circle(Point(0, 0), 0.6*L)
+
+# Create anode geometry
+quaffle = circle - (circle - square)
+
+# Generate mesh
+mesh = generate_mesh(quaffle, 32)
+# Save mesh
+File("2Dmesh.xml") &lt;&lt; mesh
+# Plot mesh and allow interaction
+plot(mesh)
+interactive()
+
+#------------------------
+# Boundary Conditions
+#------------------------
+
+bdry = FacetFunction("size_t", mesh)
+bdry.set_all(30)
+
+class Neumann(SubDomain):
+    def inside(self, x, on_boundary):
+        return bool(not (near(x[0], -0.5*L) or near(x[0], 0.5*L) or near(x[1], -0.5*L) or near(x[1], 0.5*L))) and on_boundary
+
+Neumann().mark(bdry, 31);
+ds = Measure("ds")[bdry]
+
+bcs = []
+</code></pre>
+
+<p>and for the 3D code, this is done the following way:</p>
+
+<pre><code># Sub domain for Periodic boundary condition
+class PeriodicBoundary(SubDomain):
+    # Making the negative parts the reference parts and the positive the slave parts
+    def inside(self, x, on_boundary):
+        return bool((near(x[0], -0.5*L) or near(x[1], -0.5*L) or near(x[2], -0.5*L)) and \
+            (not ((near(x[0], -0.5*L) and near(x[1], 0.5*L)) or \
+                          (near(x[0], -0.5*L) and near(x[2], 0.5*L)) or \
+                          (near(x[1], -0.5*L) and near(x[0], 0.5*L)) or \
+                          (near(x[1], -0.5*L) and near(x[2], 0.5*L)) or \
+                          (near(x[2], -0.5*L) and near(x[0], 0.5*L)) or \
+                          (near(x[2], -0.5*L) and near(x[1], 0.5*L)))) and on_boundary)
+    # Map right boundary (H) to left boundary (G)
+    def map(self, x, y):
+        if (near(x[0], 0.5*L) and near(x[1], 0.5*L) and near(x[2], 0.5*L)):
+            y[0] = x[0] - 1.0*L
+            y[1] = x[1] - 1.0*L
+                        y[2] = x[2] - 1.0*L
+        elif (near(x[0], 0.5*L) and near(x[1], 0.5*L)):
+            y[0] = x[0] - 1.0*L
+            y[1] = x[1] - 1.0*L
+                        y[2] = x[2]
+        elif (near(x[1], 0.5*L) and near(x[2], 0.5*L)):
+            y[0] = x[0]
+            y[1] = x[1] - 1.0*L
+                        y[2] = x[2] - 1.0*L
+        elif (near(x[2], 0.5*L) and near(x[0], 0.5*L)):
+            y[0] = x[0] - 1.0*L
+            y[1] = x[1]
+                        y[2] = x[2] - 1.0*L
+        elif near(x[0], 0.5*L):
+            y[0] = x[0] - 1.0*L
+            y[1] = x[1]
+                        y[2] = x[2]
+        elif near(x[1], 0.5*L):
+            y[0] = x[0]
+            y[1] = x[1] - 1.0*L
+                        y[2] = x[2]
+        elif near(x[2], 0.5*L):
+            y[0] = x[0]
+            y[1] = x[1]
+                        y[2] = x[2] - 1.0*L
+        else:
+            y[0] = 1000.*L
+            y[1] = 1000.*L
+                        y[2] = 1000.*L
+
+#-----------------
+# Create geometry
+#-----------------
+
+L = 1.
+
+# Unit Cell - (corner_1(x,y,z), corner_2(x,y,z))
+box = Box(Point(-.5*L, -.5*L, -.5*L), Point(.5*L, .5*L, .5*L))
+
+#Sphere - (Centre(x,y,z), radius)
+sphere = Sphere(Point(0, 0, 0), 0.6*L)
+
+# Create anode geometry
+quaffle = sphere - (sphere - box)
+
+# Generate mesh
+mesh = generate_mesh(quaffle, 32)
+# Save mesh
+File("mesh.xml") &lt;&lt; mesh
+# Plot mesh and allow interaction
+plot(mesh)
+interactive()
+
+#------------------------
+# Boundary Conditions
+#------------------------
+
+bdry = FacetFunction("size_t", mesh)
+bdry.set_all(30)
+
+class electrolyte(SubDomain):
+    def inside(self, x, on_boundary):
+        return bool(not (near(x[0], -0.5*L) or near(x[0], 0.5*L) or near(x[1], -0.5*L) or \
+                                 near(x[1], 0.5*L) or near(x[2],-0.5*L) or near(x[2], 0.5*L)) and \
+                            on_boundary)
+
+electrolyte().mark(bdry, 31);
+ds = Measure("ds")[bdry]
+
+bcs = []
+</code></pre>
+
+<p><strong>Is there something I am doing wrong to specify the periodic boundary condition or is it a badly posed problem and the periodicity is the first thing to go? Any help would be much appreciated.</strong></p>
+
+<p>For completeness, the code used to define the function spaces and constants for both codes is:</p>
+
+<pre><code>#------------------------
+# Define function spaces
+#------------------------
+
+Vh = VectorFunctionSpace(mesh, "Lagrange", 1, constrained_domain=PeriodicBoundary())
+
+u = TrialFunction(Vh)
+v = TestFunction(Vh)
+uh = Function(Vh)
+
+#------------------------
+# Constants
+#------------------------
+
+V_Si = 1.21E-5
+V_C = 8.69E-6
+c_maxSi = 3.65E5
+c_maxC = 1.92E4
+eta_Si = 0.1479
+eta_C = 0.1933
+nu_Si = 0.28
+nu_C = 0.23
+E_Si = 90.13
+E_C = 27.6
+
+lam_Si = (E_Si*nu_Si)/((1.+nu_Si)*(1.-2.*nu_Si))
+lam_C = (E_C*nu_C)/((1.+nu_C)*(1.-2.*nu_C))
+G_Si = E_Si/(2.*(1.+nu_Si))
+G_C = E_C/(2.*(1.+nu_C))
+
+lam = lam_Si/G_Si
+G = G_Si/G_Si
+</code></pre>
+
+<p>and the solver is called by:</p>
+
+<pre><code>#------------------------
+# Lam\'e Weak Form
+#------------------------
+
+f = Constant((-(lam+2.*G), -lam, -lam))
+n = FacetNormal(mesh)
+
+A1 = G * inner(grad(v),grad(u)+transpose(grad(u))) * dx
+A2 = lam * div(u) * div(v) * dx
+
+A = A1 + A2
+b = inner(v,elem_mult(f,n)) * ds(31)
+
+#------------------------
+# Solve
+#------------------------
+
+solve(A == b, uh, bcs)
+uh.rename("u","u")
+File('output_periodic.pvd') &lt;&lt; uh
+</code></pre>
+
+<p>for both of the codes.</p>
+
+<p>Thank you!</p>
+</div>
+										</div>
+										<div class="qa-q-view-tags">
+											<ul class="qa-q-view-tag-list">
+												<li class="qa-q-view-tag-item"><a href="../../tag/periodicity" rel="tag" class="qa-tag-link">periodicity</a></li>
+												<li class="qa-q-view-tag-item"><a href="../../tag/3d" rel="tag" class="qa-tag-link">3d</a></li>
+												<li class="qa-q-view-tag-item"><a href="../../tag/fenics" rel="tag" class="qa-tag-link">fenics</a></li>
+												<li class="qa-q-view-tag-item"><a href="../../tag/lame" rel="tag" class="qa-tag-link">lame</a></li>
+												<li class="qa-q-view-tag-item"><a href="../../tag/homogenisation" rel="tag" class="qa-tag-link">homogenisation</a></li>
+											</ul>
+										</div>
+										<span class="qa-q-view-avatar-meta">
+											<span class="qa-q-view-meta">
+												<a href="../../11862/periodicity-in-three-directions-will-not-work" class="qa-q-view-what">asked</a>
+												<span class="qa-q-view-when">
+													<span class="qa-q-view-when-data"><span class="published"><span class="value-title" title="2016-12-06T15:32:28+0000"></span>Dec 6, 2016</span></span>
+												</span>
+												<span class="qa-q-view-who">
+													<span class="qa-q-view-who-pad">by </span>
+													<span class="qa-q-view-who-data"><span class="vcard author"><a href="../../user/IRoper" class="qa-user-link url nickname">IRoper</a></span></span>
+													<span class="qa-q-view-who-title">FEniCS Novice</span>
+													<span class="qa-q-view-who-points">
+														<span class="qa-q-view-who-points-pad">(</span><span class="qa-q-view-who-points-data">140</span><span class="qa-q-view-who-points-pad"> points)</span>
+													</span>
+												</span>
+											</span>
+										</span>
+										<div class="qa-q-view-buttons">
+										</div>
+										
+										<div class="qa-q-view-c-list" style="display:none;" id="c11862_list">
+										</div> <!-- END qa-c-list -->
+										
+										<input type="hidden" name="code" value="0-1516467793-dad86960a64aef19f3ef593b8d907235dce60ba8">
+										<input type="hidden" name="qa_click" value="">
+									</form>
+									<div class="qa-c-form">
+									</div> <!-- END qa-c-form -->
+									
+								</div> <!-- END qa-q-view-main -->
+								<div class="qa-q-view-clear">
+								</div>
+							</div> <!-- END qa-q-view -->
+							
+						</div>
+						<div class="qa-part-a-list">
+							<h2 id="a_list_title" style="display:none;"></h2>
+							<div class="qa-a-list" id="a_list">
+								
+							</div> <!-- END qa-a-list -->
+							
+						</div>
+					</div> <!-- END qa-main -->
+					
+				</div> <!-- END main-wrapper -->
+			</div> <!-- END main-shadow -->
+		</div> <!-- END body-wrapper -->
+		<!-- END footer-bottom-group -->
+		
+		<div style="position:absolute; left:-9999px; top:-9999px;">
+			<span id="qa-waiting-template" class="qa-waiting">...</span>
+		</div>
+	
+	
+
+</body><!-- Powered by Question2Answer - http://www.question2answer.org/ --></html>

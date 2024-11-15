@@ -1,0 +1,516 @@
+<html><!-- Powered by Question2Answer - http://www.question2answer.org/ --><head>
+		<meta http-equiv="content-type" content="text/html; charset=utf-8">
+		<title>value_shape and quadrature element in subclass expression - FEniCS Q&amp;A</title>
+		<meta name="description" content="Hello, I'm subclassing a vector-valued Expression, and everything works as expected: class  ...  to use vector-valued pointwise expressions? Thanks!">
+		<link rel="stylesheet" type="text/css" href="../../qa-theme/Snow/qa-styles.css">
+		<link rel="canonical" href="http://fenicsproject.org/qa/9366/value_shape-and-quadrature-element-in-subclass-expression">
+		<script type="text/x-mathjax-config">
+  MathJax.Hub.Config({
+    extensions: ["tex2jax.js"],
+    jax: ["input/TeX","output/HTML-CSS"],
+    tex2jax: {inlineMath: [["$","$"],["\\(","\\)"]]},
+    TeX: { extensions: ["AMSmath.js","AMSsymbols.js"]}
+  });
+</script>
+<script type="text/javascript" src="../../mathjax/MathJax.js"></script>
+		<script src="../../jquery-1.7.2.min.js" type="text/javascript"></script>
+		<script src="../../highlight.min.js"></script>
+<script type="text/javascript">
+$(function(){
+	$('.wmd-input').keypress(function(){
+		window.clearTimeout(hljs.Timeout);
+		hljs.Timeout = window.setTimeout(function() {
+			hljs.initHighlighting.called = false;
+			hljs.initHighlighting();
+		}, 500);
+	});
+	window.setTimeout(function() {
+		hljs.initHighlighting.called = false;
+		hljs.initHighlighting();
+	}, 500);
+});
+</script>
+
+
+	</head>
+	<body class="qa-template-question qa-body-js-off">
+		<div class="qa-body-wrapper">
+			
+			<div class="qa-header">
+				<div class="qa-logo">
+					<a href="../../" class="qa-logo-link" title="FEniCS Q&amp;A"><img src="../../qa-theme/fenics_qa.png" border="0" alt="FEniCS Q&amp;A"></a>
+				</div>
+				<div class="qa-header-clear">
+				</div>
+			</div> <!-- END qa-header -->
+			
+			<div class="qa-main-shadow">
+				
+				<div class="qa-main-wrapper">
+					
+					<div class="qa-sidepanel">
+						<div class="qa-sidebar">
+							This is a read only copy of the old FEniCS QA forum. Please visit the <a href="https://www.allanswered.com/community/s/fenics-project/">new QA forum</a> to ask questions
+						</div>
+						
+					</div>
+					
+					<div class="qa-main">
+						<h1>
+							<span class="entry-title">value_shape and quadrature element in subclass expression</span>
+						</h1>
+						<div class="qa-part-q-view">
+							<div class="qa-q-view  hentry question" id="q9366">
+								<form method="post" action="../../9366/value_shape-and-quadrature-element-in-subclass-expression">
+									<div class="qa-q-view-stats">
+										<div class="qa-voting qa-voting-net" id="voting_9366">
+											<div class="qa-vote-count qa-vote-count-net">
+												<span class="qa-netvote-count">
+													<span class="qa-netvote-count-data">+1<span class="votes-up"><span class="value-title" title="1"></span></span><span class="votes-down"><span class="value-title" title="0"></span></span></span><span class="qa-netvote-count-pad"> vote</span>
+												</span>
+											</div>
+											<div class="qa-vote-clear">
+											</div>
+										</div>
+									</div>
+									<input type="hidden" name="code" value="0-1516468220-32c9edf4dc7f531f65c9b4662b25e397465ba28c">
+								</form>
+								<div class="qa-q-view-main">
+									<form method="post" action="../../9366/value_shape-and-quadrature-element-in-subclass-expression">
+										<div class="qa-q-view-content">
+											<a name="9366"></a><div class="entry-content"><p>Hello,</p>
+
+<p>I'm subclassing a vector-valued Expression, and everything works as expected:</p>
+
+<pre><code>class MyExpr(dolfin.Expression):
+    def value_shape(self):
+        return (3,)
+
+    def eval(self, value, x):
+        value[0] = 0.
+        value[1] = 1.
+        value[2] = 2.
+
+myexpr = MyExpr()
+print myexpr.ufl_shape # -&gt; (3,)
+
+val = [float()]*3    
+myexpr.eval(val, [0., 0., 0.])
+print val # -&gt; [0.0, 1.0, 2.0]
+</code></pre>
+
+<p>However, whenever I try to make the expression "pointwise", the evaluation works fine but the shape information seems to be messed up:</p>
+
+<pre><code>fe = dolfin.FiniteElement(
+    "Quadrature",
+    degree=1)
+myexpr2 = MyExpr(element=fe)
+print myexpr2.ufl_shape # -&gt; ()
+
+val = [float()]*3
+myexpr2.eval(val, [0., 0., 0.])
+print val # -&gt; [0.0, 1.0, 2.0]
+</code></pre>
+
+<p>As a result of this, the first expression can be projected onto a vector function space of dimension 3:</p>
+
+<pre><code>mesh = dolfin.RectangleMesh(
+    dolfin.Point(0., 0., 0.),
+    dolfin.Point(1., 1., 0.),
+    1, 1)
+fs = dolfin.VectorFunctionSpace(
+    mesh=mesh,
+    family="Lagrange",
+    degree=1,
+    dim=3)
+func = dolfin.project(
+    myexpr,
+    V=fs) # -&gt; works fine
+</code></pre>
+
+<p>But the second one cannot:</p>
+
+<pre><code>Shape mismatch.
+Traceback (most recent call last):
+  File "test_shape.py", line 58, in &lt;module&gt;
+    func = dolfin.project(
+        myexpr2,
+        V=fs)
+  File "/home/genet/.hashdist/bld/profile/hickh3zjf4k2/lib/python2.7/site-packages/dolfin/fem/projection.py", line 107, in project
+    L = ufl.inner(w, v)*dx
+  File "/home/genet/.hashdist/bld/profile/hickh3zjf4k2/lib/python2.7/site-packages/ufl/operators.py", line 130, in inner
+    return Inner(a, b)
+  File "/home/genet/.hashdist/bld/profile/hickh3zjf4k2/lib/python2.7/site-packages/ufl/tensoralgebra.py", line 156, in __new__
+    ufl_assert(ash == bsh, "Shape mismatch.")
+  File "/home/genet/.hashdist/bld/profile/hickh3zjf4k2/lib/python2.7/site-packages/ufl/assertions.py", line 37, in ufl_assert
+    if not condition: error(*message)
+  File "/home/genet/.hashdist/bld/profile/hickh3zjf4k2/lib/python2.7/site-packages/ufl/log.py", line 151, in error
+    raise self._exception_type(self._format_raw(*message))
+ufl.log.UFLException: Shape mismatch.
+</code></pre>
+
+<p>Is that the intended behavior? If so, why? And, what would be the correct way to use vector-valued pointwise expressions? Thanks!</p>
+</div>
+										</div>
+										<span class="qa-q-view-avatar-meta">
+											<span class="qa-q-view-avatar">
+												<a href="../../user/Martin+Genet" class="qa-avatar-link"><img src="../../?qa=image&amp;qa_blobid=4996080535152988109&amp;qa_size=50" width="50" height="50" class="qa-avatar-image" alt=""></a>
+											</span>
+											<span class="qa-q-view-meta">
+												<a href="../../9366/value_shape-and-quadrature-element-in-subclass-expression" class="qa-q-view-what">asked</a>
+												<span class="qa-q-view-when">
+													<span class="qa-q-view-when-data"><span class="published"><span class="value-title" title="2016-02-21T17:13:51+0000"></span>Feb 21, 2016</span></span>
+												</span>
+												<span class="qa-q-view-who">
+													<span class="qa-q-view-who-pad">by </span>
+													<span class="qa-q-view-who-data"><span class="vcard author"><a href="../../user/Martin+Genet" class="qa-user-link url nickname">Martin Genet</a></span></span>
+													<span class="qa-q-view-who-title">FEniCS User</span>
+													<span class="qa-q-view-who-points">
+														<span class="qa-q-view-who-points-pad">(</span><span class="qa-q-view-who-points-data">1,460</span><span class="qa-q-view-who-points-pad"> points)</span>
+													</span>
+												</span>
+												<br>
+												<span class="qa-q-view-what">edited</span>
+												<span class="qa-q-view-when">
+													<span class="qa-q-view-when-data"><span class="updated"><span class="value-title" title="2016-03-17T17:07:03+0000"></span>Mar 17, 2016</span></span>
+												</span>
+												<span class="qa-q-view-who">
+													<span class="qa-q-view-who-pad">by </span><span class="qa-q-view-who-data"><a href="../../user/Martin+Genet" class="qa-user-link url nickname">Martin Genet</a></span>
+												</span>
+											</span>
+										</span>
+										<div class="qa-q-view-buttons">
+										</div>
+										
+										<div class="qa-q-view-c-list" style="display:none;" id="c9366_list">
+										</div> <!-- END qa-c-list -->
+										
+										<input type="hidden" name="code" value="0-1516468220-b90e0930f3c1cf514d16482d694b5afdcf8933c9">
+										<input type="hidden" name="qa_click" value="">
+									</form>
+									<div class="qa-c-form">
+									</div> <!-- END qa-c-form -->
+									
+								</div> <!-- END qa-q-view-main -->
+								<div class="qa-q-view-clear">
+								</div>
+							</div> <!-- END qa-q-view -->
+							
+						</div>
+						<div class="qa-part-a-list">
+							<h2 id="a_list_title">1 Answer</h2>
+							<div class="qa-a-list" id="a_list">
+								
+								<div class="qa-a-list-item  hentry answer answer-selected qa-a-list-item-selected" id="a9580">
+									<form method="post" action="../../9366/value_shape-and-quadrature-element-in-subclass-expression">
+										<div class="qa-voting qa-voting-net" id="voting_9580">
+											<div class="qa-vote-count qa-vote-count-net">
+												<span class="qa-netvote-count">
+													<span class="qa-netvote-count-data">+2<span class="votes-up"><span class="value-title" title="2"></span></span><span class="votes-down"><span class="value-title" title="0"></span></span></span><span class="qa-netvote-count-pad"> votes</span>
+												</span>
+											</div>
+											<div class="qa-vote-clear">
+											</div>
+										</div>
+										<input type="hidden" name="code" value="0-1516468220-32c9edf4dc7f531f65c9b4662b25e397465ba28c">
+									</form>
+									<div class="qa-a-item-main">
+										<form method="post" action="../../9366/value_shape-and-quadrature-element-in-subclass-expression">
+											<div class="qa-a-item-selected">
+												<div class="qa-a-selection">
+													<div class="qa-a-selected">&#160;</div>
+													<div class="qa-a-selected-text">Best answer</div>
+												</div>
+												<div class="qa-a-item-content">
+													<a name="9580"></a><div class="entry-content"><p>You need to use <code>FiniteElement</code> with proper shape</p>
+
+<pre><code>fe = VectorElement("Quadrature", cell=mesh.ufl_cell(), degree=1, dim=3)
+</code></pre>
+</div>
+												</div>
+												<span class="qa-a-item-avatar-meta">
+													<span class="qa-a-item-avatar">
+														<a href="../../user/Jan+Blechta" class="qa-avatar-link"><img src="https://www.gravatar.com/avatar/dc6f8dce77e4a0bd5adc7ff31ab83741?s=40" width="40" height="40" class="qa-avatar-image" alt=""></a>
+													</span>
+													<span class="qa-a-item-meta">
+														<a href="../../9366/value_shape-and-quadrature-element-in-subclass-expression?show=9580#a9580" class="qa-a-item-what">answered</a>
+														<span class="qa-a-item-when">
+															<span class="qa-a-item-when-data"><span class="published"><span class="value-title" title="2016-03-18T10:59:48+0000"></span>Mar 18, 2016</span></span>
+														</span>
+														<span class="qa-a-item-who">
+															<span class="qa-a-item-who-pad">by </span>
+															<span class="qa-a-item-who-data"><span class="vcard author"><a href="../../user/Jan+Blechta" class="qa-user-link url nickname">Jan Blechta</a></span></span>
+															<span class="qa-a-item-who-title">FEniCS Expert</span>
+															<span class="qa-a-item-who-points">
+																<span class="qa-a-item-who-points-pad">(</span><span class="qa-a-item-who-points-data">51,420</span><span class="qa-a-item-who-points-pad"> points)</span>
+															</span>
+														</span>
+														<br>
+														<span class="qa-a-item-what">selected</span>
+														<span class="qa-a-item-when">
+															<span class="qa-a-item-when-data"><span class="updated"><span class="value-title" title="2016-03-18T12:48:52+0000"></span>Mar 18, 2016</span></span>
+														</span>
+														<span class="qa-a-item-who">
+															<span class="qa-a-item-who-pad">by </span><span class="qa-a-item-who-data"><a href="../../user/Martin+Genet" class="qa-user-link url nickname">Martin Genet</a></span>
+														</span>
+													</span>
+												</span>
+											</div>
+											<div class="qa-a-item-buttons">
+												</div>
+											
+											<div class="qa-a-item-c-list" id="c9580_list">
+												<div class="qa-c-list-item ">
+													<a href="?state=showcomments-9580&amp;show=9580#a9580" onclick="return qa_show_comments(9366, 9580, this);" class="qa-c-item-expand">Show 13 previous comments</a>
+													<div class="qa-c-item-footer">
+														<span class="qa-c-item-avatar-meta">
+															<span class="qa-c-item-meta">
+															</span>
+														</span>
+													</div>
+													<div class="qa-c-item-clear">
+													</div>
+												</div> <!-- END qa-c-item -->
+												<div class="qa-c-list-item  hentry comment" id="c9846">
+													<div class="qa-c-item-content">
+														<a name="9846"></a><div class="entry-content"><p>It seems that the tensor version of the previous fix does not work:</p>
+
+<pre><code>import dolfin
+
+mesh = dolfin.UnitSquareMesh(1,1)
+
+tfs = dolfin.TensorFunctionSpace(
+    mesh=mesh,
+    family="Lagrange",
+    degree=1)
+
+class MyTensorExpr(dolfin.Expression):
+    def value_shape(self):
+        return (2,2)
+
+    def eval(self, value, x):
+        print "x = " + str(x)
+        value[0] = 0.
+        value[1] = 1.
+        value[2] = 2.
+        value[3] = 3.
+
+te_poly = dolfin.TensorElement(
+    family="Lagrange",
+    cell=mesh.ufl_cell(),
+    degree=q_poly,
+    quad_scheme="default")
+
+expr_poly = MyTensorExpr(element=te_poly)
+print "expr_poly.ufl_shape = " + str(expr_poly.ufl_shape)
+
+func_poly = dolfin.project(
+    expr_poly,
+    V=tfs,
+    form_compiler_parameters={'quadrature_degree':q_poly})
+print "func_poly.vector().array() = " + str(func_poly.vector().array())
+
+te_quad = dolfin.TensorElement(
+    family="Quadrature",
+    cell=mesh.ufl_cell(),
+    degree=q_quad,
+    quad_scheme="default")
+
+expr_quad = MyTensorExpr(element=te_quad)
+print "expr_quad.ufl_shape = " + str(expr_quad.ufl_shape)
+
+func_quad = dolfin.project(
+    expr_quad,
+    V=tfs,
+    form_compiler_parameters={'quadrature_degree':q_quad})
+print "func_quad.vector().array() = " + str(func_quad.vector().array())
+</code></pre>
+
+<p>Here the polynomial version works as expected, but with the quadrature version I'm getting the following Exception:</p>
+
+<pre><code>Quadrature element must have specified quadrature scheme (None) equal to the integral (default).
+</code></pre>
+
+<p>Am I missing something? Thanks!</p>
+</div>
+													</div>
+													<div class="qa-c-item-footer">
+														<span class="qa-c-item-avatar-meta">
+															<span class="qa-c-item-avatar">
+																<a href="../../user/Martin+Genet" class="qa-avatar-link"><img src="../../?qa=image&amp;qa_blobid=4996080535152988109&amp;qa_size=20" width="20" height="20" class="qa-avatar-image" alt=""></a>
+															</span>
+															<span class="qa-c-item-meta">
+																<a href="../../9366/value_shape-and-quadrature-element-in-subclass-expression?show=9846#c9846" class="qa-c-item-what">commented</a>
+																<span class="qa-c-item-when">
+																	<span class="qa-c-item-when-data"><span class="published"><span class="value-title" title="2016-04-11T13:07:19+0000"></span>Apr 11, 2016</span></span>
+																</span>
+																<span class="qa-c-item-who">
+																	<span class="qa-c-item-who-pad">by </span>
+																	<span class="qa-c-item-who-data"><span class="vcard author"><a href="../../user/Martin+Genet" class="qa-user-link url nickname">Martin Genet</a></span></span>
+																	<span class="qa-c-item-who-title">FEniCS User</span>
+																	<span class="qa-c-item-who-points">
+																		<span class="qa-c-item-who-points-pad">(</span><span class="qa-c-item-who-points-data">1,460</span><span class="qa-c-item-who-points-pad"> points)</span>
+																	</span>
+																</span>
+															</span>
+														</span>
+														<div class="qa-c-item-buttons">
+														</div>
+													</div>
+													<div class="qa-c-item-clear">
+													</div>
+												</div> <!-- END qa-c-item -->
+												<div class="qa-c-list-item  hentry comment" id="c9861">
+													<div class="qa-c-item-content">
+														<a name="9861"></a><div class="entry-content"><p><code>quad_scheme</code> kwarg does not seem to work as intended for <code>TensorElement</code>. The intefrace is going to change anyway <a rel="nofollow" href="https://bitbucket.org/fenics-project/ufl/issues/78.">https://bitbucket.org/fenics-project/ufl/issues/78.</a></p>
+</div>
+													</div>
+													<div class="qa-c-item-footer">
+														<span class="qa-c-item-avatar-meta">
+															<span class="qa-c-item-avatar">
+																<a href="../../user/Jan+Blechta" class="qa-avatar-link"><img src="https://www.gravatar.com/avatar/dc6f8dce77e4a0bd5adc7ff31ab83741?s=20" width="20" height="20" class="qa-avatar-image" alt=""></a>
+															</span>
+															<span class="qa-c-item-meta">
+																<a href="../../9366/value_shape-and-quadrature-element-in-subclass-expression?show=9861#c9861" class="qa-c-item-what">commented</a>
+																<span class="qa-c-item-when">
+																	<span class="qa-c-item-when-data"><span class="published"><span class="value-title" title="2016-04-13T13:42:33+0000"></span>Apr 13, 2016</span></span>
+																</span>
+																<span class="qa-c-item-who">
+																	<span class="qa-c-item-who-pad">by </span>
+																	<span class="qa-c-item-who-data"><span class="vcard author"><a href="../../user/Jan+Blechta" class="qa-user-link url nickname">Jan Blechta</a></span></span>
+																	<span class="qa-c-item-who-title">FEniCS Expert</span>
+																	<span class="qa-c-item-who-points">
+																		<span class="qa-c-item-who-points-pad">(</span><span class="qa-c-item-who-points-data">51,420</span><span class="qa-c-item-who-points-pad"> points)</span>
+																	</span>
+																</span>
+															</span>
+														</span>
+														<div class="qa-c-item-buttons">
+														</div>
+													</div>
+													<div class="qa-c-item-clear">
+													</div>
+												</div> <!-- END qa-c-item -->
+												<div class="qa-c-list-item  hentry comment" id="c9869">
+													<div class="qa-c-item-content">
+														<a name="9869"></a><div class="entry-content"><p>Thanks! Do you know of any workaround for now?</p>
+</div>
+													</div>
+													<div class="qa-c-item-footer">
+														<span class="qa-c-item-avatar-meta">
+															<span class="qa-c-item-avatar">
+																<a href="../../user/Martin+Genet" class="qa-avatar-link"><img src="../../?qa=image&amp;qa_blobid=4996080535152988109&amp;qa_size=20" width="20" height="20" class="qa-avatar-image" alt=""></a>
+															</span>
+															<span class="qa-c-item-meta">
+																<a href="../../9366/value_shape-and-quadrature-element-in-subclass-expression?show=9869#c9869" class="qa-c-item-what">commented</a>
+																<span class="qa-c-item-when">
+																	<span class="qa-c-item-when-data"><span class="published"><span class="value-title" title="2016-04-14T08:06:27+0000"></span>Apr 14, 2016</span></span>
+																</span>
+																<span class="qa-c-item-who">
+																	<span class="qa-c-item-who-pad">by </span>
+																	<span class="qa-c-item-who-data"><span class="vcard author"><a href="../../user/Martin+Genet" class="qa-user-link url nickname">Martin Genet</a></span></span>
+																	<span class="qa-c-item-who-title">FEniCS User</span>
+																	<span class="qa-c-item-who-points">
+																		<span class="qa-c-item-who-points-pad">(</span><span class="qa-c-item-who-points-data">1,460</span><span class="qa-c-item-who-points-pad"> points)</span>
+																	</span>
+																</span>
+															</span>
+														</span>
+														<div class="qa-c-item-buttons">
+														</div>
+													</div>
+													<div class="qa-c-item-clear">
+													</div>
+												</div> <!-- END qa-c-item -->
+												<div class="qa-c-list-item  hentry comment" id="c9872">
+													<div class="qa-c-item-content">
+														<a name="9872"></a><div class="entry-content"><p>Fiddling with <code>te_quad._quad_scheme</code> (and possibly <code>te_quad.sub_elements()[i]._quad_scheme</code> might help.</p>
+</div>
+													</div>
+													<div class="qa-c-item-footer">
+														<span class="qa-c-item-avatar-meta">
+															<span class="qa-c-item-avatar">
+																<a href="../../user/Jan+Blechta" class="qa-avatar-link"><img src="https://www.gravatar.com/avatar/dc6f8dce77e4a0bd5adc7ff31ab83741?s=20" width="20" height="20" class="qa-avatar-image" alt=""></a>
+															</span>
+															<span class="qa-c-item-meta">
+																<a href="../../9366/value_shape-and-quadrature-element-in-subclass-expression?show=9872#c9872" class="qa-c-item-what">commented</a>
+																<span class="qa-c-item-when">
+																	<span class="qa-c-item-when-data"><span class="published"><span class="value-title" title="2016-04-14T08:30:31+0000"></span>Apr 14, 2016</span></span>
+																</span>
+																<span class="qa-c-item-who">
+																	<span class="qa-c-item-who-pad">by </span>
+																	<span class="qa-c-item-who-data"><span class="vcard author"><a href="../../user/Jan+Blechta" class="qa-user-link url nickname">Jan Blechta</a></span></span>
+																	<span class="qa-c-item-who-title">FEniCS Expert</span>
+																	<span class="qa-c-item-who-points">
+																		<span class="qa-c-item-who-points-pad">(</span><span class="qa-c-item-who-points-data">51,420</span><span class="qa-c-item-who-points-pad"> points)</span>
+																	</span>
+																</span>
+															</span>
+														</span>
+														<div class="qa-c-item-buttons">
+														</div>
+													</div>
+													<div class="qa-c-item-clear">
+													</div>
+												</div> <!-- END qa-c-item -->
+												<div class="qa-c-list-item  hentry comment" id="c9875">
+													<div class="qa-c-item-content">
+														<a name="9875"></a><div class="entry-content"><p>Awesome! Thanks!</p>
+</div>
+													</div>
+													<div class="qa-c-item-footer">
+														<span class="qa-c-item-avatar-meta">
+															<span class="qa-c-item-avatar">
+																<a href="../../user/Martin+Genet" class="qa-avatar-link"><img src="../../?qa=image&amp;qa_blobid=4996080535152988109&amp;qa_size=20" width="20" height="20" class="qa-avatar-image" alt=""></a>
+															</span>
+															<span class="qa-c-item-meta">
+																<a href="../../9366/value_shape-and-quadrature-element-in-subclass-expression?show=9875#c9875" class="qa-c-item-what">commented</a>
+																<span class="qa-c-item-when">
+																	<span class="qa-c-item-when-data"><span class="published"><span class="value-title" title="2016-04-14T14:02:19+0000"></span>Apr 14, 2016</span></span>
+																</span>
+																<span class="qa-c-item-who">
+																	<span class="qa-c-item-who-pad">by </span>
+																	<span class="qa-c-item-who-data"><span class="vcard author"><a href="../../user/Martin+Genet" class="qa-user-link url nickname">Martin Genet</a></span></span>
+																	<span class="qa-c-item-who-title">FEniCS User</span>
+																	<span class="qa-c-item-who-points">
+																		<span class="qa-c-item-who-points-pad">(</span><span class="qa-c-item-who-points-data">1,460</span><span class="qa-c-item-who-points-pad"> points)</span>
+																	</span>
+																</span>
+															</span>
+														</span>
+														<div class="qa-c-item-buttons">
+														</div>
+													</div>
+													<div class="qa-c-item-clear">
+													</div>
+												</div> <!-- END qa-c-item -->
+											</div> <!-- END qa-c-list -->
+											
+											<input type="hidden" name="code" value="0-1516468220-a936564c43e7b977725f16a902f8b91a1d1b1d13">
+											<input type="hidden" name="qa_click" value="">
+										</form>
+										<div class="qa-c-form">
+										</div> <!-- END qa-c-form -->
+										
+									</div> <!-- END qa-a-item-main -->
+									<div class="qa-a-item-clear">
+									</div>
+								</div> <!-- END qa-a-list-item -->
+								
+							</div> <!-- END qa-a-list -->
+							
+						</div>
+					</div> <!-- END qa-main -->
+					
+				</div> <!-- END main-wrapper -->
+			</div> <!-- END main-shadow -->
+		</div> <!-- END body-wrapper -->
+		<!-- END footer-bottom-group -->
+		
+		<div style="position:absolute; left:-9999px; top:-9999px;">
+			<span id="qa-waiting-template" class="qa-waiting">...</span>
+		</div>
+	
+	
+
+</body><!-- Powered by Question2Answer - http://www.question2answer.org/ --></html>

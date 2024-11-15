@@ -1,0 +1,460 @@
+<html><!-- Powered by Question2Answer - http://www.question2answer.org/ --><head>
+		<meta http-equiv="content-type" content="text/html; charset=utf-8">
+		<title>Strain energy function for a hyperelastic material using eigenvalues gives an error in assembly - FEniCS Q&amp;A</title>
+		<meta name="description" content="Hi, I have been trying to implement a hyperelastic material by finding out  ... /eigenvalues-eigenvectors-stress-strain-tensor-element-level">
+		<meta name="keywords" content="eigenvalue,hyperelastic,solidmechanics,eigenvectors,strainenergydensity">
+		<link rel="stylesheet" type="text/css" href="../../qa-theme/Snow/qa-styles.css">
+		<link rel="canonical" href="http://fenicsproject.org/qa/12354/energy-function-hyperelastic-material-eigenvalues-assembly">
+		<script type="text/x-mathjax-config">
+  MathJax.Hub.Config({
+    extensions: ["tex2jax.js"],
+    jax: ["input/TeX","output/HTML-CSS"],
+    tex2jax: {inlineMath: [["$","$"],["\\(","\\)"]]},
+    TeX: { extensions: ["AMSmath.js","AMSsymbols.js"]}
+  });
+</script>
+<script type="text/javascript" src="../../mathjax/MathJax.js"></script>
+		<script src="../../jquery-1.7.2.min.js" type="text/javascript"></script>
+		<script src="../../highlight.min.js"></script>
+<script type="text/javascript">
+$(function(){
+	$('.wmd-input').keypress(function(){
+		window.clearTimeout(hljs.Timeout);
+		hljs.Timeout = window.setTimeout(function() {
+			hljs.initHighlighting.called = false;
+			hljs.initHighlighting();
+		}, 500);
+	});
+	window.setTimeout(function() {
+		hljs.initHighlighting.called = false;
+		hljs.initHighlighting();
+	}, 500);
+});
+</script>
+
+
+	</head>
+	<body class="qa-template-question qa-body-js-off">
+		<div class="qa-body-wrapper">
+			
+			<div class="qa-header">
+				<div class="qa-logo">
+					<a href="../../" class="qa-logo-link" title="FEniCS Q&amp;A"><img src="../../qa-theme/fenics_qa.png" border="0" alt="FEniCS Q&amp;A"></a>
+				</div>
+				<div class="qa-header-clear">
+				</div>
+			</div> <!-- END qa-header -->
+			
+			<div class="qa-main-shadow">
+				
+				<div class="qa-main-wrapper">
+					
+					<div class="qa-sidepanel">
+						<div class="qa-sidebar">
+							This is a read only copy of the old FEniCS QA forum. Please visit the <a href="https://www.allanswered.com/community/s/fenics-project/">new QA forum</a> to ask questions
+						</div>
+						
+					</div>
+					
+					<div class="qa-main">
+						<h1>
+							<span class="entry-title">Strain energy function for a hyperelastic material using eigenvalues gives an error in assembly</span>
+						</h1>
+						<div class="qa-part-q-view">
+							<div class="qa-q-view  hentry question" id="q12354">
+								<form method="post" action="../../12354/energy-function-hyperelastic-material-eigenvalues-assembly">
+									<div class="qa-q-view-stats">
+										<div class="qa-voting qa-voting-net" id="voting_12354">
+											<div class="qa-vote-count qa-vote-count-net">
+												<span class="qa-netvote-count">
+													<span class="qa-netvote-count-data">+1<span class="votes-up"><span class="value-title" title="1"></span></span><span class="votes-down"><span class="value-title" title="0"></span></span></span><span class="qa-netvote-count-pad"> vote</span>
+												</span>
+											</div>
+											<div class="qa-vote-clear">
+											</div>
+										</div>
+									</div>
+									<input type="hidden" name="code" value="0-1516467819-bce8c32efee6c9d9f80f26246d1de759ee371325">
+								</form>
+								<div class="qa-q-view-main">
+									<form method="post" action="../../12354/energy-function-hyperelastic-material-eigenvalues-assembly">
+										<div class="qa-q-view-content">
+											<a name="12354"></a><div class="entry-content"><p>Hi, I have been trying to implement a hyperelastic material by finding out eigenvalues and constructing the energy. I had earlier posted a query on eigenvalues and thanks <strong>Mirok</strong>, I was able to figure out of way of doing it and the query can be found <a rel="nofollow" href="https://fenicsproject.org/qa/12281/eigenvalues-eigenvectors-stress-strain-tensor-element-level">here</a></p>
+
+<p>The implementation works very well when i have prescribed the displacement <strong>u</strong> over the mesh such as</p>
+
+<pre><code>mesh = UnitSquareMesh(10, 10)
+V = VectorFunctionSpace(mesh, 'CG', 2)
+u = interpolate(Expression(('x[0]', 'x[0]*x[1]'), degree=2), V)
+</code></pre>
+
+<p>However, now i am trying to solve a pde where the elastic energy is obtained from eigenvalues of strain tensor by splitting it into strain tensors with positive and negative eigenvalues. On compiling the code and assembling it as a nonlinearvariational problem, i get error. The code can be found here</p>
+
+<pre><code>from dolfin import *
+from mshr import *
+import numpy as np
+
+# ------------------
+# Parameters
+# ------------------
+#set_log_level(ERROR) # log level
+#parameters.parse()   # read paramaters from command line
+# set some dolfin specific parameters
+parameters["form_compiler"]["optimize"]     = True
+parameters["form_compiler"]["cpp_optimize"] = True
+parameters["form_compiler"]["representation"] = "quadrature"                         
+# Geometry dimensions
+L = 2 ; H = 2
+# Material constants
+E, nu = 210000.0, 0.3
+mu, lamda = E/(2.0*(1.0+nu)), E*nu/((1.0+nu)*(1.0-2.0*nu))
+# Loading
+ut = 1. # reference value for the loading (imposed displacement)
+load_min = 0. # load multiplier min value
+load_max = 1. # load multiplier max value
+load_steps = 50 # number of time steps
+# Numerical parameters of the alternate minimization
+maxiter = 300 
+toll = 1.e-8
+mesh = Mesh("Mode_II_0pt005.xml")
+ndim = 2 # get number of space dimensions
+#-------------------
+# Useful definitions
+#-------------------
+# zero and unit vectors
+zero_v = Constant((0.,)*ndim)
+e1 = Constant([1.,0.])
+e2 = Constant([0.,1.])
+# Strain
+def eps(v):
+    return sym(grad(v))    
+# Eigenvalues are roots of characteristic polynomial
+def eig_plus(A): 
+    return (tr(A) + sqrt(tr(A)**2-4*det(A)))/2
+def eig_minus(A): 
+    return (tr(A) - sqrt(tr(A)**2-4*det(A)))/2
+# Diagonal matrix with positive and negative eigenvalues as the diagonal elements    
+def diag_eig(A):
+    lambdap1 = 0.5*(eig_plus(A)+ abs(eig_plus(A)))
+    lambdap2 = 0.5*(eig_minus(A) + abs(eig_minus(A)))
+    lambdan1 = 0.5*(eig_plus(A) - abs(eig_plus(A)))
+    lambdan2 = 0.5*(eig_minus(A) - abs(eig_minus(A)))
+    matp = as_matrix(((lambdap1,0),(0,lambdap2)))
+    matn = as_matrix(((lambdan1,0),(0,lambdan2)))
+    return (matp,matn)    
+# Eigenvectors of the matrix arranged in columns of matrix     
+def eig_vecmat(A):
+     lambdap = eig_plus(A)
+     lambdan = eig_minus(A)
+     a = A[0,0]
+     b = A[0,1]
+     c = A[1,0]
+     d = A[1,1]
+     v11 = lambdap - d
+     v12 = lambdan - d
+     nv11 = sqrt(v11**2 + c**2)
+     nv12 = sqrt(v12**2 + c**2)
+     a1 = v11/nv11
+     b1 = v12/nv12
+     c1 = c/nv11
+     d1 = c/nv12
+     v21 = lambdap - a
+     v22 = lambdan - a
+     nv21 = sqrt(v21**2 + b**2)
+     nv22 = sqrt(v22**2 + b**2)
+     A1 = b/nv21
+     B1 = b/nv22
+     C1 = v21/nv21
+     D1 = v22/nv22
+     tol = 1.e-10
+     Eigvecmat = conditional(gt(abs(c), tol) ,as_matrix(((a1,b1),(c1,d1))), conditional(gt(abs(b), tol),as_matrix(((A1,B1),(C1,D1))),Identity(2)))
+     return Eigvecmat
+def eps_split(A):
+    P = eig_vecmat(A)
+    (diag_eigp,diag_eign) = diag_eig(A)
+    epsp = dot(P,dot(diag_eigp,P.T))
+    epsn = dot(P,dot(diag_eign,P.T))
+    return (epsp,epsn)  
+def psi(A,v):
+    tol = 1.e-10
+    (epsp,epsn) = eps_split(epst)
+    epst = epsp + epsn
+    H = conditional(gt(tr(A),tol),1,0)
+    psip = 0.5*lamda*(tr(A)*H)**2 + mu*inner(epsp,epsp)
+    psin = 0.5*lamda*(tr(A)-tr(A)*H)**2 + mu*inner(epsn,epsn)
+    psit = 0.5*lamda*(tr(A)*H)**2 + mu*inner(epst,epst)
+    return (psip,psin,psit) 
+def sigma_0(A,v):
+    epst = eps(v)
+    (epsp,epsn) = eps_split(epst)
+    tol = 1.e-10
+    H = conditional(gt(tr(A),tol),1,0)
+    sigmap = 2.0*mu*(epsp) + lamda*(tr(A)*H)*Identity(ndim)
+    sigman = 2.0*mu*(epsn) + lamda*(tr(A)*H)*Identity(ndim)
+    sigmat = 2.0*mu*(epst) + lamda*(tr(epst))*Identity(ndim)
+    return (sigmap,sigman,sigmat)
+#----------------------------------------------------------------------------
+# Define boundary sets for boundary conditions
+#----------------------------------------------------------------------------
+class Left(SubDomain):
+    def inside(self, x, on_boundary):
+        tol = 1E-5 # tolerance for coordinate comparisons
+        return on_boundary and abs(x[0] - 0) &lt; tol         
+class Right(SubDomain):
+    def inside(self, x, on_boundary):
+        tol = 1E-5 # tolerance for coordinate comparisons
+        return on_boundary and abs(x[0] - 2) &lt; tol
+# Initialize sub-domain instances
+left = Left() 
+right = Right()
+# define meshfunction to identify boundaries by numbers
+boundaries = FacetFunction("size_t", mesh)
+boundaries.set_all(0)
+left.mark(boundaries, 1) # mark left as 1
+right.mark(boundaries, 2) # mark right as 2
+# Define new measure including boundary naming 
+ds = Measure("ds")[boundaries] # left: ds(1), right: ds(2)    
+# Define function spaces
+V_u = VectorFunctionSpace(mesh, "CG", 1)
+
+# Define the function, test and trial fields
+u, du, v = Function(V_u), TrialFunction(V_u), TestFunction(V_u)
+# Define boundary condiition                                  
+zero = Constant(0.0)
+zero2 = Constant((0.0,0.0))
+# Dirichlet boundary condition for a traction test boundary
+u_L = zero2
+U_roll = zero
+u_R = Expression(("0.0","0.02*t"),t = 0.,degree=1) 
+# Dispalcement boundary conditions
+bc1 = DirichletBC(V_u, u_L, boundaries, 1) 
+bc2 = DirichletBC(V_u, u_R, boundaries, 2) 
+bc_u = [bc1, bc2]
+# Energy functions
+strain  = eps(u)
+(psip,psin,psit) = psi(strain,u)
+(sp,sn,st) = sigma_0(strain,u)
+elastic_energy = (psip + psin)*dx 
+# Weak form 
+E_u = derivative(elastic_energy,u,v)
+E_u_u = derivative(E_u,u,du)
+
+# Writing tangent problems in term of test and trial functions for matrix assembly
+E_du = replace(E_u,{u:du})
+
+# Variational problem for the displacement
+problem_u = NonlinearVariationalProblem(E_u, u, bc_u, E_u_u)
+</code></pre>
+
+<p>A part of the error looks somewhat like this </p>
+
+<pre><code> Symbol('F2', IP), Symbol('K[1]', GEO)]), Product([Symbol('F2', IP), Symbol('K[1]', GEO)]), 
+    Product([Symbol('F3', IP), Symbol('K[3]', GEO)]), Product([Symbol('F3', IP), Symbol('K[3]', 
+    GEO)])]), FloatValue(2.0))]), FloatValue(2.0))])])]), 1))
+</code></pre>
+
+<p>My apologies for adding in a long code, I couldn't figure out how else to ask this question. I would really appreciate any hints on this.</p>
+</div>
+										</div>
+										<div class="qa-q-view-tags">
+											<ul class="qa-q-view-tag-list">
+												<li class="qa-q-view-tag-item"><a href="../../tag/eigenvalue" rel="tag" class="qa-tag-link">eigenvalue</a></li>
+												<li class="qa-q-view-tag-item"><a href="../../tag/hyperelastic" rel="tag" class="qa-tag-link">hyperelastic</a></li>
+												<li class="qa-q-view-tag-item"><a href="../../tag/solidmechanics" rel="tag" class="qa-tag-link">solidmechanics</a></li>
+												<li class="qa-q-view-tag-item"><a href="../../tag/eigenvectors" rel="tag" class="qa-tag-link">eigenvectors</a></li>
+												<li class="qa-q-view-tag-item"><a href="../../tag/strainenergydensity" rel="tag" class="qa-tag-link">strainenergydensity</a></li>
+											</ul>
+										</div>
+										<span class="qa-q-view-avatar-meta">
+											<span class="qa-q-view-meta">
+												<a href="../../12354/energy-function-hyperelastic-material-eigenvalues-assembly" class="qa-q-view-what">asked</a>
+												<span class="qa-q-view-when">
+													<span class="qa-q-view-when-data"><span class="published"><span class="value-title" title="2017-02-04T15:14:24+0000"></span>Feb 4, 2017</span></span>
+												</span>
+												<span class="qa-q-view-who">
+													<span class="qa-q-view-who-pad">by </span>
+													<span class="qa-q-view-who-data"><span class="vcard author"><a href="../../user/kaushikv123" class="qa-user-link url nickname">kaushikv123</a></span></span>
+													<span class="qa-q-view-who-title">FEniCS Novice</span>
+													<span class="qa-q-view-who-points">
+														<span class="qa-q-view-who-points-pad">(</span><span class="qa-q-view-who-points-data">390</span><span class="qa-q-view-who-points-pad"> points)</span>
+													</span>
+												</span>
+											</span>
+										</span>
+										<div class="qa-q-view-buttons">
+										</div>
+										
+										<div class="qa-q-view-c-list" id="c12354_list">
+											<div class="qa-c-list-item  hentry comment" id="c12355">
+												<div class="qa-c-item-content">
+													<a name="12355"></a><div class="entry-content"><p>Hi, I am getting an error UnboundLocalError: local variable 'epst' referenced before assignment in </p>
+
+<pre><code>def psi(A,v):
+    tol = 1.e-10
+    (epsp,epsn) = eps_split(epst)
+    epst = epsp + epsn
+    # ....
+</code></pre>
+</div>
+												</div>
+												<div class="qa-c-item-footer">
+													<span class="qa-c-item-avatar-meta">
+														<span class="qa-c-item-avatar">
+															<a href="../../user/MiroK" class="qa-avatar-link"><img src="https://www.gravatar.com/avatar/f566be3274ec73e3a6dda27bca11631c?s=20" width="20" height="20" class="qa-avatar-image" alt=""></a>
+														</span>
+														<span class="qa-c-item-meta">
+															<a href="../../12354/energy-function-hyperelastic-material-eigenvalues-assembly?show=12355#c12355" class="qa-c-item-what">commented</a>
+															<span class="qa-c-item-when">
+																<span class="qa-c-item-when-data"><span class="published"><span class="value-title" title="2017-02-04T20:37:21+0000"></span>Feb 4, 2017</span></span>
+															</span>
+															<span class="qa-c-item-who">
+																<span class="qa-c-item-who-pad">by </span>
+																<span class="qa-c-item-who-data"><span class="vcard author"><a href="../../user/MiroK" class="qa-user-link url nickname">MiroK</a></span></span>
+																<span class="qa-c-item-who-title">FEniCS Expert</span>
+																<span class="qa-c-item-who-points">
+																	<span class="qa-c-item-who-points-pad">(</span><span class="qa-c-item-who-points-data">80,920</span><span class="qa-c-item-who-points-pad"> points)</span>
+																</span>
+															</span>
+														</span>
+													</span>
+													<div class="qa-c-item-buttons">
+													</div>
+												</div>
+												<div class="qa-c-item-clear">
+												</div>
+											</div> <!-- END qa-c-item -->
+											<div class="qa-c-list-item  hentry comment" id="c12356">
+												<div class="qa-c-item-content">
+													<a name="12356"></a><div class="entry-content"><p>I am sorry about that <strong>Mirok</strong>, i forgot to remove that bug. This is the function</p>
+
+<pre><code>def psi(A,v):
+    tol = 1.e-10
+    epst = eps(v)
+    (epsp,epsn) = eps_split(epst)
+    H = conditional(gt(tr(A),tol),1,0)
+    psip = 0.5*lamda*(tr(A)*H)**2 + mu*inner(epsp,epsp)
+    psin = 0.5*lamda*(tr(A)-tr(A)*H)**2 + mu*inner(epsn,epsn)
+    psit = 0.5*lamda*(tr(A)*H)**2 + mu*inner(epst,epst)
+    return (psip,psin,psit)
+</code></pre>
+
+<p>I get the same error as before.</p>
+</div>
+												</div>
+												<div class="qa-c-item-footer">
+													<span class="qa-c-item-avatar-meta">
+														<span class="qa-c-item-meta">
+															<a href="../../12354/energy-function-hyperelastic-material-eigenvalues-assembly?show=12356#c12356" class="qa-c-item-what">commented</a>
+															<span class="qa-c-item-when">
+																<span class="qa-c-item-when-data"><span class="published"><span class="value-title" title="2017-02-04T22:08:35+0000"></span>Feb 4, 2017</span></span>
+															</span>
+															<span class="qa-c-item-who">
+																<span class="qa-c-item-who-pad">by </span>
+																<span class="qa-c-item-who-data"><span class="vcard author"><a href="../../user/kaushikv123" class="qa-user-link url nickname">kaushikv123</a></span></span>
+																<span class="qa-c-item-who-title">FEniCS Novice</span>
+																<span class="qa-c-item-who-points">
+																	<span class="qa-c-item-who-points-pad">(</span><span class="qa-c-item-who-points-data">390</span><span class="qa-c-item-who-points-pad"> points)</span>
+																</span>
+															</span>
+														</span>
+													</span>
+													<div class="qa-c-item-buttons">
+													</div>
+												</div>
+												<div class="qa-c-item-clear">
+												</div>
+											</div> <!-- END qa-c-item -->
+											<div class="qa-c-list-item  hentry comment" id="c12357">
+												<div class="qa-c-item-content">
+													<a name="12357"></a><div class="entry-content"><p>Hi, try switching to <code>parameters["form_compiler"]["representation"] = 'uflacs'</code></p>
+</div>
+												</div>
+												<div class="qa-c-item-footer">
+													<span class="qa-c-item-avatar-meta">
+														<span class="qa-c-item-avatar">
+															<a href="../../user/MiroK" class="qa-avatar-link"><img src="https://www.gravatar.com/avatar/f566be3274ec73e3a6dda27bca11631c?s=20" width="20" height="20" class="qa-avatar-image" alt=""></a>
+														</span>
+														<span class="qa-c-item-meta">
+															<a href="../../12354/energy-function-hyperelastic-material-eigenvalues-assembly?show=12357#c12357" class="qa-c-item-what">commented</a>
+															<span class="qa-c-item-when">
+																<span class="qa-c-item-when-data"><span class="published"><span class="value-title" title="2017-02-05T11:29:19+0000"></span>Feb 5, 2017</span></span>
+															</span>
+															<span class="qa-c-item-who">
+																<span class="qa-c-item-who-pad">by </span>
+																<span class="qa-c-item-who-data"><span class="vcard author"><a href="../../user/MiroK" class="qa-user-link url nickname">MiroK</a></span></span>
+																<span class="qa-c-item-who-title">FEniCS Expert</span>
+																<span class="qa-c-item-who-points">
+																	<span class="qa-c-item-who-points-pad">(</span><span class="qa-c-item-who-points-data">80,920</span><span class="qa-c-item-who-points-pad"> points)</span>
+																</span>
+															</span>
+														</span>
+													</span>
+													<div class="qa-c-item-buttons">
+													</div>
+												</div>
+												<div class="qa-c-item-clear">
+												</div>
+											</div> <!-- END qa-c-item -->
+											<div class="qa-c-list-item  hentry comment" id="c12359">
+												<div class="qa-c-item-content">
+													<a name="12359"></a><div class="entry-content"><p>Thanks <strong>Mirok</strong>, I will try your suggestion and Debug.</p>
+</div>
+												</div>
+												<div class="qa-c-item-footer">
+													<span class="qa-c-item-avatar-meta">
+														<span class="qa-c-item-meta">
+															<a href="../../12354/energy-function-hyperelastic-material-eigenvalues-assembly?show=12359#c12359" class="qa-c-item-what">commented</a>
+															<span class="qa-c-item-when">
+																<span class="qa-c-item-when-data"><span class="published"><span class="value-title" title="2017-02-05T19:50:55+0000"></span>Feb 5, 2017</span></span>
+															</span>
+															<span class="qa-c-item-who">
+																<span class="qa-c-item-who-pad">by </span>
+																<span class="qa-c-item-who-data"><span class="vcard author"><a href="../../user/kaushikv123" class="qa-user-link url nickname">kaushikv123</a></span></span>
+																<span class="qa-c-item-who-title">FEniCS Novice</span>
+																<span class="qa-c-item-who-points">
+																	<span class="qa-c-item-who-points-pad">(</span><span class="qa-c-item-who-points-data">390</span><span class="qa-c-item-who-points-pad"> points)</span>
+																</span>
+															</span>
+														</span>
+													</span>
+													<div class="qa-c-item-buttons">
+													</div>
+												</div>
+												<div class="qa-c-item-clear">
+												</div>
+											</div> <!-- END qa-c-item -->
+										</div> <!-- END qa-c-list -->
+										
+										<input type="hidden" name="code" value="0-1516467819-0e3a8cc19f8d13af1433837308d2d79a2e75554c">
+										<input type="hidden" name="qa_click" value="">
+									</form>
+									<div class="qa-c-form">
+									</div> <!-- END qa-c-form -->
+									
+								</div> <!-- END qa-q-view-main -->
+								<div class="qa-q-view-clear">
+								</div>
+							</div> <!-- END qa-q-view -->
+							
+						</div>
+						<div class="qa-part-a-list">
+							<h2 id="a_list_title" style="display:none;"></h2>
+							<div class="qa-a-list" id="a_list">
+								
+							</div> <!-- END qa-a-list -->
+							
+						</div>
+					</div> <!-- END qa-main -->
+					
+				</div> <!-- END main-wrapper -->
+			</div> <!-- END main-shadow -->
+		</div> <!-- END body-wrapper -->
+		<!-- END footer-bottom-group -->
+		
+		<div style="position:absolute; left:-9999px; top:-9999px;">
+			<span id="qa-waiting-template" class="qa-waiting">...</span>
+		</div>
+	
+	
+
+</body><!-- Powered by Question2Answer - http://www.question2answer.org/ --></html>

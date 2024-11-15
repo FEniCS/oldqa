@@ -1,0 +1,557 @@
+<html><!-- Powered by Question2Answer - http://www.question2answer.org/ --><head>
+		<meta http-equiv="content-type" content="text/html; charset=utf-8">
+		<title>Interpolated function is horizontally flipped - FEniCS Q&amp;A</title>
+		<meta name="description" content="Hey, I try to interpolate a given function (as expression and function) def exact_solution(x,t): return  ... ) sol_exact = [] sol_int = [] while t">
+		<meta name="keywords" content="interpolate,function">
+		<link rel="stylesheet" type="text/css" href="../../qa-theme/Snow/qa-styles.css">
+		<link rel="canonical" href="http://fenicsproject.org/qa/2352/interpolated-function-is-horizontally-flipped">
+		<script type="text/x-mathjax-config">
+  MathJax.Hub.Config({
+    extensions: ["tex2jax.js"],
+    jax: ["input/TeX","output/HTML-CSS"],
+    tex2jax: {inlineMath: [["$","$"],["\\(","\\)"]]},
+    TeX: { extensions: ["AMSmath.js","AMSsymbols.js"]}
+  });
+</script>
+<script type="text/javascript" src="../../mathjax/MathJax.js"></script>
+		<script src="../../jquery-1.7.2.min.js" type="text/javascript"></script>
+		<script src="../../highlight.min.js"></script>
+<script type="text/javascript">
+$(function(){
+	$('.wmd-input').keypress(function(){
+		window.clearTimeout(hljs.Timeout);
+		hljs.Timeout = window.setTimeout(function() {
+			hljs.initHighlighting.called = false;
+			hljs.initHighlighting();
+		}, 500);
+	});
+	window.setTimeout(function() {
+		hljs.initHighlighting.called = false;
+		hljs.initHighlighting();
+	}, 500);
+});
+</script>
+
+
+	</head>
+	<body class="qa-template-question qa-body-js-off">
+		<div class="qa-body-wrapper">
+			
+			<div class="qa-header">
+				<div class="qa-logo">
+					<a href="../../" class="qa-logo-link" title="FEniCS Q&amp;A"><img src="../../qa-theme/fenics_qa.png" border="0" alt="FEniCS Q&amp;A"></a>
+				</div>
+				<div class="qa-header-clear">
+				</div>
+			</div> <!-- END qa-header -->
+			
+			<div class="qa-main-shadow">
+				
+				<div class="qa-main-wrapper">
+					
+					<div class="qa-sidepanel">
+						<div class="qa-sidebar">
+							This is a read only copy of the old FEniCS QA forum. Please visit the <a href="https://www.allanswered.com/community/s/fenics-project/">new QA forum</a> to ask questions
+						</div>
+						
+					</div>
+					
+					<div class="qa-main">
+						<h1>
+							<span class="entry-title">Interpolated function is horizontally flipped</span>
+						</h1>
+						<div class="qa-part-q-view">
+							<div class="qa-q-view  hentry question" id="q2352">
+								<form method="post" action="../../2352/interpolated-function-is-horizontally-flipped">
+									<div class="qa-q-view-stats">
+										<div class="qa-voting qa-voting-net" id="voting_2352">
+											<div class="qa-vote-count qa-vote-count-net">
+												<span class="qa-netvote-count">
+													<span class="qa-netvote-count-data">+1<span class="votes-up"><span class="value-title" title="1"></span></span><span class="votes-down"><span class="value-title" title="0"></span></span></span><span class="qa-netvote-count-pad"> vote</span>
+												</span>
+											</div>
+											<div class="qa-vote-clear">
+											</div>
+										</div>
+									</div>
+									<input type="hidden" name="code" value="0-1516467923-f41eb13101245e19ebcc84f1279c4ad8ec7fbadb">
+								</form>
+								<div class="qa-q-view-main">
+									<form method="post" action="../../2352/interpolated-function-is-horizontally-flipped">
+										<div class="qa-q-view-content">
+											<a name="2352"></a><div class="entry-content"><p>Hey,</p>
+
+<p>I try to interpolate a given function (as expression and function)</p>
+
+<pre><code>def exact_solution(x,t):
+   return exp(t-x)*sin(t+x)
+u_expression = Expression("exp(t-x[0])*sin(t+x[0])",t=0)
+</code></pre>
+
+<p>from $t \in (0,1)$ and $\Omega = [0,1]$. In each time step, I use</p>
+
+<pre><code>u_int = interpolate(u_expression,V)
+u_int_array = u_int.vector().array()
+</code></pre>
+
+<p>and save afterwards the nodal values of the interpolated and exact function in arrays</p>
+
+<pre><code>  for i in range(0,nx):
+      u_int_nod_vals.append(u_int_array[i])
+      u_ex_nod_vals.append(exact_solution(x_array[i],t))
+  sol_exact.append(u_ex_nod_vals)
+  sol_int.append(u_int_nod_vals)
+</code></pre>
+
+<p>However, all the values in "sol_exact" are horizontally flipped. At first I thought my output function is the problem, but then the exact function should be flipped as well. Did anybody else encounter this problem?</p>
+
+<p>Here is my entire source code:</p>
+
+<pre><code>from __future__ import division
+
+from dolfin import *
+import numpy as np
+
+import matplotlib as mpl
+mpl.use( "agg" )
+import matplotlib.pyplot as plt
+from matplotlib import animation
+from math import exp
+from math import sin
+
+# ------------------- functions
+def save_solution(sol, xmax, title, filename):
+  ymax = max(max(l) for l in sol)
+  fig = plt.figure()
+  axe = plt.axes(xlim=(0, xmax*1.1), ylim=(0, ymax*1.1))
+  line, = axe.plot([], [], lw=2, color = 'g')
+  plt.xlabel('Position')
+  plt.ylabel('Value')
+  plt.title(title)
+
+  def init():
+    line.set_data([], [])
+    return line,
+
+  def animate(i):
+    y = np.array(sol[i])
+    line.set_data(x_array, y)
+    return line,
+
+  anim = animation.FuncAnimation(fig, animate, init_func=init, frames=len(sol), interval=20, blit=True)
+  anim.save(filename+'.mp4', fps=15)
+# ------------------- functions
+
+nx = 80
+xmax = 1
+mesh1D = IntervalMesh(nx, 0, xmax)
+
+# definition of solving method
+V = FunctionSpace(mesh1D, 'Lagrange', 1)
+
+dt = 1/nx
+T=1
+t = dt
+
+def exact_solution(x,t):
+    return exp(t-x)*sin(t+x)
+
+u_expression = Expression("exp(t-x[0])*sin(t+x[0])",t=0)
+
+#constants for ploting
+x_points = []
+for i in range(0,nx):
+  x_points.append((xmax*i)/(1.0*nx)) 
+
+x_array = np.array(x_points)
+
+sol_exact = []
+sol_int = []
+
+while t &lt;= T:
+    u_ex_nod_vals = []
+
+    u_int = []
+    u_int_nod_vals = []
+
+    u_int = interpolate(u_expression,V)
+    u_int_array = u_int.vector().array()
+
+    for i in range(0,nx):
+      u_int_nod_vals.append(u_int_array[i])
+      u_ex_nod_vals.append(exact_solution(x_array[i],t))
+
+    sol_exact.append(u_ex_nod_vals)
+    sol_int.append(u_int_nod_vals)
+
+    t += dt
+    u_expression.t=t
+
+
+save_solution(sol_int,xmax, 'interpolated solution', 'sol_interpolate')
+save_solution(sol_exact,xmax, 'Exact solution', 'sol_exact')
+</code></pre>
+</div>
+										</div>
+										<div class="qa-q-view-tags">
+											<ul class="qa-q-view-tag-list">
+												<li class="qa-q-view-tag-item"><a href="../../tag/interpolate" rel="tag" class="qa-tag-link">interpolate</a></li>
+												<li class="qa-q-view-tag-item"><a href="../../tag/function" rel="tag" class="qa-tag-link">function</a></li>
+											</ul>
+										</div>
+										<span class="qa-q-view-avatar-meta">
+											<span class="qa-q-view-meta">
+												<a href="../../2352/interpolated-function-is-horizontally-flipped" class="qa-q-view-what">asked</a>
+												<span class="qa-q-view-when">
+													<span class="qa-q-view-when-data"><span class="published"><span class="value-title" title="2014-01-21T14:03:33+0000"></span>Jan 21, 2014</span></span>
+												</span>
+												<span class="qa-q-view-who">
+													<span class="qa-q-view-who-pad">by </span>
+													<span class="qa-q-view-who-data"><span class="vcard author"><a href="../../user/bobby53" class="qa-user-link url nickname">bobby53</a></span></span>
+													<span class="qa-q-view-who-title">FEniCS User</span>
+													<span class="qa-q-view-who-points">
+														<span class="qa-q-view-who-points-pad">(</span><span class="qa-q-view-who-points-data">1,260</span><span class="qa-q-view-who-points-pad"> points)</span>
+													</span>
+												</span>
+											</span>
+										</span>
+										<div class="qa-q-view-buttons">
+										</div>
+										
+										<div class="qa-q-view-c-list" id="c2352_list">
+											<div class="qa-c-list-item  hentry comment" id="c2355">
+												<div class="qa-c-item-content">
+													<a name="2355"></a><div class="entry-content"><p>I think</p>
+
+<pre><code> u_int_array = u_int.vector().array()
+</code></pre>
+
+<p>is causing the problem by "rearranging" the array. A simple workaround would be sort/invert it, but I would like to know what's exactly happening, i.e. is this the expected behaviour?</p>
+</div>
+												</div>
+												<div class="qa-c-item-footer">
+													<span class="qa-c-item-avatar-meta">
+														<span class="qa-c-item-meta">
+															<a href="../../2352/interpolated-function-is-horizontally-flipped?show=2355#c2355" class="qa-c-item-what">commented</a>
+															<span class="qa-c-item-when">
+																<span class="qa-c-item-when-data"><span class="published"><span class="value-title" title="2014-01-21T14:43:23+0000"></span>Jan 21, 2014</span></span>
+															</span>
+															<span class="qa-c-item-who">
+																<span class="qa-c-item-who-pad">by </span>
+																<span class="qa-c-item-who-data"><span class="vcard author"><a href="../../user/bobby53" class="qa-user-link url nickname">bobby53</a></span></span>
+																<span class="qa-c-item-who-title">FEniCS User</span>
+																<span class="qa-c-item-who-points">
+																	<span class="qa-c-item-who-points-pad">(</span><span class="qa-c-item-who-points-data">1,260</span><span class="qa-c-item-who-points-pad"> points)</span>
+																</span>
+															</span>
+														</span>
+													</span>
+													<div class="qa-c-item-buttons">
+													</div>
+												</div>
+												<div class="qa-c-item-clear">
+												</div>
+											</div> <!-- END qa-c-item -->
+										</div> <!-- END qa-c-list -->
+										
+										<input type="hidden" name="code" value="0-1516467923-e1b6d6078184b8961fb9905e2239d79852eafe0e">
+										<input type="hidden" name="qa_click" value="">
+									</form>
+									<div class="qa-c-form">
+									</div> <!-- END qa-c-form -->
+									
+								</div> <!-- END qa-q-view-main -->
+								<div class="qa-q-view-clear">
+								</div>
+							</div> <!-- END qa-q-view -->
+							
+						</div>
+						<div class="qa-part-a-list">
+							<h2 id="a_list_title">2 Answers</h2>
+							<div class="qa-a-list" id="a_list">
+								
+								<div class="qa-a-list-item  hentry answer answer-selected qa-a-list-item-selected" id="a2354">
+									<form method="post" action="../../2352/interpolated-function-is-horizontally-flipped">
+										<div class="qa-voting qa-voting-net" id="voting_2354">
+											<div class="qa-vote-count qa-vote-count-net">
+												<span class="qa-netvote-count">
+													<span class="qa-netvote-count-data">+1<span class="votes-up"><span class="value-title" title="1"></span></span><span class="votes-down"><span class="value-title" title="0"></span></span></span><span class="qa-netvote-count-pad"> vote</span>
+												</span>
+											</div>
+											<div class="qa-vote-clear">
+											</div>
+										</div>
+										<input type="hidden" name="code" value="0-1516467923-f41eb13101245e19ebcc84f1279c4ad8ec7fbadb">
+									</form>
+									<div class="qa-a-item-main">
+										<form method="post" action="../../2352/interpolated-function-is-horizontally-flipped">
+											<div class="qa-a-item-selected">
+												<div class="qa-a-selection">
+													<div class="qa-a-selected">&#160;</div>
+													<div class="qa-a-selected-text">Best answer</div>
+												</div>
+												<div class="qa-a-item-content">
+													<a name="2354"></a><div class="entry-content"><p>In this special case, you can set</p>
+
+<pre><code>parameter["reorder_dofs_serial"] = False
+</code></pre>
+
+<p>at the beginning of the code.</p>
+
+<p>In general however, you can not assume anything on the ordering of the dofs (your u_int_array). You can however access the coordinates of the dofs through </p>
+
+<pre><code>V.dofmap().tabulate_all_coordinates(mesh1D)
+</code></pre>
+
+<p>and work with that for more general cases.</p>
+</div>
+												</div>
+												<span class="qa-a-item-avatar-meta">
+													<span class="qa-a-item-meta">
+														<a href="../../2352/interpolated-function-is-horizontally-flipped?show=2354#a2354" class="qa-a-item-what">answered</a>
+														<span class="qa-a-item-when">
+															<span class="qa-a-item-when-data"><span class="published"><span class="value-title" title="2014-01-21T14:40:58+0000"></span>Jan 21, 2014</span></span>
+														</span>
+														<span class="qa-a-item-who">
+															<span class="qa-a-item-who-pad">by </span>
+															<span class="qa-a-item-who-data"><span class="vcard author"><a href="../../user/%C3%98yvind+Evju" class="qa-user-link url nickname">&#216;yvind Evju</a></span></span>
+															<span class="qa-a-item-who-title">FEniCS Expert</span>
+															<span class="qa-a-item-who-points">
+																<span class="qa-a-item-who-points-pad">(</span><span class="qa-a-item-who-points-data">17,700</span><span class="qa-a-item-who-points-pad"> points)</span>
+															</span>
+														</span>
+														<br>
+														<span class="qa-a-item-what">selected</span>
+														<span class="qa-a-item-when">
+															<span class="qa-a-item-when-data"><span class="updated"><span class="value-title" title="2014-01-25T17:08:25+0000"></span>Jan 25, 2014</span></span>
+														</span>
+														<span class="qa-a-item-who">
+															<span class="qa-a-item-who-pad">by </span><span class="qa-a-item-who-data"><a href="../../user/bobby53" class="qa-user-link url nickname">bobby53</a></span>
+														</span>
+													</span>
+												</span>
+											</div>
+											<div class="qa-a-item-buttons">
+												</div>
+											
+											<div class="qa-a-item-c-list" id="c2354_list">
+												<div class="qa-c-list-item  hentry comment" id="c2358">
+													<div class="qa-c-item-content">
+														<a name="2358"></a><div class="entry-content"><p>Ok, I get it, so I would need to implement a function which maps my coordinates to the corresponding index of the dof, and then I could call  u_int_array[index] and would get the correct value, am I right?</p>
+</div>
+													</div>
+													<div class="qa-c-item-footer">
+														<span class="qa-c-item-avatar-meta">
+															<span class="qa-c-item-meta">
+																<a href="../../2352/interpolated-function-is-horizontally-flipped?show=2358#c2358" class="qa-c-item-what">commented</a>
+																<span class="qa-c-item-when">
+																	<span class="qa-c-item-when-data"><span class="published"><span class="value-title" title="2014-01-21T15:22:58+0000"></span>Jan 21, 2014</span></span>
+																</span>
+																<span class="qa-c-item-who">
+																	<span class="qa-c-item-who-pad">by </span>
+																	<span class="qa-c-item-who-data"><span class="vcard author"><a href="../../user/bobby53" class="qa-user-link url nickname">bobby53</a></span></span>
+																	<span class="qa-c-item-who-title">FEniCS User</span>
+																	<span class="qa-c-item-who-points">
+																		<span class="qa-c-item-who-points-pad">(</span><span class="qa-c-item-who-points-data">1,260</span><span class="qa-c-item-who-points-pad"> points)</span>
+																	</span>
+																</span>
+															</span>
+														</span>
+														<div class="qa-c-item-buttons">
+														</div>
+													</div>
+													<div class="qa-c-item-clear">
+													</div>
+												</div> <!-- END qa-c-item -->
+												<div class="qa-c-list-item  hentry comment" id="c2370">
+													<div class="qa-c-item-content">
+														<a name="2370"></a><div class="entry-content"><p>Well, as Maximillian points out below, there is this function <em>vertex_to_dof_map</em> to find this mapping. However, this only works for a FunctionSpace with dofs only on vertices.</p>
+</div>
+													</div>
+													<div class="qa-c-item-footer">
+														<span class="qa-c-item-avatar-meta">
+															<span class="qa-c-item-meta">
+																<a href="../../2352/interpolated-function-is-horizontally-flipped?show=2370#c2370" class="qa-c-item-what">commented</a>
+																<span class="qa-c-item-when">
+																	<span class="qa-c-item-when-data"><span class="published"><span class="value-title" title="2014-01-22T07:20:14+0000"></span>Jan 22, 2014</span></span>
+																</span>
+																<span class="qa-c-item-who">
+																	<span class="qa-c-item-who-pad">by </span>
+																	<span class="qa-c-item-who-data"><span class="vcard author"><a href="../../user/%C3%98yvind+Evju" class="qa-user-link url nickname">&#216;yvind Evju</a></span></span>
+																	<span class="qa-c-item-who-title">FEniCS Expert</span>
+																	<span class="qa-c-item-who-points">
+																		<span class="qa-c-item-who-points-pad">(</span><span class="qa-c-item-who-points-data">17,700</span><span class="qa-c-item-who-points-pad"> points)</span>
+																	</span>
+																</span>
+															</span>
+														</span>
+														<div class="qa-c-item-buttons">
+														</div>
+													</div>
+													<div class="qa-c-item-clear">
+													</div>
+												</div> <!-- END qa-c-item -->
+												<div class="qa-c-list-item  hentry comment" id="c2382">
+													<div class="qa-c-item-content">
+														<a name="2382"></a><div class="entry-content"><p>Thanks a lot, I totally forgot about the data structures and dofs etc.<br>
+As I'm going to use my code for an example in 2D and 3D as well I'm going to use</p>
+
+<pre><code> V.dofmap().tabulate_all_coordinates(mesh1D)
+</code></pre>
+
+<p>which, if I understand correctly, has, in 2D, the two coordinates of the first dof, then the two coordinates of the next dof and so on, in 3D I would have to extract 3 values, corresponding to the three coordinates. So, after having extracted the coordinates in order of the dofs,  I just have to iterate over <code>u_int.vector()</code> and write the value in my array <code>sol_int</code>.<br>
+Thank you two a lot, it helped me to understand Fenics a little more :-)</p>
+</div>
+													</div>
+													<div class="qa-c-item-footer">
+														<span class="qa-c-item-avatar-meta">
+															<span class="qa-c-item-meta">
+																<a href="../../2352/interpolated-function-is-horizontally-flipped?show=2382#c2382" class="qa-c-item-what">commented</a>
+																<span class="qa-c-item-when">
+																	<span class="qa-c-item-when-data"><span class="published"><span class="value-title" title="2014-01-22T18:30:30+0000"></span>Jan 22, 2014</span></span>
+																</span>
+																<span class="qa-c-item-who">
+																	<span class="qa-c-item-who-pad">by </span>
+																	<span class="qa-c-item-who-data"><span class="vcard author"><a href="../../user/bobby53" class="qa-user-link url nickname">bobby53</a></span></span>
+																	<span class="qa-c-item-who-title">FEniCS User</span>
+																	<span class="qa-c-item-who-points">
+																		<span class="qa-c-item-who-points-pad">(</span><span class="qa-c-item-who-points-data">1,260</span><span class="qa-c-item-who-points-pad"> points)</span>
+																	</span>
+																</span>
+															</span>
+														</span>
+														<div class="qa-c-item-buttons">
+														</div>
+													</div>
+													<div class="qa-c-item-clear">
+													</div>
+												</div> <!-- END qa-c-item -->
+											</div> <!-- END qa-c-list -->
+											
+											<input type="hidden" name="code" value="0-1516467923-32a1a8def29a5230199313a615ff27da911f86ef">
+											<input type="hidden" name="qa_click" value="">
+										</form>
+										<div class="qa-c-form">
+										</div> <!-- END qa-c-form -->
+										
+									</div> <!-- END qa-a-item-main -->
+									<div class="qa-a-item-clear">
+									</div>
+								</div> <!-- END qa-a-list-item -->
+								
+								<div class="qa-a-list-item  hentry answer" id="a2361">
+									<form method="post" action="../../2352/interpolated-function-is-horizontally-flipped">
+										<div class="qa-voting qa-voting-net" id="voting_2361">
+											<div class="qa-vote-count qa-vote-count-net">
+												<span class="qa-netvote-count">
+													<span class="qa-netvote-count-data">+2<span class="votes-up"><span class="value-title" title="2"></span></span><span class="votes-down"><span class="value-title" title="0"></span></span></span><span class="qa-netvote-count-pad"> votes</span>
+												</span>
+											</div>
+											<div class="qa-vote-clear">
+											</div>
+										</div>
+										<input type="hidden" name="code" value="0-1516467923-f41eb13101245e19ebcc84f1279c4ad8ec7fbadb">
+									</form>
+									<div class="qa-a-item-main">
+										<form method="post" action="../../2352/interpolated-function-is-horizontally-flipped">
+											<div class="qa-a-selection">
+											</div>
+											<div class="qa-a-item-content">
+												<a name="2361"></a><div class="entry-content"><p>In general, <code>dolfin</code> will reorder the degrees of freedom of your function for efficiency to speed up calculations (especially in parallel). You can avoid this (in serial calculations) by setting</p>
+
+<pre><code>parameters['reorder_dofs_serial'] = False
+</code></pre>
+
+<p>Alternatively, there is a convenience function which gives you a mapping between the vertex indices and the indices of the degrees of freedom.</p>
+
+<p>Try to replace your original line:</p>
+
+<pre><code>u_int_array = u_int.vector().array()
+</code></pre>
+
+<p>with the following:</p>
+
+<pre><code>u_int_array = u_int.vector()[vertex_to_dof_map(V)].array()
+</code></pre>
+
+<p>This should reorder the vector entries into the "expected" order and produce the correct result.</p>
+</div>
+											</div>
+											<span class="qa-a-item-avatar-meta">
+												<span class="qa-a-item-meta">
+													<a href="../../2352/interpolated-function-is-horizontally-flipped?show=2361#a2361" class="qa-a-item-what">answered</a>
+													<span class="qa-a-item-when">
+														<span class="qa-a-item-when-data"><span class="published"><span class="value-title" title="2014-01-21T17:33:34+0000"></span>Jan 21, 2014</span></span>
+													</span>
+													<span class="qa-a-item-who">
+														<span class="qa-a-item-who-pad">by </span>
+														<span class="qa-a-item-who-data"><span class="vcard author"><a href="../../user/Maximilian+Albert" class="qa-user-link url nickname">Maximilian Albert</a></span></span>
+														<span class="qa-a-item-who-title">FEniCS User</span>
+														<span class="qa-a-item-who-points">
+															<span class="qa-a-item-who-points-pad">(</span><span class="qa-a-item-who-points-data">1,750</span><span class="qa-a-item-who-points-pad"> points)</span>
+														</span>
+													</span>
+												</span>
+											</span>
+											<div class="qa-a-item-buttons">
+												</div>
+											
+											<div class="qa-a-item-c-list" id="c2361_list">
+												<div class="qa-c-list-item  hentry comment" id="c2383">
+													<div class="qa-c-item-content">
+														<a name="2383"></a><div class="entry-content"><p>Thanks a lot Max, but I'm trying to use <code>V.dofmap().tabulate_all_coordinates(mesh1D)</code> as I want to apply my program to more general cases as well.</p>
+</div>
+													</div>
+													<div class="qa-c-item-footer">
+														<span class="qa-c-item-avatar-meta">
+															<span class="qa-c-item-meta">
+																<a href="../../2352/interpolated-function-is-horizontally-flipped?show=2383#c2383" class="qa-c-item-what">commented</a>
+																<span class="qa-c-item-when">
+																	<span class="qa-c-item-when-data"><span class="published"><span class="value-title" title="2014-01-22T18:32:18+0000"></span>Jan 22, 2014</span></span>
+																</span>
+																<span class="qa-c-item-who">
+																	<span class="qa-c-item-who-pad">by </span>
+																	<span class="qa-c-item-who-data"><span class="vcard author"><a href="../../user/bobby53" class="qa-user-link url nickname">bobby53</a></span></span>
+																	<span class="qa-c-item-who-title">FEniCS User</span>
+																	<span class="qa-c-item-who-points">
+																		<span class="qa-c-item-who-points-pad">(</span><span class="qa-c-item-who-points-data">1,260</span><span class="qa-c-item-who-points-pad"> points)</span>
+																	</span>
+																</span>
+															</span>
+														</span>
+														<div class="qa-c-item-buttons">
+														</div>
+													</div>
+													<div class="qa-c-item-clear">
+													</div>
+												</div> <!-- END qa-c-item -->
+											</div> <!-- END qa-c-list -->
+											
+											<input type="hidden" name="code" value="0-1516467923-04cefc2b1c999cda3891e29a4720fd8076a4cc4f">
+											<input type="hidden" name="qa_click" value="">
+										</form>
+										<div class="qa-c-form">
+										</div> <!-- END qa-c-form -->
+										
+									</div> <!-- END qa-a-item-main -->
+									<div class="qa-a-item-clear">
+									</div>
+								</div> <!-- END qa-a-list-item -->
+								
+							</div> <!-- END qa-a-list -->
+							
+						</div>
+					</div> <!-- END qa-main -->
+					
+				</div> <!-- END main-wrapper -->
+			</div> <!-- END main-shadow -->
+		</div> <!-- END body-wrapper -->
+		<!-- END footer-bottom-group -->
+		
+		<div style="position:absolute; left:-9999px; top:-9999px;">
+			<span id="qa-waiting-template" class="qa-waiting">...</span>
+		</div>
+	
+	
+
+</body><!-- Powered by Question2Answer - http://www.question2answer.org/ --></html>

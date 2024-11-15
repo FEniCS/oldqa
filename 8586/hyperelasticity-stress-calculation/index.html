@@ -1,0 +1,394 @@
+<html><!-- Powered by Question2Answer - http://www.question2answer.org/ --><head>
+		<meta http-equiv="content-type" content="text/html; charset=utf-8">
+		<title>Hyperelasticity Stress Calculation - FEniCS Q&amp;A</title>
+		<meta name="description" content="Hi, I am doing some test runs with Fenics demo program on hyperelasticity. The displacement is easily ... (PK2(u),TensorFunctionSpace(mesh,'DG',0))">
+		<meta name="keywords" content="stress,hyperelasticity,tensor,strain,calculation">
+		<link rel="stylesheet" type="text/css" href="../../qa-theme/Snow/qa-styles.css">
+		<link rel="canonical" href="http://fenicsproject.org/qa/8586/hyperelasticity-stress-calculation">
+		<script type="text/x-mathjax-config">
+  MathJax.Hub.Config({
+    extensions: ["tex2jax.js"],
+    jax: ["input/TeX","output/HTML-CSS"],
+    tex2jax: {inlineMath: [["$","$"],["\\(","\\)"]]},
+    TeX: { extensions: ["AMSmath.js","AMSsymbols.js"]}
+  });
+</script>
+<script type="text/javascript" src="../../mathjax/MathJax.js"></script>
+		<script src="../../jquery-1.7.2.min.js" type="text/javascript"></script>
+		<script src="../../highlight.min.js"></script>
+<script type="text/javascript">
+$(function(){
+	$('.wmd-input').keypress(function(){
+		window.clearTimeout(hljs.Timeout);
+		hljs.Timeout = window.setTimeout(function() {
+			hljs.initHighlighting.called = false;
+			hljs.initHighlighting();
+		}, 500);
+	});
+	window.setTimeout(function() {
+		hljs.initHighlighting.called = false;
+		hljs.initHighlighting();
+	}, 500);
+});
+</script>
+
+
+	</head>
+	<body class="qa-template-question qa-body-js-off">
+		<div class="qa-body-wrapper">
+			
+			<div class="qa-header">
+				<div class="qa-logo">
+					<a href="../../" class="qa-logo-link" title="FEniCS Q&amp;A"><img src="../../qa-theme/fenics_qa.png" border="0" alt="FEniCS Q&amp;A"></a>
+				</div>
+				<div class="qa-header-clear">
+				</div>
+			</div> <!-- END qa-header -->
+			
+			<div class="qa-main-shadow">
+				
+				<div class="qa-main-wrapper">
+					
+					<div class="qa-sidepanel">
+						<div class="qa-sidebar">
+							This is a read only copy of the old FEniCS QA forum. Please visit the <a href="https://www.allanswered.com/community/s/fenics-project/">new QA forum</a> to ask questions
+						</div>
+						
+					</div>
+					
+					<div class="qa-main">
+						<h1>
+							<span class="entry-title">Hyperelasticity Stress Calculation</span>
+						</h1>
+						<div class="qa-part-q-view">
+							<div class="qa-q-view  hentry question" id="q8586">
+								<form method="post" action="../../8586/hyperelasticity-stress-calculation">
+									<div class="qa-q-view-stats">
+										<div class="qa-voting qa-voting-net" id="voting_8586">
+											<div class="qa-vote-count qa-vote-count-net">
+												<span class="qa-netvote-count">
+													<span class="qa-netvote-count-data">0<span class="votes-up"><span class="value-title" title="1"></span></span><span class="votes-down"><span class="value-title" title="1"></span></span></span><span class="qa-netvote-count-pad"> votes</span>
+												</span>
+											</div>
+											<div class="qa-vote-clear">
+											</div>
+										</div>
+									</div>
+									<input type="hidden" name="code" value="0-1516468181-ffee5f7483c87d77a8952eee6b3623acde2c9826">
+								</form>
+								<div class="qa-q-view-main">
+									<form method="post" action="../../8586/hyperelasticity-stress-calculation">
+										<div class="qa-q-view-content">
+											<a name="8586"></a><div class="entry-content"><p>Hi, I am doing some test runs with Fenics demo program on hyperelasticity. The displacement is easily obtained but I need to calculate the stress. According to the hyperelasticity theory, stress is obtained by differentiation of an energy function with strain. Given the displacement u, my question is about calculation of stress (say PK2). Instead of a lengthy expression, I'd like to have the energy function differentiated with strain tensor C directly. See PK2 function below. Any help would be appreciated. </p>
+
+<pre><code>from dolfin import *
+
+# Create mesh and define function space
+mesh = UnitSquareMesh(16, 16)
+Sc = FunctionSpace(mesh,"Lagrange",1)
+V = VectorFunctionSpace(mesh, "Lagrange", 1)
+TT = TensorFunctionSpace(mesh,'DG',0)
+
+# Mark boundary subdomians
+left =  CompiledSubDomain("near(x[0], side) &amp;&amp; on_boundary", side = 0.0)
+right = CompiledSubDomain("near(x[0], side) &amp;&amp; on_boundary", side = 1.0)
+
+# Define Dirichlet boundary (x = 0 or x = 1)
+c = Expression(("0.0", "0.0"))
+r = Expression(("1.0", "0.0"))
+
+bcl = DirichletBC(V, c, left)
+bcr = DirichletBC(V, r, right)
+bcs = [bcl, bcr]
+
+# Define functions
+du = TrialFunction(V)            # Incremental displacement
+v  = TestFunction(V)             # Test function
+u  = Function(V)                 # Displacement from previous iteration
+B  = Constant((0.0, 0.0))  # Body force per unit volume
+T  = Constant((0.0, 0.0))  # Traction force on the boundary
+
+# Kinematics
+d = u.geometric_dimension()
+I = Identity(d)             # Identity tensor
+F = I + grad(u)             # Deformation gradient
+C = F.T*F                   # Right Cauchy-Green tensor
+
+E = (C - I)/2               # Euler-Lagrange strain tensor
+E = variable(E)
+
+# Invariants of deformation tensors
+Ic = tr(C)
+J  = det(F)
+
+# Elasticity parameters
+E, nu = 10.0, 0.3
+mu, lmbda = Constant(E/(2*(1 + nu))), Constant(E*nu/((1 + nu)*(1 - 2*nu)))
+
+# Stored strain energy density (compressible neo-Hookean model)
+psi = (mu/2)*(Ic - 2) - mu*ln(J) + (lmbda/2)*(ln(J))**2
+
+C = variable(C)
+S = 2.0*diff(psi,C)
+
+# Total potential energy
+Pi = psi*dx - dot(B, u)*dx - dot(T, u)*ds
+
+# Compute first variation of Pi (directional derivative about u in the direction of v)
+F = derivative(Pi, u, v)
+
+# Compute Jacobian of F
+J = derivative(F, u, du)
+
+# Solve variational problem
+solve(F == 0, u, bcs, J=J,
+      form_compiler_parameters=ffc_options)
+
+# Define Green-Lagrange Finite Strain Tensor
+def GLFS(u):
+    F = I +grad(u)
+    strain = 0.5*(F.T*F - I)    
+    return strain
+
+def PK2(u): #Piola-Kirchhoff Stress
+    F = I +grad(u)
+    C = 0.5*(F.T*F - I) 
+    Ic = tr(C)
+    J  = det(F)
+    psi = (mu/2)*(Ic - 2) - mu*ln(J) + (lmbda/2)*(ln(J))**2
+    C = variable(C)
+    Ss = 2.0*diff(psi,C) 
+    return Ss
+
+PK2Tensor = project(PK2(u),TensorFunctionSpace(mesh,'DG',0)) 
+</code></pre>
+</div>
+										</div>
+										<div class="qa-q-view-tags">
+											<ul class="qa-q-view-tag-list">
+												<li class="qa-q-view-tag-item"><a href="../../tag/stress" rel="tag" class="qa-tag-link">stress</a></li>
+												<li class="qa-q-view-tag-item"><a href="../../tag/hyperelasticity" rel="tag" class="qa-tag-link">hyperelasticity</a></li>
+												<li class="qa-q-view-tag-item"><a href="../../tag/tensor" rel="tag" class="qa-tag-link">tensor</a></li>
+												<li class="qa-q-view-tag-item"><a href="../../tag/strain" rel="tag" class="qa-tag-link">strain</a></li>
+												<li class="qa-q-view-tag-item"><a href="../../tag/calculation" rel="tag" class="qa-tag-link">calculation</a></li>
+											</ul>
+										</div>
+										<span class="qa-q-view-avatar-meta">
+											<span class="qa-q-view-meta">
+												<a href="../../8586/hyperelasticity-stress-calculation" class="qa-q-view-what">asked</a>
+												<span class="qa-q-view-when">
+													<span class="qa-q-view-when-data"><span class="published"><span class="value-title" title="2015-11-17T07:17:34+0000"></span>Nov 17, 2015</span></span>
+												</span>
+												<span class="qa-q-view-who">
+													<span class="qa-q-view-who-pad">by </span>
+													<span class="qa-q-view-who-data"><span class="vcard author"><a href="../../user/dave" class="qa-user-link url nickname">dave</a></span></span>
+													<span class="qa-q-view-who-title">FEniCS Novice</span>
+													<span class="qa-q-view-who-points">
+														<span class="qa-q-view-who-points-pad">(</span><span class="qa-q-view-who-points-data">220</span><span class="qa-q-view-who-points-pad"> points)</span>
+													</span>
+												</span>
+												<br>
+												<span class="qa-q-view-what">edited</span>
+												<span class="qa-q-view-when">
+													<span class="qa-q-view-when-data"><span class="updated"><span class="value-title" title="2015-11-18T09:39:39+0000"></span>Nov 18, 2015</span></span>
+												</span>
+												<span class="qa-q-view-who">
+													<span class="qa-q-view-who-pad">by </span><span class="qa-q-view-who-data"><a href="../../user/chris_richardson" class="qa-user-link url nickname">chris_richardson</a></span>
+												</span>
+											</span>
+										</span>
+										<div class="qa-q-view-buttons">
+										</div>
+										
+										<div class="qa-q-view-c-list" id="c8586_list">
+											<div class="qa-c-list-item  hentry comment" id="c10876">
+												<div class="qa-c-item-content">
+													<a name="10876"></a><div class="entry-content"><h3>Demo_Hyperelasticity</h3>
+
+<p>Hi Dave,<br>
+I had previously run the hyperelasticity demo with success. When I ran now, it produced some errors. I looked into the Forum and found that you had raised some question regarding the same demo on a different issue. The two statements that produced the errors for me are given below. </p>
+
+<p>left, right = compile_subdomains(["(std::abs(x[0])       &lt; DOLFIN_EPS) &amp;&amp; on_boundary",<br>
+                                  "(std::abs(x[0] - 1.0) &lt; DOLFIN_EPS) &amp;&amp; on_boundary"])<br>
+...................................................................................</p>
+
+<h2>Kinematics</h2>
+
+<p>I = Identity(V.cell().d)    # Identity tensor``</p>
+
+<p>I replaced the above, from your code sample and it was successful as follows:</p>
+
+<p>left =  CompiledSubDomain("near(x[0], side) &amp;&amp; on_boundary", side = 0.0)<br>
+right = CompiledSubDomain("near(x[0], side) &amp;&amp; on_boundary", side = 1.0)</p>
+
+<h2>Kinematics</h2>
+
+<p>d = u.geometric_dimension()<br>
+I = Identity(d)             # Identity tensor</p>
+
+<p>My question is though I knew that certain statements get updated from time to time in FEniCS,  I do not know, as a beginner, where to look for? Even at present the code on the web for demo_hyperelasticity is the previous version which I used.</p>
+
+<p>Any guidance will be appreciated for such situations in general.</p>
+
+<p>Thanks</p>
+</div>
+												</div>
+												<div class="qa-c-item-footer">
+													<span class="qa-c-item-avatar-meta">
+														<span class="qa-c-item-meta">
+															<a href="../../8586/hyperelasticity-stress-calculation?show=10876#c10876" class="qa-c-item-what">commented</a>
+															<span class="qa-c-item-when">
+																<span class="qa-c-item-when-data"><span class="published"><span class="value-title" title="2016-08-13T21:04:19+0000"></span>Aug 13, 2016</span></span>
+															</span>
+															<span class="qa-c-item-who">
+																<span class="qa-c-item-who-pad">by </span>
+																<span class="qa-c-item-who-data"><span class="vcard author"><a href="../../user/vas" class="qa-user-link url nickname">vas</a></span></span>
+																<span class="qa-c-item-who-title">FEniCS Novice</span>
+																<span class="qa-c-item-who-points">
+																	<span class="qa-c-item-who-points-pad">(</span><span class="qa-c-item-who-points-data">330</span><span class="qa-c-item-who-points-pad"> points)</span>
+																</span>
+															</span>
+														</span>
+													</span>
+													<div class="qa-c-item-buttons">
+													</div>
+												</div>
+												<div class="qa-c-item-clear">
+												</div>
+											</div> <!-- END qa-c-item -->
+											<div class="qa-c-list-item  hentry comment" id="c12750">
+												<div class="qa-c-item-content">
+													<a name="12750"></a><div class="entry-content"><p>Hi Dave,</p>
+
+<p>Did you ever figure that out? Thanks!</p>
+
+<p>Martin</p>
+</div>
+												</div>
+												<div class="qa-c-item-footer">
+													<span class="qa-c-item-avatar-meta">
+														<span class="qa-c-item-avatar">
+															<a href="../../user/Martin+Genet" class="qa-avatar-link"><img src="../../?qa=image&amp;qa_blobid=4996080535152988109&amp;qa_size=20" width="20" height="20" class="qa-avatar-image" alt=""></a>
+														</span>
+														<span class="qa-c-item-meta">
+															<a href="../../8586/hyperelasticity-stress-calculation?show=12750#c12750" class="qa-c-item-what">commented</a>
+															<span class="qa-c-item-when">
+																<span class="qa-c-item-when-data"><span class="published"><span class="value-title" title="2017-03-20T14:53:00+0000"></span>Mar 20, 2017</span></span>
+															</span>
+															<span class="qa-c-item-who">
+																<span class="qa-c-item-who-pad">by </span>
+																<span class="qa-c-item-who-data"><span class="vcard author"><a href="../../user/Martin+Genet" class="qa-user-link url nickname">Martin Genet</a></span></span>
+																<span class="qa-c-item-who-title">FEniCS User</span>
+																<span class="qa-c-item-who-points">
+																	<span class="qa-c-item-who-points-pad">(</span><span class="qa-c-item-who-points-data">1,460</span><span class="qa-c-item-who-points-pad"> points)</span>
+																</span>
+															</span>
+														</span>
+													</span>
+													<div class="qa-c-item-buttons">
+													</div>
+												</div>
+												<div class="qa-c-item-clear">
+												</div>
+											</div> <!-- END qa-c-item -->
+										</div> <!-- END qa-c-list -->
+										
+										<input type="hidden" name="code" value="0-1516468181-82979d4b4e80e2d3ffcb2ff87101d149dae03118">
+										<input type="hidden" name="qa_click" value="">
+									</form>
+									<div class="qa-c-form">
+									</div> <!-- END qa-c-form -->
+									
+								</div> <!-- END qa-q-view-main -->
+								<div class="qa-q-view-clear">
+								</div>
+							</div> <!-- END qa-q-view -->
+							
+						</div>
+						<div class="qa-part-a-list">
+							<h2 id="a_list_title">1 Answer</h2>
+							<div class="qa-a-list" id="a_list">
+								
+								<div class="qa-a-list-item  hentry answer" id="a10435">
+									<form method="post" action="../../8586/hyperelasticity-stress-calculation">
+										<div class="qa-voting qa-voting-net" id="voting_10435">
+											<div class="qa-vote-count qa-vote-count-net">
+												<span class="qa-netvote-count">
+													<span class="qa-netvote-count-data">0<span class="votes-up"><span class="value-title" title="0"></span></span><span class="votes-down"><span class="value-title" title="0"></span></span></span><span class="qa-netvote-count-pad"> votes</span>
+												</span>
+											</div>
+											<div class="qa-vote-clear">
+											</div>
+										</div>
+										<input type="hidden" name="code" value="0-1516468181-ffee5f7483c87d77a8952eee6b3623acde2c9826">
+									</form>
+									<div class="qa-a-item-main">
+										<form method="post" action="../../8586/hyperelasticity-stress-calculation">
+											<div class="qa-a-selection">
+											</div>
+											<div class="qa-a-item-content">
+												<a name="10435"></a><div class="entry-content"><p>Hi!<br>
+You define:</p>
+
+<pre><code>E = (C - I)/2               # Euler-Lagrange strain tensor
+</code></pre>
+
+<p>and </p>
+
+<pre><code>E = 10.0
+</code></pre>
+
+<p>with the same name.<br>
+Could that be the problem?</p>
+</div>
+											</div>
+											<span class="qa-a-item-avatar-meta">
+												<span class="qa-a-item-meta">
+													<a href="../../8586/hyperelasticity-stress-calculation?show=10435#a10435" class="qa-a-item-what">answered</a>
+													<span class="qa-a-item-when">
+														<span class="qa-a-item-when-data"><span class="published"><span class="value-title" title="2016-06-20T07:17:57+0000"></span>Jun 20, 2016</span></span>
+													</span>
+													<span class="qa-a-item-who">
+														<span class="qa-a-item-who-pad">by </span>
+														<span class="qa-a-item-who-data"><span class="vcard author"><a href="../../user/xiyang" class="qa-user-link url nickname">xiyang</a></span></span>
+														<span class="qa-a-item-who-title">FEniCS Novice</span>
+														<span class="qa-a-item-who-points">
+															<span class="qa-a-item-who-points-pad">(</span><span class="qa-a-item-who-points-data">410</span><span class="qa-a-item-who-points-pad"> points)</span>
+														</span>
+													</span>
+												</span>
+											</span>
+											<div class="qa-a-item-buttons">
+												</div>
+											
+											<div class="qa-a-item-c-list" style="display:none;" id="c10435_list">
+											</div> <!-- END qa-c-list -->
+											
+											<input type="hidden" name="code" value="0-1516468181-c099b62f9b4a9c1086e4c3bf1cad4546957e976d">
+											<input type="hidden" name="qa_click" value="">
+										</form>
+										<div class="qa-c-form">
+										</div> <!-- END qa-c-form -->
+										
+									</div> <!-- END qa-a-item-main -->
+									<div class="qa-a-item-clear">
+									</div>
+								</div> <!-- END qa-a-list-item -->
+								
+							</div> <!-- END qa-a-list -->
+							
+						</div>
+					</div> <!-- END qa-main -->
+					
+				</div> <!-- END main-wrapper -->
+			</div> <!-- END main-shadow -->
+		</div> <!-- END body-wrapper -->
+		<!-- END footer-bottom-group -->
+		
+		<div style="position:absolute; left:-9999px; top:-9999px;">
+			<span id="qa-waiting-template" class="qa-waiting">...</span>
+		</div>
+	
+	
+
+</body><!-- Powered by Question2Answer - http://www.question2answer.org/ --></html>

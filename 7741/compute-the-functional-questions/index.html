@@ -1,0 +1,431 @@
+<html><!-- Powered by Question2Answer - http://www.question2answer.org/ --><head>
+		<meta http-equiv="content-type" content="text/html; charset=utf-8">
+		<title>Compute the functional questions - FEniCS Q&amp;A</title>
+		<meta name="description" content="I work on the Poisson equation. I use functionals a=(u-ue)*(u-ue)*dx and a=(u-ue) ... ; double error3=assemble(H1error_form); // print error norm cout">
+		<meta name="keywords" content="assemble,functional">
+		<link rel="stylesheet" type="text/css" href="../../qa-theme/Snow/qa-styles.css">
+		<link rel="canonical" href="http://fenicsproject.org/qa/7741/compute-the-functional-questions">
+		<script type="text/x-mathjax-config">
+  MathJax.Hub.Config({
+    extensions: ["tex2jax.js"],
+    jax: ["input/TeX","output/HTML-CSS"],
+    tex2jax: {inlineMath: [["$","$"],["\\(","\\)"]]},
+    TeX: { extensions: ["AMSmath.js","AMSsymbols.js"]}
+  });
+</script>
+<script type="text/javascript" src="../../mathjax/MathJax.js"></script>
+		<script src="../../jquery-1.7.2.min.js" type="text/javascript"></script>
+		<script src="../../highlight.min.js"></script>
+<script type="text/javascript">
+$(function(){
+	$('.wmd-input').keypress(function(){
+		window.clearTimeout(hljs.Timeout);
+		hljs.Timeout = window.setTimeout(function() {
+			hljs.initHighlighting.called = false;
+			hljs.initHighlighting();
+		}, 500);
+	});
+	window.setTimeout(function() {
+		hljs.initHighlighting.called = false;
+		hljs.initHighlighting();
+	}, 500);
+});
+</script>
+
+
+	</head>
+	<body class="qa-template-question qa-body-js-off">
+		<div class="qa-body-wrapper">
+			
+			<div class="qa-header">
+				<div class="qa-logo">
+					<a href="../../" class="qa-logo-link" title="FEniCS Q&amp;A"><img src="../../qa-theme/fenics_qa.png" border="0" alt="FEniCS Q&amp;A"></a>
+				</div>
+				<div class="qa-header-clear">
+				</div>
+			</div> <!-- END qa-header -->
+			
+			<div class="qa-main-shadow">
+				
+				<div class="qa-main-wrapper">
+					
+					<div class="qa-sidepanel">
+						<div class="qa-sidebar">
+							This is a read only copy of the old FEniCS QA forum. Please visit the <a href="https://www.allanswered.com/community/s/fenics-project/">new QA forum</a> to ask questions
+						</div>
+						
+					</div>
+					
+					<div class="qa-main">
+						<h1>
+							<span class="entry-title">Compute the functional questions</span>
+						</h1>
+						<div class="qa-part-q-view">
+							<div class="qa-q-view  hentry question" id="q7741">
+								<form method="post" action="../../7741/compute-the-functional-questions">
+									<div class="qa-q-view-stats">
+										<div class="qa-voting qa-voting-net" id="voting_7741">
+											<div class="qa-vote-count qa-vote-count-net">
+												<span class="qa-netvote-count">
+													<span class="qa-netvote-count-data">0<span class="votes-up"><span class="value-title" title="0"></span></span><span class="votes-down"><span class="value-title" title="0"></span></span></span><span class="qa-netvote-count-pad"> votes</span>
+												</span>
+											</div>
+											<div class="qa-vote-clear">
+											</div>
+										</div>
+									</div>
+									<input type="hidden" name="code" value="0-1516468135-c98ca074b2752ae1e5dddaeeb1da42788744afb1">
+								</form>
+								<div class="qa-q-view-main">
+									<form method="post" action="../../7741/compute-the-functional-questions">
+										<div class="qa-q-view-content">
+											<a name="7741"></a><div class="entry-content"><p>I work on the Poisson equation. I use functionals  a=(u-ue)<em>(u-ue)</em>dx and a=(u-ue)<em>(u-ue)</em>dx  + inner(grad(u-ue), grad(u-ue))<em>dx (ufl form) to compute the L2 and H1 error.  The situations are:<br>
+when I use P1 element, the error orders are perfect. But when I use P2 or P3 element, the H1 error order are good, the L2 error order degenerates.<br>
+  I compute functional  a=(u-ue)</em>(u-ue)<em>dx and  a=inner(grad(u-ue), grad(u-ue))</em>dx, then add them together. I found the summation does not equal   the value a=(u-ue)<em>(u-ue)</em>dx  + inner(grad(u-ue), grad(u-ue))*dx.<br>
+ This is a troublesome problem!!! Any suggestions are appreciated! Thanks in advance.</p>
+
+<p>code:<br>
+1. main.cpp:</p>
+
+<h2>include &lt;dolfin.h&gt;</h2>
+
+<h2>include "Poisson.h"</h2>
+
+<h2>include "L2error.h"</h2>
+
+<h2>include "H1error.h"</h2>
+
+<h2>include "Grad.h"</h2>
+
+<p>using namespace dolfin;</p>
+
+<p>// Source term (right-hand side)<br>
+class Source : public Expression<br>
+{<br>
+  void eval(Array&amp; values, const Array&amp; x) const<br>
+  {</p>
+
+<pre><code>values[0] = -x[1]*(1-x[1])*(1-x[0]-0.5*x[0]*x[0])*exp(x[0]+x[1])-x[0]*(1-0.5*x[0])*(-3*x[1]-x[1]*x[1])*exp(x[0]+x[1]);
+</code></pre>
+
+<p>}<br>
+};</p>
+
+<p>// Sub domain for Dirichlet boundary condition<br>
+class DirichletBoundary : public SubDomain<br>
+{<br>
+  bool inside(const Array&amp; x, bool on_boundary) const<br>
+  {<br>
+    return on_boundary;<br>
+  }<br>
+};</p>
+
+<p>// Exact solution <br>
+class ExactSolution : public Expression<br>
+{<br>
+  void eval(Array&amp; values, const Array&amp; x) const<br>
+  {<br>
+    values[0] = x[0]<em>x[1]</em>(1-x[0]/2)<em>(1-x[1])</em>exp(x[0]+x[1]);<br>
+  }<br>
+};</p>
+
+<p>int main()<br>
+{<br>
+  // Create mesh and function space<br>
+  int n=64;<br>
+  UnitSquareMesh mesh(n, n);<br>
+  Poisson::FunctionSpace V(mesh);</p>
+
+<p>// Define boundary condition<br>
+  ExactSolution u0;<br>
+  DirichletBoundary boundary;<br>
+  DirichletBC bc(V, u0, boundary);</p>
+
+<p>// Define variational forms<br>
+  Poisson::BilinearForm a(V, V);<br>
+  Poisson::LinearForm L(V);</p>
+
+<p>Source f;<br>
+  L.f = f;</p>
+
+<p>// Compute solution<br>
+  Function u(V);<br>
+  solve(a == L, u, bc);</p>
+
+<p>ExactSolution ue;</p>
+
+<p>// Compute L2 error<br>
+  L2error:: Functional L2error_form (mesh);<br>
+  L2error_form.ComputedSolution=u;<br>
+  L2error_form.ExactSolution=ue;<br>
+  double MyL2error = sqrt(assemble(L2error_form));<br>
+  double error1 = assemble(L2error_form);</p>
+
+<p>// Compute Grad energy<br>
+  Grad:: Functional Grad_form (mesh);<br>
+  Grad_form.ComputedSolution=u;<br>
+  Grad_form.ExactSolution=ue;<br>
+  double error2=assemble(Grad_form);  </p>
+
+<p>// Compute H1 error<br>
+  H1error:: Functional H1error_form (mesh);<br>
+  H1error_form.ComputedSolution=u;<br>
+  H1error_form.ExactSolution=ue;<br>
+  double MyH1error=sqrt(assemble(H1error_form));<br>
+  double error3=assemble(H1error_form);</p>
+
+<p>// print  error norm<br>
+  cout&lt;&lt;"L2 error =" &lt;&lt;MyL2error&lt;&lt;endl; <br>
+ cout&lt;&lt;"H1 error =" &lt;&lt;MyH1error&lt;&lt;endl;  <br>
+ cout &lt;&lt;error1+error2&lt;&lt;endl; <br>
+  cout&lt;&lt;error3&lt;&lt;endl;</p>
+
+<p>return 0;<br>
+}</p>
+
+<p>Poisson.ufl</p>
+
+<p>element = FiniteElement("Lagrange", triangle, 2)</p>
+
+<p>u = TrialFunction(element)<br>
+v = TestFunction(element)<br>
+f = Coefficient(element)<br>
+g = Coefficient(element)</p>
+
+<p>a = inner(grad(u), grad(v))<em>dx<br>
+L = f</em>v*dx </p>
+
+<p>Grad.ufl :</p>
+
+<p>order = 4<br>
+element0 = FiniteElement("Lagrange", triangle,order)<br>
+element1 = FiniteElement("Lagrange", triangle,order+2)</p>
+
+<p>ComputedSolution = Coefficient(element0)<br>
+ExactSolution = Coefficient(element1)</p>
+
+<p>a= inner(grad(ComputedSolution-ExactSolution), grad(ComputedSolution-ExactSolution))*dx</p>
+
+<p>H1error.ufl:</p>
+
+<p>order = 4<br>
+element0 = FiniteElement("Lagrange", triangle,order)<br>
+element1 = FiniteElement("Lagrange", triangle,order+2)</p>
+
+<p>ComputedSolution = Coefficient(element0)<br>
+ExactSolution = Coefficient(element1)</p>
+
+<p>a=(ComputedSolution-ExactSolution)<em>(ComputedSolution-ExactSolution)</em>dx  + inner(grad(ComputedSolution-ExactSolution), grad(ComputedSolution-ExactSolution))*dx</p>
+
+<p>L2error.ufl:<br>
+order = 4<br>
+element0 = FiniteElement("Lagrange", triangle,order)<br>
+element1 = FiniteElement("Lagrange", triangle,order+2)</p>
+
+<p>ComputedSolution = Coefficient(element0)<br>
+ExactSolution = Coefficient(element1)</p>
+
+<p>a=(ComputedSolution-ExactSolution)<em>(ComputedSolution-ExactSolution)</em>dx</p>
+
+<p>The above is my complete code. Thank you for help.</p>
+</div>
+										</div>
+										<div class="qa-q-view-tags">
+											<ul class="qa-q-view-tag-list">
+												<li class="qa-q-view-tag-item"><a href="../../tag/assemble" rel="tag" class="qa-tag-link">assemble</a></li>
+												<li class="qa-q-view-tag-item"><a href="../../tag/functional" rel="tag" class="qa-tag-link">functional</a></li>
+											</ul>
+										</div>
+										<span class="qa-q-view-avatar-meta">
+											<span class="qa-q-view-meta">
+												<a href="../../7741/compute-the-functional-questions" class="qa-q-view-what">asked</a>
+												<span class="qa-q-view-when">
+													<span class="qa-q-view-when-data"><span class="published"><span class="value-title" title="2015-08-02T15:41:19+0000"></span>Aug 2, 2015</span></span>
+												</span>
+												<span class="qa-q-view-who">
+													<span class="qa-q-view-who-pad">by </span>
+													<span class="qa-q-view-who-data"><span class="vcard author"><a href="../../user/Guodong+Zhang" class="qa-user-link url nickname">Guodong Zhang</a></span></span>
+													<span class="qa-q-view-who-title">FEniCS Novice</span>
+													<span class="qa-q-view-who-points">
+														<span class="qa-q-view-who-points-pad">(</span><span class="qa-q-view-who-points-data">420</span><span class="qa-q-view-who-points-pad"> points)</span>
+													</span>
+												</span>
+												<br>
+												<span class="qa-q-view-what">edited</span>
+												<span class="qa-q-view-when">
+													<span class="qa-q-view-when-data"><span class="updated"><span class="value-title" title="2015-08-06T02:41:26+0000"></span>Aug 6, 2015</span></span>
+												</span>
+												<span class="qa-q-view-who">
+													<span class="qa-q-view-who-pad">by </span><span class="qa-q-view-who-data"><a href="../../user/Guodong+Zhang" class="qa-user-link url nickname">Guodong Zhang</a></span>
+												</span>
+											</span>
+										</span>
+										<div class="qa-q-view-buttons">
+										</div>
+										
+										<div class="qa-q-view-c-list" style="display:none;" id="c7741_list">
+										</div> <!-- END qa-c-list -->
+										
+										<input type="hidden" name="code" value="0-1516468135-b1a4f39ad721415a8d214a6994a2f06a8b23f6b9">
+										<input type="hidden" name="qa_click" value="">
+									</form>
+									<div class="qa-c-form">
+									</div> <!-- END qa-c-form -->
+									
+								</div> <!-- END qa-q-view-main -->
+								<div class="qa-q-view-clear">
+								</div>
+							</div> <!-- END qa-q-view -->
+							
+						</div>
+						<div class="qa-part-a-list">
+							<h2 id="a_list_title">1 Answer</h2>
+							<div class="qa-a-list" id="a_list">
+								
+								<div class="qa-a-list-item  hentry answer" id="a7760">
+									<form method="post" action="../../7741/compute-the-functional-questions">
+										<div class="qa-voting qa-voting-net" id="voting_7760">
+											<div class="qa-vote-count qa-vote-count-net">
+												<span class="qa-netvote-count">
+													<span class="qa-netvote-count-data">0<span class="votes-up"><span class="value-title" title="0"></span></span><span class="votes-down"><span class="value-title" title="0"></span></span></span><span class="qa-netvote-count-pad"> votes</span>
+												</span>
+											</div>
+											<div class="qa-vote-clear">
+											</div>
+										</div>
+										<input type="hidden" name="code" value="0-1516468135-c98ca074b2752ae1e5dddaeeb1da42788744afb1">
+									</form>
+									<div class="qa-a-item-main">
+										<form method="post" action="../../7741/compute-the-functional-questions">
+											<div class="qa-a-selection">
+											</div>
+											<div class="qa-a-item-content">
+												<a name="7760"></a><div class="entry-content"><p>Hello,</p>
+
+<p>is it possible for you to post your code? It is very hard to help without looking at the code.<br>
+what, for example, is ue? Is it a <code>Function</code>, an <code>Expression</code>....?</p>
+
+<p>Also, what command do you use to compute the error norm from the form?</p>
+
+<p>But as I said, anything without looking at your code I can't even make educated guesses about your problem...</p>
+
+<p>best regards</p>
+</div>
+											</div>
+											<span class="qa-a-item-avatar-meta">
+												<span class="qa-a-item-meta">
+													<a href="../../7741/compute-the-functional-questions?show=7760#a7760" class="qa-a-item-what">answered</a>
+													<span class="qa-a-item-when">
+														<span class="qa-a-item-when-data"><span class="published"><span class="value-title" title="2015-08-04T21:08:44+0000"></span>Aug 4, 2015</span></span>
+													</span>
+													<span class="qa-a-item-who">
+														<span class="qa-a-item-who-pad">by </span>
+														<span class="qa-a-item-who-data"><span class="vcard author"><a href="../../user/multigrid202" class="qa-user-link url nickname">multigrid202</a></span></span>
+														<span class="qa-a-item-who-title">FEniCS User</span>
+														<span class="qa-a-item-who-points">
+															<span class="qa-a-item-who-points-pad">(</span><span class="qa-a-item-who-points-data">3,780</span><span class="qa-a-item-who-points-pad"> points)</span>
+														</span>
+													</span>
+												</span>
+											</span>
+											<div class="qa-a-item-buttons">
+												</div>
+											
+											<div class="qa-a-item-c-list" id="c7760_list">
+												<div class="qa-c-list-item  hentry comment" id="c7775">
+													<div class="qa-c-item-content">
+														<a name="7775"></a><div class="entry-content"><p>I had pasted  my code. Thank you for help!</p>
+</div>
+													</div>
+													<div class="qa-c-item-footer">
+														<span class="qa-c-item-avatar-meta">
+															<span class="qa-c-item-meta">
+																<a href="../../7741/compute-the-functional-questions?show=7775#c7775" class="qa-c-item-what">commented</a>
+																<span class="qa-c-item-when">
+																	<span class="qa-c-item-when-data"><span class="published"><span class="value-title" title="2015-08-06T02:44:09+0000"></span>Aug 6, 2015</span></span>
+																</span>
+																<span class="qa-c-item-who">
+																	<span class="qa-c-item-who-pad">by </span>
+																	<span class="qa-c-item-who-data"><span class="vcard author"><a href="../../user/Guodong+Zhang" class="qa-user-link url nickname">Guodong Zhang</a></span></span>
+																	<span class="qa-c-item-who-title">FEniCS Novice</span>
+																	<span class="qa-c-item-who-points">
+																		<span class="qa-c-item-who-points-pad">(</span><span class="qa-c-item-who-points-data">420</span><span class="qa-c-item-who-points-pad"> points)</span>
+																	</span>
+																</span>
+															</span>
+														</span>
+														<div class="qa-c-item-buttons">
+														</div>
+													</div>
+													<div class="qa-c-item-clear">
+													</div>
+												</div> <!-- END qa-c-item -->
+												<div class="qa-c-list-item  hentry comment" id="c7780">
+													<div class="qa-c-item-content">
+														<a name="7780"></a><div class="entry-content"><p>Oh sorry I am not familiar with the c++ interface.... but the code will probably help others in understanding.</p>
+
+<p>Btw, If you want the code to look "nicer" in the forum, you can just indent every line of code by 4 spaces.</p>
+
+<p>I can only make some suggestions:</p>
+
+<ul>
+<li>Have you tried increasing the integration order?</li>
+<li>according to the docs (<a rel="nofollow" href="http://fenicsproject.org/documentation/dolfin/dev/python/programmers-reference/fem/norms/errornorm.html)">http://fenicsproject.org/documentation/dolfin/dev/python/programmers-reference/fem/norms/errornorm.html)</a> you should use builtin functions to compute error norms because using your own functions is not stable w.r.t. roundoff errors. The link refers to the python interface but there is probably something similar for c++. </li>
+</ul>
+
+<p>regards</p>
+</div>
+													</div>
+													<div class="qa-c-item-footer">
+														<span class="qa-c-item-avatar-meta">
+															<span class="qa-c-item-meta">
+																<a href="../../7741/compute-the-functional-questions?show=7780#c7780" class="qa-c-item-what">commented</a>
+																<span class="qa-c-item-when">
+																	<span class="qa-c-item-when-data"><span class="published"><span class="value-title" title="2015-08-06T14:38:38+0000"></span>Aug 6, 2015</span></span>
+																</span>
+																<span class="qa-c-item-who">
+																	<span class="qa-c-item-who-pad">by </span>
+																	<span class="qa-c-item-who-data"><span class="vcard author"><a href="../../user/multigrid202" class="qa-user-link url nickname">multigrid202</a></span></span>
+																	<span class="qa-c-item-who-title">FEniCS User</span>
+																	<span class="qa-c-item-who-points">
+																		<span class="qa-c-item-who-points-pad">(</span><span class="qa-c-item-who-points-data">3,780</span><span class="qa-c-item-who-points-pad"> points)</span>
+																	</span>
+																</span>
+															</span>
+														</span>
+														<div class="qa-c-item-buttons">
+														</div>
+													</div>
+													<div class="qa-c-item-clear">
+													</div>
+												</div> <!-- END qa-c-item -->
+											</div> <!-- END qa-c-list -->
+											
+											<input type="hidden" name="code" value="0-1516468135-63101c0c7072aacff6e2038f940573b21b90511c">
+											<input type="hidden" name="qa_click" value="">
+										</form>
+										<div class="qa-c-form">
+										</div> <!-- END qa-c-form -->
+										
+									</div> <!-- END qa-a-item-main -->
+									<div class="qa-a-item-clear">
+									</div>
+								</div> <!-- END qa-a-list-item -->
+								
+							</div> <!-- END qa-a-list -->
+							
+						</div>
+					</div> <!-- END qa-main -->
+					
+				</div> <!-- END main-wrapper -->
+			</div> <!-- END main-shadow -->
+		</div> <!-- END body-wrapper -->
+		<!-- END footer-bottom-group -->
+		
+		<div style="position:absolute; left:-9999px; top:-9999px;">
+			<span id="qa-waiting-template" class="qa-waiting">...</span>
+		</div>
+	
+	
+
+</body><!-- Powered by Question2Answer - http://www.question2answer.org/ --></html>

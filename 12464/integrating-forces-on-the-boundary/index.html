@@ -1,0 +1,548 @@
+<html><!-- Powered by Question2Answer - http://www.question2answer.org/ --><head>
+		<meta http-equiv="content-type" content="text/html; charset=utf-8">
+		<title>Integrating forces on the boundary - FEniCS Q&amp;A</title>
+		<meta name="description" content="I am trying to integrate the traction forces on the boundary of a domain in a simple elasticity problem ...  Can anyone tell me what I am doing wrong?">
+		<meta name="keywords" content="boundary,stress,traction,boundary-conditions,integration">
+		<link rel="stylesheet" type="text/css" href="../../qa-theme/Snow/qa-styles.css">
+		<link rel="canonical" href="http://fenicsproject.org/qa/12464/integrating-forces-on-the-boundary">
+		<script type="text/x-mathjax-config">
+  MathJax.Hub.Config({
+    extensions: ["tex2jax.js"],
+    jax: ["input/TeX","output/HTML-CSS"],
+    tex2jax: {inlineMath: [["$","$"],["\\(","\\)"]]},
+    TeX: { extensions: ["AMSmath.js","AMSsymbols.js"]}
+  });
+</script>
+<script type="text/javascript" src="../../mathjax/MathJax.js"></script>
+		<script src="../../jquery-1.7.2.min.js" type="text/javascript"></script>
+		<script src="../../highlight.min.js"></script>
+<script type="text/javascript">
+$(function(){
+	$('.wmd-input').keypress(function(){
+		window.clearTimeout(hljs.Timeout);
+		hljs.Timeout = window.setTimeout(function() {
+			hljs.initHighlighting.called = false;
+			hljs.initHighlighting();
+		}, 500);
+	});
+	window.setTimeout(function() {
+		hljs.initHighlighting.called = false;
+		hljs.initHighlighting();
+	}, 500);
+});
+</script>
+
+
+	</head>
+	<body class="qa-template-question qa-body-js-off">
+		<div class="qa-body-wrapper">
+			
+			<div class="qa-header">
+				<div class="qa-logo">
+					<a href="../../" class="qa-logo-link" title="FEniCS Q&amp;A"><img src="../../qa-theme/fenics_qa.png" border="0" alt="FEniCS Q&amp;A"></a>
+				</div>
+				<div class="qa-header-clear">
+				</div>
+			</div> <!-- END qa-header -->
+			
+			<div class="qa-main-shadow">
+				
+				<div class="qa-main-wrapper">
+					
+					<div class="qa-sidepanel">
+						<div class="qa-sidebar">
+							This is a read only copy of the old FEniCS QA forum. Please visit the <a href="https://www.allanswered.com/community/s/fenics-project/">new QA forum</a> to ask questions
+						</div>
+						
+					</div>
+					
+					<div class="qa-main">
+						<h1>
+							<span class="entry-title">Integrating forces on the boundary</span>
+						</h1>
+						<div class="qa-part-q-view">
+							<div class="qa-q-view  hentry question" id="q12464">
+								<form method="post" action="../../12464/integrating-forces-on-the-boundary">
+									<div class="qa-q-view-stats">
+										<div class="qa-voting qa-voting-net" id="voting_12464">
+											<div class="qa-vote-count qa-vote-count-net">
+												<span class="qa-netvote-count">
+													<span class="qa-netvote-count-data">+2<span class="votes-up"><span class="value-title" title="2"></span></span><span class="votes-down"><span class="value-title" title="0"></span></span></span><span class="qa-netvote-count-pad"> votes</span>
+												</span>
+											</div>
+											<div class="qa-vote-clear">
+											</div>
+										</div>
+									</div>
+									<input type="hidden" name="code" value="0-1516467824-f01744701721e612d94d8de4f99a8fbdd11e79b0">
+								</form>
+								<div class="qa-q-view-main">
+									<form method="post" action="../../12464/integrating-forces-on-the-boundary">
+										<div class="qa-q-view-content">
+											<a name="12464"></a><div class="entry-content"><p>I am trying to integrate the traction forces on the boundary of a domain in a simple elasticity problem. My aim is to calculate total reaction forces on the Dirichlet boundary. The setting is so:</p>
+
+<p>A domain the shape of a unit square is clamped on its left end, and is subjected to a traction force (1,1) on its right end.</p>
+
+<p>I want to integrate the tractions on both the left and right boundaries and for the x and y directions. To this end, I prepared the following forms for x and y directions</p>
+
+<p>$$F_x = \int_{\partial \Omega'} \delta u (\boldsymbol{\sigma}\mathbf{n})\cdot\mathbf{e}_x\;\mathrm{d}A$$<br>
+$$F_y = \int_{\partial \Omega'} \delta u (\boldsymbol{\sigma}\mathbf{n})\cdot\mathbf{e}_y\;\mathrm{d}A$$</p>
+
+<p>where $\partial\Omega'\subset\partial\Omega$ is the part of the boundary that I want to integrate on, $\delta u$ is a scalar test function, $\mathbf{n}$ is the normal to the surface, $\mathbf{e}_x=(1,0)$ and $\mathbf{e}_y=(0,1)$ are the basis vectors for the x and y directions, and $\mathrm{d}A$ is the area of the boundary (edge length in 2D).</p>
+
+<p>I have modified a linear elasticity problem to do these calculations:</p>
+
+<pre><code>from dolfin import *
+
+mesh = UnitSquareMesh(32, 32)
+V = VectorFunctionSpace(mesh, "Lagrange", 1)
+
+# Sub domain for clamp at left end
+def left(x, on_boundary):
+    return x[0] &lt; DOLFIN_EPS and on_boundary
+
+# Sub domain for force at right end
+def right(x, on_boundary):
+    return x[0] &gt; 1 - DOLFIN_EPS and on_boundary
+
+# Material parameters
+kappa = 1.0
+mu = 1.0
+
+Du = TrialFunction(V)
+du = TestFunction(V)
+u  = Function(V)
+
+# The force on the right boundary
+f  = Constant((1.0, 1.0))
+
+ex  = Constant((1.0, 0.0))
+ey  = Constant((0.0, 1.0))
+
+I = Identity(len(u))
+
+n = FacetNormal(mesh)
+
+# Create mesh function over the cell facets
+boundary_subdomains = MeshFunction("size_t", mesh, mesh.topology().dim() - 1)
+boundary_subdomains.set_all(0)
+AutoSubDomain(left).mark(boundary_subdomains, 1)
+AutoSubDomain(right).mark(boundary_subdomains, 2)
+
+dss = ds(subdomain_data=boundary_subdomains)
+
+zero = Constant((0.0, 0.0))
+dirichlet_val = Constant((1.0, 0.0))
+bcs = DirichletBC(V, zero, left)
+
+eps = sym(grad(u))
+deps = sym(grad(du))
+
+sigma = kappa * tr(eps) * I + 2 * mu * dev(eps)
+
+F = inner(deps, sigma) * dx - inner(f, du) * dss(2)
+J = derivative(F, u, Du)
+
+solve(F == 0, u, bcs, J=J)
+
+# Integrate the forces
+scalar_space = FunctionSpace(mesh, "CG", 1)
+normal_stresses = Function(scalar_space)
+test_function = TestFunction(scalar_space)
+
+fx_left = test_function * dot(dot(sigma, n), ex) * dss(1)
+fx_right = test_function * dot(dot(sigma, n), ex) * dss(2)
+
+fy_left = test_function * dot(dot(sigma, n), ey) * dss(1)
+fy_right = test_function * dot(dot(sigma, n), ey) * dss(2)
+
+traction_x_left = assemble(fx_left)
+traction_x_right = assemble(fx_right)
+
+traction_y_left = assemble(fy_left)
+traction_y_right = assemble(fy_right)
+
+total_force_x_left = traction_x_left.sum()
+total_force_x_right = traction_x_right.sum()
+
+total_force_y_left = traction_y_left.sum()
+total_force_y_right = traction_y_right.sum()
+
+print("%f ?= 0"%(total_force_x_left + total_force_x_right))
+print("%f ?= 0"%(total_force_y_left + total_force_y_right))
+</code></pre>
+
+<p>The last two lines test whether $(F_x)_\text{left} + (F_x)_\text{right} = 0$ and $(F_y)_\text{left} + (F_y)_\text{right} = 0$, which should be satisfied for the balance of momentum. However, I get the following output:</p>
+
+<pre><code>0.251940 ?= 0
+-0.124432 ?= 0
+</code></pre>
+
+<p>The solution should be  $(F_x)_\text{left} = -1$, $(F_y)_\text{left} = -1$,  $(F_x)_\text{right} = 1$ and $(F_y)_\text{right} = 1$, but it's not for some reason, and it can't seem to satisfy the balance equation. Can anyone tell me what I am doing wrong?</p>
+</div>
+										</div>
+										<div class="qa-q-view-tags">
+											<ul class="qa-q-view-tag-list">
+												<li class="qa-q-view-tag-item"><a href="../../tag/boundary" rel="tag" class="qa-tag-link">boundary</a></li>
+												<li class="qa-q-view-tag-item"><a href="../../tag/stress" rel="tag" class="qa-tag-link">stress</a></li>
+												<li class="qa-q-view-tag-item"><a href="../../tag/traction" rel="tag" class="qa-tag-link">traction</a></li>
+												<li class="qa-q-view-tag-item"><a href="../../tag/boundary-conditions" rel="tag" class="qa-tag-link">boundary-conditions</a></li>
+												<li class="qa-q-view-tag-item"><a href="../../tag/integration" rel="tag" class="qa-tag-link">integration</a></li>
+											</ul>
+										</div>
+										<span class="qa-q-view-avatar-meta">
+											<span class="qa-q-view-meta">
+												<a href="../../12464/integrating-forces-on-the-boundary" class="qa-q-view-what">asked</a>
+												<span class="qa-q-view-when">
+													<span class="qa-q-view-when-data"><span class="published"><span class="value-title" title="2017-02-20T21:02:10+0000"></span>Feb 20, 2017</span></span>
+												</span>
+												<span class="qa-q-view-who">
+													<span class="qa-q-view-who-pad">by </span>
+													<span class="qa-q-view-who-data"><span class="vcard author"><a href="../../user/hosolmaz" class="qa-user-link url nickname">hosolmaz</a></span></span>
+													<span class="qa-q-view-who-title">FEniCS User</span>
+													<span class="qa-q-view-who-points">
+														<span class="qa-q-view-who-points-pad">(</span><span class="qa-q-view-who-points-data">1,510</span><span class="qa-q-view-who-points-pad"> points)</span>
+													</span>
+												</span>
+												<br>
+												<span class="qa-q-view-what">edited</span>
+												<span class="qa-q-view-when">
+													<span class="qa-q-view-when-data"><span class="updated"><span class="value-title" title="2017-02-20T21:10:38+0000"></span>Feb 20, 2017</span></span>
+												</span>
+												<span class="qa-q-view-who">
+													<span class="qa-q-view-who-pad">by </span><span class="qa-q-view-who-data"><a href="../../user/hosolmaz" class="qa-user-link url nickname">hosolmaz</a></span>
+												</span>
+											</span>
+										</span>
+										<div class="qa-q-view-buttons">
+										</div>
+										
+										<div class="qa-q-view-c-list" id="c12464_list">
+											<div class="qa-c-list-item  hentry comment" id="c12506">
+												<div class="qa-c-item-content">
+													<a name="12506"></a><div class="entry-content"><p>I figured this out so you don't need to try to answer. It will take me some time to post the answer though.</p>
+</div>
+												</div>
+												<div class="qa-c-item-footer">
+													<span class="qa-c-item-avatar-meta">
+														<span class="qa-c-item-meta">
+															<a href="../../12464/integrating-forces-on-the-boundary?show=12506#c12506" class="qa-c-item-what">commented</a>
+															<span class="qa-c-item-when">
+																<span class="qa-c-item-when-data"><span class="published"><span class="value-title" title="2017-02-23T16:12:26+0000"></span>Feb 23, 2017</span></span>
+															</span>
+															<span class="qa-c-item-who">
+																<span class="qa-c-item-who-pad">by </span>
+																<span class="qa-c-item-who-data"><span class="vcard author"><a href="../../user/hosolmaz" class="qa-user-link url nickname">hosolmaz</a></span></span>
+																<span class="qa-c-item-who-title">FEniCS User</span>
+																<span class="qa-c-item-who-points">
+																	<span class="qa-c-item-who-points-pad">(</span><span class="qa-c-item-who-points-data">1,510</span><span class="qa-c-item-who-points-pad"> points)</span>
+																</span>
+															</span>
+														</span>
+													</span>
+													<div class="qa-c-item-buttons">
+													</div>
+												</div>
+												<div class="qa-c-item-clear">
+												</div>
+											</div> <!-- END qa-c-item -->
+											<div class="qa-c-list-item  hentry comment" id="c12638">
+												<div class="qa-c-item-content">
+													<a name="12638"></a><div class="entry-content"><p>Hello,<br>
+I looked at your example and I a very interesting by the solution you find.<br>
+I have the same problem.<br>
+Thanks</p>
+</div>
+												</div>
+												<div class="qa-c-item-footer">
+													<span class="qa-c-item-avatar-meta">
+														<span class="qa-c-item-meta">
+															<a href="../../12464/integrating-forces-on-the-boundary?show=12638#c12638" class="qa-c-item-what">commented</a>
+															<span class="qa-c-item-when">
+																<span class="qa-c-item-when-data"><span class="published"><span class="value-title" title="2017-03-07T21:57:47+0000"></span>Mar 7, 2017</span></span>
+															</span>
+															<span class="qa-c-item-who">
+																<span class="qa-c-item-who-pad">by </span>
+																<span class="qa-c-item-who-data"><span class="vcard author"><a href="../../user/stephanepa" class="qa-user-link url nickname">stephanepa</a></span></span>
+																<span class="qa-c-item-who-title">FEniCS Novice</span>
+																<span class="qa-c-item-who-points">
+																	<span class="qa-c-item-who-points-pad">(</span><span class="qa-c-item-who-points-data">350</span><span class="qa-c-item-who-points-pad"> points)</span>
+																</span>
+															</span>
+														</span>
+													</span>
+													<div class="qa-c-item-buttons">
+													</div>
+												</div>
+												<div class="qa-c-item-clear">
+												</div>
+											</div> <!-- END qa-c-item -->
+										</div> <!-- END qa-c-list -->
+										
+										<input type="hidden" name="code" value="0-1516467824-175d5e251e5bd0217836656a03e17500b22b2497">
+										<input type="hidden" name="qa_click" value="">
+									</form>
+									<div class="qa-c-form">
+									</div> <!-- END qa-c-form -->
+									
+								</div> <!-- END qa-q-view-main -->
+								<div class="qa-q-view-clear">
+								</div>
+							</div> <!-- END qa-q-view -->
+							
+						</div>
+						<div class="qa-part-a-list">
+							<h2 id="a_list_title">2 Answers</h2>
+							<div class="qa-a-list" id="a_list">
+								
+								<div class="qa-a-list-item  hentry answer answer-selected qa-a-list-item-selected" id="a12655">
+									<form method="post" action="../../12464/integrating-forces-on-the-boundary">
+										<div class="qa-voting qa-voting-net" id="voting_12655">
+											<div class="qa-vote-count qa-vote-count-net">
+												<span class="qa-netvote-count">
+													<span class="qa-netvote-count-data">0<span class="votes-up"><span class="value-title" title="0"></span></span><span class="votes-down"><span class="value-title" title="0"></span></span></span><span class="qa-netvote-count-pad"> votes</span>
+												</span>
+											</div>
+											<div class="qa-vote-clear">
+											</div>
+										</div>
+										<input type="hidden" name="code" value="0-1516467824-f01744701721e612d94d8de4f99a8fbdd11e79b0">
+									</form>
+									<div class="qa-a-item-main">
+										<form method="post" action="../../12464/integrating-forces-on-the-boundary">
+											<div class="qa-a-item-selected">
+												<div class="qa-a-selection">
+													<div class="qa-a-selected">&#160;</div>
+													<div class="qa-a-selected-text">Best answer</div>
+												</div>
+												<div class="qa-a-item-content">
+													<a name="12655"></a><div class="entry-content"><p>In the meantime, I figured out the solution to my problem.</p>
+
+<p>What I suggested in the question was that <em>differentially</em>, the following equality must hold</p>
+
+<p>$$<br>
+\int_{\partial \Omega^t} \delta \mathbf{u} \cdot (\boldsymbol{\sigma}\mathbf{n})\;\mathrm{d}A<br>
+= \int_{\partial \Omega^t} \delta \mathbf{u} \cdot \boldsymbol{\gamma}_\text{known} \;\mathrm{d}A<br>
+\tag{1}<br>
+$$</p>
+
+<p>where $\boldsymbol{\gamma}_\text{known}$ is the traction on $\partial\Omega^t$, incorporated as a Neumann boundary condition.</p>
+
+<p>However, this does not work very well when you are working with <em>finite elements</em>. The reason is that when you solve the problem</p>
+
+<p>$$<br>
+\int_{\Omega} \delta \boldsymbol{\varepsilon}:\boldsymbol{\sigma}\;\mathrm{d}V<br>
+- \int_{\partial \Omega^{t}} \delta \mathbf{u} \cdot \boldsymbol{\gamma}_\text{known} \;\mathrm{d}A = 0<br>
+\tag{2}<br>
+$$</p>
+
+<p>you obtain the solution vector $\mathbf{u}$ that satisfies (1).</p>
+
+<p>The fact that the weak solution $\mathbf{u}$ satisfies (2) does not imply it will also satisfy (1), because the solution is a discretized one, and solving (1) would require</p>
+
+<ol>
+<li>the solution (2) for $\mathbf{u}$ by projecting it to the Gauss integration points,</li>
+<li>and re-projection of the stresses (evaluated at the nodes), back to the Gauss points.</li>
+</ol>
+
+<p>The projections are where this error is introduced, which causes the slight difference from the expected result.</p>
+
+<p>If we desire that our integrated value and given traction match, we need not look at any expression other than (2), just because (2) is the only equality that our discretized solution $\mathbf{u}$ satisfies. Since $\partial\Omega = \partial\Omega^t \cup \partial\Omega^u$, and (2) is satisfied for the given traction $\boldsymbol{\gamma}_\text{known}$, we must subtract the vectors assembled for (2) to obtain the unknown forces, i.e.</p>
+
+<p>$$<br>
+F_\text{external, unknown} = F_\text{internal} - F_\text{external, known},.<br>
+$$</p>
+
+<p>Then, we can use the degree of freedom map to sum the forces in the horizontal and vertical directions respectively. Here is a code that works for this problem</p>
+
+<pre><code>from dolfin import *
+mesh = UnitSquareMesh(32, 32)
+
+V = VectorFunctionSpace(mesh, "Lagrange", 1)
+
+# Sub domain for clamp at left end
+def left(x, on_boundary):
+    return x[0] &lt; DOLFIN_EPS and on_boundary
+
+# Sub domain for rotation at right end
+def right(x, on_boundary):
+    return x[0] &gt; 1 - DOLFIN_EPS and on_boundary
+
+# Material parameters
+kappa = 1.0
+mu = 1.0
+
+Du = TrialFunction(V)
+du = TestFunction(V)
+u  = Function(V)
+
+# The force on the right boundary
+f  = Constant((1.0, 1.0))
+
+I = Identity(len(u))
+
+n = FacetNormal(mesh)
+
+# Create mesh function over the cell facets
+boundary_subdomains = MeshFunction("size_t", mesh, mesh.topology().dim() - 1)
+boundary_subdomains.set_all(0)
+AutoSubDomain(left).mark(boundary_subdomains, 1)
+AutoSubDomain(right).mark(boundary_subdomains, 2)
+
+dss = ds(subdomain_data=boundary_subdomains)
+
+zero = Constant((0.0, 0.0))
+bcs = DirichletBC(V, zero, left)
+
+eps = sym(grad(u))
+deps = sym(grad(du))
+
+sigma = kappa * tr(eps) * I + 2 * mu * dev(eps)
+
+f_int = inner(deps, sigma) * dx
+f_ext = inner(f, du) * dss(2)
+
+F = f_int - f_ext
+J = derivative(F, u, Du)
+
+solve(F == 0, u, bcs, J=J)
+
+f_ext_known = assemble(f_ext)
+f_ext_unknown = assemble(f_int) - f_ext_known
+
+x_dofs = V.sub(0).dofmap().dofs()
+y_dofs = V.sub(1).dofmap().dofs()
+
+Fx = 0
+for i in x_dofs:
+    Fx += f_ext_unknown[i]
+
+Fy = 0
+for i in y_dofs:
+    Fy += f_ext_unknown[i]
+
+# The following must be equal to -1 * f
+print("Horizontal reaction force: %f"%(Fx))
+print("Vertical reaction force: %f"%(Fy))
+</code></pre>
+
+<p>Note that if you a displacement controlled problem, namely only Dirichlet boundary conditions and no Neumann boundary conditions, you should use a different approach since you do not have an external force term in the problem.</p>
+</div>
+												</div>
+												<span class="qa-a-item-avatar-meta">
+													<span class="qa-a-item-meta">
+														<a href="../../12464/integrating-forces-on-the-boundary?show=12655#a12655" class="qa-a-item-what">answered</a>
+														<span class="qa-a-item-when">
+															<span class="qa-a-item-when-data"><span class="published"><span class="value-title" title="2017-03-09T12:10:47+0000"></span>Mar 9, 2017</span></span>
+														</span>
+														<span class="qa-a-item-who">
+															<span class="qa-a-item-who-pad">by </span>
+															<span class="qa-a-item-who-data"><span class="vcard author"><a href="../../user/hosolmaz" class="qa-user-link url nickname">hosolmaz</a></span></span>
+															<span class="qa-a-item-who-title">FEniCS User</span>
+															<span class="qa-a-item-who-points">
+																<span class="qa-a-item-who-points-pad">(</span><span class="qa-a-item-who-points-data">1,510</span><span class="qa-a-item-who-points-pad"> points)</span>
+															</span>
+														</span>
+													</span>
+												</span>
+											</div>
+											<div class="qa-a-item-buttons">
+												</div>
+											
+											<div class="qa-a-item-c-list" style="display:none;" id="c12655_list">
+											</div> <!-- END qa-c-list -->
+											
+											<input type="hidden" name="code" value="0-1516467824-e58ad74e5a1fb3a43317da17c581afb023545bc6">
+											<input type="hidden" name="qa_click" value="">
+										</form>
+										<div class="qa-c-form">
+										</div> <!-- END qa-c-form -->
+										
+									</div> <!-- END qa-a-item-main -->
+									<div class="qa-a-item-clear">
+									</div>
+								</div> <!-- END qa-a-list-item -->
+								
+								<div class="qa-a-list-item  hentry answer" id="a12551">
+									<form method="post" action="../../12464/integrating-forces-on-the-boundary">
+										<div class="qa-voting qa-voting-net" id="voting_12551">
+											<div class="qa-vote-count qa-vote-count-net">
+												<span class="qa-netvote-count">
+													<span class="qa-netvote-count-data">0<span class="votes-up"><span class="value-title" title="0"></span></span><span class="votes-down"><span class="value-title" title="0"></span></span></span><span class="qa-netvote-count-pad"> votes</span>
+												</span>
+											</div>
+											<div class="qa-vote-clear">
+											</div>
+										</div>
+										<input type="hidden" name="code" value="0-1516467824-f01744701721e612d94d8de4f99a8fbdd11e79b0">
+									</form>
+									<div class="qa-a-item-main">
+										<form method="post" action="../../12464/integrating-forces-on-the-boundary">
+											<div class="qa-a-selection">
+											</div>
+											<div class="qa-a-item-content">
+												<a name="12551"></a><div class="entry-content"><p>Can you give the program with the good solution ?<br>
+I want exactly to solve the same problem and I got the same problem...</p>
+
+<p>Thanks<br>
+St&#233;phane</p>
+</div>
+											</div>
+											<span class="qa-a-item-avatar-meta">
+												<span class="qa-a-item-meta">
+													<a href="../../12464/integrating-forces-on-the-boundary?show=12551#a12551" class="qa-a-item-what">answered</a>
+													<span class="qa-a-item-when">
+														<span class="qa-a-item-when-data"><span class="published"><span class="value-title" title="2017-02-28T14:25:52+0000"></span>Feb 28, 2017</span></span>
+													</span>
+													<span class="qa-a-item-who">
+														<span class="qa-a-item-who-pad">by </span>
+														<span class="qa-a-item-who-data"><span class="vcard author"><a href="../../user/stephanepa" class="qa-user-link url nickname">stephanepa</a></span></span>
+														<span class="qa-a-item-who-title">FEniCS Novice</span>
+														<span class="qa-a-item-who-points">
+															<span class="qa-a-item-who-points-pad">(</span><span class="qa-a-item-who-points-data">350</span><span class="qa-a-item-who-points-pad"> points)</span>
+														</span>
+													</span>
+													<br>
+													<span class="qa-a-item-what">edited</span>
+													<span class="qa-a-item-when">
+														<span class="qa-a-item-when-data"><span class="updated"><span class="value-title" title="2017-02-28T20:23:35+0000"></span>Feb 28, 2017</span></span>
+													</span>
+													<span class="qa-a-item-who">
+														<span class="qa-a-item-who-pad">by </span><span class="qa-a-item-who-data"><a href="../../user/stephanepa" class="qa-user-link url nickname">stephanepa</a></span>
+													</span>
+												</span>
+											</span>
+											<div class="qa-a-item-buttons">
+												</div>
+											
+											<div class="qa-a-item-c-list" style="display:none;" id="c12551_list">
+											</div> <!-- END qa-c-list -->
+											
+											<input type="hidden" name="code" value="0-1516467824-6d1d53fb592eb7b7937ff48f966dd937b4e320a0">
+											<input type="hidden" name="qa_click" value="">
+										</form>
+										<div class="qa-c-form">
+										</div> <!-- END qa-c-form -->
+										
+									</div> <!-- END qa-a-item-main -->
+									<div class="qa-a-item-clear">
+									</div>
+								</div> <!-- END qa-a-list-item -->
+								
+							</div> <!-- END qa-a-list -->
+							
+						</div>
+					</div> <!-- END qa-main -->
+					
+				</div> <!-- END main-wrapper -->
+			</div> <!-- END main-shadow -->
+		</div> <!-- END body-wrapper -->
+		<!-- END footer-bottom-group -->
+		
+		<div style="position:absolute; left:-9999px; top:-9999px;">
+			<span id="qa-waiting-template" class="qa-waiting">...</span>
+		</div>
+	
+	
+
+</body><!-- Powered by Question2Answer - http://www.question2answer.org/ --></html>

@@ -1,0 +1,191 @@
+<html><!-- Powered by Question2Answer - http://www.question2answer.org/ --><head>
+		<meta http-equiv="content-type" content="text/html; charset=utf-8">
+		<title>Segmentation fault on MacOS but not on Linux - FEniCS Q&amp;A</title>
+		<meta name="description" content="Hi, I'm running into a segmentation fault using MacOS when assembling a linear form whereas the  ...  am I doing something wrong? Thanks in advance!">
+		<meta name="keywords" content="mac,segmentation,fault">
+		<link rel="stylesheet" type="text/css" href="../../qa-theme/Snow/qa-styles.css">
+		<link rel="canonical" href="http://fenicsproject.org/qa/5722/segmentation-fault-on-macos-but-not-on-linux">
+		<script type="text/x-mathjax-config">
+  MathJax.Hub.Config({
+    extensions: ["tex2jax.js"],
+    jax: ["input/TeX","output/HTML-CSS"],
+    tex2jax: {inlineMath: [["$","$"],["\\(","\\)"]]},
+    TeX: { extensions: ["AMSmath.js","AMSsymbols.js"]}
+  });
+</script>
+<script type="text/javascript" src="../../mathjax/MathJax.js"></script>
+		<script src="../../jquery-1.7.2.min.js" type="text/javascript"></script>
+		<script src="../../highlight.min.js"></script>
+<script type="text/javascript">
+$(function(){
+	$('.wmd-input').keypress(function(){
+		window.clearTimeout(hljs.Timeout);
+		hljs.Timeout = window.setTimeout(function() {
+			hljs.initHighlighting.called = false;
+			hljs.initHighlighting();
+		}, 500);
+	});
+	window.setTimeout(function() {
+		hljs.initHighlighting.called = false;
+		hljs.initHighlighting();
+	}, 500);
+});
+</script>
+
+
+	</head>
+	<body class="qa-template-question qa-body-js-off">
+		<div class="qa-body-wrapper">
+			
+			<div class="qa-header">
+				<div class="qa-logo">
+					<a href="../../" class="qa-logo-link" title="FEniCS Q&amp;A"><img src="../../qa-theme/fenics_qa.png" border="0" alt="FEniCS Q&amp;A"></a>
+				</div>
+				<div class="qa-header-clear">
+				</div>
+			</div> <!-- END qa-header -->
+			
+			<div class="qa-main-shadow">
+				
+				<div class="qa-main-wrapper">
+					
+					<div class="qa-sidepanel">
+						<div class="qa-sidebar">
+							This is a read only copy of the old FEniCS QA forum. Please visit the <a href="https://www.allanswered.com/community/s/fenics-project/">new QA forum</a> to ask questions
+						</div>
+						
+					</div>
+					
+					<div class="qa-main">
+						<h1>
+							<span class="entry-title">Segmentation fault on MacOS but not on Linux</span>
+						</h1>
+						<div class="qa-part-q-view">
+							<div class="qa-q-view  hentry question" id="q5722">
+								<form method="post" action="../../5722/segmentation-fault-on-macos-but-not-on-linux">
+									<div class="qa-q-view-stats">
+										<div class="qa-voting qa-voting-net" id="voting_5722">
+											<div class="qa-vote-count qa-vote-count-net">
+												<span class="qa-netvote-count">
+													<span class="qa-netvote-count-data">+1<span class="votes-up"><span class="value-title" title="1"></span></span><span class="votes-down"><span class="value-title" title="0"></span></span></span><span class="qa-netvote-count-pad"> vote</span>
+												</span>
+											</div>
+											<div class="qa-vote-clear">
+											</div>
+										</div>
+									</div>
+									<input type="hidden" name="code" value="0-1516468039-09c1802c7dcd58337eb80ffc7398601ff74c2bdd">
+								</form>
+								<div class="qa-q-view-main">
+									<form method="post" action="../../5722/segmentation-fault-on-macos-but-not-on-linux">
+										<div class="qa-q-view-content">
+											<a name="5722"></a><div class="entry-content"><p>Hi,</p>
+
+<p>I'm running into a segmentation fault using MacOS when assembling a linear form whereas the same works perfectly fine on Linux. Here's a minimal (not on Mac) working example that is basically a shrinked version of the Navier-Stokes example provided within Dolfin:</p>
+
+<p>main.cpp:</p>
+
+<pre><code>#include &lt;dolfin.h&gt;
+#include "TentativeVelocity.h"
+using namespace dolfin;
+int main()
+{
+  Mesh mesh("../lshape.xml.gz");
+  TentativeVelocity::FunctionSpace V(mesh);
+  Constant f(0, 0);
+  TentativeVelocity::LinearForm L1(V);
+  L1.f = f;
+  Vector b1;
+  assemble(b1, L1);
+  return 0;
+}
+</code></pre>
+
+<p>where the TentativeVelocity.ufl file contains</p>
+
+<pre><code>V = VectorElement("Lagrange", triangle, 2)
+u = TrialFunction(V)
+v = TestFunction(V)
+f  = Coefficient(V)
+L  = inner(f, v) * dx 
+</code></pre>
+
+<p>and compiled using ffc -l dolfin. Everything compiles fine (version 1.4.0) on both MacOS (10.9.5) and Linux. However when I run t<br>
+he binary in Mac, I end up with a segmentation fault. LLDB tells</p>
+
+<pre><code>* thread #1: tid = 0xa2424, 0x000000010067cac4 libdolfin.1.4.dylib`dolfin::TensorLayout::local_range(unsigned long) const + 4, queue = 'com.apple.main-thread', stop reason = EXC_BAD_ACCESS (code=1, address=0x30)
+    frame #0: 0x000000010067cac4 libdolfin.1.4.dylib`dolfin::TensorLayout::local_range(unsigned long) const + 4
+libdolfin.1.4.dylib`dolfin::TensorLayout::local_range(unsigned long) const + 4:
+-&gt; 0x10067cac4:  movq   0x30(%rsi), %rax
+   0x10067cac8:  shlq   $0x4, %rdx
+   0x10067cacc:  movups (%rax,%rdx), %xmm0
+   0x10067cad0:  movups %xmm0, (%rdi)
+</code></pre>
+
+<p>Is this a bug or am I doing something wrong?</p>
+
+<p>Thanks in advance!</p>
+</div>
+										</div>
+										<div class="qa-q-view-tags">
+											<ul class="qa-q-view-tag-list">
+												<li class="qa-q-view-tag-item"><a href="../../tag/mac" rel="tag" class="qa-tag-link">mac</a></li>
+												<li class="qa-q-view-tag-item"><a href="../../tag/segmentation" rel="tag" class="qa-tag-link">segmentation</a></li>
+												<li class="qa-q-view-tag-item"><a href="../../tag/fault" rel="tag" class="qa-tag-link">fault</a></li>
+											</ul>
+										</div>
+										<span class="qa-q-view-avatar-meta">
+											<span class="qa-q-view-meta">
+												<a href="../../5722/segmentation-fault-on-macos-but-not-on-linux" class="qa-q-view-what">asked</a>
+												<span class="qa-q-view-when">
+													<span class="qa-q-view-when-data"><span class="published"><span class="value-title" title="2014-10-07T13:20:57+0000"></span>Oct 7, 2014</span></span>
+												</span>
+												<span class="qa-q-view-who">
+													<span class="qa-q-view-who-pad">by </span>
+													<span class="qa-q-view-who-data"><span class="vcard author"><a href="../../user/ZNK6" class="qa-user-link url nickname">ZNK6</a></span></span>
+													<span class="qa-q-view-who-title">FEniCS Novice</span>
+													<span class="qa-q-view-who-points">
+														<span class="qa-q-view-who-points-pad">(</span><span class="qa-q-view-who-points-data">170</span><span class="qa-q-view-who-points-pad"> points)</span>
+													</span>
+												</span>
+											</span>
+										</span>
+										<div class="qa-q-view-buttons">
+										</div>
+										
+										<div class="qa-q-view-c-list" style="display:none;" id="c5722_list">
+										</div> <!-- END qa-c-list -->
+										
+										<input type="hidden" name="code" value="0-1516468039-ee65344705bb3083f31936dd3ba2d13ab6ae3dc0">
+										<input type="hidden" name="qa_click" value="">
+									</form>
+									<div class="qa-c-form">
+									</div> <!-- END qa-c-form -->
+									
+								</div> <!-- END qa-q-view-main -->
+								<div class="qa-q-view-clear">
+								</div>
+							</div> <!-- END qa-q-view -->
+							
+						</div>
+						<div class="qa-part-a-list">
+							<h2 id="a_list_title" style="display:none;"></h2>
+							<div class="qa-a-list" id="a_list">
+								
+							</div> <!-- END qa-a-list -->
+							
+						</div>
+					</div> <!-- END qa-main -->
+					
+				</div> <!-- END main-wrapper -->
+			</div> <!-- END main-shadow -->
+		</div> <!-- END body-wrapper -->
+		<!-- END footer-bottom-group -->
+		
+		<div style="position:absolute; left:-9999px; top:-9999px;">
+			<span id="qa-waiting-template" class="qa-waiting">...</span>
+		</div>
+	
+	
+
+</body><!-- Powered by Question2Answer - http://www.question2answer.org/ --></html>

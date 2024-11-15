@@ -1,0 +1,428 @@
+<html><!-- Powered by Question2Answer - http://www.question2answer.org/ --><head>
+		<meta http-equiv="content-type" content="text/html; charset=utf-8">
+		<title>"Found no facets matching domain for boundary condition" for easy Stokes on Unit Square case - FEniCS Q&amp;A</title>
+		<meta name="description" content="Hi everybody, I am stuck all the day with the (supposedly) very easy Leaky Cavity - Stokes ... not importing but creating the mesh and the subdomains.">
+		<link rel="stylesheet" type="text/css" href="../../qa-theme/Snow/qa-styles.css">
+		<link rel="canonical" href="http://fenicsproject.org/qa/2803/found-facets-matching-domain-boundary-condition-stokes-square">
+		<script type="text/x-mathjax-config">
+  MathJax.Hub.Config({
+    extensions: ["tex2jax.js"],
+    jax: ["input/TeX","output/HTML-CSS"],
+    tex2jax: {inlineMath: [["$","$"],["\\(","\\)"]]},
+    TeX: { extensions: ["AMSmath.js","AMSsymbols.js"]}
+  });
+</script>
+<script type="text/javascript" src="../../mathjax/MathJax.js"></script>
+		<script src="../../jquery-1.7.2.min.js" type="text/javascript"></script>
+		<script src="../../highlight.min.js"></script>
+<script type="text/javascript">
+$(function(){
+	$('.wmd-input').keypress(function(){
+		window.clearTimeout(hljs.Timeout);
+		hljs.Timeout = window.setTimeout(function() {
+			hljs.initHighlighting.called = false;
+			hljs.initHighlighting();
+		}, 500);
+	});
+	window.setTimeout(function() {
+		hljs.initHighlighting.called = false;
+		hljs.initHighlighting();
+	}, 500);
+});
+</script>
+
+
+	</head>
+	<body class="qa-template-question qa-body-js-off">
+		<div class="qa-body-wrapper">
+			
+			<div class="qa-header">
+				<div class="qa-logo">
+					<a href="../../" class="qa-logo-link" title="FEniCS Q&amp;A"><img src="../../qa-theme/fenics_qa.png" border="0" alt="FEniCS Q&amp;A"></a>
+				</div>
+				<div class="qa-header-clear">
+				</div>
+			</div> <!-- END qa-header -->
+			
+			<div class="qa-main-shadow">
+				
+				<div class="qa-main-wrapper">
+					
+					<div class="qa-sidepanel">
+						<div class="qa-sidebar">
+							This is a read only copy of the old FEniCS QA forum. Please visit the <a href="https://www.allanswered.com/community/s/fenics-project/">new QA forum</a> to ask questions
+						</div>
+						
+					</div>
+					
+					<div class="qa-main">
+						<h1>
+							<span class="entry-title">"Found no facets matching domain for boundary condition" for easy Stokes on Unit Square case</span>
+						</h1>
+						<div class="qa-part-q-view">
+							<div class="qa-q-view  hentry question" id="q2803">
+								<form method="post" action="../../2803/found-facets-matching-domain-boundary-condition-stokes-square">
+									<div class="qa-q-view-stats">
+										<div class="qa-voting qa-voting-net" id="voting_2803">
+											<div class="qa-vote-count qa-vote-count-net">
+												<span class="qa-netvote-count">
+													<span class="qa-netvote-count-data">0<span class="votes-up"><span class="value-title" title="0"></span></span><span class="votes-down"><span class="value-title" title="0"></span></span></span><span class="qa-netvote-count-pad"> votes</span>
+												</span>
+											</div>
+											<div class="qa-vote-clear">
+											</div>
+										</div>
+									</div>
+									<input type="hidden" name="code" value="0-1516467945-db55187d8c91deae1764c71a4d9eabe238d98f40">
+								</form>
+								<div class="qa-q-view-main">
+									<form method="post" action="../../2803/found-facets-matching-domain-boundary-condition-stokes-square">
+										<div class="qa-q-view-content">
+											<a name="2803"></a><div class="entry-content"><p>Hi everybody,</p>
+
+<p>I am stuck all the day with the (supposedly) very easy Leaky Cavity - Stokes problem.<br>
+I just created create the 2D UnitSquare mesh.</p>
+
+<pre><code>UnitSquareMesh mesh(96, 96);
+</code></pre>
+
+<p>and, I needed to define the:<br>
+a) the lower and side edges where a fluid at rest condition has to be imposed<br>
+b) the upper edge where a fluid sliding with a unitary x speed is imposed<br>
+c) the upper/right corner, where the pressure is set to zero (being in the stabilized formulation the pressure not defined.</p>
+
+<p>I just write here the classes for the BCs:</p>
+
+<pre><code>class Dirichprex_boundary : public SubDomain
+{
+    bool inside(const Array&lt;double&gt;&amp; x, bool on_boundary) const
+    {
+        return  on_boundary &amp;&amp; ( near(x[1],1.0) &amp;&amp; near(x[0],1.0) );      //  Top/Right Corner x,y = 1
+    }
+};
+
+class Noslip_boundary : public SubDomain
+{
+    bool inside(const Array&lt;double&gt;&amp; x, bool on_boundary) const
+    {
+        return on_boundary &amp;&amp; ( near(x[1],0.0) || near(x[0],0.0) || near(x[0],1.0)    ); // left,right and bottom edge
+    }
+};
+
+class Sliding_boundary : public SubDomain
+{
+    bool inside(const Array&lt;double&gt;&amp; x, bool on_boundary) const
+    {
+        return  on_boundary &amp;&amp; near(x[1],1.0) ;    //   Top Edge y = 1
+    }
+};
+</code></pre>
+
+<p>These are the associated functions:</p>
+
+<pre><code>class Noslip : public Expression
+{
+public:
+    Noslip() : Expression(2) {}
+    void eval(Array&lt;double&gt;&amp; values, const Array&lt;double&gt;&amp; x) const
+    {
+        values[0] = 0.0;
+        values[1] = 0.0;
+    }
+};
+
+class Sliding : public Expression
+{
+public:
+  Sliding() : Expression(2) {}
+  void eval(Array&lt;double&gt;&amp; values, const Array&lt;double&gt;&amp; x) const
+  {
+    values[0] = 1.0;
+    values[1] = 0.0;
+  }
+};
+</code></pre>
+
+<p>In the main, I first define the spaces on the mesh,</p>
+
+<pre><code>Stokes::FunctionSpace W(mesh);
+SubSpace Wv(W, 0);
+SubSpace Wp(W, 1);
+</code></pre>
+
+<p>then i define the boundaries and functions, creating thus the DirichletBC.</p>
+
+<pre><code>Noslip_boundary noslip_b;
+Sliding_boundary sliding_b;
+Dirichprex_boundary dirichprex_b;
+
+Noslip noslip;
+Sliding sliding;
+Constant zeroprex(0.0);
+
+DirichletBC dirichprexBC(Wp, zeroprex, dirichprex_b);
+DirichletBC noslipBC(Wv, noslip, noslip_b);
+DirichletBC slidingBC(Wv, sliding, sliding_b);
+</code></pre>
+
+<p>Finally, I collect the vector with the values:</p>
+
+<pre><code>  std::vector&lt;const DirichletBC*&gt; bcs;
+  bcs.push_back(&amp;noslipBC); bcs.push_back(&amp;slidingBC); bcs.push_back(&amp;dirichprexBC);
+</code></pre>
+
+<p>which I use for defining (and solving) the variational problem:</p>
+
+<pre><code>LinearVariationalProblem problem(a, L, w, bcs);
+</code></pre>
+
+<p>The results are great in terms of the velocity, whereas the pressure distribution is good, but it is not zero on the wanted vertex (so the pressure is shifted).<br>
+In fact,  at run-time I get:</p>
+
+<pre><code>Solving linear variational problem.
+  *** Warning: Found no facets matching domain for boundary condition.
+</code></pre>
+
+<p>Do you have any ideas about where the "error" is?<br>
+Thank you in advance,<br>
+R.<br>
+P.S. The code is based on the DEMO C++ Stokes-stabilized, with the difference that I am not importing but creating the mesh and the subdomains.</p>
+</div>
+										</div>
+										<span class="qa-q-view-avatar-meta">
+											<span class="qa-q-view-meta">
+												<a href="../../2803/found-facets-matching-domain-boundary-condition-stokes-square" class="qa-q-view-what">asked</a>
+												<span class="qa-q-view-when">
+													<span class="qa-q-view-when-data"><span class="published"><span class="value-title" title="2014-02-21T23:41:18+0000"></span>Feb 22, 2014</span></span>
+												</span>
+												<span class="qa-q-view-who">
+													<span class="qa-q-view-who-pad">by </span>
+													<span class="qa-q-view-who-data"><span class="vcard author"><a href="../../user/rauno78" class="qa-user-link url nickname">rauno78</a></span></span>
+													<span class="qa-q-view-who-title">FEniCS Novice</span>
+													<span class="qa-q-view-who-points">
+														<span class="qa-q-view-who-points-pad">(</span><span class="qa-q-view-who-points-data">340</span><span class="qa-q-view-who-points-pad"> points)</span>
+													</span>
+												</span>
+											</span>
+										</span>
+										<div class="qa-q-view-buttons">
+										</div>
+										
+										<div class="qa-q-view-c-list" style="display:none;" id="c2803_list">
+										</div> <!-- END qa-c-list -->
+										
+										<input type="hidden" name="code" value="0-1516467945-d5a1e5d158eacee248b49a65e13b7784df84fb41">
+										<input type="hidden" name="qa_click" value="">
+									</form>
+									<div class="qa-c-form">
+									</div> <!-- END qa-c-form -->
+									
+								</div> <!-- END qa-q-view-main -->
+								<div class="qa-q-view-clear">
+								</div>
+							</div> <!-- END qa-q-view -->
+							
+						</div>
+						<div class="qa-part-a-list">
+							<h2 id="a_list_title">1 Answer</h2>
+							<div class="qa-a-list" id="a_list">
+								
+								<div class="qa-a-list-item  hentry answer answer-selected qa-a-list-item-selected" id="a2815">
+									<form method="post" action="../../2803/found-facets-matching-domain-boundary-condition-stokes-square">
+										<div class="qa-voting qa-voting-net" id="voting_2815">
+											<div class="qa-vote-count qa-vote-count-net">
+												<span class="qa-netvote-count">
+													<span class="qa-netvote-count-data">+2<span class="votes-up"><span class="value-title" title="2"></span></span><span class="votes-down"><span class="value-title" title="0"></span></span></span><span class="qa-netvote-count-pad"> votes</span>
+												</span>
+											</div>
+											<div class="qa-vote-clear">
+											</div>
+										</div>
+										<input type="hidden" name="code" value="0-1516467945-db55187d8c91deae1764c71a4d9eabe238d98f40">
+									</form>
+									<div class="qa-a-item-main">
+										<form method="post" action="../../2803/found-facets-matching-domain-boundary-condition-stokes-square">
+											<div class="qa-a-item-selected">
+												<div class="qa-a-selection">
+													<div class="qa-a-selected">&#160;</div>
+													<div class="qa-a-selected-text">Best answer</div>
+												</div>
+												<div class="qa-a-item-content">
+													<a name="2815"></a><div class="entry-content"><p>Your problem is likely due to c), since there are no facets that can possibly match a corner. You need to use a pointwise DirichletBC. For other options on how to deal with the pressure issue, see, e.g., this <a rel="nofollow" href="http://fenicsproject.org/qa/2406/solve-poisson-problem-with-neumann-bc">link</a>.</p>
+</div>
+												</div>
+												<span class="qa-a-item-avatar-meta">
+													<span class="qa-a-item-avatar">
+														<a href="../../user/mikael-mortensen" class="qa-avatar-link"><img src="https://www.gravatar.com/avatar/d5614112a2818f1800a461e49ac229df?s=40" width="40" height="40" class="qa-avatar-image" alt=""></a>
+													</span>
+													<span class="qa-a-item-meta">
+														<a href="../../2803/found-facets-matching-domain-boundary-condition-stokes-square?show=2815#a2815" class="qa-a-item-what">answered</a>
+														<span class="qa-a-item-when">
+															<span class="qa-a-item-when-data"><span class="published"><span class="value-title" title="2014-02-24T09:55:53+0000"></span>Feb 24, 2014</span></span>
+														</span>
+														<span class="qa-a-item-who">
+															<span class="qa-a-item-who-pad">by </span>
+															<span class="qa-a-item-who-data"><span class="vcard author"><a href="../../user/mikael-mortensen" class="qa-user-link url nickname">mikael-mortensen</a></span></span>
+															<span class="qa-a-item-who-title">FEniCS Expert</span>
+															<span class="qa-a-item-who-points">
+																<span class="qa-a-item-who-points-pad">(</span><span class="qa-a-item-who-points-data">29,340</span><span class="qa-a-item-who-points-pad"> points)</span>
+															</span>
+														</span>
+														<br>
+														<span class="qa-a-item-what">selected</span>
+														<span class="qa-a-item-when">
+															<span class="qa-a-item-when-data"><span class="updated"><span class="value-title" title="2014-03-11T02:06:51+0000"></span>Mar 11, 2014</span></span>
+														</span>
+														<span class="qa-a-item-who">
+															<span class="qa-a-item-who-pad">by </span><span class="qa-a-item-who-data"><a href="../../user/rauno78" class="qa-user-link url nickname">rauno78</a></span>
+														</span>
+													</span>
+												</span>
+											</div>
+											<div class="qa-a-item-buttons">
+												</div>
+											
+											<div class="qa-a-item-c-list" id="c2815_list">
+												<div class="qa-c-list-item  hentry comment" id="c2877">
+													<div class="qa-c-item-content">
+														<a name="2877"></a><div class="entry-content"><p>Thank you Mikael, <br>
+that makes sense. I thought the BC where specified on the vertices. But it make now sense that, if the above methods of declaration look for facets, a corner cannot be recognized.<br>
+Do you have any fast suggestion (or example) where I can learn a little bit more about pointwise Dirichlet BC? </p>
+</div>
+													</div>
+													<div class="qa-c-item-footer">
+														<span class="qa-c-item-avatar-meta">
+															<span class="qa-c-item-meta">
+																<a href="../../2803/found-facets-matching-domain-boundary-condition-stokes-square?show=2877#c2877" class="qa-c-item-what">commented</a>
+																<span class="qa-c-item-when">
+																	<span class="qa-c-item-when-data"><span class="published"><span class="value-title" title="2014-03-02T23:59:19+0000"></span>Mar 3, 2014</span></span>
+																</span>
+																<span class="qa-c-item-who">
+																	<span class="qa-c-item-who-pad">by </span>
+																	<span class="qa-c-item-who-data"><span class="vcard author"><a href="../../user/rauno78" class="qa-user-link url nickname">rauno78</a></span></span>
+																	<span class="qa-c-item-who-title">FEniCS Novice</span>
+																	<span class="qa-c-item-who-points">
+																		<span class="qa-c-item-who-points-pad">(</span><span class="qa-c-item-who-points-data">340</span><span class="qa-c-item-who-points-pad"> points)</span>
+																	</span>
+																</span>
+															</span>
+														</span>
+														<div class="qa-c-item-buttons">
+														</div>
+													</div>
+													<div class="qa-c-item-clear">
+													</div>
+												</div> <!-- END qa-c-item -->
+												<div class="qa-c-list-item  hentry comment" id="c2879">
+													<div class="qa-c-item-content">
+														<a name="2879"></a><div class="entry-content"><p>Just look at the docstring</p>
+
+<pre><code>pydoc dolfin.DirichletBC
+</code></pre>
+
+<p>and drop the <code>on_boundary</code> parameter.</p>
+</div>
+													</div>
+													<div class="qa-c-item-footer">
+														<span class="qa-c-item-avatar-meta">
+															<span class="qa-c-item-avatar">
+																<a href="../../user/mikael-mortensen" class="qa-avatar-link"><img src="https://www.gravatar.com/avatar/d5614112a2818f1800a461e49ac229df?s=20" width="20" height="20" class="qa-avatar-image" alt=""></a>
+															</span>
+															<span class="qa-c-item-meta">
+																<a href="../../2803/found-facets-matching-domain-boundary-condition-stokes-square?show=2879#c2879" class="qa-c-item-what">commented</a>
+																<span class="qa-c-item-when">
+																	<span class="qa-c-item-when-data"><span class="published"><span class="value-title" title="2014-03-03T07:36:15+0000"></span>Mar 3, 2014</span></span>
+																</span>
+																<span class="qa-c-item-who">
+																	<span class="qa-c-item-who-pad">by </span>
+																	<span class="qa-c-item-who-data"><span class="vcard author"><a href="../../user/mikael-mortensen" class="qa-user-link url nickname">mikael-mortensen</a></span></span>
+																	<span class="qa-c-item-who-title">FEniCS Expert</span>
+																	<span class="qa-c-item-who-points">
+																		<span class="qa-c-item-who-points-pad">(</span><span class="qa-c-item-who-points-data">29,340</span><span class="qa-c-item-who-points-pad"> points)</span>
+																	</span>
+																</span>
+															</span>
+														</span>
+														<div class="qa-c-item-buttons">
+														</div>
+													</div>
+													<div class="qa-c-item-clear">
+													</div>
+												</div> <!-- END qa-c-item -->
+												<div class="qa-c-list-item  hentry comment" id="c2889">
+													<div class="qa-c-item-content">
+														<a name="2889"></a><div class="entry-content"><p>Thank you Mikael.<br>
+I was able to solve the problem thanks to your advices.<br>
+Just for somebody that may have the same problem in the future, I report below the changes I performed.<br>
+On the Subdomain class, I dropped the  <code>on_boundary &amp;&amp;</code> </p>
+
+<pre><code>class Dirichprex_boundary : public SubDomain
+{
+    bool inside(const Array&lt;double&gt;&amp; x, bool on_boundary) const
+    {
+        return  ( near(x[1],1.0) &amp;&amp; near(x[0],1.0) );      //  Top/Right Corner x,y = 1
+    }
+};
+</code></pre>
+
+<p>On the main, I just added the pointwise option to DirichletBC.</p>
+
+<pre><code>DirichletBC dirichprexBC(Wp, zeroprex, dirichprex_b ,  "pointwise" );
+</code></pre>
+
+<p>R.</p>
+</div>
+													</div>
+													<div class="qa-c-item-footer">
+														<span class="qa-c-item-avatar-meta">
+															<span class="qa-c-item-meta">
+																<a href="../../2803/found-facets-matching-domain-boundary-condition-stokes-square?show=2889#c2889" class="qa-c-item-what">commented</a>
+																<span class="qa-c-item-when">
+																	<span class="qa-c-item-when-data"><span class="published"><span class="value-title" title="2014-03-03T22:38:35+0000"></span>Mar 3, 2014</span></span>
+																</span>
+																<span class="qa-c-item-who">
+																	<span class="qa-c-item-who-pad">by </span>
+																	<span class="qa-c-item-who-data"><span class="vcard author"><a href="../../user/rauno78" class="qa-user-link url nickname">rauno78</a></span></span>
+																	<span class="qa-c-item-who-title">FEniCS Novice</span>
+																	<span class="qa-c-item-who-points">
+																		<span class="qa-c-item-who-points-pad">(</span><span class="qa-c-item-who-points-data">340</span><span class="qa-c-item-who-points-pad"> points)</span>
+																	</span>
+																</span>
+															</span>
+														</span>
+														<div class="qa-c-item-buttons">
+														</div>
+													</div>
+													<div class="qa-c-item-clear">
+													</div>
+												</div> <!-- END qa-c-item -->
+											</div> <!-- END qa-c-list -->
+											
+											<input type="hidden" name="code" value="0-1516467945-3af46cb2e06df057d59f8e9c1d71bd94fe12c97c">
+											<input type="hidden" name="qa_click" value="">
+										</form>
+										<div class="qa-c-form">
+										</div> <!-- END qa-c-form -->
+										
+									</div> <!-- END qa-a-item-main -->
+									<div class="qa-a-item-clear">
+									</div>
+								</div> <!-- END qa-a-list-item -->
+								
+							</div> <!-- END qa-a-list -->
+							
+						</div>
+					</div> <!-- END qa-main -->
+					
+				</div> <!-- END main-wrapper -->
+			</div> <!-- END main-shadow -->
+		</div> <!-- END body-wrapper -->
+		<!-- END footer-bottom-group -->
+		
+		<div style="position:absolute; left:-9999px; top:-9999px;">
+			<span id="qa-waiting-template" class="qa-waiting">...</span>
+		</div>
+	
+	
+
+</body><!-- Powered by Question2Answer - http://www.question2answer.org/ --></html>

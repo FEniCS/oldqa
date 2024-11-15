@@ -1,0 +1,311 @@
+<html><!-- Powered by Question2Answer - http://www.question2answer.org/ --><head>
+		<meta http-equiv="content-type" content="text/html; charset=utf-8">
+		<title>Help: calling C++ Tensor Expressions from Python (dolfin 1.5) - FEniCS Q&amp;A</title>
+		<meta name="description" content="Hi all, I want to assemble $$ \left( \Theta \nabla u, \nabla v \right) $$ where $\Theta$ is  ...  code. Thank you in advance for your help. Best, Umbe">
+		<meta name="keywords" content="expression,cpp,instant-compile">
+		<link rel="stylesheet" type="text/css" href="../../qa-theme/Snow/qa-styles.css">
+		<link rel="canonical" href="http://fenicsproject.org/qa/8034/help-calling-c-tensor-expressions-from-python-dolfin-1-5">
+		<script type="text/x-mathjax-config">
+  MathJax.Hub.Config({
+    extensions: ["tex2jax.js"],
+    jax: ["input/TeX","output/HTML-CSS"],
+    tex2jax: {inlineMath: [["$","$"],["\\(","\\)"]]},
+    TeX: { extensions: ["AMSmath.js","AMSsymbols.js"]}
+  });
+</script>
+<script type="text/javascript" src="../../mathjax/MathJax.js"></script>
+		<script src="../../jquery-1.7.2.min.js" type="text/javascript"></script>
+		<script src="../../highlight.min.js"></script>
+<script type="text/javascript">
+$(function(){
+	$('.wmd-input').keypress(function(){
+		window.clearTimeout(hljs.Timeout);
+		hljs.Timeout = window.setTimeout(function() {
+			hljs.initHighlighting.called = false;
+			hljs.initHighlighting();
+		}, 500);
+	});
+	window.setTimeout(function() {
+		hljs.initHighlighting.called = false;
+		hljs.initHighlighting();
+	}, 500);
+});
+</script>
+
+
+	</head>
+	<body class="qa-template-question qa-body-js-off">
+		<div class="qa-body-wrapper">
+			
+			<div class="qa-header">
+				<div class="qa-logo">
+					<a href="../../" class="qa-logo-link" title="FEniCS Q&amp;A"><img src="../../qa-theme/fenics_qa.png" border="0" alt="FEniCS Q&amp;A"></a>
+				</div>
+				<div class="qa-header-clear">
+				</div>
+			</div> <!-- END qa-header -->
+			
+			<div class="qa-main-shadow">
+				
+				<div class="qa-main-wrapper">
+					
+					<div class="qa-sidepanel">
+						<div class="qa-sidebar">
+							This is a read only copy of the old FEniCS QA forum. Please visit the <a href="https://www.allanswered.com/community/s/fenics-project/">new QA forum</a> to ask questions
+						</div>
+						
+					</div>
+					
+					<div class="qa-main">
+						<h1>
+							<span class="entry-title">Help: calling C++ Tensor Expressions from Python (dolfin 1.5)</span>
+						</h1>
+						<div class="qa-part-q-view">
+							<div class="qa-q-view  hentry question" id="q8034">
+								<form method="post" action="../../8034/help-calling-c-tensor-expressions-from-python-dolfin-1-5">
+									<div class="qa-q-view-stats">
+										<div class="qa-voting qa-voting-net" id="voting_8034">
+											<div class="qa-vote-count qa-vote-count-net">
+												<span class="qa-netvote-count">
+													<span class="qa-netvote-count-data">+1<span class="votes-up"><span class="value-title" title="1"></span></span><span class="votes-down"><span class="value-title" title="0"></span></span></span><span class="qa-netvote-count-pad"> vote</span>
+												</span>
+											</div>
+											<div class="qa-vote-clear">
+											</div>
+										</div>
+									</div>
+									<input type="hidden" name="code" value="0-1516468154-b1cbcaeabdda987d0da1a4de0e601056e335fffd">
+								</form>
+								<div class="qa-q-view-main">
+									<form method="post" action="../../8034/help-calling-c-tensor-expressions-from-python-dolfin-1-5">
+										<div class="qa-q-view-content">
+											<a name="8034"></a><div class="entry-content"><p>Hi all,</p>
+
+<p>I want to assemble</p>
+
+<p>$$ \left( \Theta \nabla u, \nabla v \right) $$</p>
+
+<p>where $\Theta$ is a s.p.d. tensor defined in a c++ class that inherits from Expression.</p>
+
+<p>I have prepared the following code for the 2D case, but I get some run-time errors I can not figure out.</p>
+
+<p>cpp_expression.h</p>
+
+<pre><code>#include &lt;dolfin/function/Expression.h&gt;
+
+namespace dolfin
+{
+
+class AnisTensor2D : public Expression
+{
+public:
+
+  AnisTensor2D();
+  void set(const double &amp; t0, const double &amp; t1, const double &amp; a);    
+  void eval(Array&lt;double&gt;&amp; values, const Array&lt;double&gt;&amp; x) const;
+
+private:
+
+  int ndim;
+  double theta0;
+  double theta1;
+  double alpha;
+
+  double c00;
+  double c01;
+  double c11;
+
+};
+</code></pre>
+
+<p>cpp_expression.cpp</p>
+
+<pre><code>AnisTensor2D::AnisTensor2D() :
+Expression(2,2),
+ndim(2),
+theta0(1.),
+theta1(1.),
+alpha(0),
+c00(1.),
+c01(0.),
+c11(1.)
+{
+
+}
+
+void AnisTensor2D::set(const double &amp; t0, const double &amp; t1, const double &amp; a)
+{
+    theta0 = t0;
+    theta1 = t1;
+    alpha = a;
+
+  double sa = sin(alpha);
+  double ca = cos(alpha);
+  c00 = theta0*sa*sa + theta1*ca*ca;
+  c01 = (theta0 - theta1)*sa*ca;
+  c11 = theta0*ca*ca + theta1*sa*sa;
+
+}
+
+double AnisTensor2D::Theta0() const {return theta0;}
+double AnisTensor2D::Theta1() const {return theta1;}
+double AnisTensor2D::Alpha() const {return alpha;}
+int AnisTensor2D::NDim() const {return ndim;}
+
+void AnisTensor2D::eval(Array&lt;double&gt;&amp; values, const Array&lt;double&gt;&amp; x) const
+{
+   values[0] = c00;
+   values[1] = c01;
+   values[2] = c01;
+   values[3] = c11;
+}
+</code></pre>
+
+<p>Python script</p>
+
+<pre><code>import dolfin as dl
+import os
+import math
+
+if __name__ == "__main__":
+    dl.set_log_active(False)
+    ndim = 2
+    nx = 64
+    ny = 64
+    mesh = dl.UnitSquareMesh(nx, ny)
+    Vh = dl.FunctionSpace(mesh, "CG", 1)
+
+    sdir = "&lt;path&gt;"
+    header_file = open(os.path.join(sdir,"cpp_expression.h"), "r")
+    code = header_file.read()
+    header_file.close()
+    cpp_sources = ["cpp_expression.cpp"] 
+    hypExpression = dl.compile_extension_module(code=code, source_directory=sdir, sources=cpp_sources, include_dirs=[".",  sdir])
+
+    T = hypExpression.AnisTensor2D()
+    T.set(2., .5, math.pi/4)
+
+    u = dl.TrialFunction(Vh)
+    v = dl.TestFunction(Vh)
+    a = dl.inner(T*dl.grad(u), dl.grad(v))*dl.dx
+
+    A = dl.assemble(a)
+</code></pre>
+
+<p>Error:</p>
+
+<pre><code>Traceback (most recent call last):
+  File "&lt;path&gt;/AnisTensor2.py", line 25, in &lt;module&gt;
+    a = dl.inner(T*dl.grad(u), dl.grad(v))*dl.dx
+TypeError: unsupported operand type(s) for *: 'AnisTensor2D' and 'Grad'
+</code></pre>
+
+<p>How can I modify the class AnisTensor2D, so that the expression T*dl.grad(u) is supported?</p>
+
+<p><em>NOTE</em>: Please do not suggest to rewrite the class in python, because I need to have it accessible from C++ in a different part of the code.</p>
+
+<p>Thank you in advance for your help.</p>
+
+<p>Best,</p>
+
+<p>Umbe</p>
+</div>
+										</div>
+										<div class="qa-q-view-tags">
+											<ul class="qa-q-view-tag-list">
+												<li class="qa-q-view-tag-item"><a href="../../tag/expression" rel="tag" class="qa-tag-link">expression</a></li>
+												<li class="qa-q-view-tag-item"><a href="../../tag/cpp" rel="tag" class="qa-tag-link">cpp</a></li>
+												<li class="qa-q-view-tag-item"><a href="../../tag/instant-compile" rel="tag" class="qa-tag-link">instant-compile</a></li>
+											</ul>
+										</div>
+										<span class="qa-q-view-avatar-meta">
+											<span class="qa-q-view-meta">
+												<a href="../../8034/help-calling-c-tensor-expressions-from-python-dolfin-1-5" class="qa-q-view-what">asked</a>
+												<span class="qa-q-view-when">
+													<span class="qa-q-view-when-data"><span class="published"><span class="value-title" title="2015-09-04T21:28:51+0000"></span>Sep 4, 2015</span></span>
+												</span>
+												<span class="qa-q-view-who">
+													<span class="qa-q-view-who-pad">by </span>
+													<span class="qa-q-view-who-data"><span class="vcard author"><a href="../../user/umberto" class="qa-user-link url nickname">umberto</a></span></span>
+													<span class="qa-q-view-who-title">FEniCS User</span>
+													<span class="qa-q-view-who-points">
+														<span class="qa-q-view-who-points-pad">(</span><span class="qa-q-view-who-points-data">6,440</span><span class="qa-q-view-who-points-pad"> points)</span>
+													</span>
+												</span>
+												<br>
+												<span class="qa-q-view-what">retagged</span>
+												<span class="qa-q-view-when">
+													<span class="qa-q-view-when-data"><span class="updated"><span class="value-title" title="2015-09-08T22:40:41+0000"></span>Sep 9, 2015</span></span>
+												</span>
+												<span class="qa-q-view-who">
+													<span class="qa-q-view-who-pad">by </span><span class="qa-q-view-who-data"><a href="../../user/umberto" class="qa-user-link url nickname">umberto</a></span>
+												</span>
+											</span>
+										</span>
+										<div class="qa-q-view-buttons">
+										</div>
+										
+										<div class="qa-q-view-c-list" id="c8034_list">
+											<div class="qa-c-list-item  hentry comment" id="c12292">
+												<div class="qa-c-item-content">
+													<a name="12292"></a><div class="entry-content"><p>Did you ever figure out what the problem was?</p>
+</div>
+												</div>
+												<div class="qa-c-item-footer">
+													<span class="qa-c-item-avatar-meta">
+														<span class="qa-c-item-meta">
+															<a href="../../8034/help-calling-c-tensor-expressions-from-python-dolfin-1-5?show=12292#c12292" class="qa-c-item-what">commented</a>
+															<span class="qa-c-item-when">
+																<span class="qa-c-item-when-data"><span class="published"><span class="value-title" title="2017-01-31T12:48:09+0000"></span>Jan 31, 2017</span></span>
+															</span>
+															<span class="qa-c-item-who">
+																<span class="qa-c-item-who-pad">by </span>
+																<span class="qa-c-item-who-data"><span class="vcard author"><a href="../../user/radbiv_kylops" class="qa-user-link url nickname">radbiv_kylops</a></span></span>
+																<span class="qa-c-item-who-title">FEniCS Novice</span>
+																<span class="qa-c-item-who-points">
+																	<span class="qa-c-item-who-points-pad">(</span><span class="qa-c-item-who-points-data">680</span><span class="qa-c-item-who-points-pad"> points)</span>
+																</span>
+															</span>
+														</span>
+													</span>
+													<div class="qa-c-item-buttons">
+													</div>
+												</div>
+												<div class="qa-c-item-clear">
+												</div>
+											</div> <!-- END qa-c-item -->
+										</div> <!-- END qa-c-list -->
+										
+										<input type="hidden" name="code" value="0-1516468154-2d5610609b8dde6aa6325936114723459879b679">
+										<input type="hidden" name="qa_click" value="">
+									</form>
+									<div class="qa-c-form">
+									</div> <!-- END qa-c-form -->
+									
+								</div> <!-- END qa-q-view-main -->
+								<div class="qa-q-view-clear">
+								</div>
+							</div> <!-- END qa-q-view -->
+							
+						</div>
+						<div class="qa-part-a-list">
+							<h2 id="a_list_title" style="display:none;"></h2>
+							<div class="qa-a-list" id="a_list">
+								
+							</div> <!-- END qa-a-list -->
+							
+						</div>
+					</div> <!-- END qa-main -->
+					
+				</div> <!-- END main-wrapper -->
+			</div> <!-- END main-shadow -->
+		</div> <!-- END body-wrapper -->
+		<!-- END footer-bottom-group -->
+		
+		<div style="position:absolute; left:-9999px; top:-9999px;">
+			<span id="qa-waiting-template" class="qa-waiting">...</span>
+		</div>
+	
+	
+
+</body><!-- Powered by Question2Answer - http://www.question2answer.org/ --></html>

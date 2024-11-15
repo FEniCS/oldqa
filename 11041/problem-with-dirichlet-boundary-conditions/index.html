@@ -1,0 +1,415 @@
+<html><!-- Powered by Question2Answer - http://www.question2answer.org/ --><head>
+		<meta http-equiv="content-type" content="text/html; charset=utf-8">
+		<title>Problem with dirichlet boundary conditions - FEniCS Q&amp;A</title>
+		<meta name="description" content="Hello, I am using fenics to solve a linear elastic problem with dirichlet boundary conditions. I want to  ... u, Wu) plot(u.sub(1)) interactive()">
+		<meta name="keywords" content="boundary-conditions,dirichletbc,mixed-function-space">
+		<link rel="stylesheet" type="text/css" href="../../qa-theme/Snow/qa-styles.css">
+		<link rel="canonical" href="http://fenicsproject.org/qa/11041/problem-with-dirichlet-boundary-conditions">
+		<script type="text/x-mathjax-config">
+  MathJax.Hub.Config({
+    extensions: ["tex2jax.js"],
+    jax: ["input/TeX","output/HTML-CSS"],
+    tex2jax: {inlineMath: [["$","$"],["\\(","\\)"]]},
+    TeX: { extensions: ["AMSmath.js","AMSsymbols.js"]}
+  });
+</script>
+<script type="text/javascript" src="../../mathjax/MathJax.js"></script>
+		<script src="../../jquery-1.7.2.min.js" type="text/javascript"></script>
+		<script src="../../highlight.min.js"></script>
+<script type="text/javascript">
+$(function(){
+	$('.wmd-input').keypress(function(){
+		window.clearTimeout(hljs.Timeout);
+		hljs.Timeout = window.setTimeout(function() {
+			hljs.initHighlighting.called = false;
+			hljs.initHighlighting();
+		}, 500);
+	});
+	window.setTimeout(function() {
+		hljs.initHighlighting.called = false;
+		hljs.initHighlighting();
+	}, 500);
+});
+</script>
+
+
+	</head>
+	<body class="qa-template-question qa-body-js-off">
+		<div class="qa-body-wrapper">
+			
+			<div class="qa-header">
+				<div class="qa-logo">
+					<a href="../../" class="qa-logo-link" title="FEniCS Q&amp;A"><img src="../../qa-theme/fenics_qa.png" border="0" alt="FEniCS Q&amp;A"></a>
+				</div>
+				<div class="qa-header-clear">
+				</div>
+			</div> <!-- END qa-header -->
+			
+			<div class="qa-main-shadow">
+				
+				<div class="qa-main-wrapper">
+					
+					<div class="qa-sidepanel">
+						<div class="qa-sidebar">
+							This is a read only copy of the old FEniCS QA forum. Please visit the <a href="https://www.allanswered.com/community/s/fenics-project/">new QA forum</a> to ask questions
+						</div>
+						
+					</div>
+					
+					<div class="qa-main">
+						<h1>
+							<span class="entry-title">Problem with dirichlet boundary conditions</span>
+						</h1>
+						<div class="qa-part-q-view">
+							<div class="qa-q-view  hentry question" id="q11041">
+								<form method="post" action="../../11041/problem-with-dirichlet-boundary-conditions">
+									<div class="qa-q-view-stats">
+										<div class="qa-voting qa-voting-net" id="voting_11041">
+											<div class="qa-vote-count qa-vote-count-net">
+												<span class="qa-netvote-count">
+													<span class="qa-netvote-count-data">&#8211;4<span class="votes-up"><span class="value-title" title="1"></span></span><span class="votes-down"><span class="value-title" title="5"></span></span></span><span class="qa-netvote-count-pad"> votes</span>
+												</span>
+											</div>
+											<div class="qa-vote-clear">
+											</div>
+										</div>
+									</div>
+									<input type="hidden" name="code" value="0-1516467089-38114d5fce78dc4bdff5313cab620de5267d4326">
+								</form>
+								<div class="qa-q-view-main">
+									<form method="post" action="../../11041/problem-with-dirichlet-boundary-conditions">
+										<div class="qa-q-view-content">
+											<a name="11041"></a><div class="entry-content"><p>Hello,<br>
+I am using fenics to solve a linear elastic problem with dirichlet boundary conditions. </p>
+
+<p>I want to mimimize the functionnal :</p>
+
+<p>integral_omega (grad(u) -grad(ud):B:grad(u) -grad(ud)) </p>
+
+<p>under the condition div (Bgrad(u)) =0 et u=0 on the bottom and u=u0 on the top.</p>
+
+<p>The solution u obtained does not satisfy the top dirichlet boundary condition.</p>
+
+<p>When I solve the problem :<br>
+div (Bgrad(u)) =0 et u=0 on the bottom and u=u0 on the top.<br>
+The solution ud seems good.</p>
+
+<p>And I need your help.....</p>
+
+<p>Thanks</p>
+
+<h2>1. Import dependencies</h2>
+
+<p>from dolfin import *<br>
+from petsc4py import *</p>
+
+<p>import numpy as np<br>
+import scipy.optimize as opt<br>
+import time<br>
+import logging</p>
+
+<p>import matplotlib.pyplot as plt<br>
+import nb</p>
+
+<p>import math</p>
+
+<p>start = time.clock()</p>
+
+<p>logging.getLogger('FFC').setLevel(logging.WARNING)<br>
+logging.getLogger('UFL').setLevel(logging.WARNING)<br>
+set_log_active(False)</p>
+
+<p>np.random.seed(seed=1)</p>
+
+<h2>2. Model set up:</h2>
+
+<h2>load mesh and define function spaces for u</h2>
+
+<p>mesh_f = Mesh("../Composite_Gmsh/composite_g.xml.gz")<br>
+subdomains_f = MeshFunction("size_t", mesh_f, "../Composite_Gmsh/composite_g_physical_region.xml")<br>
+boundaries_f = MeshFunction("size_t", mesh_f, "../Composite_Gmsh/composite_g_facet_region.xml")<br>
+#<br>
+Vu  = VectorFunctionSpace(mesh_f, 'Lagrange', 1)</p>
+
+<h2>Vu2 = Vu*Vu</h2>
+
+<p>Vu2 = MixedFunctionSpace([Vu,Vu])</p>
+
+<p>Va = FunctionSpace(mesh_f, 'DG', 0)</p>
+
+<h2>Stress space</h2>
+
+<h2>Project and write stress field to post-processing file</h2>
+
+<p>VS = TensorFunctionSpace(mesh_f, 'DG', 0)</p>
+
+<h2>load mesh and define function spaces for a</h2>
+
+<p>mesh_g = Mesh("../Composite_Gmsh/composite_f.xml.gz")<br>
+subdomains_g = MeshFunction("size_t", mesh_g, "../Composite_Gmsh/composite_f_physical_region.xml")<br>
+boundaries_g = MeshFunction("size_t", mesh_g, "../Composite_Gmsh/composite_f_facet_region.xml")<br>
+#<br>
+Wu = VectorFunctionSpace(mesh_g, 'Lagrange', 1)<br>
+Wa = FunctionSpace(mesh_g, 'DG', 0)</p>
+
+<h2>Stress space</h2>
+
+<h2>Project and write stress field to post-processing file</h2>
+
+<p>WS = TensorFunctionSpace(mesh_g, 'DG', 0)</p>
+
+<h2>The true and inverted parameter</h2>
+
+<h2>Elasticity parameters</h2>
+
+<p>E1  = 1.0e9<br>
+nu1 = 0.3<br>
+G1  = E1/(2.0<em>(1.0 + nu1))<br>
+K1  = E1/(3.0</em>(1.0 - 2.0<em>nu1))<br>
+E2  = 5.0e9<br>
+nu2 = 0.3<br>
+G2  = E2/(2.0</em>(1.0 + nu2))<br>
+K2  = E2/(3.0<em>(1.0 - 2.0</em>nu2))</p>
+
+<p>Ktrue = Function(Va)<br>
+Gtrue = Function(Va)<br>
+K_values = [K1, K2]  # values of k in the two subdomain<br>
+help = np.asarray(subdomains_f.array(), dtype=np.int32)<br>
+Ktrue.vector()[:] = np.choose(help, K_values)<br>
+K   = interpolate(Expression("2.0e9"),Va)</p>
+
+<h2>K   = Ktrue</h2>
+
+<p>K_g = project(K,Wa)<br>
+#<br>
+G_values = [G1, G2]  # values of k in the two subdomain<br>
+help = np.asarray(subdomains_f.array(), dtype=np.int32)<br>
+Gtrue.vector()[:] = np.choose(help, G_values)<br>
+G   = interpolate(Expression("2.0e9"),Va)</p>
+
+<h2>G   = Gtrue</h2>
+
+<p>G_g = project(G,Wa)</p>
+
+<h2>Stress computation</h2>
+
+<p>def sigma(v):<br>
+    gdim = v.geometric_dimension()<br>
+    return (3.0<em>K-2.0</em>G)/3.0 * tr(sym(grad(v)))<em>Identity(gdim) + 2.0</em>G * sym(grad(v))</p>
+
+<h2>Stress computation</h2>
+
+<p>def sigma_g(v):<br>
+    gdim = v.geometric_dimension()<br>
+    return (3.0<em>K_g-2.0</em>G_g)/3.0 * tr(sym(grad(v)))<em>Identity(gdim) + 2.0</em>G_g * sym(grad(v))</p>
+
+<h2>Stress computation</h2>
+
+<p>def sigma_true(v):<br>
+    gdim = v.geometric_dimension()<br>
+    return (3.0<em>Ktrue-2.0</em>Gtrue)/3.0 * tr(sym(grad(v)))<em>Identity(gdim) + 2.0</em>Gtrue * sym(grad(v))</p>
+
+<h2>define function for state and adjoint</h2>
+
+<p>u = Function(Vu)<br>
+p = Function(Vu)<br>
+utrue = Function(Vu)<br>
+ptrue = Function(Vu)</p>
+
+<h2>define Trial and Test Functions</h2>
+
+<p>t_trial = TrialFunction(Vu2)<br>
+(u_trial,p_trial)=split(t_trial)<br>
+t_test  = TestFunction(Vu2)<br>
+(u_test,p_test)=split(t_test)<br>
+K_trial = TrialFunction(Va)<br>
+G_trial = TrialFunction(Va)</p>
+
+<h2>initialize input functions</h2>
+
+<p>f   = Constant((0.0, 0.0))<br>
+u0  = Constant((0.0, 0.3))<br>
+u00 = Constant((0.0, 0.0))</p>
+
+<h2>plot</h2>
+
+<p>plt.figure(figsize=(15,5))<br>
+nb.plot(mesh_g,subplot_loc=121, mytitle="Mesh", show_axis='on')<br>
+nb.plot(Ktrue,subplot_loc=122, mytitle="True parameter field")</p>
+
+<h2>set up dirichlet boundary conditions</h2>
+
+<p>bc_state_1 = DirichletBC(Vu2.sub(0), u0, boundaries_f, 2)<br>
+bc_state_2 = DirichletBC(Vu2.sub(0), u00, boundaries_f, 1)<br>
+bc_adj_1   = DirichletBC(Vu2.sub(1), u00, boundaries_f, 2)<br>
+bc_adj_2   = DirichletBC(Vu2.sub(1), u00, boundaries_f, 1)<br>
+bcs = [bc_state_1, bc_state_2, bc_adj_1, bc_adj_2]</p>
+
+<h2>bcs = [bc_state_2, bc_adj_1, bc_adj_2]</h2>
+
+<h2>3. Set up synthetic observations:</h2>
+
+<p>ut_trial = TrialFunction(Vu)<br>
+ut_test  = TestFunction(Vu)<br>
+bc_1 = DirichletBC(Vu, u0, boundaries_f, 2)<br>
+bc_2 = DirichletBC(Vu, u00, boundaries_f, 1)</p>
+
+<h2>weak form for setting up the synthetic observations</h2>
+
+<p>at_goal = inner( sigma_true(ut_trial), grad(ut_test)) * dx<br>
+Lt_goal = inner(f, ut_test) * dx</p>
+
+<h2>solve the forward/state problem to generate synthetic observations</h2>
+
+<p>goalt_A, goalt_b = assemble_system(at_goal, Lt_goal, [bc_1, bc_2])</p>
+
+<p>utrue = Function(Vu)<br>
+solve(goalt_A, utrue.vector(), goalt_b)</p>
+
+<p>ud = Function(Vu)<br>
+ud.assign(utrue)</p>
+
+<p>ud_g = project(ud, Wu)</p>
+
+<h2>plot</h2>
+
+<p>plt.figure(figsize=(15,5))<br>
+nb.plot(Ktrue,subplot_loc=121, mytitle="K_ini", vmin=Ktrue.vector().min(), vmax=Ktrue.vector().max())<br>
+nb.plot(utrue,subplot_loc=122, mytitle="u(a_ini)")</p>
+
+<h2>4. Solving the global system</h2>
+
+<h2>define parameters for the optimization</h2>
+
+<p>tol = 1e-4<br>
+maxiter = 500</p>
+
+<h2>initialize iter counters</h2>
+
+<p>iter = 1<br>
+converged = False</p>
+
+<h2>initializations</h2>
+
+<p>K_prev = Function(Va)<br>
+G_prev = Function(Va)<br>
+K_prev_g = Function(Wa)<br>
+G_prev_g = Function(Wa)<br>
+K_prev.assign(K)<br>
+K_prev_g.assign(K_g)<br>
+G_prev.assign(G)<br>
+G_prev_g.assign(G_g)<br>
+u_prev = Function(Vu)</p>
+
+<p>a1 = Function(Wa)<br>
+a2 = Function(Wa)</p>
+
+<p>grad_u_g = grad(ud_g)</p>
+
+<p>print "Nit  Norme(a - aprec)"</p>
+
+<h2>Preconditionner</h2>
+
+<p>m = inner(grad(u_trial), grad(u_test))<em>dx + inner(grad(p_trial), grad(p_test))</em>dx<br>
+L_goal = dot(f, p_test) * dx + inner( sigma(ud), grad(u_test)) * dx<br>
+(M, _) = assemble_system(m, L_goal, bcs)</p>
+
+<h2>4. 1st step on inverse problem</h2>
+
+<h2>weak form for setting up the synthetic observations</h2>
+
+<p>A_goal = inner( sigma(u_trial), sym(grad(p_test))) * dx + inner( sigma(u_trial), sym(grad(u_test))) * dx + inner( sigma(p_trial), sym(grad(u_test))) * dx<br>
+L_goal = dot(f, p_test) * dx + inner( sigma(ud), sym(grad(u_test))) * dx</p>
+
+<h2>solve the forward/state problem to generate synthetic observations</h2>
+
+<p>goal_A, goal_L = assemble_system(A_goal, L_goal, bcs)</p>
+
+<p>usol = Function(Vu2)</p>
+
+<h2>fenics iterative solve</h2>
+
+<p>solver = KrylovSolver("tfqmr", "amg")<br>
+solver.set_operators(goal_A, M)<br>
+solver.solve(usol.vector(), goal_L)</p>
+
+<p>(u, p) = usol.split(deepcopy=True)</p>
+
+<h2>solve minimization on a</h2>
+
+<p>u_g = project(u, Wu)</p>
+
+<p>plot(u.sub(1))<br>
+interactive()</p>
+</div>
+										</div>
+										<div class="qa-q-view-tags">
+											<ul class="qa-q-view-tag-list">
+												<li class="qa-q-view-tag-item"><a href="../../tag/boundary-conditions" rel="tag" class="qa-tag-link">boundary-conditions</a></li>
+												<li class="qa-q-view-tag-item"><a href="../../tag/dirichletbc" rel="tag" class="qa-tag-link">dirichletbc</a></li>
+												<li class="qa-q-view-tag-item"><a href="../../tag/mixed-function-space" rel="tag" class="qa-tag-link">mixed-function-space</a></li>
+											</ul>
+										</div>
+										<span class="qa-q-view-avatar-meta">
+											<span class="qa-q-view-meta">
+												<a href="../../11041/problem-with-dirichlet-boundary-conditions" class="qa-q-view-what">asked</a>
+												<span class="qa-q-view-when">
+													<span class="qa-q-view-when-data"><span class="published"><span class="value-title" title="2016-09-03T21:16:49+0000"></span>Sep 3, 2016</span></span>
+												</span>
+												<span class="qa-q-view-who">
+													<span class="qa-q-view-who-pad">by </span>
+													<span class="qa-q-view-who-data"><span class="vcard author"><a href="../../user/stephanepa" class="qa-user-link url nickname">stephanepa</a></span></span>
+													<span class="qa-q-view-who-title">FEniCS Novice</span>
+													<span class="qa-q-view-who-points">
+														<span class="qa-q-view-who-points-pad">(</span><span class="qa-q-view-who-points-data">350</span><span class="qa-q-view-who-points-pad"> points)</span>
+													</span>
+												</span>
+												<br>
+												<span class="qa-q-view-what">edited</span>
+												<span class="qa-q-view-when">
+													<span class="qa-q-view-when-data"><span class="updated"><span class="value-title" title="2016-09-03T21:26:35+0000"></span>Sep 3, 2016</span></span>
+												</span>
+												<span class="qa-q-view-who">
+													<span class="qa-q-view-who-pad">by </span><span class="qa-q-view-who-data"><a href="../../user/stephanepa" class="qa-user-link url nickname">stephanepa</a></span>
+												</span>
+											</span>
+										</span>
+										<div class="qa-q-view-buttons">
+										</div>
+										
+										<div class="qa-q-view-c-list" style="display:none;" id="c11041_list">
+										</div> <!-- END qa-c-list -->
+										
+										<input type="hidden" name="code" value="0-1516467089-72bd4ab717a8058b8ad39494feeb96d42296ff8d">
+										<input type="hidden" name="qa_click" value="">
+									</form>
+									<div class="qa-c-form">
+									</div> <!-- END qa-c-form -->
+									
+								</div> <!-- END qa-q-view-main -->
+								<div class="qa-q-view-clear">
+								</div>
+							</div> <!-- END qa-q-view -->
+							
+						</div>
+						<div class="qa-part-a-list">
+							<h2 id="a_list_title" style="display:none;"></h2>
+							<div class="qa-a-list" id="a_list">
+								
+							</div> <!-- END qa-a-list -->
+							
+						</div>
+					</div> <!-- END qa-main -->
+					
+				</div> <!-- END main-wrapper -->
+			</div> <!-- END main-shadow -->
+		</div> <!-- END body-wrapper -->
+		<!-- END footer-bottom-group -->
+		
+		<div style="position:absolute; left:-9999px; top:-9999px;">
+			<span id="qa-waiting-template" class="qa-waiting">...</span>
+		</div>
+	
+	
+
+</body><!-- Powered by Question2Answer - http://www.question2answer.org/ --></html>

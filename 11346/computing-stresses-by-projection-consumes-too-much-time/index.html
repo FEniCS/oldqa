@@ -1,0 +1,625 @@
+<html><!-- Powered by Question2Answer - http://www.question2answer.org/ --><head>
+		<meta http-equiv="content-type" content="text/html; charset=utf-8">
+		<title>Computing stresses by projection consumes too much time - FEniCS Q&amp;A</title>
+		<meta name="description" content="I am solving a very simple linear elasticity problem, and would like to output the stresses as  ...  might have a better advice. Thanks in advance.">
+		<meta name="keywords" content="projection,stress">
+		<link rel="stylesheet" type="text/css" href="../../qa-theme/Snow/qa-styles.css">
+		<link rel="canonical" href="http://fenicsproject.org/qa/11346/computing-stresses-by-projection-consumes-too-much-time">
+		<script type="text/x-mathjax-config">
+  MathJax.Hub.Config({
+    extensions: ["tex2jax.js"],
+    jax: ["input/TeX","output/HTML-CSS"],
+    tex2jax: {inlineMath: [["$","$"],["\\(","\\)"]]},
+    TeX: { extensions: ["AMSmath.js","AMSsymbols.js"]}
+  });
+</script>
+<script type="text/javascript" src="../../mathjax/MathJax.js"></script>
+		<script src="../../jquery-1.7.2.min.js" type="text/javascript"></script>
+		<script src="../../highlight.min.js"></script>
+<script type="text/javascript">
+$(function(){
+	$('.wmd-input').keypress(function(){
+		window.clearTimeout(hljs.Timeout);
+		hljs.Timeout = window.setTimeout(function() {
+			hljs.initHighlighting.called = false;
+			hljs.initHighlighting();
+		}, 500);
+	});
+	window.setTimeout(function() {
+		hljs.initHighlighting.called = false;
+		hljs.initHighlighting();
+	}, 500);
+});
+</script>
+
+
+	</head>
+	<body class="qa-template-question qa-body-js-off">
+		<div class="qa-body-wrapper">
+			
+			<div class="qa-header">
+				<div class="qa-logo">
+					<a href="../../" class="qa-logo-link" title="FEniCS Q&amp;A"><img src="../../qa-theme/fenics_qa.png" border="0" alt="FEniCS Q&amp;A"></a>
+				</div>
+				<div class="qa-header-clear">
+				</div>
+			</div> <!-- END qa-header -->
+			
+			<div class="qa-main-shadow">
+				
+				<div class="qa-main-wrapper">
+					
+					<div class="qa-sidepanel">
+						<div class="qa-sidebar">
+							This is a read only copy of the old FEniCS QA forum. Please visit the <a href="https://www.allanswered.com/community/s/fenics-project/">new QA forum</a> to ask questions
+						</div>
+						
+					</div>
+					
+					<div class="qa-main">
+						<h1>
+							<span class="entry-title">Computing stresses by projection consumes too much time</span>
+						</h1>
+						<div class="qa-part-q-view">
+							<div class="qa-q-view  hentry question" id="q11346">
+								<form method="post" action="../../11346/computing-stresses-by-projection-consumes-too-much-time">
+									<div class="qa-q-view-stats">
+										<div class="qa-voting qa-voting-net" id="voting_11346">
+											<div class="qa-vote-count qa-vote-count-net">
+												<span class="qa-netvote-count">
+													<span class="qa-netvote-count-data">+1<span class="votes-up"><span class="value-title" title="1"></span></span><span class="votes-down"><span class="value-title" title="0"></span></span></span><span class="qa-netvote-count-pad"> vote</span>
+												</span>
+											</div>
+											<div class="qa-vote-clear">
+											</div>
+										</div>
+									</div>
+									<input type="hidden" name="code" value="0-1516467107-37ad2031a3595b514427c84324fea7c89eb22d30">
+								</form>
+								<div class="qa-q-view-main">
+									<form method="post" action="../../11346/computing-stresses-by-projection-consumes-too-much-time">
+										<div class="qa-q-view-content">
+											<a name="11346"></a><div class="entry-content"><p>I am solving a very simple linear elasticity problem, and would like to output the stresses as well as the displacement. To this end, I am using the <code>project</code> function to project the stress quantity to a TensorFunctionSpace, as advised in previous answers on the forum: </p>
+
+<pre><code>from __future__ import print_function
+from dolfin import *
+import time
+import numpy
+
+# Form compiler options
+parameters["form_compiler"]["cpp_optimize"] = True
+parameters["form_compiler"]["optimize"] = True
+
+# Sub domain for clamp at left end
+def left(x, on_boundary):
+    return x[0] &lt; 0.001 #and on_boundary
+
+# Sub domain for rotation at right end
+def right(x, on_boundary):
+    return x[0] &gt; 0.99 #and on_boundary
+
+# Load mesh and define function space
+mesh = UnitCubeMesh(15, 15, 15)
+
+# Define function space
+V = VectorFunctionSpace(mesh, "CG", 1)
+
+# Test and trial functions
+u = TrialFunction(V)
+delta_u = TestFunction(V)
+
+E  = 10.0
+nu = 0.0
+mu    = E / (2.0*(1.0 + nu))
+lmbda = E*nu / ((1.0 + nu)*(1.0 - 2.0*nu))
+
+
+# External forces (body and applied tractions
+f  = Constant((1.0, 0.0, 0.0))
+
+# Set up boundary condition at left end
+zero = Constant((0.0, 0.0, 0.0))
+bc = DirichletBC(V, zero, left)    
+
+def eps(u):
+    return sym(grad(u))
+
+# Stress tensor
+def sigma(u):
+    return 2.0*mu*eps(u) + lmbda*tr(eps(u))*Identity(len(u))
+
+# Forms
+a = inner(sigma(u), eps(delta_u))*dx
+L = inner(f, delta_u)*dx
+
+# Time-stepping
+u = Function(V)
+
+xdmf_file = XDMFFile(mesh.mpi_comm(), "out.xdmf")
+
+start = time.time()
+print("Started solution")
+solve(a == L, u,
+      bcs=bc,
+      solver_parameters={"linear_solver": "cg"},)
+print("Finished solution in %f seconds"%(time.time()-start))
+
+u.rename("u", "displacement")
+xdmf_file.write(u, 0.0)
+
+# Start projecting stress
+start = time.time()
+print("Started stress calculation")
+sigma_fs = TensorFunctionSpace(mesh, "CG", 1)
+
+# Following line is very inefficient
+sigma_out = project(sigma(u), sigma_fs)
+sigma_out.rename("sigma", "stress")
+xdmf_file.write(sigma_out, 0.0)
+print("Finished stress calculation in %f seconds"%(time.time()-start))
+</code></pre>
+
+<p>However, as you can see from the output, it takes a lot of time to do the projection. It appears that the time required for the stress computation increases exponentially with the number of elements:</p>
+
+<pre><code>Started solution
+Solving linear variational problem.
+Finished solution in 0.189142 seconds
+Started stress calculation
+Finished stress calculation in 17.490856 seconds
+</code></pre>
+
+<p>I understand that the solver is a black box, but it is often very necessary to me to have not just stress in the output, but also other fields of equal complexity. If I am to see data other than the solution vector in the output, I require a faster way of calculating---or storing---these quantities. I doubt that I am the only one who had such a problem, so I am guessing that you might have a better advice.</p>
+
+<p>Thanks in advance.</p>
+</div>
+										</div>
+										<div class="qa-q-view-tags">
+											<ul class="qa-q-view-tag-list">
+												<li class="qa-q-view-tag-item"><a href="../../tag/projection" rel="tag" class="qa-tag-link">projection</a></li>
+												<li class="qa-q-view-tag-item"><a href="../../tag/stress" rel="tag" class="qa-tag-link">stress</a></li>
+											</ul>
+										</div>
+										<span class="qa-q-view-avatar-meta">
+											<span class="qa-q-view-meta">
+												<a href="../../11346/computing-stresses-by-projection-consumes-too-much-time" class="qa-q-view-what">asked</a>
+												<span class="qa-q-view-when">
+													<span class="qa-q-view-when-data"><span class="published"><span class="value-title" title="2016-10-11T13:24:15+0000"></span>Oct 11, 2016</span></span>
+												</span>
+												<span class="qa-q-view-who">
+													<span class="qa-q-view-who-pad">by </span>
+													<span class="qa-q-view-who-data"><span class="vcard author"><a href="../../user/hosolmaz" class="qa-user-link url nickname">hosolmaz</a></span></span>
+													<span class="qa-q-view-who-title">FEniCS User</span>
+													<span class="qa-q-view-who-points">
+														<span class="qa-q-view-who-points-pad">(</span><span class="qa-q-view-who-points-data">1,510</span><span class="qa-q-view-who-points-pad"> points)</span>
+													</span>
+												</span>
+											</span>
+										</span>
+										<div class="qa-q-view-buttons">
+										</div>
+										
+										<div class="qa-q-view-c-list" id="c11346_list">
+											<div class="qa-c-list-item  hentry comment" id="c11350">
+												<div class="qa-c-item-content">
+													<a name="11350"></a><div class="entry-content"><p>Are you sure it is not the xdmf_file.write that takes time?</p>
+
+<p>The ILU used to be the default solver for projection and it is pretty fast.</p>
+</div>
+												</div>
+												<div class="qa-c-item-footer">
+													<span class="qa-c-item-avatar-meta">
+														<span class="qa-c-item-avatar">
+															<a href="../../user/KristianE" class="qa-avatar-link"><img src="https://www.gravatar.com/avatar/8e8c30d82e263e44bd8fe50055a60421?s=20" width="20" height="20" class="qa-avatar-image" alt=""></a>
+														</span>
+														<span class="qa-c-item-meta">
+															<a href="../../11346/computing-stresses-by-projection-consumes-too-much-time?show=11350#c11350" class="qa-c-item-what">commented</a>
+															<span class="qa-c-item-when">
+																<span class="qa-c-item-when-data"><span class="published"><span class="value-title" title="2016-10-11T16:57:28+0000"></span>Oct 11, 2016</span></span>
+															</span>
+															<span class="qa-c-item-who">
+																<span class="qa-c-item-who-pad">by </span>
+																<span class="qa-c-item-who-data"><span class="vcard author"><a href="../../user/KristianE" class="qa-user-link url nickname">KristianE</a></span></span>
+																<span class="qa-c-item-who-title">FEniCS Expert</span>
+																<span class="qa-c-item-who-points">
+																	<span class="qa-c-item-who-points-pad">(</span><span class="qa-c-item-who-points-data">12,900</span><span class="qa-c-item-who-points-pad"> points)</span>
+																</span>
+															</span>
+														</span>
+													</span>
+													<div class="qa-c-item-buttons">
+													</div>
+												</div>
+												<div class="qa-c-item-clear">
+												</div>
+											</div> <!-- END qa-c-item -->
+											<div class="qa-c-list-item  hentry comment" id="c11352">
+												<div class="qa-c-item-content">
+													<a name="11352"></a><div class="entry-content"><p>Yes, xdmf_file.write is pretty quick:</p>
+
+<pre><code>Started stress calculation
+Finished stress calculation in 16.603034 seconds
+Started outputting stresses
+Finished outputting stresses in 0.010333 seconds
+</code></pre>
+</div>
+												</div>
+												<div class="qa-c-item-footer">
+													<span class="qa-c-item-avatar-meta">
+														<span class="qa-c-item-meta">
+															<a href="../../11346/computing-stresses-by-projection-consumes-too-much-time?show=11352#c11352" class="qa-c-item-what">commented</a>
+															<span class="qa-c-item-when">
+																<span class="qa-c-item-when-data"><span class="published"><span class="value-title" title="2016-10-12T11:01:39+0000"></span>Oct 12, 2016</span></span>
+															</span>
+															<span class="qa-c-item-who">
+																<span class="qa-c-item-who-pad">by </span>
+																<span class="qa-c-item-who-data"><span class="vcard author"><a href="../../user/hosolmaz" class="qa-user-link url nickname">hosolmaz</a></span></span>
+																<span class="qa-c-item-who-title">FEniCS User</span>
+																<span class="qa-c-item-who-points">
+																	<span class="qa-c-item-who-points-pad">(</span><span class="qa-c-item-who-points-data">1,510</span><span class="qa-c-item-who-points-pad"> points)</span>
+																</span>
+															</span>
+														</span>
+													</span>
+													<div class="qa-c-item-buttons">
+													</div>
+												</div>
+												<div class="qa-c-item-clear">
+												</div>
+											</div> <!-- END qa-c-item -->
+											<div class="qa-c-list-item  hentry comment" id="c11353">
+												<div class="qa-c-item-content">
+													<a name="11353"></a><div class="entry-content"><p>Which version of FEniCS are you using? There used to be a problem with TensorFunctionSpace that caused it to be very slow.</p>
+
+<p>Is it faster, if you split the projection into six scalar projections?</p>
+</div>
+												</div>
+												<div class="qa-c-item-footer">
+													<span class="qa-c-item-avatar-meta">
+														<span class="qa-c-item-avatar">
+															<a href="../../user/KristianE" class="qa-avatar-link"><img src="https://www.gravatar.com/avatar/8e8c30d82e263e44bd8fe50055a60421?s=20" width="20" height="20" class="qa-avatar-image" alt=""></a>
+														</span>
+														<span class="qa-c-item-meta">
+															<a href="../../11346/computing-stresses-by-projection-consumes-too-much-time?show=11353#c11353" class="qa-c-item-what">commented</a>
+															<span class="qa-c-item-when">
+																<span class="qa-c-item-when-data"><span class="published"><span class="value-title" title="2016-10-12T11:25:00+0000"></span>Oct 12, 2016</span></span>
+															</span>
+															<span class="qa-c-item-who">
+																<span class="qa-c-item-who-pad">by </span>
+																<span class="qa-c-item-who-data"><span class="vcard author"><a href="../../user/KristianE" class="qa-user-link url nickname">KristianE</a></span></span>
+																<span class="qa-c-item-who-title">FEniCS Expert</span>
+																<span class="qa-c-item-who-points">
+																	<span class="qa-c-item-who-points-pad">(</span><span class="qa-c-item-who-points-data">12,900</span><span class="qa-c-item-who-points-pad"> points)</span>
+																</span>
+															</span>
+														</span>
+													</span>
+													<div class="qa-c-item-buttons">
+													</div>
+												</div>
+												<div class="qa-c-item-clear">
+												</div>
+											</div> <!-- END qa-c-item -->
+											<div class="qa-c-list-item  hentry comment" id="c11374">
+												<div class="qa-c-item-content">
+													<a name="11374"></a><div class="entry-content"><p>I am using version 2016.1. I did a few trials, and here are the results.</p>
+
+<pre><code>+------------------------------------------------+----------------+-----------------+
+|            Stress calculation time             | 20250 elements | 162000 elements |
++------------------------------------------------+----------------+-----------------+
+| Using CG solver, whole stress tensor           |       1.684316 | 20.613609       |
+| Using CG solver, projecting 6 terms separately |       0.238721 | 6.04954         |
+| Using LU solver, whole stress tensor           |      17.284297 | Depletes memory |
+| Using LU solver, projecting 6 terms separately |       0.648268 | 23.457449       |
++------------------------------------------------+----------------+-----------------+
+</code></pre>
+
+<p>Here is the code for future reference. I commented and uncommented corresponding lines for different trials</p>
+
+<pre><code>from __future__ import print_function
+from dolfin import *
+import time
+import numpy
+
+# Form compiler options
+parameters["form_compiler"]["cpp_optimize"] = True
+parameters["form_compiler"]["optimize"] = True
+
+# Sub domain for clamp at left end
+def left(x, on_boundary):
+    return x[0] &lt; 0.001 #and on_boundary
+
+# Sub domain for rotation at right end
+def right(x, on_boundary):
+    return x[0] &gt; 0.99 #and on_boundary
+
+# Load mesh and define function space
+mesh = UnitCubeMesh(15, 15, 15)
+# mesh = UnitCubeMesh(30, 30, 30)
+
+# Define function space
+V = VectorFunctionSpace(mesh, "CG", 1)
+
+# Test and trial functions
+u = TrialFunction(V)
+delta_u = TestFunction(V)
+
+E  = 10.0
+nu = 0.0
+mu    = E / (2.0*(1.0 + nu))
+lmbda = E*nu / ((1.0 + nu)*(1.0 - 2.0*nu))
+
+# External forces (body and applied tractions
+f  = Constant((1.0, 0.0, 0.0))
+
+# Set up boundary condition at left end
+zero = Constant((0.0, 0.0, 0.0))
+bc = DirichletBC(V, zero, left)
+
+def eps(u):
+    return sym(grad(u))
+
+# Stress tensor
+def sigma(u):
+    return 2.0*mu*eps(u) + lmbda*tr(eps(u))*Identity(len(u))
+
+# Forms
+a = inner(sigma(u), eps(delta_u))*dx
+L = inner(f, delta_u)*dx
+
+# Time-stepping
+u = Function(V)
+
+xdmf_file = XDMFFile(mesh.mpi_comm(), "out.xdmf")
+
+start = time.time()
+print("Started solution")
+solve(a == L, u,
+      bcs=bc,
+      solver_parameters={"linear_solver": "cg"},)
+print("Finished solution in %f seconds"%(time.time()-start))
+
+u.rename("u", "displacement")
+xdmf_file.write(u, 0.0)
+
+start = time.time()
+print("Started normal stress calculation")
+
+sigma_fs = TensorFunctionSpace(mesh, "CG", 1)
+sigma_out = project(sigma(u), sigma_fs, solver_type='cg', preconditioner_type='hypre_amg')
+# sigma_out = project(sigma(u), sigma_fs)
+sigma_out.rename("sigma", "stress")
+
+print("Finished normal stress calculation in %f seconds"%(time.time()-start))
+xdmf_file.write(sigma_out, 0.0)
+
+
+start = time.time()
+print("Started projected stress calculation")
+scalar_space = FunctionSpace(mesh,'CG',1)
+tensor_space = TensorFunctionSpace(mesh, "CG", 1)
+sigma_out_separate = Function(tensor_space)
+directions = [
+    Constant(numpy.array([[1, 0, 0], [0, 0, 0], [0, 0, 0]])) ,
+    Constant(numpy.array([[0, 0, 0], [0, 1, 0], [0, 0, 0]])) ,
+    Constant(numpy.array([[0, 0, 0], [0, 0, 0], [0, 0, 1]])) ,
+    Constant(numpy.array([[0, 1, 0], [0, 0, 0], [0, 0, 0]])) ,
+    Constant(numpy.array([[0, 0, 0], [0, 0, 1], [0, 0, 0]])) ,
+    Constant(numpy.array([[0, 0, 1], [0, 0, 0], [0, 0, 0]])) ,
+]
+
+for i, direction in enumerate(directions):
+    FunctionAssigner(tensor_space.sub(i), scalar_space).assign(sigma_out_separate.sub(i), project(inner(sigma(u), direction), scalar_space, solver_type='cg', preconditioner_type='hypre_amg'))
+    # FunctionAssigner(tensor_space.sub(i), scalar_space).assign(sigma_out_separate.sub(i), project(inner(sigma(u), direction), scalar_space))
+
+print("Finished projected stress calculation in %f seconds"%(time.time()-start))
+xdmf_file.write(sigma_out_separate, 0.0)
+</code></pre>
+
+<p>Calculating stress tensor components separately seems to do the trick, although I am open to more elegant and simple solutions.</p>
+</div>
+												</div>
+												<div class="qa-c-item-footer">
+													<span class="qa-c-item-avatar-meta">
+														<span class="qa-c-item-meta">
+															<a href="../../11346/computing-stresses-by-projection-consumes-too-much-time?show=11374#c11374" class="qa-c-item-what">commented</a>
+															<span class="qa-c-item-when">
+																<span class="qa-c-item-when-data"><span class="published"><span class="value-title" title="2016-10-14T11:27:19+0000"></span>Oct 14, 2016</span></span>
+															</span>
+															<span class="qa-c-item-who">
+																<span class="qa-c-item-who-pad">by </span>
+																<span class="qa-c-item-who-data"><span class="vcard author"><a href="../../user/hosolmaz" class="qa-user-link url nickname">hosolmaz</a></span></span>
+																<span class="qa-c-item-who-title">FEniCS User</span>
+																<span class="qa-c-item-who-points">
+																	<span class="qa-c-item-who-points-pad">(</span><span class="qa-c-item-who-points-data">1,510</span><span class="qa-c-item-who-points-pad"> points)</span>
+																</span>
+															</span>
+														</span>
+													</span>
+													<div class="qa-c-item-buttons">
+													</div>
+												</div>
+												<div class="qa-c-item-clear">
+												</div>
+											</div> <!-- END qa-c-item -->
+										</div> <!-- END qa-c-list -->
+										
+										<input type="hidden" name="code" value="0-1516467107-83fb45562f4086394a3e335b976dd1abb74c9562">
+										<input type="hidden" name="qa_click" value="">
+									</form>
+									<div class="qa-c-form">
+									</div> <!-- END qa-c-form -->
+									
+								</div> <!-- END qa-q-view-main -->
+								<div class="qa-q-view-clear">
+								</div>
+							</div> <!-- END qa-q-view -->
+							
+						</div>
+						<div class="qa-part-a-list">
+							<h2 id="a_list_title">2 Answers</h2>
+							<div class="qa-a-list" id="a_list">
+								
+								<div class="qa-a-list-item  hentry answer" id="a11347">
+									<form method="post" action="../../11346/computing-stresses-by-projection-consumes-too-much-time">
+										<div class="qa-voting qa-voting-net" id="voting_11347">
+											<div class="qa-vote-count qa-vote-count-net">
+												<span class="qa-netvote-count">
+													<span class="qa-netvote-count-data">+1<span class="votes-up"><span class="value-title" title="1"></span></span><span class="votes-down"><span class="value-title" title="0"></span></span></span><span class="qa-netvote-count-pad"> vote</span>
+												</span>
+											</div>
+											<div class="qa-vote-clear">
+											</div>
+										</div>
+										<input type="hidden" name="code" value="0-1516467107-37ad2031a3595b514427c84324fea7c89eb22d30">
+									</form>
+									<div class="qa-a-item-main">
+										<form method="post" action="../../11346/computing-stresses-by-projection-consumes-too-much-time">
+											<div class="qa-a-selection">
+											</div>
+											<div class="qa-a-item-content">
+												<a name="11347"></a><div class="entry-content"><p>Check the documentation for <code>project()</code> <a rel="nofollow" href="https://fenicsproject.org/documentation/dolfin/dev/python/programmers-reference/fem/projection/project.html">here</a>. I believe you're using a direct LU solver by default.</p>
+
+<p>Try </p>
+
+<pre><code>sigma_out = project(sigma(u), sigma_fs, solver_type='cg', preconditioner_type='hypre_amg')
+</code></pre>
+</div>
+											</div>
+											<span class="qa-a-item-avatar-meta">
+												<span class="qa-a-item-avatar">
+													<a href="../../user/nate" class="qa-avatar-link"><img src="../../?qa=image&amp;qa_blobid=969593914916706065&amp;qa_size=40" width="40" height="40" class="qa-avatar-image" alt=""></a>
+												</span>
+												<span class="qa-a-item-meta">
+													<a href="../../11346/computing-stresses-by-projection-consumes-too-much-time?show=11347#a11347" class="qa-a-item-what">answered</a>
+													<span class="qa-a-item-when">
+														<span class="qa-a-item-when-data"><span class="published"><span class="value-title" title="2016-10-11T13:55:12+0000"></span>Oct 11, 2016</span></span>
+													</span>
+													<span class="qa-a-item-who">
+														<span class="qa-a-item-who-pad">by </span>
+														<span class="qa-a-item-who-data"><span class="vcard author"><a href="../../user/nate" class="qa-user-link url nickname">nate</a></span></span>
+														<span class="qa-a-item-who-title">FEniCS Expert</span>
+														<span class="qa-a-item-who-points">
+															<span class="qa-a-item-who-points-pad">(</span><span class="qa-a-item-who-points-data">17,050</span><span class="qa-a-item-who-points-pad"> points)</span>
+														</span>
+													</span>
+												</span>
+											</span>
+											<div class="qa-a-item-buttons">
+												</div>
+											
+											<div class="qa-a-item-c-list" style="display:none;" id="c11347_list">
+											</div> <!-- END qa-c-list -->
+											
+											<input type="hidden" name="code" value="0-1516467107-33b774980957c04c73c30254a3b6da9a2fd37c09">
+											<input type="hidden" name="qa_click" value="">
+										</form>
+										<div class="qa-c-form">
+										</div> <!-- END qa-c-form -->
+										
+									</div> <!-- END qa-a-item-main -->
+									<div class="qa-a-item-clear">
+									</div>
+								</div> <!-- END qa-a-list-item -->
+								
+								<div class="qa-a-list-item  hentry answer" id="a11375">
+									<form method="post" action="../../11346/computing-stresses-by-projection-consumes-too-much-time">
+										<div class="qa-voting qa-voting-net" id="voting_11375">
+											<div class="qa-vote-count qa-vote-count-net">
+												<span class="qa-netvote-count">
+													<span class="qa-netvote-count-data">+2<span class="votes-up"><span class="value-title" title="2"></span></span><span class="votes-down"><span class="value-title" title="0"></span></span></span><span class="qa-netvote-count-pad"> votes</span>
+												</span>
+											</div>
+											<div class="qa-vote-clear">
+											</div>
+										</div>
+										<input type="hidden" name="code" value="0-1516467107-37ad2031a3595b514427c84324fea7c89eb22d30">
+									</form>
+									<div class="qa-a-item-main">
+										<form method="post" action="../../11346/computing-stresses-by-projection-consumes-too-much-time">
+											<div class="qa-a-selection">
+											</div>
+											<div class="qa-a-item-content">
+												<a name="11375"></a><div class="entry-content"><p>So I guess the problems with TensorFunctionSpace still remain to be solved. Maybe you could open an issue on bitbucket, if this has not already been done.</p>
+</div>
+											</div>
+											<span class="qa-a-item-avatar-meta">
+												<span class="qa-a-item-avatar">
+													<a href="../../user/KristianE" class="qa-avatar-link"><img src="https://www.gravatar.com/avatar/8e8c30d82e263e44bd8fe50055a60421?s=40" width="40" height="40" class="qa-avatar-image" alt=""></a>
+												</span>
+												<span class="qa-a-item-meta">
+													<a href="../../11346/computing-stresses-by-projection-consumes-too-much-time?show=11375#a11375" class="qa-a-item-what">answered</a>
+													<span class="qa-a-item-when">
+														<span class="qa-a-item-when-data"><span class="published"><span class="value-title" title="2016-10-14T12:11:47+0000"></span>Oct 14, 2016</span></span>
+													</span>
+													<span class="qa-a-item-who">
+														<span class="qa-a-item-who-pad">by </span>
+														<span class="qa-a-item-who-data"><span class="vcard author"><a href="../../user/KristianE" class="qa-user-link url nickname">KristianE</a></span></span>
+														<span class="qa-a-item-who-title">FEniCS Expert</span>
+														<span class="qa-a-item-who-points">
+															<span class="qa-a-item-who-points-pad">(</span><span class="qa-a-item-who-points-data">12,900</span><span class="qa-a-item-who-points-pad"> points)</span>
+														</span>
+													</span>
+												</span>
+											</span>
+											<div class="qa-a-item-buttons">
+												</div>
+											
+											<div class="qa-a-item-c-list" id="c11375_list">
+												<div class="qa-c-list-item  hentry comment" id="c11403">
+													<div class="qa-c-item-content">
+														<a name="11403"></a><div class="entry-content"><p>I found <a rel="nofollow" href="https://bitbucket.org/fenics-project/dolfin/issues/460/reimplement-project-by-looping-over">this issue</a>, but I am not sure whether it addresses the same problem. It appears to have not arrived at a conclusion. </p>
+</div>
+													</div>
+													<div class="qa-c-item-footer">
+														<span class="qa-c-item-avatar-meta">
+															<span class="qa-c-item-meta">
+																<a href="../../11346/computing-stresses-by-projection-consumes-too-much-time?show=11403#c11403" class="qa-c-item-what">commented</a>
+																<span class="qa-c-item-when">
+																	<span class="qa-c-item-when-data"><span class="published"><span class="value-title" title="2016-10-17T13:45:32+0000"></span>Oct 17, 2016</span></span>
+																</span>
+																<span class="qa-c-item-who">
+																	<span class="qa-c-item-who-pad">by </span>
+																	<span class="qa-c-item-who-data"><span class="vcard author"><a href="../../user/hosolmaz" class="qa-user-link url nickname">hosolmaz</a></span></span>
+																	<span class="qa-c-item-who-title">FEniCS User</span>
+																	<span class="qa-c-item-who-points">
+																		<span class="qa-c-item-who-points-pad">(</span><span class="qa-c-item-who-points-data">1,510</span><span class="qa-c-item-who-points-pad"> points)</span>
+																	</span>
+																</span>
+															</span>
+														</span>
+														<div class="qa-c-item-buttons">
+														</div>
+													</div>
+													<div class="qa-c-item-clear">
+													</div>
+												</div> <!-- END qa-c-item -->
+											</div> <!-- END qa-c-list -->
+											
+											<input type="hidden" name="code" value="0-1516467107-8cba4547540e041a4ab23fbcc2880de456b6ef0a">
+											<input type="hidden" name="qa_click" value="">
+										</form>
+										<div class="qa-c-form">
+										</div> <!-- END qa-c-form -->
+										
+									</div> <!-- END qa-a-item-main -->
+									<div class="qa-a-item-clear">
+									</div>
+								</div> <!-- END qa-a-list-item -->
+								
+							</div> <!-- END qa-a-list -->
+							
+						</div>
+					</div> <!-- END qa-main -->
+					
+				</div> <!-- END main-wrapper -->
+			</div> <!-- END main-shadow -->
+		</div> <!-- END body-wrapper -->
+		<!-- END footer-bottom-group -->
+		
+		<div style="position:absolute; left:-9999px; top:-9999px;">
+			<span id="qa-waiting-template" class="qa-waiting">...</span>
+		</div>
+	
+	
+
+</body><!-- Powered by Question2Answer - http://www.question2answer.org/ --></html>

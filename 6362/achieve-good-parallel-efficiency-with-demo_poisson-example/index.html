@@ -1,0 +1,399 @@
+<html><!-- Powered by Question2Answer - http://www.question2answer.org/ --><head>
+		<meta http-equiv="content-type" content="text/html; charset=utf-8">
+		<title>How to achieve good parallel efficiency with the demo_poisson.py example - FEniCS Q&amp;A</title>
+		<meta name="description" content="Hi all, I plan on running some of my code in parallel and want to do a strong  ... character limitation so tell me if more information is needed">
+		<meta name="keywords" content="parallel,fenics,scaling,hpc">
+		<link rel="stylesheet" type="text/css" href="../../qa-theme/Snow/qa-styles.css">
+		<link rel="canonical" href="http://fenicsproject.org/qa/6362/achieve-good-parallel-efficiency-with-demo_poisson-example">
+		<script type="text/x-mathjax-config">
+  MathJax.Hub.Config({
+    extensions: ["tex2jax.js"],
+    jax: ["input/TeX","output/HTML-CSS"],
+    tex2jax: {inlineMath: [["$","$"],["\\(","\\)"]]},
+    TeX: { extensions: ["AMSmath.js","AMSsymbols.js"]}
+  });
+</script>
+<script type="text/javascript" src="../../mathjax/MathJax.js"></script>
+		<script src="../../jquery-1.7.2.min.js" type="text/javascript"></script>
+		<script src="../../highlight.min.js"></script>
+<script type="text/javascript">
+$(function(){
+	$('.wmd-input').keypress(function(){
+		window.clearTimeout(hljs.Timeout);
+		hljs.Timeout = window.setTimeout(function() {
+			hljs.initHighlighting.called = false;
+			hljs.initHighlighting();
+		}, 500);
+	});
+	window.setTimeout(function() {
+		hljs.initHighlighting.called = false;
+		hljs.initHighlighting();
+	}, 500);
+});
+</script>
+
+
+	</head>
+	<body class="qa-template-question qa-body-js-off">
+		<div class="qa-body-wrapper">
+			
+			<div class="qa-header">
+				<div class="qa-logo">
+					<a href="../../" class="qa-logo-link" title="FEniCS Q&amp;A"><img src="../../qa-theme/fenics_qa.png" border="0" alt="FEniCS Q&amp;A"></a>
+				</div>
+				<div class="qa-header-clear">
+				</div>
+			</div> <!-- END qa-header -->
+			
+			<div class="qa-main-shadow">
+				
+				<div class="qa-main-wrapper">
+					
+					<div class="qa-sidepanel">
+						<div class="qa-sidebar">
+							This is a read only copy of the old FEniCS QA forum. Please visit the <a href="https://www.allanswered.com/community/s/fenics-project/">new QA forum</a> to ask questions
+						</div>
+						
+					</div>
+					
+					<div class="qa-main">
+						<h1>
+							<span class="entry-title">How to achieve good parallel efficiency with the demo_poisson.py example</span>
+						</h1>
+						<div class="qa-part-q-view">
+							<div class="qa-q-view  hentry question" id="q6362">
+								<form method="post" action="../../6362/achieve-good-parallel-efficiency-with-demo_poisson-example">
+									<div class="qa-q-view-stats">
+										<div class="qa-voting qa-voting-net" id="voting_6362">
+											<div class="qa-vote-count qa-vote-count-net">
+												<span class="qa-netvote-count">
+													<span class="qa-netvote-count-data">+2<span class="votes-up"><span class="value-title" title="2"></span></span><span class="votes-down"><span class="value-title" title="0"></span></span></span><span class="qa-netvote-count-pad"> votes</span>
+												</span>
+											</div>
+											<div class="qa-vote-clear">
+											</div>
+										</div>
+									</div>
+									<input type="hidden" name="code" value="0-1516468069-f1ccfe39abd9ac7283e035e64335abdc56fa9aa7">
+								</form>
+								<div class="qa-q-view-main">
+									<form method="post" action="../../6362/achieve-good-parallel-efficiency-with-demo_poisson-example">
+										<div class="qa-q-view-content">
+											<a name="6362"></a><div class="entry-content"><p>Hi all,</p>
+
+<p>I plan on running some of my code in parallel and want to do a strong scaling study. Our research group's cluster - which has 80 nodes that each contain 20 Intel Xeon E5-2680v2 2.8 GHz cores with the SLURM job scheduler. I modified the demo_poisson.py code to solve what I believe to be a decently large problem - 1,002,001 vertices and 2 million cells. Here's the code:</p>
+
+<pre><code>from dolfin import *
+mesh = UnitSquareMesh(1000,1000)
+V = FunctionSpace(mesh, "Lagrange", 1)
+def boundary(x):
+    return x[0] &lt; DOLFIN_EPS or x[0] &gt; 1.0 - DOLFIN_EPS
+u0 = Constant(0.0)
+bc = DirichletBC(V, u0, boundary)
+u = TrialFunction(V)
+v = TestFunction(V)
+f = Expression("10*exp(-(pow(x[0] - 0.5, 2) + pow(x[1] - 0.5, 2)) / 0.02)")
+g = Expression("sin(5*x[0])")
+a = inner(grad(u), grad(v))*dx
+L = f*v*dx + g*v*ds
+u = Function(V)
+set_log_level(DEBUG)
+solve(a == L, u, bc)
+</code></pre>
+
+<p>And the shell script file i used to submit the job (not sure if this is necessary information but here it is anyway):</p>
+
+<pre><code>#!/bin/bash
+#SBATCH -J test
+#SBATCH -o test.txt
+#SBATCH -n 4
+#SBATCH -N 1
+
+echo "============="
+echo "1 MPI process"
+echo "============="
+mpirun -np 1 python demo_poisson.py
+echo "============="
+echo "2 MPI process"
+echo "============="
+mpirun -np 2 python demo_poisson.py
+echo "============="
+echo "4 MPI process"
+echo "============="
+mpirun -np 4 python demo_poisson.py
+</code></pre>
+
+<p>And here's the output:</p>
+
+<pre><code>=============
+1 MPI process
+=============
+Solving linear variational problem.
+  Matrix of size 1002001 x 1002001 has 7006001 (0.000697805%) nonzero entries.
+  Elapsed time: 0.34781 (Build sparsity)
+  Elapsed time: 0.0301769 (Init tensor)
+  Elapsed time: 9.53674e-07 (Delete sparsity)
+  ---
+  Elapsed time: 1.22476 (Assemble cells)
+  Elapsed time: 0.046319 (Apply (PETScMatrix))
+  Elapsed time: 0.00504494 (Build sparsity)
+  Elapsed time: 8.4877e-05 (Apply (PETScVector))
+  Elapsed time: 0.00675416 (Init tensor)
+  Elapsed time: 9.53674e-07 (Delete sparsity)
+  Elapsed time: 3.40939e-05 (Apply (PETScVector))
+  ---
+  Elapsed time: 1.06944 (Assemble cells)
+  Elapsed time: 0.072017 (Assemble exterior facets)
+  Elapsed time: 0.000118971 (Apply (PETScVector))
+  Computing sub domain markers for sub domain 0.
+  ---
+  Elapsed time: 1.45284 (DirichletBC init facets)
+  Elapsed time: 1.45608 (DirichletBC compute bc)
+  Applying boundary conditions to linear system.
+  Elapsed time: 9.98974e-05 (Apply (PETScVector))
+  Elapsed time: 0.00995994 (Apply (PETScMatrix))
+  Elapsed time: 1.47875 (DirichletBC apply)
+  Solving linear system of size 1002001 x 1002001 (PETSc LU solver, (null)).
+  Elapsed time: 12.6462 (PETSc LU solver)
+  Elapsed time: 12.6465 (LU solver)
+WARNING! There are options you set that were not used!
+WARNING! could be spelling mistake, etc!
+Option left: name:-mat_superlu_dist_colperm value: MMD_AT_PLUS_A
+
+=============
+2 MPI process
+=============
+...
+  Matrix of size 1002001 x 1002001 has 3513181 (0.000349916%) nonzero entries.
+  Diagonal: 3506776 (99.8177%), off-diagonal: 1593 (0.0453435%), non-local: 4812 (0.13697%)
+  Matrix of size 1002001 x 1002001 has 3500295 (0.000348633%) nonzero entries.
+  Diagonal: 3493879 (99.8167%), off-diagonal: 1595 (0.0455676%), non-local: 4821 (0.137731%)
+  Elapsed time: 0.221062 (Build sparsity)
+  Elapsed time: 0.215639 (Build sparsity)
+  Elapsed time: 0.024085 (Init tensor)
+  Elapsed time: 9.53674e-07 (Delete sparsity)
+  Elapsed time: 0.024086 (Init tensor)
+  Elapsed time: 1.90735e-06 (Delete sparsity)
+  Elapsed time: 0.539708 (Assemble cells)
+  ---
+  Elapsed time: 0.722365 (Assemble cells)
+  Elapsed time: 0.259871 (Apply (PETScMatrix))
+  Elapsed time: 0.0276511 (Apply (PETScMatrix))
+  Elapsed time: 0.00205278 (Build sparsity)
+  Elapsed time: 0.00235796 (Build sparsity)
+  Elapsed time: 0.000106812 (Apply (PETScVector))
+  Elapsed time: 0.00275898 (Init tensor)
+  Elapsed time: 0 (Delete sparsity)
+  Elapsed time: 5.60284e-05 (Apply (PETScVector))
+  Elapsed time: 0.00246716 (Init tensor)
+  Elapsed time: 0 (Delete sparsity)
+  Elapsed time: 6.00815e-05 (Apply (PETScVector))
+  Elapsed time: 3.98159e-05 (Apply (PETScVector))
+  Elapsed time: 0.339929 (Assemble cells)
+  Elapsed time: 0.0274351 (Assemble exterior facets)
+  Elapsed time: 0.513431 (Assemble cells)
+  Elapsed time: 0.0339222 (Assemble exterior facets)
+  Elapsed time: 0.18015 (Apply (PETScVector))
+  Elapsed time: 0.000181913 (Apply (PETScVector))
+  Computing sub domain markers for sub domain 0.
+  Computing sub domain markers for sub domain 0.
+  ---
+  Elapsed time: 0.660405 (DirichletBC init facets)
+  Elapsed time: 0.661449 (DirichletBC compute bc)
+  Applying boundary conditions to linear system.
+  ---
+  Elapsed time: 0.815914 (DirichletBC init facets)
+  Elapsed time: 0.816927 (DirichletBC compute bc)
+  Applying boundary conditions to linear system.
+  Elapsed time: 0.155571 (Apply (PETScVector))
+  Elapsed time: 9.799e-05 (Apply (PETScVector))
+  Elapsed time: 0.00872207 (Apply (PETScMatrix))
+  Elapsed time: 0.834597 (DirichletBC apply)
+  Elapsed time: 0.00855994 (Apply (PETScMatrix))
+  Elapsed time: 0.836372 (DirichletBC apply)
+  Solving linear system of size 1002001 x 1002001 (PETSc LU solver, (null)).
+  Elapsed time: 9.50418 (PETSc LU solver)
+  Elapsed time: 9.50418 (PETSc LU solver)
+  Elapsed time: 9.5045 (LU solver)
+  Elapsed time: 9.50451 (LU solver)
+WARNING! There are options you set that were not used!
+WARNING! could be spelling mistake, etc!
+Option left: name:-mat_superlu_dist_colperm value: MMD_AT_PLUS_A
+=============
+4 MPI process
+=============
+...
+  Matrix of size 1002001 x 1002001 has 1743023 (0.000173607%) nonzero entries.
+...
+  Applying boundary conditions to linear system.
+  Elapsed time: 9.48906e-05 (Apply (PETScVector))
+  Elapsed time: 0.0143411 (Apply (PETScVector))
+  Elapsed time: 0.0473421 (Apply (PETScVector))
+  Elapsed time: 0.012908 (Apply (PETScVector))
+  Elapsed time: 0.00383282 (Apply (PETScMatrix))
+  Elapsed time: 0.381625 (DirichletBC apply)
+  Elapsed time: 0.003865 (Apply (PETScMatrix))
+  Elapsed time: 0.38162 (DirichletBC apply)
+  Elapsed time: 0.00385189 (Apply (PETScMatrix))
+  Elapsed time: 0.00387883 (Apply (PETScMatrix))
+  Elapsed time: 0.381851 (DirichletBC apply)
+  Elapsed time: 0.381871 (DirichletBC apply)
+  Solving linear system of size 1002001 x 1002001 (PETSc LU solver, (null)).
+  Elapsed time: 6.83441 (PETSc LU solver)
+  Elapsed time: 6.83475 (LU solver)
+  Elapsed time: 6.83441 (PETSc LU solver)
+  Elapsed time: 6.83475 (LU solver)
+  Elapsed time: 6.83441 (PETSc LU solver)
+  Elapsed time: 6.83475 (LU solver)
+  Elapsed time: 6.83442 (PETSc LU solver)
+  Elapsed time: 6.83475 (LU solver)
+WARNING! There are options you set that were not used!
+WARNING! could be spelling mistake, etc!
+Option left: name:-mat_superlu_dist_colperm value: MMD_AT_PLUS_A
+</code></pre>
+
+<p>Based on these solve times, I seem to have extremely bad scaling - speedups of 1.33 and 1.85 for 2 and 4 processors respectively doesn't seem very efficient, especially for a problem with 1 million degrees of freedom. The metrics don't get any better when I increase the size of the problem. Am I missing something here, or is this expected?</p>
+
+<p>Thanks,<br>
+Justin</p>
+
+<p>PS - btw I had to clip a lot of information (denoted by "...") due to character limitation so tell me if more information is needed</p>
+</div>
+										</div>
+										<div class="qa-q-view-tags">
+											<ul class="qa-q-view-tag-list">
+												<li class="qa-q-view-tag-item"><a href="../../tag/parallel" rel="tag" class="qa-tag-link">parallel</a></li>
+												<li class="qa-q-view-tag-item"><a href="../../tag/fenics" rel="tag" class="qa-tag-link">fenics</a></li>
+												<li class="qa-q-view-tag-item"><a href="../../tag/scaling" rel="tag" class="qa-tag-link">scaling</a></li>
+												<li class="qa-q-view-tag-item"><a href="../../tag/hpc" rel="tag" class="qa-tag-link">hpc</a></li>
+											</ul>
+										</div>
+										<span class="qa-q-view-avatar-meta">
+											<span class="qa-q-view-meta">
+												<a href="../../6362/achieve-good-parallel-efficiency-with-demo_poisson-example" class="qa-q-view-what">asked</a>
+												<span class="qa-q-view-when">
+													<span class="qa-q-view-when-data"><span class="published"><span class="value-title" title="2015-01-22T07:07:04+0000"></span>Jan 22, 2015</span></span>
+												</span>
+												<span class="qa-q-view-who">
+													<span class="qa-q-view-who-pad">by </span>
+													<span class="qa-q-view-who-data"><span class="vcard author"><a href="../../user/jychang48" class="qa-user-link url nickname">jychang48</a></span></span>
+													<span class="qa-q-view-who-title">FEniCS Novice</span>
+													<span class="qa-q-view-who-points">
+														<span class="qa-q-view-who-points-pad">(</span><span class="qa-q-view-who-points-data">510</span><span class="qa-q-view-who-points-pad"> points)</span>
+													</span>
+												</span>
+												<br>
+												<span class="qa-q-view-what">reshown</span>
+												<span class="qa-q-view-when">
+													<span class="qa-q-view-when-data"><span class="updated"><span class="value-title" title="2015-03-04T10:12:03+0000"></span>Mar 4, 2015</span></span>
+												</span>
+												<span class="qa-q-view-who">
+													<span class="qa-q-view-who-pad">by </span><span class="qa-q-view-who-data"><a href="../../user/chris_richardson" class="qa-user-link url nickname">chris_richardson</a></span>
+												</span>
+											</span>
+										</span>
+										<div class="qa-q-view-buttons">
+										</div>
+										
+										<div class="qa-q-view-c-list" style="display:none;" id="c6362_list">
+										</div> <!-- END qa-c-list -->
+										
+										<input type="hidden" name="code" value="0-1516468069-cbcb61d870da84f3d0e80ab18bafdea4548c46ff">
+										<input type="hidden" name="qa_click" value="">
+									</form>
+									<div class="qa-c-form">
+									</div> <!-- END qa-c-form -->
+									
+								</div> <!-- END qa-q-view-main -->
+								<div class="qa-q-view-clear">
+								</div>
+							</div> <!-- END qa-q-view -->
+							
+						</div>
+						<div class="qa-part-a-list">
+							<h2 id="a_list_title">1 Answer</h2>
+							<div class="qa-a-list" id="a_list">
+								
+								<div class="qa-a-list-item  hentry answer" id="a6363">
+									<form method="post" action="../../6362/achieve-good-parallel-efficiency-with-demo_poisson-example">
+										<div class="qa-voting qa-voting-net" id="voting_6363">
+											<div class="qa-vote-count qa-vote-count-net">
+												<span class="qa-netvote-count">
+													<span class="qa-netvote-count-data">+1<span class="votes-up"><span class="value-title" title="1"></span></span><span class="votes-down"><span class="value-title" title="0"></span></span></span><span class="qa-netvote-count-pad"> vote</span>
+												</span>
+											</div>
+											<div class="qa-vote-clear">
+											</div>
+										</div>
+										<input type="hidden" name="code" value="0-1516468069-f1ccfe39abd9ac7283e035e64335abdc56fa9aa7">
+									</form>
+									<div class="qa-a-item-main">
+										<form method="post" action="../../6362/achieve-good-parallel-efficiency-with-demo_poisson-example">
+											<div class="qa-a-selection">
+											</div>
+											<div class="qa-a-item-content">
+												<a name="6363"></a><div class="entry-content"><p>Most of the time is spent in the solve, which is a third party library function (PETSc).<br>
+If you want to get better scaling, you will need to focus on the solver method.</p>
+
+<p>Strong scaling is also not always very reasonable, e.g. if we solve for 1000000 dofs on 100 cores, it is bounds to be inefficient (only 10000 dofs per core) and communication will dominate.<br>
+Weak scaling allows us to span a greater range. I recommend about 500000 dofs per core, though it will depends on the amount of memory you have.</p>
+
+<p>It is also probably worth putting</p>
+
+<p><code>list_timings()</code><br>
+at the  end of your code. It is interesting for us to see which parts of dolfin scale badly. For example, it is well known that the Mesh generation of UnitSquareMesh is not good.</p>
+</div>
+											</div>
+											<span class="qa-a-item-avatar-meta">
+												<span class="qa-a-item-avatar">
+													<a href="../../user/chris_richardson" class="qa-avatar-link"><img src="https://www.gravatar.com/avatar/d779daeb727bcec8f6b2c505810042db?s=40" width="40" height="40" class="qa-avatar-image" alt=""></a>
+												</span>
+												<span class="qa-a-item-meta">
+													<a href="../../6362/achieve-good-parallel-efficiency-with-demo_poisson-example?show=6363#a6363" class="qa-a-item-what">answered</a>
+													<span class="qa-a-item-when">
+														<span class="qa-a-item-when-data"><span class="published"><span class="value-title" title="2015-01-22T09:50:35+0000"></span>Jan 22, 2015</span></span>
+													</span>
+													<span class="qa-a-item-who">
+														<span class="qa-a-item-who-pad">by </span>
+														<span class="qa-a-item-who-data"><span class="vcard author"><a href="../../user/chris_richardson" class="qa-user-link url nickname">chris_richardson</a></span></span>
+														<span class="qa-a-item-who-title">FEniCS Expert</span>
+														<span class="qa-a-item-who-points">
+															<span class="qa-a-item-who-points-pad">(</span><span class="qa-a-item-who-points-data">31,740</span><span class="qa-a-item-who-points-pad"> points)</span>
+														</span>
+													</span>
+												</span>
+											</span>
+											<div class="qa-a-item-buttons">
+												</div>
+											
+											<div class="qa-a-item-c-list" style="display:none;" id="c6363_list">
+											</div> <!-- END qa-c-list -->
+											
+											<input type="hidden" name="code" value="0-1516468069-4e478d60d2d1b46057a77049eed34f5678c081a3">
+											<input type="hidden" name="qa_click" value="">
+										</form>
+										<div class="qa-c-form">
+										</div> <!-- END qa-c-form -->
+										
+									</div> <!-- END qa-a-item-main -->
+									<div class="qa-a-item-clear">
+									</div>
+								</div> <!-- END qa-a-list-item -->
+								
+							</div> <!-- END qa-a-list -->
+							
+						</div>
+					</div> <!-- END qa-main -->
+					
+				</div> <!-- END main-wrapper -->
+			</div> <!-- END main-shadow -->
+		</div> <!-- END body-wrapper -->
+		<!-- END footer-bottom-group -->
+		
+		<div style="position:absolute; left:-9999px; top:-9999px;">
+			<span id="qa-waiting-template" class="qa-waiting">...</span>
+		</div>
+	
+	
+
+</body><!-- Powered by Question2Answer - http://www.question2answer.org/ --></html>

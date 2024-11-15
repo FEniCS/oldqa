@@ -1,0 +1,196 @@
+<html><!-- Powered by Question2Answer - http://www.question2answer.org/ --><head>
+		<meta http-equiv="content-type" content="text/html; charset=utf-8">
+		<title>How to achieve good parallel efficiency with the demo_poisson.py example (2) - FEniCS Q&amp;A</title>
+		<meta name="description" content='Hello, i have a question similar to the question [here][1]. i would like to benchmark strong scaling ... time.time() list_timings() File("data/u.pvd")'>
+		<link rel="stylesheet" type="text/css" href="../../qa-theme/Snow/qa-styles.css">
+		<link rel="canonical" href="http://fenicsproject.org/qa/8123/achieve-good-parallel-efficiency-with-demo_poisson-example">
+		<script type="text/x-mathjax-config">
+  MathJax.Hub.Config({
+    extensions: ["tex2jax.js"],
+    jax: ["input/TeX","output/HTML-CSS"],
+    tex2jax: {inlineMath: [["$","$"],["\\(","\\)"]]},
+    TeX: { extensions: ["AMSmath.js","AMSsymbols.js"]}
+  });
+</script>
+<script type="text/javascript" src="../../mathjax/MathJax.js"></script>
+		<script src="../../jquery-1.7.2.min.js" type="text/javascript"></script>
+		<script src="../../highlight.min.js"></script>
+<script type="text/javascript">
+$(function(){
+	$('.wmd-input').keypress(function(){
+		window.clearTimeout(hljs.Timeout);
+		hljs.Timeout = window.setTimeout(function() {
+			hljs.initHighlighting.called = false;
+			hljs.initHighlighting();
+		}, 500);
+	});
+	window.setTimeout(function() {
+		hljs.initHighlighting.called = false;
+		hljs.initHighlighting();
+	}, 500);
+});
+</script>
+
+
+	</head>
+	<body class="qa-template-question qa-body-js-off">
+		<div class="qa-body-wrapper">
+			
+			<div class="qa-header">
+				<div class="qa-logo">
+					<a href="../../" class="qa-logo-link" title="FEniCS Q&amp;A"><img src="../../qa-theme/fenics_qa.png" border="0" alt="FEniCS Q&amp;A"></a>
+				</div>
+				<div class="qa-header-clear">
+				</div>
+			</div> <!-- END qa-header -->
+			
+			<div class="qa-main-shadow">
+				
+				<div class="qa-main-wrapper">
+					
+					<div class="qa-sidepanel">
+						<div class="qa-sidebar">
+							This is a read only copy of the old FEniCS QA forum. Please visit the <a href="https://www.allanswered.com/community/s/fenics-project/">new QA forum</a> to ask questions
+						</div>
+						
+					</div>
+					
+					<div class="qa-main">
+						<h1>
+							<span class="entry-title">How to achieve good parallel efficiency with the demo_poisson.py example (2)</span>
+						</h1>
+						<div class="qa-part-q-view">
+							<div class="qa-q-view  hentry question" id="q8123">
+								<form method="post" action="../../8123/achieve-good-parallel-efficiency-with-demo_poisson-example">
+									<div class="qa-q-view-stats">
+										<div class="qa-voting qa-voting-net" id="voting_8123">
+											<div class="qa-vote-count qa-vote-count-net">
+												<span class="qa-netvote-count">
+													<span class="qa-netvote-count-data">+2<span class="votes-up"><span class="value-title" title="2"></span></span><span class="votes-down"><span class="value-title" title="0"></span></span></span><span class="qa-netvote-count-pad"> votes</span>
+												</span>
+											</div>
+											<div class="qa-vote-clear">
+											</div>
+										</div>
+									</div>
+									<input type="hidden" name="code" value="0-1516468158-13d29f31d27a292a09b84fc0761751bc7dcd57e3">
+								</form>
+								<div class="qa-q-view-main">
+									<form method="post" action="../../8123/achieve-good-parallel-efficiency-with-demo_poisson-example">
+										<div class="qa-q-view-content">
+											<a name="8123"></a><div class="entry-content"><p>Hello, </p>
+
+<p>i have a question similar to the question <a rel="nofollow" href="http://fenicsproject.org/qa/6362/achieve-good-parallel-efficiency-with-demo_poisson-example">here</a>.</p>
+
+<p>i would like to benchmark strong scaling using a modified version of the demo_poisson.py on our HPC cluster. This is the code that i am using:</p>
+
+<pre><code>from dolfin import *
+import time
+
+time0 = time.time()
+mesh = UnitCubeMesh(100,100,100)
+V = FunctionSpace(mesh, "Lagrange", 1)
+time1 = time.time()
+
+def boundary(x):
+  return x[0] &lt; DOLFIN_EPS or x[0] &gt; 1.0 - DOLFIN_EPS
+
+u0 = Constant(0.0)
+bc = DirichletBC(V, u0, boundary)
+u = TrialFunction(V)
+v = TestFunction(V)
+f = Expression("10*exp(-(pow(x[0] - 0.5, 2) + pow(x[1] - 0.5, 2)) / 0.02)")
+g = Expression("sin(5*x[0])")
+a = inner(grad(u), grad(v))*dx
+L = f*v*dx + g*v*ds
+time2 = time.time()
+A, b = assemble_system(a, L, bc)
+time4 = time.time()
+
+u = Function(V)
+solver = KrylovSolver(A, "cg", "petsc_amg")
+solver.solve(u.vector(), b)
+time5 = time.time()
+list_timings()
+
+File("data/u.pvd") &lt;&lt; u
+File("data/partitions.pvd") &lt;&lt; CellFunction("size_t", mesh, MPI.rank(mesh.mpi_comm()))
+
+comm = mpi_comm_world()
+rank = MPI.rank(comm)
+if rank == 0: 
+  print "Mesh+FunctionSpace:", time1-time0
+  print "Expressions+Forms:", time2-time1
+  print "Assemble Both:", time4-time2
+  print "Solve:", time5-time4
+</code></pre>
+
+<p>I run this example for varying number of MPI threads (one time for one MPI thread per core and one time for one thread per node) and get the following results: <img src="http://opentech.meinserver.at/~florian/plot01.png" alt="timings for poisson problem on 100x100x100 cube"></p>
+
+<p>These results deviate significantly from published results that I found <a rel="nofollow" href="http://arxiv.org/pdf/1501.01809">here</a> Compare e.g. Fig 3 where scaling seems to be smooth down to only a few hundred dofs per thread. On our cluster the best timings are achieved with 128 threads (approximately 10k dofs per thread, but it show a chaotic behaviour next to the optimum and even a large increase in runtime if the number of threads is further increased. </p>
+
+<p>So here are my questions: <br>
+1.) Is this 'normal' behaviour, or is something broken with my example (or the hardware <br>
+setup)? the maximum speedup is only a factor of 10 on 128 nodes!?<br>
+2.) Unfortunately cg+petsc amg was the only combination that i got running in parallel. cg+ilu failed if i execute it with mpi-run on more than one thread. are there any alternative solvers that perform better in parallel? <br>
+3.) what is dolfin-hpc? is it still up-to-date? does it provide improved solvers for parallel problems?</p>
+
+<p>thanks in advance for any advice<br>
+greetings Florian</p>
+</div>
+										</div>
+										<span class="qa-q-view-avatar-meta">
+											<span class="qa-q-view-meta">
+												<a href="../../8123/achieve-good-parallel-efficiency-with-demo_poisson-example" class="qa-q-view-what">asked</a>
+												<span class="qa-q-view-when">
+													<span class="qa-q-view-when-data"><span class="published"><span class="value-title" title="2015-09-14T10:14:17+0000"></span>Sep 14, 2015</span></span>
+												</span>
+												<span class="qa-q-view-who">
+													<span class="qa-q-view-who-pad">by </span>
+													<span class="qa-q-view-who-data"><span class="vcard author"><a href="../../user/florian_bruckner" class="qa-user-link url nickname">florian_bruckner</a></span></span>
+													<span class="qa-q-view-who-title">FEniCS Novice</span>
+													<span class="qa-q-view-who-points">
+														<span class="qa-q-view-who-points-pad">(</span><span class="qa-q-view-who-points-data">380</span><span class="qa-q-view-who-points-pad"> points)</span>
+													</span>
+												</span>
+											</span>
+										</span>
+										<div class="qa-q-view-buttons">
+										</div>
+										
+										<div class="qa-q-view-c-list" style="display:none;" id="c8123_list">
+										</div> <!-- END qa-c-list -->
+										
+										<input type="hidden" name="code" value="0-1516468158-fe98e8f800112a32d9d5fb201894d1e777074cef">
+										<input type="hidden" name="qa_click" value="">
+									</form>
+									<div class="qa-c-form">
+									</div> <!-- END qa-c-form -->
+									
+								</div> <!-- END qa-q-view-main -->
+								<div class="qa-q-view-clear">
+								</div>
+							</div> <!-- END qa-q-view -->
+							
+						</div>
+						<div class="qa-part-a-list">
+							<h2 id="a_list_title" style="display:none;"></h2>
+							<div class="qa-a-list" id="a_list">
+								
+							</div> <!-- END qa-a-list -->
+							
+						</div>
+					</div> <!-- END qa-main -->
+					
+				</div> <!-- END main-wrapper -->
+			</div> <!-- END main-shadow -->
+		</div> <!-- END body-wrapper -->
+		<!-- END footer-bottom-group -->
+		
+		<div style="position:absolute; left:-9999px; top:-9999px;">
+			<span id="qa-waiting-template" class="qa-waiting">...</span>
+		</div>
+	
+	
+
+</body><!-- Powered by Question2Answer - http://www.question2answer.org/ --></html>

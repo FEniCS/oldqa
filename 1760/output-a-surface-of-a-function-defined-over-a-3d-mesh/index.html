@@ -1,0 +1,698 @@
+<html><!-- Powered by Question2Answer - http://www.question2answer.org/ --><head>
+		<meta http-equiv="content-type" content="text/html; charset=utf-8">
+		<title>Output a surface of a Function defined over a 3D mesh. - FEniCS Q&amp;A</title>
+		<meta name="description" content="I would like to extract a surface of a 3D Function to a 2D .xml or .pvd file. I  ... /1587/extract-surface-from-mesh-save-with-function-values-applied">
+		<link rel="stylesheet" type="text/css" href="../../qa-theme/Snow/qa-styles.css">
+		<link rel="canonical" href="http://fenicsproject.org/qa/1760/output-a-surface-of-a-function-defined-over-a-3d-mesh">
+		<script type="text/x-mathjax-config">
+  MathJax.Hub.Config({
+    extensions: ["tex2jax.js"],
+    jax: ["input/TeX","output/HTML-CSS"],
+    tex2jax: {inlineMath: [["$","$"],["\\(","\\)"]]},
+    TeX: { extensions: ["AMSmath.js","AMSsymbols.js"]}
+  });
+</script>
+<script type="text/javascript" src="../../mathjax/MathJax.js"></script>
+		<script src="../../jquery-1.7.2.min.js" type="text/javascript"></script>
+		<script src="../../highlight.min.js"></script>
+<script type="text/javascript">
+$(function(){
+	$('.wmd-input').keypress(function(){
+		window.clearTimeout(hljs.Timeout);
+		hljs.Timeout = window.setTimeout(function() {
+			hljs.initHighlighting.called = false;
+			hljs.initHighlighting();
+		}, 500);
+	});
+	window.setTimeout(function() {
+		hljs.initHighlighting.called = false;
+		hljs.initHighlighting();
+	}, 500);
+});
+</script>
+
+
+	</head>
+	<body class="qa-template-question qa-body-js-off">
+		<div class="qa-body-wrapper">
+			
+			<div class="qa-header">
+				<div class="qa-logo">
+					<a href="../../" class="qa-logo-link" title="FEniCS Q&amp;A"><img src="../../qa-theme/fenics_qa.png" border="0" alt="FEniCS Q&amp;A"></a>
+				</div>
+				<div class="qa-header-clear">
+				</div>
+			</div> <!-- END qa-header -->
+			
+			<div class="qa-main-shadow">
+				
+				<div class="qa-main-wrapper">
+					
+					<div class="qa-sidepanel">
+						<div class="qa-sidebar">
+							This is a read only copy of the old FEniCS QA forum. Please visit the <a href="https://www.allanswered.com/community/s/fenics-project/">new QA forum</a> to ask questions
+						</div>
+						
+					</div>
+					
+					<div class="qa-main">
+						<h1>
+							<span class="entry-title">Output a surface of a Function defined over a 3D mesh.</span>
+						</h1>
+						<div class="qa-part-q-view">
+							<div class="qa-q-view  hentry question" id="q1760">
+								<form method="post" action="../../1760/output-a-surface-of-a-function-defined-over-a-3d-mesh">
+									<div class="qa-q-view-stats">
+										<div class="qa-voting qa-voting-net" id="voting_1760">
+											<div class="qa-vote-count qa-vote-count-net">
+												<span class="qa-netvote-count">
+													<span class="qa-netvote-count-data">&#8211;1<span class="votes-up"><span class="value-title" title="0"></span></span><span class="votes-down"><span class="value-title" title="1"></span></span></span><span class="qa-netvote-count-pad"> vote</span>
+												</span>
+											</div>
+											<div class="qa-vote-clear">
+											</div>
+										</div>
+									</div>
+									<input type="hidden" name="code" value="0-1516467898-c7d51a1d036264af1537138cb35b75f1bb9bd68e">
+								</form>
+								<div class="qa-q-view-main">
+									<form method="post" action="../../1760/output-a-surface-of-a-function-defined-over-a-3d-mesh">
+										<div class="qa-q-view-content">
+											<a name="1760"></a><div class="entry-content"><p>I would like to extract a surface of a 3D Function to a 2D .xml or .pvd file.</p>
+
+<p>I have a FacetFunction which defines the surfaces.</p>
+
+<p>I could create a 2D mesh from the 3D mesh and create a "dof_map" like structure to relate the 3D mesh indices to 2D mesh indices, but this is quite time consuming due to parsing .xml files.</p>
+
+<p>Here's the source code for converting a 3D mesh to 2D (time consuming due to in1d ftn):</p>
+
+<pre><code>import re
+from pylab  import *
+from dolfin import *
+
+#===============================================================================
+# parse the mesh file :
+grid    = open('mesh.xml', 'r')
+newGrid = open('bed.xml',  'w')
+
+sv    = '^.*index="([0-9]+)"\sx="(-?[0-9]+\.[0-9]+e?[+-]?[0-9]+)"' + \
+                           '\sy="(-?[0-9]+\.[0-9]+e?[+-]?[0-9]+)"' + \
+                           '\sz="(-?[0-9]+\.[0-9]+e?[+-]?[0-9]+)"'
+pv    = re.compile(sv)
+
+sc    = '^.*tetrahedron\sindex="([0-9]+)"' + \
+                       '\sv0="([0-9]+)"' + \
+                       '\sv1="([0-9]+)"' + \
+                       '\sv2="([0-9]+)"' + \
+                       '\sv2="([0-9]+)"'
+pc    = re.compile(sc)
+
+ci    = []  # cell index
+vi    = []  # vertex index
+vx    = []  # vertex x coordinate
+vy    = []  # vertex y coordinate
+vz    = []  # vertex z coordinate
+
+print "&lt;::::::::PARSING THE 3D XML FILE::::::::&gt;"
+for l in grid.readlines():
+  mrv = pv.match(l)
+  mrc = pc.match(l)
+  if mrv != None:
+    vi.append(int(mrv.group(1)))
+    vx.append(float(mrv.group(2)))
+    vy.append(float(mrv.group(3)))
+    vz.append(float(mrv.group(4)))
+  if mrc != None:
+    v0 = int(mrc.group(1))
+    v1 = int(mrc.group(2))
+    v2 = int(mrc.group(3))
+    v3 = int(mrc.group(4))
+    v4 = int(mrc.group(5))
+    ci.append([v0, v1, v2, v3, v4])
+  if mrc == None and mrv == None:
+    print "DATA NOT MATCHED :\t", l[:-1]
+print "::::END OF GRID FILE::::"
+grid.close()
+
+# convert to array (more efficient) :
+ci = array(ci)  # cell index
+vi = array(vi)  # vertex index
+vx = array(vx)  # vertex x coordinate
+vy = array(vy)  # vertex y coordinate
+vz = array(vz)  # vertex z coordinate
+
+#===============================================================================
+# formulate triangles :
+# throw out parts that are not on the bed :
+bed = where(vz == 0)[0]
+n   = len(bed)
+vi  = vi[bed] 
+vx  = vx[bed] 
+vy  = vy[bed] 
+vz  = vz[bed] 
+ta  = []                # triangles, values are indices to vertices
+ti  = []                # cell index, need to make this cell the same as 3D
+
+# iterate though each cell and find any cell with exactly 3 matching vertices 
+# on the surface.  Then append a list of each vertex index that matches to the 
+# array of triangles.
+print "&lt;::::::::FORMULATING TRIANGLES::::::::&gt;"
+for c in ci:
+  k = in1d(vi, c[1:])
+  if sum(k) == 3:
+    ta.append(append(c[0], vi[k]))
+print "::::FINISHED::::"
+
+ta = array(ta)
+m  = len(ta)
+
+#===============================================================================
+# create the new 2D .xml file :
+print "&lt;::::::::WRITING NEW 2D XML::::::::&gt;"
+newGrid.write('&lt;?xml version="1.0" encoding="UTF-8"?&gt;\n\n' + \
+              '&lt;dolfin xmlns:dolfin="http://www.fenicsproject.org"&gt;\n' + \
+              '  &lt;mesh celltype="triangle" dim="2"&gt;\n' + \
+              '    &lt;vertices size="%i"&gt;\n' % n)
+
+for i,x,y,z in zip(vi,vx,vy,vz):
+  newGrid.write('      &lt;vertex index="%i" x="%f" y="%f" z="%f"/&gt;\n' 
+                % (i,x,y,z))
+
+newGrid.write('    &lt;/vertices&gt;\n' + \
+              '    &lt;cells size="%i"&gt;\n' % m)
+for i,v0,v1,v2 in ta:
+  newGrid.write('      &lt;triangle index="%i" v0="%i" v1="%i" v2="%i"/&gt;\n' 
+                % (i,v0,v1,v2))
+
+newGrid.write('    &lt;/cells&gt;\n' + \
+              '  &lt;/mesh&gt;\n' + \
+              '&lt;/dolfin&gt;')
+print "::::FINISHED::::"
+
+newGrid.close()
+</code></pre>
+
+<p>Alternatively, I could:<br>
+ 1. Iterate through each vertex on the 3D mesh<br>
+ 2. Determine if it is on the surface I desire<br>
+ 3. If it's on the surface, add its indices and coordinates to a new data structure<br>
+ 4. Interpolate off of this new data structure onto the 2D surface, correcting for edge errors.</p>
+
+<p>Does anyone have a better way?</p>
+
+<p>Here I have asked this <a rel="nofollow" href="http://fenicsproject.org/qa/1587/extract-surface-from-mesh-save-with-function-values-applied">previous question</a> which was not worded properly.</p>
+</div>
+										</div>
+										<span class="qa-q-view-avatar-meta">
+											<span class="qa-q-view-avatar">
+												<a href="../../user/pf4d" class="qa-avatar-link"><img src="https://www.gravatar.com/avatar/102105360e5a49a3d555fb320b328a11?s=50" width="50" height="50" class="qa-avatar-image" alt=""></a>
+											</span>
+											<span class="qa-q-view-meta">
+												<a href="../../1760/output-a-surface-of-a-function-defined-over-a-3d-mesh" class="qa-q-view-what">asked</a>
+												<span class="qa-q-view-when">
+													<span class="qa-q-view-when-data"><span class="published"><span class="value-title" title="2013-11-24T19:24:36+0000"></span>Nov 24, 2013</span></span>
+												</span>
+												<span class="qa-q-view-who">
+													<span class="qa-q-view-who-pad">by </span>
+													<span class="qa-q-view-who-data"><span class="vcard author"><a href="../../user/pf4d" class="qa-user-link url nickname">pf4d</a></span></span>
+													<span class="qa-q-view-who-title">FEniCS User</span>
+													<span class="qa-q-view-who-points">
+														<span class="qa-q-view-who-points-pad">(</span><span class="qa-q-view-who-points-data">2,970</span><span class="qa-q-view-who-points-pad"> points)</span>
+													</span>
+												</span>
+											</span>
+										</span>
+										<div class="qa-q-view-buttons">
+										</div>
+										
+										<div class="qa-q-view-c-list" style="display:none;" id="c1760_list">
+										</div> <!-- END qa-c-list -->
+										
+										<input type="hidden" name="code" value="0-1516467898-a14ac19408dd08931ad04ca6db692e014c4335b2">
+										<input type="hidden" name="qa_click" value="">
+									</form>
+									<div class="qa-c-form">
+									</div> <!-- END qa-c-form -->
+									
+								</div> <!-- END qa-q-view-main -->
+								<div class="qa-q-view-clear">
+								</div>
+							</div> <!-- END qa-q-view -->
+							
+						</div>
+						<div class="qa-part-a-list">
+							<h2 id="a_list_title">1 Answer</h2>
+							<div class="qa-a-list" id="a_list">
+								
+								<div class="qa-a-list-item  hentry answer answer-selected qa-a-list-item-selected" id="a1768">
+									<form method="post" action="../../1760/output-a-surface-of-a-function-defined-over-a-3d-mesh">
+										<div class="qa-voting qa-voting-net" id="voting_1768">
+											<div class="qa-vote-count qa-vote-count-net">
+												<span class="qa-netvote-count">
+													<span class="qa-netvote-count-data">+1<span class="votes-up"><span class="value-title" title="1"></span></span><span class="votes-down"><span class="value-title" title="0"></span></span></span><span class="qa-netvote-count-pad"> vote</span>
+												</span>
+											</div>
+											<div class="qa-vote-clear">
+											</div>
+										</div>
+										<input type="hidden" name="code" value="0-1516467898-c7d51a1d036264af1537138cb35b75f1bb9bd68e">
+									</form>
+									<div class="qa-a-item-main">
+										<form method="post" action="../../1760/output-a-surface-of-a-function-defined-over-a-3d-mesh">
+											<div class="qa-a-item-selected">
+												<div class="qa-a-selection">
+													<div class="qa-a-selected">&#160;</div>
+													<div class="qa-a-selected-text">Best answer</div>
+												</div>
+												<div class="qa-a-item-content">
+													<a name="1768"></a><div class="entry-content"><p>Your example is way to big for us to follow. That said you can create a boundary mesh from your 3D mesh. Create a Function on that mesh (2D embedded into 3D) and interpolate the original 3D Function onto the boundary Function.</p>
+
+<pre><code>from dolfin import *
+mesh = UnitCubeMesh(10,10,10)
+V = FunctionSpace(mesh, "CG", 1)
+u = Function(V)
+u.vector()[:] = 1.5
+
+bmesh = BoundaryMesh(mesh, "exterior")
+Vb = FunctionSpace(mesh, "CG", 1)
+ub = Function(Vb)
+ub.interpolate(u)
+File("ub.pvd") &lt;&lt; ub
+</code></pre>
+</div>
+												</div>
+												<span class="qa-a-item-avatar-meta">
+													<span class="qa-a-item-avatar">
+														<a href="../../user/johanhake" class="qa-avatar-link"><img src="https://www.gravatar.com/avatar/73612279d6702974866af2e1a9653a5b?s=40" width="40" height="40" class="qa-avatar-image" alt=""></a>
+													</span>
+													<span class="qa-a-item-meta">
+														<a href="../../1760/output-a-surface-of-a-function-defined-over-a-3d-mesh?show=1768#a1768" class="qa-a-item-what">answered</a>
+														<span class="qa-a-item-when">
+															<span class="qa-a-item-when-data"><span class="published"><span class="value-title" title="2013-11-25T07:40:36+0000"></span>Nov 25, 2013</span></span>
+														</span>
+														<span class="qa-a-item-who">
+															<span class="qa-a-item-who-pad">by </span>
+															<span class="qa-a-item-who-data"><span class="vcard author"><a href="../../user/johanhake" class="qa-user-link url nickname">johanhake</a></span></span>
+															<span class="qa-a-item-who-title">FEniCS Expert</span>
+															<span class="qa-a-item-who-points">
+																<span class="qa-a-item-who-points-pad">(</span><span class="qa-a-item-who-points-data">22,480</span><span class="qa-a-item-who-points-pad"> points)</span>
+															</span>
+														</span>
+														<br>
+														<span class="qa-a-item-what">selected</span>
+														<span class="qa-a-item-when">
+															<span class="qa-a-item-when-data"><span class="updated"><span class="value-title" title="2013-11-27T16:55:26+0000"></span>Nov 27, 2013</span></span>
+														</span>
+														<span class="qa-a-item-who">
+															<span class="qa-a-item-who-pad">by </span><span class="qa-a-item-who-data"><a href="../../user/pf4d" class="qa-user-link url nickname">pf4d</a></span>
+														</span>
+													</span>
+												</span>
+											</div>
+											<div class="qa-a-item-buttons">
+												</div>
+											
+											<div class="qa-a-item-c-list" id="c1768_list">
+												<div class="qa-c-list-item  hentry comment" id="c1780">
+													<div class="qa-c-item-content">
+														<a name="1780"></a><div class="entry-content"><p>Is it possible to specify only part of the mesh though?  I have a facet function which defines the part that I need, something like this:</p>
+
+<pre><code>ff   = FacetFunction('size_t', mesh, 0)
+for f in facets(mesh):
+  if f.normal() &lt;= -1e-3 and f.exterior():
+    ff[f] = 1
+</code></pre>
+
+<p>I use this for integration:</p>
+
+<pre><code> ds = Measure('ds')[ff] # commenting and extra space for highlight
+</code></pre>
+</div>
+													</div>
+													<div class="qa-c-item-footer">
+														<span class="qa-c-item-avatar-meta">
+															<span class="qa-c-item-avatar">
+																<a href="../../user/pf4d" class="qa-avatar-link"><img src="https://www.gravatar.com/avatar/102105360e5a49a3d555fb320b328a11?s=20" width="20" height="20" class="qa-avatar-image" alt=""></a>
+															</span>
+															<span class="qa-c-item-meta">
+																<a href="../../1760/output-a-surface-of-a-function-defined-over-a-3d-mesh?show=1780#c1780" class="qa-c-item-what">commented</a>
+																<span class="qa-c-item-when">
+																	<span class="qa-c-item-when-data"><span class="published"><span class="value-title" title="2013-11-25T17:24:25+0000"></span>Nov 25, 2013</span></span>
+																</span>
+																<span class="qa-c-item-who">
+																	<span class="qa-c-item-who-pad">by </span>
+																	<span class="qa-c-item-who-data"><span class="vcard author"><a href="../../user/pf4d" class="qa-user-link url nickname">pf4d</a></span></span>
+																	<span class="qa-c-item-who-title">FEniCS User</span>
+																	<span class="qa-c-item-who-points">
+																		<span class="qa-c-item-who-points-pad">(</span><span class="qa-c-item-who-points-data">2,970</span><span class="qa-c-item-who-points-pad"> points)</span>
+																	</span>
+																</span>
+																<br>
+																<span class="qa-c-item-what">edited</span>
+																<span class="qa-c-item-when">
+																	<span class="qa-c-item-when-data"><span class="updated"><span class="value-title" title="2013-11-27T21:16:30+0000"></span>Nov 27, 2013</span></span>
+																</span>
+																<span class="qa-c-item-who">
+																	<span class="qa-c-item-who-pad">by </span><span class="qa-c-item-who-data"><a href="../../user/pf4d" class="qa-user-link url nickname">pf4d</a></span>
+																</span>
+															</span>
+														</span>
+														<div class="qa-c-item-buttons">
+														</div>
+													</div>
+													<div class="qa-c-item-clear">
+													</div>
+												</div> <!-- END qa-c-item -->
+												<div class="qa-c-list-item  hentry comment" id="c1782">
+													<div class="qa-c-item-content">
+														<a name="1782"></a><div class="entry-content"><p>You can create a <code>CellFunction</code> on the boundary mesh based on your criteria and create a <code>SubMesh</code> of the <code>BoundaryMesh</code> using that function.</p>
+
+<pre><code>from dolfin import *
+mesh = UnitSquareMesh(10,10)
+V = FunctionSpace(mesh, "CG", 1)
+u = Function(V)
+u.vector()[:] = 1.5
+
+bmesh = BoundaryMesh(mesh, "exterior")
+mapping = bmesh.entity_map(1) 
+part_of_boundary = CellFunction("size_t", bmesh, 0)
+for cell in cells(bmesh):
+    if Facet(mesh, mapping[cell.index()]).normal().x() &lt; 0: # or some other criteria
+        part_of_boundary[cell] = 1
+
+submesh_of_boundary = SubMesh(bmesh, part_of_boundary, 1)
+Vb = FunctionSpace(submesh_of_boundary, "CG", 1)
+ub = Function(V)
+ub.interpolate(u)
+File("ub.pvd") &lt;&lt; ub
+</code></pre>
+</div>
+													</div>
+													<div class="qa-c-item-footer">
+														<span class="qa-c-item-avatar-meta">
+															<span class="qa-c-item-avatar">
+																<a href="../../user/johanhake" class="qa-avatar-link"><img src="https://www.gravatar.com/avatar/73612279d6702974866af2e1a9653a5b?s=20" width="20" height="20" class="qa-avatar-image" alt=""></a>
+															</span>
+															<span class="qa-c-item-meta">
+																<a href="../../1760/output-a-surface-of-a-function-defined-over-a-3d-mesh?show=1782#c1782" class="qa-c-item-what">commented</a>
+																<span class="qa-c-item-when">
+																	<span class="qa-c-item-when-data"><span class="published"><span class="value-title" title="2013-11-25T19:07:12+0000"></span>Nov 25, 2013</span></span>
+																</span>
+																<span class="qa-c-item-who">
+																	<span class="qa-c-item-who-pad">by </span>
+																	<span class="qa-c-item-who-data"><span class="vcard author"><a href="../../user/johanhake" class="qa-user-link url nickname">johanhake</a></span></span>
+																	<span class="qa-c-item-who-title">FEniCS Expert</span>
+																	<span class="qa-c-item-who-points">
+																		<span class="qa-c-item-who-points-pad">(</span><span class="qa-c-item-who-points-data">22,480</span><span class="qa-c-item-who-points-pad"> points)</span>
+																	</span>
+																</span>
+																<br>
+																<span class="qa-c-item-what">edited</span>
+																<span class="qa-c-item-when">
+																	<span class="qa-c-item-when-data"><span class="updated"><span class="value-title" title="2013-11-25T19:33:29+0000"></span>Nov 25, 2013</span></span>
+																</span>
+																<span class="qa-c-item-who">
+																	<span class="qa-c-item-who-pad">by </span><span class="qa-c-item-who-data"><a href="../../user/johanhake" class="qa-user-link url nickname">johanhake</a></span>
+																</span>
+															</span>
+														</span>
+														<div class="qa-c-item-buttons">
+														</div>
+													</div>
+													<div class="qa-c-item-clear">
+													</div>
+												</div> <!-- END qa-c-item -->
+												<div class="qa-c-list-item  hentry comment" id="c1801">
+													<div class="qa-c-item-content">
+														<a name="1801"></a><div class="entry-content"><p>Oh wow, that's great!</p>
+</div>
+													</div>
+													<div class="qa-c-item-footer">
+														<span class="qa-c-item-avatar-meta">
+															<span class="qa-c-item-avatar">
+																<a href="../../user/pf4d" class="qa-avatar-link"><img src="https://www.gravatar.com/avatar/102105360e5a49a3d555fb320b328a11?s=20" width="20" height="20" class="qa-avatar-image" alt=""></a>
+															</span>
+															<span class="qa-c-item-meta">
+																<a href="../../1760/output-a-surface-of-a-function-defined-over-a-3d-mesh?show=1801#c1801" class="qa-c-item-what">commented</a>
+																<span class="qa-c-item-when">
+																	<span class="qa-c-item-when-data"><span class="published"><span class="value-title" title="2013-11-26T18:14:00+0000"></span>Nov 26, 2013</span></span>
+																</span>
+																<span class="qa-c-item-who">
+																	<span class="qa-c-item-who-pad">by </span>
+																	<span class="qa-c-item-who-data"><span class="vcard author"><a href="../../user/pf4d" class="qa-user-link url nickname">pf4d</a></span></span>
+																	<span class="qa-c-item-who-title">FEniCS User</span>
+																	<span class="qa-c-item-who-points">
+																		<span class="qa-c-item-who-points-pad">(</span><span class="qa-c-item-who-points-data">2,970</span><span class="qa-c-item-who-points-pad"> points)</span>
+																	</span>
+																</span>
+															</span>
+														</span>
+														<div class="qa-c-item-buttons">
+														</div>
+													</div>
+													<div class="qa-c-item-clear">
+													</div>
+												</div> <!-- END qa-c-item -->
+												<div class="qa-c-list-item  hentry comment" id="c1816">
+													<div class="qa-c-item-content">
+														<a name="1816"></a><div class="entry-content"><p>Just a couple edits for a 3D mesh :</p>
+
+<pre><code>from dolfin import *
+
+mesh = UnitCubeMesh(10,10,10)
+V    = FunctionSpace(mesh, "CG", 1) # comment for highlight
+u    = Function(V)
+u.vector()[:] = 1.5
+
+bmesh   = BoundaryMesh(mesh, "exterior")
+mapping = bmesh.entity_map(2) # comment makes highlight work
+part_of_boundary = CellFunction("size_t", bmesh, 0) 
+for cell in cells(bmesh):
+  if Facet(mesh, mapping[cell.index()]).normal().z() &lt; 0:
+    part_of_boundary[cell] = 1
+
+submesh_of_boundary = SubMesh(bmesh, part_of_boundary, 1)
+Vb = FunctionSpace(submesh_of_boundary, "CG", 1)
+ub = Function(Vb)
+ub.interpolate(u)
+File("ub.pvd") &lt;&lt; ub
+</code></pre>
+</div>
+													</div>
+													<div class="qa-c-item-footer">
+														<span class="qa-c-item-avatar-meta">
+															<span class="qa-c-item-avatar">
+																<a href="../../user/pf4d" class="qa-avatar-link"><img src="https://www.gravatar.com/avatar/102105360e5a49a3d555fb320b328a11?s=20" width="20" height="20" class="qa-avatar-image" alt=""></a>
+															</span>
+															<span class="qa-c-item-meta">
+																<a href="../../1760/output-a-surface-of-a-function-defined-over-a-3d-mesh?show=1816#c1816" class="qa-c-item-what">commented</a>
+																<span class="qa-c-item-when">
+																	<span class="qa-c-item-when-data"><span class="published"><span class="value-title" title="2013-11-27T15:56:15+0000"></span>Nov 27, 2013</span></span>
+																</span>
+																<span class="qa-c-item-who">
+																	<span class="qa-c-item-who-pad">by </span>
+																	<span class="qa-c-item-who-data"><span class="vcard author"><a href="../../user/pf4d" class="qa-user-link url nickname">pf4d</a></span></span>
+																	<span class="qa-c-item-who-title">FEniCS User</span>
+																	<span class="qa-c-item-who-points">
+																		<span class="qa-c-item-who-points-pad">(</span><span class="qa-c-item-who-points-data">2,970</span><span class="qa-c-item-who-points-pad"> points)</span>
+																	</span>
+																</span>
+																<br>
+																<span class="qa-c-item-what">edited</span>
+																<span class="qa-c-item-when">
+																	<span class="qa-c-item-when-data"><span class="updated"><span class="value-title" title="2013-11-27T21:22:45+0000"></span>Nov 27, 2013</span></span>
+																</span>
+																<span class="qa-c-item-who">
+																	<span class="qa-c-item-who-pad">by </span><span class="qa-c-item-who-data"><a href="../../user/pf4d" class="qa-user-link url nickname">pf4d</a></span>
+																</span>
+															</span>
+														</span>
+														<div class="qa-c-item-buttons">
+														</div>
+													</div>
+													<div class="qa-c-item-clear">
+													</div>
+												</div> <!-- END qa-c-item -->
+												<div class="qa-c-list-item  hentry comment" id="c1817">
+													<div class="qa-c-item-content">
+														<a name="1817"></a><div class="entry-content"><p>When running this with my actual mesh the interpolate function cannot find the point and gives this error:</p>
+
+<pre><code>***     https://answers.launchpad.net/dolfin
+***
+*** Remember to include the error message listed below and, if possible,
+*** include a *minimal* running example to reproduce the error.
+***
+*** -------------------------------------------------------------------------
+*** Error:   Unable to evaluate function at point.
+*** Reason:  The point is not inside the domain. Consider setting 
+***          "allow_extrapolation" to allow extrapolation.
+*** Where:   This error was encountered inside Function.cpp.
+*** Process: 0
+*** -------------------------------------------------------------------------
+</code></pre>
+
+<p>Setting</p>
+
+<pre><code>parameters['allow_extrapolation'] = True
+</code></pre>
+
+<p>Results in a segmentation fault.</p>
+
+<p>I'm going to try to iterate through the vertices of the SubMesh Function 'ub' and set them equal to the values of the vertices of the main Mesh Function 'u'.  I have a feeling that I'll need some kind of mapping.</p>
+</div>
+													</div>
+													<div class="qa-c-item-footer">
+														<span class="qa-c-item-avatar-meta">
+															<span class="qa-c-item-avatar">
+																<a href="../../user/pf4d" class="qa-avatar-link"><img src="https://www.gravatar.com/avatar/102105360e5a49a3d555fb320b328a11?s=20" width="20" height="20" class="qa-avatar-image" alt=""></a>
+															</span>
+															<span class="qa-c-item-meta">
+																<a href="../../1760/output-a-surface-of-a-function-defined-over-a-3d-mesh?show=1817#c1817" class="qa-c-item-what">commented</a>
+																<span class="qa-c-item-when">
+																	<span class="qa-c-item-when-data"><span class="published"><span class="value-title" title="2013-11-27T18:12:57+0000"></span>Nov 27, 2013</span></span>
+																</span>
+																<span class="qa-c-item-who">
+																	<span class="qa-c-item-who-pad">by </span>
+																	<span class="qa-c-item-who-data"><span class="vcard author"><a href="../../user/pf4d" class="qa-user-link url nickname">pf4d</a></span></span>
+																	<span class="qa-c-item-who-title">FEniCS User</span>
+																	<span class="qa-c-item-who-points">
+																		<span class="qa-c-item-who-points-pad">(</span><span class="qa-c-item-who-points-data">2,970</span><span class="qa-c-item-who-points-pad"> points)</span>
+																	</span>
+																</span>
+															</span>
+														</span>
+														<div class="qa-c-item-buttons">
+														</div>
+													</div>
+													<div class="qa-c-item-clear">
+													</div>
+												</div> <!-- END qa-c-item -->
+												<div class="qa-c-list-item  hentry comment" id="c1824">
+													<div class="qa-c-item-content">
+														<a name="1824"></a><div class="entry-content"><p>So in order to relate the indices of the SubMesh back to the original mesh (where I can pull the data from) I have to use a three-level dofmap with hierarchy </p>
+
+<p>SubMesh --&gt; BoundaryMesh --&gt; Mesh</p>
+
+<p>I have made the function over the 3D surface quadratic in <em>x</em> and <em>y</em> so we can better tell if this works.  The reason this is needed is because the line</p>
+
+<pre><code>us.interpolate(u)
+</code></pre>
+
+<p>works with the CubeMesh, but not with the real mesh (I think because of floating-point error in the spatial extrapolation). </p>
+
+<p>My attempt at implementing this has not worked, perhaps you know of a better way to map the SubMesh back to the original Mesh?</p>
+
+<pre><code>from dolfin import *
+
+mesh = UnitCubeMesh(10,10,10)          # original mesh
+mesh.coordinates()[:,0] -= .5          # shift x-coords
+mesh.coordinates()[:,1] -= .5          # shift y-coords
+V    = FunctionSpace(mesh, "CG", 1)
+u    = Function(V)
+
+dfV    = V.dofmap()
+dfVmap = dfV.vertex_to_dof_map(mesh)          # mesh dofmap
+
+# apply expression over cube for clearer results :
+u_i  = Expression('sqrt(pow(x[0],2) + pow(x[1], 2))')
+u.interpolate(u_i)
+
+File('u.pvd') &lt;&lt; u                            # output function to check
+
+bmesh  = BoundaryMesh(mesh, "exterior")       # surface boundary mesh
+Vb     = FunctionSpace(bmesh, "CG", 1)        # surface function space
+
+dfVb    = Vb.dofmap()            
+dfVbmap = dfVb.vertex_to_dof_map(bmesh)       # bmesh dofmap
+
+cellmap  = bmesh.entity_map(2)
+part_of_boundary = CellFunction("size_t", bmesh, 0)
+for c in cells(bmesh):
+  if Facet(mesh, cellmap[c.index()]).normal().z() &lt; 0:
+    part_of_boundary[c] = 1
+
+submesh = SubMesh(bmesh, part_of_boundary, 1) # subset of surface mesh
+Vs      = FunctionSpace(submesh, "CG", 1)     # submesh function space
+
+us      = Function(Vs)                        # desired function
+#us.interpolate(u)         # this works for UnitCube, not "real" mesh
+
+dfVs    = Vs.dofmap()
+dfVsmap = dfVs.vertex_to_dof_map(submesh)     # submesh dofmap
+
+u_a  = u.vector().array()                     # array form of original ftn
+us_a = us.vector().array()                    # array form of desired ftn
+
+for v in vertices(submesh):
+  i = v.index()                               # index of submesh
+  us_a[i] = u_a[dfVmap[dfVbmap[dfVsmap[i]]]]  # relate back to original mesh
+
+us.vector().set_local(us_a)                   # apply the array to ftn
+File("ub.pvd") &lt;&lt; us                          # not correct 
+</code></pre>
+</div>
+													</div>
+													<div class="qa-c-item-footer">
+														<span class="qa-c-item-avatar-meta">
+															<span class="qa-c-item-avatar">
+																<a href="../../user/pf4d" class="qa-avatar-link"><img src="https://www.gravatar.com/avatar/102105360e5a49a3d555fb320b328a11?s=20" width="20" height="20" class="qa-avatar-image" alt=""></a>
+															</span>
+															<span class="qa-c-item-meta">
+																<a href="../../1760/output-a-surface-of-a-function-defined-over-a-3d-mesh?show=1824#c1824" class="qa-c-item-what">commented</a>
+																<span class="qa-c-item-when">
+																	<span class="qa-c-item-when-data"><span class="published"><span class="value-title" title="2013-11-27T23:26:55+0000"></span>Nov 28, 2013</span></span>
+																</span>
+																<span class="qa-c-item-who">
+																	<span class="qa-c-item-who-pad">by </span>
+																	<span class="qa-c-item-who-data"><span class="vcard author"><a href="../../user/pf4d" class="qa-user-link url nickname">pf4d</a></span></span>
+																	<span class="qa-c-item-who-title">FEniCS User</span>
+																	<span class="qa-c-item-who-points">
+																		<span class="qa-c-item-who-points-pad">(</span><span class="qa-c-item-who-points-data">2,970</span><span class="qa-c-item-who-points-pad"> points)</span>
+																	</span>
+																</span>
+																<br>
+																<span class="qa-c-item-what">reshown</span>
+																<span class="qa-c-item-when">
+																	<span class="qa-c-item-when-data"><span class="updated"><span class="value-title" title="2013-12-05T22:53:10+0000"></span>Dec 5, 2013</span></span>
+																</span>
+																<span class="qa-c-item-who">
+																	<span class="qa-c-item-who-pad">by </span><span class="qa-c-item-who-data"><a href="../../user/pf4d" class="qa-user-link url nickname">pf4d</a></span>
+																</span>
+															</span>
+														</span>
+														<div class="qa-c-item-buttons">
+														</div>
+													</div>
+													<div class="qa-c-item-clear">
+													</div>
+												</div> <!-- END qa-c-item -->
+											</div> <!-- END qa-c-list -->
+											
+											<input type="hidden" name="code" value="0-1516467898-846ae3f48d7dad58cf27e7ba6494024c08ff5128">
+											<input type="hidden" name="qa_click" value="">
+										</form>
+										<div class="qa-c-form">
+										</div> <!-- END qa-c-form -->
+										
+									</div> <!-- END qa-a-item-main -->
+									<div class="qa-a-item-clear">
+									</div>
+								</div> <!-- END qa-a-list-item -->
+								
+							</div> <!-- END qa-a-list -->
+							
+						</div>
+					</div> <!-- END qa-main -->
+					
+				</div> <!-- END main-wrapper -->
+			</div> <!-- END main-shadow -->
+		</div> <!-- END body-wrapper -->
+		<!-- END footer-bottom-group -->
+		
+		<div style="position:absolute; left:-9999px; top:-9999px;">
+			<span id="qa-waiting-template" class="qa-waiting">...</span>
+		</div>
+	
+	
+
+</body><!-- Powered by Question2Answer - http://www.question2answer.org/ --></html>

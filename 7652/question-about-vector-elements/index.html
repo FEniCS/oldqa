@@ -1,0 +1,284 @@
+<html><!-- Powered by Question2Answer - http://www.question2answer.org/ --><head>
+		<meta http-equiv="content-type" content="text/html; charset=utf-8">
+		<title>Question about vector elements... - FEniCS Q&amp;A</title>
+		<meta name="description" content="I'm trying to solve this Eigenvalue Problem and to plot some of the modes of the magnetic field (B)  ... :] = rx fileB = File(&quot;Eigenvektor.pvd&quot;) fileB">
+		<meta name="keywords" content="n1curl,nedelec,functionspace,eigenvalue-problem">
+		<link rel="stylesheet" type="text/css" href="../../qa-theme/Snow/qa-styles.css">
+		<link rel="canonical" href="http://fenicsproject.org/qa/7652/question-about-vector-elements">
+		<script type="text/x-mathjax-config">
+  MathJax.Hub.Config({
+    extensions: ["tex2jax.js"],
+    jax: ["input/TeX","output/HTML-CSS"],
+    tex2jax: {inlineMath: [["$","$"],["\\(","\\)"]]},
+    TeX: { extensions: ["AMSmath.js","AMSsymbols.js"]}
+  });
+</script>
+<script type="text/javascript" src="../../mathjax/MathJax.js"></script>
+		<script src="../../jquery-1.7.2.min.js" type="text/javascript"></script>
+		<script src="../../highlight.min.js"></script>
+<script type="text/javascript">
+$(function(){
+	$('.wmd-input').keypress(function(){
+		window.clearTimeout(hljs.Timeout);
+		hljs.Timeout = window.setTimeout(function() {
+			hljs.initHighlighting.called = false;
+			hljs.initHighlighting();
+		}, 500);
+	});
+	window.setTimeout(function() {
+		hljs.initHighlighting.called = false;
+		hljs.initHighlighting();
+	}, 500);
+});
+</script>
+
+
+	</head>
+	<body class="qa-template-question qa-body-js-off">
+		<div class="qa-body-wrapper">
+			
+			<div class="qa-header">
+				<div class="qa-logo">
+					<a href="../../" class="qa-logo-link" title="FEniCS Q&amp;A"><img src="../../qa-theme/fenics_qa.png" border="0" alt="FEniCS Q&amp;A"></a>
+				</div>
+				<div class="qa-header-clear">
+				</div>
+			</div> <!-- END qa-header -->
+			
+			<div class="qa-main-shadow">
+				
+				<div class="qa-main-wrapper">
+					
+					<div class="qa-sidepanel">
+						<div class="qa-sidebar">
+							This is a read only copy of the old FEniCS QA forum. Please visit the <a href="https://www.allanswered.com/community/s/fenics-project/">new QA forum</a> to ask questions
+						</div>
+						
+					</div>
+					
+					<div class="qa-main">
+						<h1>
+							<span class="entry-title">Question about vector elements...</span>
+						</h1>
+						<div class="qa-part-q-view">
+							<div class="qa-q-view  hentry question" id="q7652">
+								<form method="post" action="../../7652/question-about-vector-elements">
+									<div class="qa-q-view-stats">
+										<div class="qa-voting qa-voting-net" id="voting_7652">
+											<div class="qa-vote-count qa-vote-count-net">
+												<span class="qa-netvote-count">
+													<span class="qa-netvote-count-data">0<span class="votes-up"><span class="value-title" title="0"></span></span><span class="votes-down"><span class="value-title" title="0"></span></span></span><span class="qa-netvote-count-pad"> votes</span>
+												</span>
+											</div>
+											<div class="qa-vote-clear">
+											</div>
+										</div>
+									</div>
+									<input type="hidden" name="code" value="0-1516468131-386e7c905f45b9651bb3068179f99016d12411a7">
+								</form>
+								<div class="qa-q-view-main">
+									<form method="post" action="../../7652/question-about-vector-elements">
+										<div class="qa-q-view-content">
+											<a name="7652"></a><div class="entry-content"><p>I'm trying to solve this Eigenvalue Problem and to plot some of the modes of the magnetic field (B) belonging to the eigenvalues with the largest real.<br>
+But the *.pvd appears to just containing the mesh?<br>
+Is it correct, that I have to use "FunctionSpace" if I'm using vector elements like N1curl? Because if I try using VectorSpace, I have to specify a tensor as Dirichlet BC (expecting value rank 2).<br>
+If I want to plot the B field, do I have to project or interpolate it onto a nodal VectorSpace first?<br>
+I'm still learning, so please excuse if the answers to my question are too obvious.</p>
+
+<pre><code>from dolfin import *
+import scipy.special
+import Speed as speed
+
+e0 = Constant(1.0)
+e1 = Constant(2.0)
+e2 = Constant(3.0)
+e3 = e2
+Re = Constant(1E3)
+
+mesh = Mesh("sphere.xml")
+subdomains = MeshFunction("size_t", mesh, "sphere_physical_region.xml")
+boundaries = MeshFunction("size_t", mesh, "sphere_facet_region.xml")
+dx = Measure("dx")[subdomains]
+
+
+sV = FunctionSpace(mesh, "N1curl", 1)
+
+space = sV #MixedFunctionSpace(sV)
+
+
+zeroVec = Constant((0.,0.,0.))    
+bc = DirichletBC(space, zeroVec, boundaries, 1)
+
+trialB=TrialFunction(space)
+dB = TestFunction(space)
+
+
+t01 = speed.TFactor01(element = space.ufl_element())
+s02 = speed.SFactor02(element = space.ufl_element())
+s2c2 = speed.SFactor2c2(element = space.ufl_element())
+s2s2 = speed.SFactor2s2(element = space.ufl_element())
+
+
+v = (e0*curl(t01) + e1*curl(curl(s02)) + e2*curl(curl(s2c2)) +e3*curl(curl(s2s2)))
+
+
+form_A_Inner = (-inner(curl(trialB), curl(dB)) + Re * inner(cross(v, trialB), curl(dB)))*dx(0)
+form_A_Outer = -inner(curl(trialB), curl(dB))*dx(1)
+form_B_Inner = inner(dB, trialB)*dx(0)
+form_B_Outer = inner(dB, trialB)*dx(1)
+
+
+form_A =form_A_Inner +  form_A_Outer
+form_B =form_B_Inner +  form_B_Outer
+
+
+A = PETScMatrix()
+B = PETScMatrix()
+assemble(form_A, tensor=A)
+assemble(form_B, tensor=B)
+bc.apply(A)
+bc.apply(B)
+
+eigensolver = SLEPcEigenSolver(A,B)
+eigensolver.parameters["spectrum"] = "largest real"
+eigensolver.parameters["problem_type"] = "gen_non_hermitian"
+
+N = 5
+
+eigensolver.solve(N)
+for n in range(0, N):
+    r, c, rx, cx = eigensolver.get_eigenpair(n)
+    print 'Eigenvalue' + str(n) + ' ' + str(r) + ' + i * ' + str(c)
+
+converged = eigensolver.get_number_converged()
+print "Converged EV: %r" % converged
+
+r, c, rx, cx = eigensolver.get_eigenpair(0) 
+
+B = Function(space)
+B.vector()[:] = rx
+fileB = File("Eigenvektor.pvd")
+fileB &lt;&lt; B
+</code></pre>
+</div>
+										</div>
+										<div class="qa-q-view-tags">
+											<ul class="qa-q-view-tag-list">
+												<li class="qa-q-view-tag-item"><a href="../../tag/n1curl" rel="tag" class="qa-tag-link">n1curl</a></li>
+												<li class="qa-q-view-tag-item"><a href="../../tag/nedelec" rel="tag" class="qa-tag-link">nedelec</a></li>
+												<li class="qa-q-view-tag-item"><a href="../../tag/functionspace" rel="tag" class="qa-tag-link">functionspace</a></li>
+												<li class="qa-q-view-tag-item"><a href="../../tag/eigenvalue-problem" rel="tag" class="qa-tag-link">eigenvalue-problem</a></li>
+											</ul>
+										</div>
+										<span class="qa-q-view-avatar-meta">
+											<span class="qa-q-view-meta">
+												<a href="../../7652/question-about-vector-elements" class="qa-q-view-what">asked</a>
+												<span class="qa-q-view-when">
+													<span class="qa-q-view-when-data"><span class="published"><span class="value-title" title="2015-07-23T10:21:47+0000"></span>Jul 23, 2015</span></span>
+												</span>
+												<span class="qa-q-view-who">
+													<span class="qa-q-view-who-pad">by </span>
+													<span class="qa-q-view-who-data"><span class="vcard author"><a href="../../user/I_like_foxes" class="qa-user-link url nickname">I_like_foxes</a></span></span>
+													<span class="qa-q-view-who-title">FEniCS Novice</span>
+													<span class="qa-q-view-who-points">
+														<span class="qa-q-view-who-points-pad">(</span><span class="qa-q-view-who-points-data">120</span><span class="qa-q-view-who-points-pad"> points)</span>
+													</span>
+												</span>
+											</span>
+										</span>
+										<div class="qa-q-view-buttons">
+										</div>
+										
+										<div class="qa-q-view-c-list" style="display:none;" id="c7652_list">
+										</div> <!-- END qa-c-list -->
+										
+										<input type="hidden" name="code" value="0-1516468131-1122a7e60a771dd6f12dda550fb6bc38e798ef50">
+										<input type="hidden" name="qa_click" value="">
+									</form>
+									<div class="qa-c-form">
+									</div> <!-- END qa-c-form -->
+									
+								</div> <!-- END qa-q-view-main -->
+								<div class="qa-q-view-clear">
+								</div>
+							</div> <!-- END qa-q-view -->
+							
+						</div>
+						<div class="qa-part-a-list">
+							<h2 id="a_list_title">1 Answer</h2>
+							<div class="qa-a-list" id="a_list">
+								
+								<div class="qa-a-list-item  hentry answer" id="a7653">
+									<form method="post" action="../../7652/question-about-vector-elements">
+										<div class="qa-voting qa-voting-net" id="voting_7653">
+											<div class="qa-vote-count qa-vote-count-net">
+												<span class="qa-netvote-count">
+													<span class="qa-netvote-count-data">0<span class="votes-up"><span class="value-title" title="0"></span></span><span class="votes-down"><span class="value-title" title="0"></span></span></span><span class="qa-netvote-count-pad"> votes</span>
+												</span>
+											</div>
+											<div class="qa-vote-clear">
+											</div>
+										</div>
+										<input type="hidden" name="code" value="0-1516468131-386e7c905f45b9651bb3068179f99016d12411a7">
+									</form>
+									<div class="qa-a-item-main">
+										<form method="post" action="../../7652/question-about-vector-elements">
+											<div class="qa-a-selection">
+											</div>
+											<div class="qa-a-item-content">
+												<a name="7653"></a><div class="entry-content"><p>It looks OK, the size of <code>rx</code> must match the size of <code>B.vector()</code>. You should be able to do an even simpler test by just interpolating an <code>Expression</code> to an N1curl Function and saving to file. The <code>.pvd</code> output will do some interpolation, which may be the problem - it can only represent Functions at vertex or cell centres.</p>
+</div>
+											</div>
+											<span class="qa-a-item-avatar-meta">
+												<span class="qa-a-item-avatar">
+													<a href="../../user/chris_richardson" class="qa-avatar-link"><img src="https://www.gravatar.com/avatar/d779daeb727bcec8f6b2c505810042db?s=40" width="40" height="40" class="qa-avatar-image" alt=""></a>
+												</span>
+												<span class="qa-a-item-meta">
+													<a href="../../7652/question-about-vector-elements?show=7653#a7653" class="qa-a-item-what">answered</a>
+													<span class="qa-a-item-when">
+														<span class="qa-a-item-when-data"><span class="published"><span class="value-title" title="2015-07-23T10:28:35+0000"></span>Jul 23, 2015</span></span>
+													</span>
+													<span class="qa-a-item-who">
+														<span class="qa-a-item-who-pad">by </span>
+														<span class="qa-a-item-who-data"><span class="vcard author"><a href="../../user/chris_richardson" class="qa-user-link url nickname">chris_richardson</a></span></span>
+														<span class="qa-a-item-who-title">FEniCS Expert</span>
+														<span class="qa-a-item-who-points">
+															<span class="qa-a-item-who-points-pad">(</span><span class="qa-a-item-who-points-data">31,740</span><span class="qa-a-item-who-points-pad"> points)</span>
+														</span>
+													</span>
+												</span>
+											</span>
+											<div class="qa-a-item-buttons">
+												</div>
+											
+											<div class="qa-a-item-c-list" style="display:none;" id="c7653_list">
+											</div> <!-- END qa-c-list -->
+											
+											<input type="hidden" name="code" value="0-1516468131-a20360d9422b1eade8e4c78090f276031dbb9a9a">
+											<input type="hidden" name="qa_click" value="">
+										</form>
+										<div class="qa-c-form">
+										</div> <!-- END qa-c-form -->
+										
+									</div> <!-- END qa-a-item-main -->
+									<div class="qa-a-item-clear">
+									</div>
+								</div> <!-- END qa-a-list-item -->
+								
+							</div> <!-- END qa-a-list -->
+							
+						</div>
+					</div> <!-- END qa-main -->
+					
+				</div> <!-- END main-wrapper -->
+			</div> <!-- END main-shadow -->
+		</div> <!-- END body-wrapper -->
+		<!-- END footer-bottom-group -->
+		
+		<div style="position:absolute; left:-9999px; top:-9999px;">
+			<span id="qa-waiting-template" class="qa-waiting">...</span>
+		</div>
+	
+	
+
+</body><!-- Powered by Question2Answer - http://www.question2answer.org/ --></html>

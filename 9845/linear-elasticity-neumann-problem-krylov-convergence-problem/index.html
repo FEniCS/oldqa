@@ -1,0 +1,385 @@
+<html><!-- Powered by Question2Answer - http://www.question2answer.org/ --><head>
+		<meta http-equiv="content-type" content="text/html; charset=utf-8">
+		<title>Linear 2D Elasticity - pure Neumann problem - Krylov null space - convergence problem - FEniCS Q&amp;A</title>
+		<meta name="description" content='Dear, I have convergence problems with Krylov solver for my problem. I would like to find a  ... , interactive=True, scalarbar=True, title="u")'>
+		<link rel="stylesheet" type="text/css" href="../../qa-theme/Snow/qa-styles.css">
+		<link rel="canonical" href="http://fenicsproject.org/qa/9845/linear-elasticity-neumann-problem-krylov-convergence-problem">
+		<script type="text/x-mathjax-config">
+  MathJax.Hub.Config({
+    extensions: ["tex2jax.js"],
+    jax: ["input/TeX","output/HTML-CSS"],
+    tex2jax: {inlineMath: [["$","$"],["\\(","\\)"]]},
+    TeX: { extensions: ["AMSmath.js","AMSsymbols.js"]}
+  });
+</script>
+<script type="text/javascript" src="../../mathjax/MathJax.js"></script>
+		<script src="../../jquery-1.7.2.min.js" type="text/javascript"></script>
+		<script src="../../highlight.min.js"></script>
+<script type="text/javascript">
+$(function(){
+	$('.wmd-input').keypress(function(){
+		window.clearTimeout(hljs.Timeout);
+		hljs.Timeout = window.setTimeout(function() {
+			hljs.initHighlighting.called = false;
+			hljs.initHighlighting();
+		}, 500);
+	});
+	window.setTimeout(function() {
+		hljs.initHighlighting.called = false;
+		hljs.initHighlighting();
+	}, 500);
+});
+</script>
+
+
+	</head>
+	<body class="qa-template-question qa-body-js-off">
+		<div class="qa-body-wrapper">
+			
+			<div class="qa-header">
+				<div class="qa-logo">
+					<a href="../../" class="qa-logo-link" title="FEniCS Q&amp;A"><img src="../../qa-theme/fenics_qa.png" border="0" alt="FEniCS Q&amp;A"></a>
+				</div>
+				<div class="qa-header-clear">
+				</div>
+			</div> <!-- END qa-header -->
+			
+			<div class="qa-main-shadow">
+				
+				<div class="qa-main-wrapper">
+					
+					<div class="qa-sidepanel">
+						<div class="qa-sidebar">
+							This is a read only copy of the old FEniCS QA forum. Please visit the <a href="https://www.allanswered.com/community/s/fenics-project/">new QA forum</a> to ask questions
+						</div>
+						
+					</div>
+					
+					<div class="qa-main">
+						<h1>
+							<span class="entry-title">Linear 2D Elasticity - pure Neumann problem - Krylov null space - convergence problem</span>
+						</h1>
+						<div class="qa-part-q-view">
+							<div class="qa-q-view  hentry question" id="q9845">
+								<form method="post" action="../../9845/linear-elasticity-neumann-problem-krylov-convergence-problem">
+									<div class="qa-q-view-stats">
+										<div class="qa-voting qa-voting-net" id="voting_9845">
+											<div class="qa-vote-count qa-vote-count-net">
+												<span class="qa-netvote-count">
+													<span class="qa-netvote-count-data">0<span class="votes-up"><span class="value-title" title="0"></span></span><span class="votes-down"><span class="value-title" title="0"></span></span></span><span class="qa-netvote-count-pad"> votes</span>
+												</span>
+											</div>
+											<div class="qa-vote-clear">
+											</div>
+										</div>
+									</div>
+									<input type="hidden" name="code" value="0-1516468241-9519db522457504087d2ab6c24b34b08759fca86">
+								</form>
+								<div class="qa-q-view-main">
+									<form method="post" action="../../9845/linear-elasticity-neumann-problem-krylov-convergence-problem">
+										<div class="qa-q-view-content">
+											<a name="9845"></a><div class="entry-content"><p>Dear,</p>
+
+<p>I have convergence problems with Krylov solver for my problem. I would like to find a solution of 2D linear elastic plate with pure Neumann problem (only traction on the boundary). My geometry is Rectangle with Rectangular hole, where stress in x-direction is specified on a left and right part of outer rectangle. Solution has problems with the Krylov solver. Even if hole is removed, problem remains. </p>
+
+<p>Thanks for any help, hints.</p>
+
+<p>Regards,<br>
+AG</p>
+
+<p>Below is my working example:</p>
+
+<pre><code>
+from mshr import *
+from dolfin import *
+
+#set_log_level(1)
+
+# Test for PETSc
+if not has_linear_algebra_backend("PETSc"):
+    print("DOLFIN has not been configured with PETSc. Exiting.")
+    exit()
+    
+# Do it parallel
+parameters["num_threads"] = 4;
+
+# Set backend to PETSC
+parameters["linear_algebra_backend"] = "PETSc"
+
+class FreeBoundary(SubDomain):
+    def inside(self, x, on_boundary):
+        return on_boundary
+
+class LeftBoundary(SubDomain):
+    def inside(self, x, on_boundary):
+        return on_boundary and abs(x[0] + 2) &lt; DOLFIN_EPS
+
+class RightBoundary(SubDomain):
+    def inside(self, x, on_boundary):
+        return on_boundary and abs(x[0] - 2) &lt; DOLFIN_EPS
+</code>
+<code>
+def build_nullspace(V, x):
+    #Function to build null space for 2D elasticity
+    #
+    # Create list of vectors for null space
+    nullspace_basis = [x.copy() for i in range(2)]
+
+    # Build translational null space basis - 2D problem
+    #
+    V.sub(0).dofmap().set(nullspace_basis[0], 1.0);
+    V.sub(1).dofmap().set(nullspace_basis[1], 1.0);
+
+    for x in nullspace_basis:
+        x.apply("insert")
+
+    # Create vector space basis and orthogonalize
+    basis = VectorSpaceBasis(nullspace_basis)
+    basis.orthonormalize()
+
+    return basis
+
+# Initialize subdomain instances
+free_b = FreeBoundary()
+left_b = LeftBoundary()
+right_b = RightBoundary()
+    
+# Create geo and mesh
+res = 100
+r1 = Rectangle(Point(-2., -2.), Point(2., 2.))
+r2 = Rectangle(Point(-0.5, -0.5), Point(0.5, 0.5))
+geo = r1-r2
+mesh = generate_mesh(geo,res)
+
+# Initialize mesh function for boundary domains
+boundaries = FacetFunction("size_t", mesh)
+boundaries.set_all(0)
+free_b.mark(boundaries, 1)
+left_b.mark(boundaries, 2)
+right_b.mark(boundaries, 3)
+
+# Create function space
+V = VectorFunctionSpace(mesh, 'Lagrange', 1)
+
+# Create test and trial functions, and source term
+u = TrialFunction(V)
+v = TestFunction(V)
+
+# Define new measures associated with the exterior boundaries
+ds = Measure('ds', domain=mesh, subdomain_data=boundaries)
+
+# Elasticity parameters
+E, nu = 10, 0.3
+mu, lmbda = E/(2.0*(1.0 + nu)), E*nu/((1.0 + nu)*(1.0 -2.0*nu))
+
+# Stress relation
+I = Identity(2)
+epsilon = sym(nabla_grad(u))
+sigma = 2*mu*epsilon + lmbda*tr(epsilon)*I
+
+# Boundary conditions - Neumann (stress on L&amp;R side)
+gL = Constant((-1.0, 0.0))
+gR = Constant((1.0, 0.0))
+
+# Governing balance equation
+a = inner(sigma, sym(nabla_grad(v)))*dx
+L = dot(gL, v)*ds(2) + dot(gR, v)*ds(3)
+
+A, b = assemble_system(a, L)
+print "Norm(b)=",b.norm("l2") # Check 
+
+# Set up PDE and solve
+u = Function(V)
+
+# AMG). The solution vector is passed so that it can be copied to
+# generate compatible vectors for the nullspace.
+null_space = build_nullspace(V, u.vector())
+
+# Attach near nullspace to matrix and orthogonalize b
+as_backend_type(A).set_near_nullspace(null_space)
+null_space.orthogonalize(b) 
+
+# Create PETSC smoothed aggregation AMG preconditioner and attach near
+# null space
+pc = PETScPreconditioner("petsc_amg")
+
+# Use Chebyshev smoothing for multigrid
+PETScOptions.set("mg_levels_ksp_type", "chebyshev")
+PETScOptions.set("mg_levels_pc_type", "jacobi")
+
+# Improve estimate of eigenvalues for Chebyshev smoothing
+PETScOptions.set("mg_levels_esteig_ksp_type", "cg")
+PETScOptions.set("mg_levels_ksp_chebyshev_esteig_steps", 50)
+
+# Create CG Krylov solver and turn convergence monitoring on
+solver = PETScKrylovSolver("cg", pc)
+solver.parameters["monitor_convergence"] = True
+
+# Set matrix operator
+solver.set_operator(A);
+
+# Compute solution
+solver.solve(u.vector(), b);
+
+plot(u, mode = "displacement", interactive=True, scalarbar=True, title="u")
+</code>
+</pre>
+</div>
+										</div>
+										<span class="qa-q-view-avatar-meta">
+											<span class="qa-q-view-meta">
+												<a href="../../9845/linear-elasticity-neumann-problem-krylov-convergence-problem" class="qa-q-view-what">asked</a>
+												<span class="qa-q-view-when">
+													<span class="qa-q-view-when-data"><span class="published"><span class="value-title" title="2016-04-11T12:48:08+0000"></span>Apr 11, 2016</span></span>
+												</span>
+												<span class="qa-q-view-who">
+													<span class="qa-q-view-who-pad">by </span>
+													<span class="qa-q-view-who-data"><span class="vcard author"><a href="../../user/Gusar" class="qa-user-link url nickname">Gusar</a></span></span>
+													<span class="qa-q-view-who-title">FEniCS Novice</span>
+													<span class="qa-q-view-who-points">
+														<span class="qa-q-view-who-points-pad">(</span><span class="qa-q-view-who-points-data">270</span><span class="qa-q-view-who-points-pad"> points)</span>
+													</span>
+												</span>
+											</span>
+										</span>
+										<div class="qa-q-view-buttons">
+										</div>
+										
+										<div class="qa-q-view-c-list" id="c9845_list">
+											<div class="qa-c-list-item  hentry comment" id="c9858">
+												<div class="qa-c-item-content">
+													<a name="9858"></a><div class="entry-content"><p>Hi, the first problem I see is with your nullspace. The space of rigid motions in 2d is three dimensional - 2 translations and 1 rotation. Your nullspace basis has no rotations. </p>
+</div>
+												</div>
+												<div class="qa-c-item-footer">
+													<span class="qa-c-item-avatar-meta">
+														<span class="qa-c-item-avatar">
+															<a href="../../user/MiroK" class="qa-avatar-link"><img src="https://www.gravatar.com/avatar/f566be3274ec73e3a6dda27bca11631c?s=20" width="20" height="20" class="qa-avatar-image" alt=""></a>
+														</span>
+														<span class="qa-c-item-meta">
+															<a href="../../9845/linear-elasticity-neumann-problem-krylov-convergence-problem?show=9858#c9858" class="qa-c-item-what">commented</a>
+															<span class="qa-c-item-when">
+																<span class="qa-c-item-when-data"><span class="published"><span class="value-title" title="2016-04-13T07:51:56+0000"></span>Apr 13, 2016</span></span>
+															</span>
+															<span class="qa-c-item-who">
+																<span class="qa-c-item-who-pad">by </span>
+																<span class="qa-c-item-who-data"><span class="vcard author"><a href="../../user/MiroK" class="qa-user-link url nickname">MiroK</a></span></span>
+																<span class="qa-c-item-who-title">FEniCS Expert</span>
+																<span class="qa-c-item-who-points">
+																	<span class="qa-c-item-who-points-pad">(</span><span class="qa-c-item-who-points-data">80,920</span><span class="qa-c-item-who-points-pad"> points)</span>
+																</span>
+															</span>
+														</span>
+													</span>
+													<div class="qa-c-item-buttons">
+													</div>
+												</div>
+												<div class="qa-c-item-clear">
+												</div>
+											</div> <!-- END qa-c-item -->
+										</div> <!-- END qa-c-list -->
+										
+										<input type="hidden" name="code" value="0-1516468241-22770f9690ef01867276573702cfc6eba4230368">
+										<input type="hidden" name="qa_click" value="">
+									</form>
+									<div class="qa-c-form">
+									</div> <!-- END qa-c-form -->
+									
+								</div> <!-- END qa-q-view-main -->
+								<div class="qa-q-view-clear">
+								</div>
+							</div> <!-- END qa-q-view -->
+							
+						</div>
+						<div class="qa-part-a-list">
+							<h2 id="a_list_title">1 Answer</h2>
+							<div class="qa-a-list" id="a_list">
+								
+								<div class="qa-a-list-item  hentry answer" id="a9859">
+									<form method="post" action="../../9845/linear-elasticity-neumann-problem-krylov-convergence-problem">
+										<div class="qa-voting qa-voting-net" id="voting_9859">
+											<div class="qa-vote-count qa-vote-count-net">
+												<span class="qa-netvote-count">
+													<span class="qa-netvote-count-data">0<span class="votes-up"><span class="value-title" title="0"></span></span><span class="votes-down"><span class="value-title" title="0"></span></span></span><span class="qa-netvote-count-pad"> votes</span>
+												</span>
+											</div>
+											<div class="qa-vote-clear">
+											</div>
+										</div>
+										<input type="hidden" name="code" value="0-1516468241-9519db522457504087d2ab6c24b34b08759fca86">
+									</form>
+									<div class="qa-a-item-main">
+										<form method="post" action="../../9845/linear-elasticity-neumann-problem-krylov-convergence-problem">
+											<div class="qa-a-selection">
+											</div>
+											<div class="qa-a-item-content">
+												<a name="9859"></a><div class="entry-content"><p>Now it works. Changed to "bicgstab" KrylovSolver.</p>
+
+<p><code><br>
+u = Function(V)</code></p>
+
+<p>null_space = build_nullspace(V, u.vector())</p>
+
+<p>as_backend_type(A).set_near_nullspace(null_space)<br>
+null_space.orthogonalize(b) </p>
+
+<p>solver = KrylovSolver("bicgstab")<br>
+solver.parameters["relative_tolerance"] = 1e-10<br>
+solver.parameters["monitor_convergence"] = True</p>
+
+<p>solver.set_operator(A);</p>
+
+<p>solver.solve(u.vector(), b);<br>
+</p>
+</div>
+											</div>
+											<span class="qa-a-item-avatar-meta">
+												<span class="qa-a-item-meta">
+													<a href="../../9845/linear-elasticity-neumann-problem-krylov-convergence-problem?show=9859#a9859" class="qa-a-item-what">answered</a>
+													<span class="qa-a-item-when">
+														<span class="qa-a-item-when-data"><span class="published"><span class="value-title" title="2016-04-13T07:55:59+0000"></span>Apr 13, 2016</span></span>
+													</span>
+													<span class="qa-a-item-who">
+														<span class="qa-a-item-who-pad">by </span>
+														<span class="qa-a-item-who-data"><span class="vcard author"><a href="../../user/Gusar" class="qa-user-link url nickname">Gusar</a></span></span>
+														<span class="qa-a-item-who-title">FEniCS Novice</span>
+														<span class="qa-a-item-who-points">
+															<span class="qa-a-item-who-points-pad">(</span><span class="qa-a-item-who-points-data">270</span><span class="qa-a-item-who-points-pad"> points)</span>
+														</span>
+													</span>
+												</span>
+											</span>
+											<div class="qa-a-item-buttons">
+												</div>
+											
+											<div class="qa-a-item-c-list" style="display:none;" id="c9859_list">
+											</div> <!-- END qa-c-list -->
+											
+											<input type="hidden" name="code" value="0-1516468241-a4a09a9d607d73385678f8f2ac56d87aeb39d098">
+											<input type="hidden" name="qa_click" value="">
+										</form>
+										<div class="qa-c-form">
+										</div> <!-- END qa-c-form -->
+										
+									</div> <!-- END qa-a-item-main -->
+									<div class="qa-a-item-clear">
+									</div>
+								</div> <!-- END qa-a-list-item -->
+								
+							</div> <!-- END qa-a-list -->
+							
+						</div>
+					</div> <!-- END qa-main -->
+					
+				</div> <!-- END main-wrapper -->
+			</div> <!-- END main-shadow -->
+		</div> <!-- END body-wrapper -->
+		<!-- END footer-bottom-group -->
+		
+		<div style="position:absolute; left:-9999px; top:-9999px;">
+			<span id="qa-waiting-template" class="qa-waiting">...</span>
+		</div>
+	
+	
+
+</body><!-- Powered by Question2Answer - http://www.question2answer.org/ --></html>

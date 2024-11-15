@@ -1,0 +1,309 @@
+<html><!-- Powered by Question2Answer - http://www.question2answer.org/ --><head>
+		<meta http-equiv="content-type" content="text/html; charset=utf-8">
+		<title>Error when creating restricted function space ("'Restriction' object has no attribute 'mpi_comm') - FEniCS Q&amp;A</title>
+		<meta name="description" content="With dolfin 1.4 the following code worked to create a restricted function space: import dolfin as df #  ...  the above piece of code for dolfin 1.5?">
+		<link rel="stylesheet" type="text/css" href="../../qa-theme/Snow/qa-styles.css">
+		<link rel="canonical" href="http://fenicsproject.org/qa/6423/creating-restricted-function-restriction-attribute-mpi_comm">
+		<script type="text/x-mathjax-config">
+  MathJax.Hub.Config({
+    extensions: ["tex2jax.js"],
+    jax: ["input/TeX","output/HTML-CSS"],
+    tex2jax: {inlineMath: [["$","$"],["\\(","\\)"]]},
+    TeX: { extensions: ["AMSmath.js","AMSsymbols.js"]}
+  });
+</script>
+<script type="text/javascript" src="../../mathjax/MathJax.js"></script>
+		<script src="../../jquery-1.7.2.min.js" type="text/javascript"></script>
+		<script src="../../highlight.min.js"></script>
+<script type="text/javascript">
+$(function(){
+	$('.wmd-input').keypress(function(){
+		window.clearTimeout(hljs.Timeout);
+		hljs.Timeout = window.setTimeout(function() {
+			hljs.initHighlighting.called = false;
+			hljs.initHighlighting();
+		}, 500);
+	});
+	window.setTimeout(function() {
+		hljs.initHighlighting.called = false;
+		hljs.initHighlighting();
+	}, 500);
+});
+</script>
+
+
+	</head>
+	<body class="qa-template-question qa-body-js-off">
+		<div class="qa-body-wrapper">
+			
+			<div class="qa-header">
+				<div class="qa-logo">
+					<a href="../../" class="qa-logo-link" title="FEniCS Q&amp;A"><img src="../../qa-theme/fenics_qa.png" border="0" alt="FEniCS Q&amp;A"></a>
+				</div>
+				<div class="qa-header-clear">
+				</div>
+			</div> <!-- END qa-header -->
+			
+			<div class="qa-main-shadow">
+				
+				<div class="qa-main-wrapper">
+					
+					<div class="qa-sidepanel">
+						<div class="qa-sidebar">
+							This is a read only copy of the old FEniCS QA forum. Please visit the <a href="https://www.allanswered.com/community/s/fenics-project/">new QA forum</a> to ask questions
+						</div>
+						
+					</div>
+					
+					<div class="qa-main">
+						<h1>
+							<span class="entry-title">Error when creating restricted function space ("'Restriction' object has no attribute 'mpi_comm')</span>
+						</h1>
+						<div class="qa-part-q-view">
+							<div class="qa-q-view  hentry question" id="q6423">
+								<form method="post" action="../../6423/creating-restricted-function-restriction-attribute-mpi_comm">
+									<div class="qa-q-view-stats">
+										<div class="qa-voting qa-voting-net" id="voting_6423">
+											<div class="qa-vote-count qa-vote-count-net">
+												<span class="qa-netvote-count">
+													<span class="qa-netvote-count-data">+7<span class="votes-up"><span class="value-title" title="7"></span></span><span class="votes-down"><span class="value-title" title="0"></span></span></span><span class="qa-netvote-count-pad"> votes</span>
+												</span>
+											</div>
+											<div class="qa-vote-clear">
+											</div>
+										</div>
+									</div>
+									<input type="hidden" name="code" value="0-1516468070-c42e761c23c6fd46fab6d644cb13c799dd0073b5">
+								</form>
+								<div class="qa-q-view-main">
+									<form method="post" action="../../6423/creating-restricted-function-restriction-attribute-mpi_comm">
+										<div class="qa-q-view-content">
+											<a name="6423"></a><div class="entry-content"><p>With dolfin 1.4 the following code worked to create a restricted function space:</p>
+
+<pre><code>import dolfin as df
+
+# Create a unit cube mesh
+mesh = df.UnitCubeMesh(10, 10, 10)
+
+# Create a cell function to mark a region
+# consisting of the left half of the mesh
+region_markers = df.CellFunction('size_t', mesh)
+
+class Domain(df.SubDomain):
+    def inside(self, pt, on_boundary):
+        return pt[0] &lt;= 0.5
+
+subdomain = Domain()
+subdomain.mark(region_markers, 1)
+
+# Create a restricted function space
+restriction = df.Restriction(region_markers, 1)
+V_restr = df.VectorFunctionSpace(restriction, 'CG', 1, dim=3)
+</code></pre>
+
+<p>This fails with dolfin 1.5 with the following traceback:</p>
+
+<pre><code>AttributeError                            Traceback (most recent call last)
+&lt;ipython-input-26-90fabc673435&gt; in &lt;module&gt;()
+----&gt; 1 V_restr = df.VectorFunctionSpace(restriction, 'CG', 1, dim=3)
+
+/usr/lib/python2.7/dist-packages/dolfin/functions/functionspace.pyc in __init__(self, mesh, family, degree, dim, form_degree, constrained_domain, restriction)
+    626         # Initialize base class
+    627         FunctionSpaceBase.__init__(self, mesh, element,
+--&gt; 628                                    constrained_domain=constrained_domain)
+    629 
+    630 class TensorFunctionSpace(FunctionSpaceBase):
+
+/usr/lib/python2.7/dist-packages/dolfin/functions/functionspace.pyc in __init__(self, mesh, element, constrained_domain)
+    151 
+    152         # JIT-compile element to get ufc_element and ufc_dofmap
+--&gt; 153         ufc_element, ufc_dofmap = jit(self._ufl_element, mpi_comm=mesh.mpi_comm())
+    154 
+    155         # Instantiate DOLFIN FiniteElement and DofMap
+
+AttributeError: 'Restriction' object has no attribute 'mpi_comm'
+</code></pre>
+
+<p>The docstring for <code>df.Restriction</code> does not mention anything about MPI communicators, so I don't know how to pass a communicator when creating a Restriction. What is the right way to do this and fix the above piece of code for dolfin 1.5?</p>
+</div>
+										</div>
+										<span class="qa-q-view-avatar-meta">
+											<span class="qa-q-view-meta">
+												<a href="../../6423/creating-restricted-function-restriction-attribute-mpi_comm" class="qa-q-view-what">asked</a>
+												<span class="qa-q-view-when">
+													<span class="qa-q-view-when-data"><span class="published"><span class="value-title" title="2015-01-30T15:18:04+0000"></span>Jan 30, 2015</span></span>
+												</span>
+												<span class="qa-q-view-who">
+													<span class="qa-q-view-who-pad">by </span>
+													<span class="qa-q-view-who-data"><span class="vcard author"><a href="../../user/Maximilian+Albert" class="qa-user-link url nickname">Maximilian Albert</a></span></span>
+													<span class="qa-q-view-who-title">FEniCS User</span>
+													<span class="qa-q-view-who-points">
+														<span class="qa-q-view-who-points-pad">(</span><span class="qa-q-view-who-points-data">1,750</span><span class="qa-q-view-who-points-pad"> points)</span>
+													</span>
+												</span>
+											</span>
+										</span>
+										<div class="qa-q-view-buttons">
+										</div>
+										
+										<div class="qa-q-view-c-list" style="display:none;" id="c6423_list">
+										</div> <!-- END qa-c-list -->
+										
+										<input type="hidden" name="code" value="0-1516468070-b37364a56c6b48c892d15ce8120e55e0e230ced7">
+										<input type="hidden" name="qa_click" value="">
+									</form>
+									<div class="qa-c-form">
+									</div> <!-- END qa-c-form -->
+									
+								</div> <!-- END qa-q-view-main -->
+								<div class="qa-q-view-clear">
+								</div>
+							</div> <!-- END qa-q-view -->
+							
+						</div>
+						<div class="qa-part-a-list">
+							<h2 id="a_list_title">1 Answer</h2>
+							<div class="qa-a-list" id="a_list">
+								
+								<div class="qa-a-list-item  hentry answer answer-selected qa-a-list-item-selected" id="a6447">
+									<form method="post" action="../../6423/creating-restricted-function-restriction-attribute-mpi_comm">
+										<div class="qa-voting qa-voting-net" id="voting_6447">
+											<div class="qa-vote-count qa-vote-count-net">
+												<span class="qa-netvote-count">
+													<span class="qa-netvote-count-data">0<span class="votes-up"><span class="value-title" title="0"></span></span><span class="votes-down"><span class="value-title" title="0"></span></span></span><span class="qa-netvote-count-pad"> votes</span>
+												</span>
+											</div>
+											<div class="qa-vote-clear">
+											</div>
+										</div>
+										<input type="hidden" name="code" value="0-1516468070-c42e761c23c6fd46fab6d644cb13c799dd0073b5">
+									</form>
+									<div class="qa-a-item-main">
+										<form method="post" action="../../6423/creating-restricted-function-restriction-attribute-mpi_comm">
+											<div class="qa-a-item-selected">
+												<div class="qa-a-selection">
+													<div class="qa-a-selected">&#160;</div>
+													<div class="qa-a-selected-text">Best answer</div>
+												</div>
+												<div class="qa-a-item-content">
+													<a name="6447"></a><div class="entry-content"><p>Restriction has been removed temporarily from the Dofmap class, see <a rel="nofollow" href="https://bitbucket.org/fenics-project/dolfin/issue/118/remove-restriction-from-generic-dofmap">link</a>.</p>
+</div>
+												</div>
+												<span class="qa-a-item-avatar-meta">
+													<span class="qa-a-item-avatar">
+														<a href="../../user/mikael-mortensen" class="qa-avatar-link"><img src="https://www.gravatar.com/avatar/d5614112a2818f1800a461e49ac229df?s=40" width="40" height="40" class="qa-avatar-image" alt=""></a>
+													</span>
+													<span class="qa-a-item-meta">
+														<a href="../../6423/creating-restricted-function-restriction-attribute-mpi_comm?show=6447#a6447" class="qa-a-item-what">answered</a>
+														<span class="qa-a-item-when">
+															<span class="qa-a-item-when-data"><span class="published"><span class="value-title" title="2015-02-05T12:17:38+0000"></span>Feb 5, 2015</span></span>
+														</span>
+														<span class="qa-a-item-who">
+															<span class="qa-a-item-who-pad">by </span>
+															<span class="qa-a-item-who-data"><span class="vcard author"><a href="../../user/mikael-mortensen" class="qa-user-link url nickname">mikael-mortensen</a></span></span>
+															<span class="qa-a-item-who-title">FEniCS Expert</span>
+															<span class="qa-a-item-who-points">
+																<span class="qa-a-item-who-points-pad">(</span><span class="qa-a-item-who-points-data">29,340</span><span class="qa-a-item-who-points-pad"> points)</span>
+															</span>
+														</span>
+														<br>
+														<span class="qa-a-item-what">selected</span>
+														<span class="qa-a-item-when">
+															<span class="qa-a-item-when-data"><span class="updated"><span class="value-title" title="2015-02-05T16:03:48+0000"></span>Feb 5, 2015</span></span>
+														</span>
+														<span class="qa-a-item-who">
+															<span class="qa-a-item-who-pad">by </span><span class="qa-a-item-who-data"><a href="../../user/Maximilian+Albert" class="qa-user-link url nickname">Maximilian Albert</a></span>
+														</span>
+													</span>
+												</span>
+											</div>
+											<div class="qa-a-item-buttons">
+												</div>
+											
+											<div class="qa-a-item-c-list" id="c6447_list">
+												<div class="qa-c-list-item  hentry comment" id="c6452">
+													<div class="qa-c-item-content">
+														<a name="6452"></a><div class="entry-content"><p>Thanks! I had missed this. It should probably be mentioned in the release notes, too. I'll add a comment on the Bitbucket issue.</p>
+</div>
+													</div>
+													<div class="qa-c-item-footer">
+														<span class="qa-c-item-avatar-meta">
+															<span class="qa-c-item-meta">
+																<a href="../../6423/creating-restricted-function-restriction-attribute-mpi_comm?show=6452#c6452" class="qa-c-item-what">commented</a>
+																<span class="qa-c-item-when">
+																	<span class="qa-c-item-when-data"><span class="published"><span class="value-title" title="2015-02-05T16:05:21+0000"></span>Feb 5, 2015</span></span>
+																</span>
+																<span class="qa-c-item-who">
+																	<span class="qa-c-item-who-pad">by </span>
+																	<span class="qa-c-item-who-data"><span class="vcard author"><a href="../../user/Maximilian+Albert" class="qa-user-link url nickname">Maximilian Albert</a></span></span>
+																	<span class="qa-c-item-who-title">FEniCS User</span>
+																	<span class="qa-c-item-who-points">
+																		<span class="qa-c-item-who-points-pad">(</span><span class="qa-c-item-who-points-data">1,750</span><span class="qa-c-item-who-points-pad"> points)</span>
+																	</span>
+																</span>
+															</span>
+														</span>
+														<div class="qa-c-item-buttons">
+														</div>
+													</div>
+													<div class="qa-c-item-clear">
+													</div>
+												</div> <!-- END qa-c-item -->
+												<div class="qa-c-list-item  hentry comment" id="c6453">
+													<div class="qa-c-item-content">
+														<a name="6453"></a><div class="entry-content"><p>Btw, are you aware of any alternative that I could use to achieve the same/similar functionality? Some of my code has stopped working because of the removal of <code>Restriction</code>. Do I have to wait for the next release until <code>MeshView</code> is available, or is there a workaround?</p>
+</div>
+													</div>
+													<div class="qa-c-item-footer">
+														<span class="qa-c-item-avatar-meta">
+															<span class="qa-c-item-meta">
+																<a href="../../6423/creating-restricted-function-restriction-attribute-mpi_comm?show=6453#c6453" class="qa-c-item-what">commented</a>
+																<span class="qa-c-item-when">
+																	<span class="qa-c-item-when-data"><span class="published"><span class="value-title" title="2015-02-05T16:11:34+0000"></span>Feb 5, 2015</span></span>
+																</span>
+																<span class="qa-c-item-who">
+																	<span class="qa-c-item-who-pad">by </span>
+																	<span class="qa-c-item-who-data"><span class="vcard author"><a href="../../user/Maximilian+Albert" class="qa-user-link url nickname">Maximilian Albert</a></span></span>
+																	<span class="qa-c-item-who-title">FEniCS User</span>
+																	<span class="qa-c-item-who-points">
+																		<span class="qa-c-item-who-points-pad">(</span><span class="qa-c-item-who-points-data">1,750</span><span class="qa-c-item-who-points-pad"> points)</span>
+																	</span>
+																</span>
+															</span>
+														</span>
+														<div class="qa-c-item-buttons">
+														</div>
+													</div>
+													<div class="qa-c-item-clear">
+													</div>
+												</div> <!-- END qa-c-item -->
+											</div> <!-- END qa-c-list -->
+											
+											<input type="hidden" name="code" value="0-1516468070-c06836cdb337b64fee0e751e7281e3caee273f1a">
+											<input type="hidden" name="qa_click" value="">
+										</form>
+										<div class="qa-c-form">
+										</div> <!-- END qa-c-form -->
+										
+									</div> <!-- END qa-a-item-main -->
+									<div class="qa-a-item-clear">
+									</div>
+								</div> <!-- END qa-a-list-item -->
+								
+							</div> <!-- END qa-a-list -->
+							
+						</div>
+					</div> <!-- END qa-main -->
+					
+				</div> <!-- END main-wrapper -->
+			</div> <!-- END main-shadow -->
+		</div> <!-- END body-wrapper -->
+		<!-- END footer-bottom-group -->
+		
+		<div style="position:absolute; left:-9999px; top:-9999px;">
+			<span id="qa-waiting-template" class="qa-waiting">...</span>
+		</div>
+	
+	
+
+</body><!-- Powered by Question2Answer - http://www.question2answer.org/ --></html>

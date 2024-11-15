@@ -1,0 +1,709 @@
+<html><!-- Powered by Question2Answer - http://www.question2answer.org/ --><head>
+		<meta http-equiv="content-type" content="text/html; charset=utf-8">
+		<title>Variational problem with user-defined function depending on u(x) - FEniCS Q&amp;A</title>
+		<meta name="description" content="Dear FEniCS community, as far as I understand, one may include user-defined functions in x in ... ) TypeError: __float__ returned non-float (type Sum)">
+		<meta name="keywords" content="ffc,nonlinear-term,ufl,custom-function,expression">
+		<link rel="stylesheet" type="text/css" href="../../qa-theme/Snow/qa-styles.css">
+		<link rel="canonical" href="http://fenicsproject.org/qa/6743/variational-problem-with-user-defined-function-depending">
+		<script type="text/x-mathjax-config">
+  MathJax.Hub.Config({
+    extensions: ["tex2jax.js"],
+    jax: ["input/TeX","output/HTML-CSS"],
+    tex2jax: {inlineMath: [["$","$"],["\\(","\\)"]]},
+    TeX: { extensions: ["AMSmath.js","AMSsymbols.js"]}
+  });
+</script>
+<script type="text/javascript" src="../../mathjax/MathJax.js"></script>
+		<script src="../../jquery-1.7.2.min.js" type="text/javascript"></script>
+		<script src="../../highlight.min.js"></script>
+<script type="text/javascript">
+$(function(){
+	$('.wmd-input').keypress(function(){
+		window.clearTimeout(hljs.Timeout);
+		hljs.Timeout = window.setTimeout(function() {
+			hljs.initHighlighting.called = false;
+			hljs.initHighlighting();
+		}, 500);
+	});
+	window.setTimeout(function() {
+		hljs.initHighlighting.called = false;
+		hljs.initHighlighting();
+	}, 500);
+});
+</script>
+
+
+	</head>
+	<body class="qa-template-question qa-body-js-off">
+		<div class="qa-body-wrapper">
+			
+			<div class="qa-header">
+				<div class="qa-logo">
+					<a href="../../" class="qa-logo-link" title="FEniCS Q&amp;A"><img src="../../qa-theme/fenics_qa.png" border="0" alt="FEniCS Q&amp;A"></a>
+				</div>
+				<div class="qa-header-clear">
+				</div>
+			</div> <!-- END qa-header -->
+			
+			<div class="qa-main-shadow">
+				
+				<div class="qa-main-wrapper">
+					
+					<div class="qa-sidepanel">
+						<div class="qa-sidebar">
+							This is a read only copy of the old FEniCS QA forum. Please visit the <a href="https://www.allanswered.com/community/s/fenics-project/">new QA forum</a> to ask questions
+						</div>
+						
+					</div>
+					
+					<div class="qa-main">
+						<h1>
+							<span class="entry-title">Variational problem with user-defined function depending on u(x)</span>
+						</h1>
+						<div class="qa-part-q-view">
+							<div class="qa-q-view  hentry question" id="q6743">
+								<form method="post" action="../../6743/variational-problem-with-user-defined-function-depending">
+									<div class="qa-q-view-stats">
+										<div class="qa-voting qa-voting-net" id="voting_6743">
+											<div class="qa-vote-count qa-vote-count-net">
+												<span class="qa-netvote-count">
+													<span class="qa-netvote-count-data">0<span class="votes-up"><span class="value-title" title="0"></span></span><span class="votes-down"><span class="value-title" title="0"></span></span></span><span class="qa-netvote-count-pad"> votes</span>
+												</span>
+											</div>
+											<div class="qa-vote-clear">
+											</div>
+										</div>
+									</div>
+									<input type="hidden" name="code" value="0-1516468086-e9816d7d2b3d94999aea175517ea6f8ed7ca45fa">
+								</form>
+								<div class="qa-q-view-main">
+									<form method="post" action="../../6743/variational-problem-with-user-defined-function-depending">
+										<div class="qa-q-view-content">
+											<a name="6743"></a><div class="entry-content"><p>Dear FEniCS community,</p>
+
+<p>as far as I understand, one may include user-defined functions in x in the variational form via Expression objects, but regarding functions in u(x), in UFL only predefined functions (as sin, sqrt, conditional ...) are supported. <br>
+Is it possible in FEniCS to solve variational problems that include user-defined functions in trial functions? In particular, I have a function representing an imported distribution defined as</p>
+
+<pre><code># fct simulating the distribution of an image
+def g(x):
+    #calculate y,z depending on x
+    ... 
+    return image.getpixel((math.floor(y),math.floor(z)))
+</code></pre>
+
+<p>Based on this I want to solve a variational problem like this</p>
+
+<pre><code>u = TrialFunction(V)
+v = TestFunction(V)
+F = ... + g(nabla_grad(u))*v*dx
+
+F = action(F, u_)
+J  = derivative(F, u_, u)   # Gateaux derivative in dir. of u
+
+problem = NonlinearVariationalProblem(F, u_, None, J)
+solver  = NonlinearVariationalSolver(problem)
+solver.solve()
+</code></pre>
+
+<p>Using this python-definition of g, the code crashes with</p>
+
+<pre><code>  Couldn't map 'v_1' to a float, returning ufl object without evaluation.
+Traceback (most recent call last):
+  File "test/test user defined.py", line 58, in &lt;module&gt;
+    F = g(nabla_grad(u))*v*dx
+  File "test/test user defined.py", line 38, in g
+    pixel = image.getpixel((math.floor(y),math.floor(z)))
+  File "/usr/lib/python2.6/site-packages/ufl/expr.py", line 133, in __float__
+    return self(()) # No known x
+  File "/usr/lib/python2.6/site-packages/ufl/exproperators.py", line 286, in _call
+    return _eval(self, arg, mapping, component)
+  File "/usr/lib/python2.6/site-packages/ufl/exproperators.py", line 278, in _eval
+    return f.evaluate(coord, mapping, component, index_values)
+  File "/usr/lib/python2.6/site-packages/ufl/algebra.py", line 215, in evaluate
+    tmp *= o.evaluate(x, mapping, (), index_values)
+  File "/usr/lib/python2.6/site-packages/ufl/algebra.py", line 303, in evaluate
+    return float(a) / float(b)
+TypeError: __float__ returned non-float (type Sum)
+</code></pre>
+</div>
+										</div>
+										<div class="qa-q-view-tags">
+											<ul class="qa-q-view-tag-list">
+												<li class="qa-q-view-tag-item"><a href="../../tag/ffc" rel="tag" class="qa-tag-link">ffc</a></li>
+												<li class="qa-q-view-tag-item"><a href="../../tag/nonlinear-term" rel="tag" class="qa-tag-link">nonlinear-term</a></li>
+												<li class="qa-q-view-tag-item"><a href="../../tag/ufl" rel="tag" class="qa-tag-link">ufl</a></li>
+												<li class="qa-q-view-tag-item"><a href="../../tag/custom-function" rel="tag" class="qa-tag-link">custom-function</a></li>
+												<li class="qa-q-view-tag-item"><a href="../../tag/expression" rel="tag" class="qa-tag-link">expression</a></li>
+											</ul>
+										</div>
+										<span class="qa-q-view-avatar-meta">
+											<span class="qa-q-view-meta">
+												<a href="../../6743/variational-problem-with-user-defined-function-depending" class="qa-q-view-what">asked</a>
+												<span class="qa-q-view-when">
+													<span class="qa-q-view-when-data"><span class="published"><span class="value-title" title="2015-03-10T17:04:39+0000"></span>Mar 10, 2015</span></span>
+												</span>
+												<span class="qa-q-view-who">
+													<span class="qa-q-view-who-pad">by </span>
+													<span class="qa-q-view-who-data"><span class="vcard author"><a href="../../user/EliFri" class="qa-user-link url nickname">EliFri</a></span></span>
+													<span class="qa-q-view-who-title">FEniCS Novice</span>
+													<span class="qa-q-view-who-points">
+														<span class="qa-q-view-who-points-pad">(</span><span class="qa-q-view-who-points-data">190</span><span class="qa-q-view-who-points-pad"> points)</span>
+													</span>
+												</span>
+											</span>
+										</span>
+										<div class="qa-q-view-buttons">
+										</div>
+										
+										<div class="qa-q-view-c-list" style="display:none;" id="c6743_list">
+										</div> <!-- END qa-c-list -->
+										
+										<input type="hidden" name="code" value="0-1516468086-d55f85db7484884513fe36eeff41bd167bdc6e4a">
+										<input type="hidden" name="qa_click" value="">
+									</form>
+									<div class="qa-c-form">
+									</div> <!-- END qa-c-form -->
+									
+								</div> <!-- END qa-q-view-main -->
+								<div class="qa-q-view-clear">
+								</div>
+							</div> <!-- END qa-q-view -->
+							
+						</div>
+						<div class="qa-part-a-list">
+							<h2 id="a_list_title">4 Answers</h2>
+							<div class="qa-a-list" id="a_list">
+								
+								<div class="qa-a-list-item  hentry answer" id="a6744">
+									<form method="post" action="../../6743/variational-problem-with-user-defined-function-depending">
+										<div class="qa-voting qa-voting-net" id="voting_6744">
+											<div class="qa-vote-count qa-vote-count-net">
+												<span class="qa-netvote-count">
+													<span class="qa-netvote-count-data">0<span class="votes-up"><span class="value-title" title="0"></span></span><span class="votes-down"><span class="value-title" title="0"></span></span></span><span class="qa-netvote-count-pad"> votes</span>
+												</span>
+											</div>
+											<div class="qa-vote-clear">
+											</div>
+										</div>
+										<input type="hidden" name="code" value="0-1516468086-e9816d7d2b3d94999aea175517ea6f8ed7ca45fa">
+									</form>
+									<div class="qa-a-item-main">
+										<form method="post" action="../../6743/variational-problem-with-user-defined-function-depending">
+											<div class="qa-a-selection">
+											</div>
+											<div class="qa-a-item-content">
+												<a name="6744"></a><div class="entry-content"><p>Your code can't possibly work, because you have defined <code>g</code> as a Python function and are calling it with the argument <code>nabla_grad(u)</code>, which is a Python object of type <code>ufl.differentiation.Derivative</code> which I don't think your function g is supposed to handle...</p>
+
+<p>You should try to define g by  subclassing Expression, i.e. change your code to</p>
+
+<pre><code>class MyExpression(Expression):
+    def eval(self, values, x):
+        #calculate y,z depending on x
+        ... 
+        values[0] = image.getpixel((math.floor(y),math.floor(z)))
+
+g = MyExpression() 
+</code></pre>
+</div>
+											</div>
+											<span class="qa-a-item-avatar-meta">
+												<span class="qa-a-item-avatar">
+													<a href="../../user/Gregor+Mitscha-Baude" class="qa-avatar-link"><img src="../../?qa=image&amp;qa_blobid=3856551404141824203&amp;qa_size=40" width="32" height="40" class="qa-avatar-image" alt=""></a>
+												</span>
+												<span class="qa-a-item-meta">
+													<a href="../../6743/variational-problem-with-user-defined-function-depending?show=6744#a6744" class="qa-a-item-what">answered</a>
+													<span class="qa-a-item-when">
+														<span class="qa-a-item-when-data"><span class="published"><span class="value-title" title="2015-03-11T08:13:50+0000"></span>Mar 11, 2015</span></span>
+													</span>
+													<span class="qa-a-item-who">
+														<span class="qa-a-item-who-pad">by </span>
+														<span class="qa-a-item-who-data"><span class="vcard author"><a href="../../user/Gregor+Mitscha-Baude" class="qa-user-link url nickname">Gregor Mitscha-Baude</a></span></span>
+														<span class="qa-a-item-who-title">FEniCS User</span>
+														<span class="qa-a-item-who-points">
+															<span class="qa-a-item-who-points-pad">(</span><span class="qa-a-item-who-points-data">2,280</span><span class="qa-a-item-who-points-pad"> points)</span>
+														</span>
+													</span>
+												</span>
+											</span>
+											<div class="qa-a-item-buttons">
+												</div>
+											
+											<div class="qa-a-item-c-list" id="c6744_list">
+												<div class="qa-c-list-item  hentry comment" id="c6745">
+													<div class="qa-c-item-content">
+														<a name="6745"></a><div class="entry-content"><p>If I substitute the python-definition of g by your suggested expression object, how do I tell him to use nabla_grad(u(x))? <strong>eval</strong> only knows x (and is called implicitly). </p>
+</div>
+													</div>
+													<div class="qa-c-item-footer">
+														<span class="qa-c-item-avatar-meta">
+															<span class="qa-c-item-meta">
+																<a href="../../6743/variational-problem-with-user-defined-function-depending?show=6745#c6745" class="qa-c-item-what">commented</a>
+																<span class="qa-c-item-when">
+																	<span class="qa-c-item-when-data"><span class="published"><span class="value-title" title="2015-03-11T09:54:04+0000"></span>Mar 11, 2015</span></span>
+																</span>
+																<span class="qa-c-item-who">
+																	<span class="qa-c-item-who-pad">by </span>
+																	<span class="qa-c-item-who-data"><span class="vcard author"><a href="../../user/EliFri" class="qa-user-link url nickname">EliFri</a></span></span>
+																	<span class="qa-c-item-who-title">FEniCS Novice</span>
+																	<span class="qa-c-item-who-points">
+																		<span class="qa-c-item-who-points-pad">(</span><span class="qa-c-item-who-points-data">190</span><span class="qa-c-item-who-points-pad"> points)</span>
+																	</span>
+																</span>
+															</span>
+														</span>
+														<div class="qa-c-item-buttons">
+														</div>
+													</div>
+													<div class="qa-c-item-clear">
+													</div>
+												</div> <!-- END qa-c-item -->
+												<div class="qa-c-list-item  hentry comment" id="c6746">
+													<div class="qa-c-item-content">
+														<a name="6746"></a><div class="entry-content"><p>Of course, you're right. Hm.. well I'm afraid I don't know either -.-'</p>
+</div>
+													</div>
+													<div class="qa-c-item-footer">
+														<span class="qa-c-item-avatar-meta">
+															<span class="qa-c-item-avatar">
+																<a href="../../user/Gregor+Mitscha-Baude" class="qa-avatar-link"><img src="../../?qa=image&amp;qa_blobid=3856551404141824203&amp;qa_size=20" width="16" height="20" class="qa-avatar-image" alt=""></a>
+															</span>
+															<span class="qa-c-item-meta">
+																<a href="../../6743/variational-problem-with-user-defined-function-depending?show=6746#c6746" class="qa-c-item-what">commented</a>
+																<span class="qa-c-item-when">
+																	<span class="qa-c-item-when-data"><span class="published"><span class="value-title" title="2015-03-11T10:21:02+0000"></span>Mar 11, 2015</span></span>
+																</span>
+																<span class="qa-c-item-who">
+																	<span class="qa-c-item-who-pad">by </span>
+																	<span class="qa-c-item-who-data"><span class="vcard author"><a href="../../user/Gregor+Mitscha-Baude" class="qa-user-link url nickname">Gregor Mitscha-Baude</a></span></span>
+																	<span class="qa-c-item-who-title">FEniCS User</span>
+																	<span class="qa-c-item-who-points">
+																		<span class="qa-c-item-who-points-pad">(</span><span class="qa-c-item-who-points-data">2,280</span><span class="qa-c-item-who-points-pad"> points)</span>
+																	</span>
+																</span>
+															</span>
+														</span>
+														<div class="qa-c-item-buttons">
+														</div>
+													</div>
+													<div class="qa-c-item-clear">
+													</div>
+												</div> <!-- END qa-c-item -->
+												<div class="qa-c-list-item  hentry comment" id="c6747">
+													<div class="qa-c-item-content">
+														<a name="6747"></a><div class="entry-content"><p>Ah yes: I guess, the way to go is to first define u as a Function(V) (not TrialFunction), so u = u_ in your code. Then, interpolate nabla_grad(u) onto some new Finite Element Function, i.e.</p>
+
+<pre><code>gradu = Function(V)
+gradu.interpolate(nabla_grad(u))
+</code></pre>
+
+<p>With this, you can use the following in your Expression:</p>
+
+<pre><code>class MyExpression(Expression):
+    def eval(self, values, x):
+        x = gradu(x)
+        #calculate y,z depending on x
+        ... 
+        values[0] = image.getpixel((math.floor(y),math.floor(z)))
+</code></pre>
+</div>
+													</div>
+													<div class="qa-c-item-footer">
+														<span class="qa-c-item-avatar-meta">
+															<span class="qa-c-item-avatar">
+																<a href="../../user/Gregor+Mitscha-Baude" class="qa-avatar-link"><img src="../../?qa=image&amp;qa_blobid=3856551404141824203&amp;qa_size=20" width="16" height="20" class="qa-avatar-image" alt=""></a>
+															</span>
+															<span class="qa-c-item-meta">
+																<a href="../../6743/variational-problem-with-user-defined-function-depending?show=6747#c6747" class="qa-c-item-what">commented</a>
+																<span class="qa-c-item-when">
+																	<span class="qa-c-item-when-data"><span class="published"><span class="value-title" title="2015-03-11T10:32:43+0000"></span>Mar 11, 2015</span></span>
+																</span>
+																<span class="qa-c-item-who">
+																	<span class="qa-c-item-who-pad">by </span>
+																	<span class="qa-c-item-who-data"><span class="vcard author"><a href="../../user/Gregor+Mitscha-Baude" class="qa-user-link url nickname">Gregor Mitscha-Baude</a></span></span>
+																	<span class="qa-c-item-who-title">FEniCS User</span>
+																	<span class="qa-c-item-who-points">
+																		<span class="qa-c-item-who-points-pad">(</span><span class="qa-c-item-who-points-data">2,280</span><span class="qa-c-item-who-points-pad"> points)</span>
+																	</span>
+																</span>
+															</span>
+														</span>
+														<div class="qa-c-item-buttons">
+														</div>
+													</div>
+													<div class="qa-c-item-clear">
+													</div>
+												</div> <!-- END qa-c-item -->
+												<div class="qa-c-list-item  hentry comment" id="c6748">
+													<div class="qa-c-item-content">
+														<a name="6748"></a><div class="entry-content"><p>Mmmh ... Thanks, but I guess this does not solve the problem. I tried to make a little example code solving the Poisson equation with constant rhs and dirichlet zero boundary (using a nonlinear solver).  to test your suggestion</p>
+
+<pre><code>from dolfin import *
+
+mesh = UnitSquareMesh(10,10,'crossed')
+
+#function spaces
+V = FunctionSpace(mesh, 'CG', 2)  
+W = VectorFunctionSpace(mesh, 'CG', 1)
+
+u  = TrialFunction(V)
+v = TestFunction(V)
+u_ = project(Expression('x[0]*x[0]',degree=2), V)
+
+gradu = project(nabla_grad(u_),W)
+
+class MyExpression(Expression):
+    def eval(self, v, x):
+      v = gradu(x)
+    def value_shape(self):
+        return (2,)
+
+g = MyExpression()
+
+#define geometry
+h = CellSize(mesh)
+
+#variational formulation for the poisson equation
+F = (inner(nabla_grad(u_),nabla_grad(v))-Constant(1.0)*v)*dx 
+#F = (inner(g,nabla_grad(v))-Constant(1.0)*v)*dx # using the user-defined expression g
+
+#boundary conditions
+def u0_boundary(x, on_boundary):
+return on_boundary
+
+bc = DirichletBC(V, Constant(0.0), u0_boundary)
+
+J  = derivative(F, u_, u)   # Gateaux derivative in dir. of u
+
+problem = NonlinearVariationalProblem(F, u_, bc, J)
+solver  = NonlinearVariationalSolver(problem)
+
+solver.solve()
+
+plot(u_)
+interactive()
+</code></pre>
+
+<p>Using <br>
+<code>F = (inner(g,nabla_grad(v))-Constant(1.0)*v)*dx</code><br>
+ instead of <br>
+<code>F = (inner(nabla_grad(u_),nabla_grad(v))-Constant(1.0)*v)*dx</code> <br>
+the code crashes('ufl.log.UFLException: Cannot replace unknown element domain without unique common domain in form.`). If you interpolate the gradient of  u_ to a function gradu, the nonlinear solver regards gradu as constant (and independent of u_). Hence, the problem becomes unsolvable.</p>
+</div>
+													</div>
+													<div class="qa-c-item-footer">
+														<span class="qa-c-item-avatar-meta">
+															<span class="qa-c-item-meta">
+																<a href="../../6743/variational-problem-with-user-defined-function-depending?show=6748#c6748" class="qa-c-item-what">commented</a>
+																<span class="qa-c-item-when">
+																	<span class="qa-c-item-when-data"><span class="published"><span class="value-title" title="2015-03-11T12:01:48+0000"></span>Mar 11, 2015</span></span>
+																</span>
+																<span class="qa-c-item-who">
+																	<span class="qa-c-item-who-pad">by </span>
+																	<span class="qa-c-item-who-data"><span class="vcard author"><a href="../../user/EliFri" class="qa-user-link url nickname">EliFri</a></span></span>
+																	<span class="qa-c-item-who-title">FEniCS Novice</span>
+																	<span class="qa-c-item-who-points">
+																		<span class="qa-c-item-who-points-pad">(</span><span class="qa-c-item-who-points-data">190</span><span class="qa-c-item-who-points-pad"> points)</span>
+																	</span>
+																</span>
+															</span>
+														</span>
+														<div class="qa-c-item-buttons">
+														</div>
+													</div>
+													<div class="qa-c-item-clear">
+													</div>
+												</div> <!-- END qa-c-item -->
+												<div class="qa-c-list-item  hentry comment" id="c6749">
+													<div class="qa-c-item-content">
+														<a name="6749"></a><div class="entry-content"><p>Yes, of course now you have to implement the nonlinear solving yourself, because you have to interpolate gradu in <em>every step</em> of the Newton iteration!</p>
+</div>
+													</div>
+													<div class="qa-c-item-footer">
+														<span class="qa-c-item-avatar-meta">
+															<span class="qa-c-item-avatar">
+																<a href="../../user/Gregor+Mitscha-Baude" class="qa-avatar-link"><img src="../../?qa=image&amp;qa_blobid=3856551404141824203&amp;qa_size=20" width="16" height="20" class="qa-avatar-image" alt=""></a>
+															</span>
+															<span class="qa-c-item-meta">
+																<a href="../../6743/variational-problem-with-user-defined-function-depending?show=6749#c6749" class="qa-c-item-what">commented</a>
+																<span class="qa-c-item-when">
+																	<span class="qa-c-item-when-data"><span class="published"><span class="value-title" title="2015-03-11T13:08:55+0000"></span>Mar 11, 2015</span></span>
+																</span>
+																<span class="qa-c-item-who">
+																	<span class="qa-c-item-who-pad">by </span>
+																	<span class="qa-c-item-who-data"><span class="vcard author"><a href="../../user/Gregor+Mitscha-Baude" class="qa-user-link url nickname">Gregor Mitscha-Baude</a></span></span>
+																	<span class="qa-c-item-who-title">FEniCS User</span>
+																	<span class="qa-c-item-who-points">
+																		<span class="qa-c-item-who-points-pad">(</span><span class="qa-c-item-who-points-data">2,280</span><span class="qa-c-item-who-points-pad"> points)</span>
+																	</span>
+																</span>
+															</span>
+														</span>
+														<div class="qa-c-item-buttons">
+														</div>
+													</div>
+													<div class="qa-c-item-clear">
+													</div>
+												</div> <!-- END qa-c-item -->
+												<div class="qa-c-list-item  hentry comment" id="c6750">
+													<div class="qa-c-item-content">
+														<a name="6750"></a><div class="entry-content"><p>I had hoped to avoid to calculate the Jacobian myself. But I guess there is no easy workaround. Thank you!</p>
+</div>
+													</div>
+													<div class="qa-c-item-footer">
+														<span class="qa-c-item-avatar-meta">
+															<span class="qa-c-item-meta">
+																<a href="../../6743/variational-problem-with-user-defined-function-depending?show=6750#c6750" class="qa-c-item-what">commented</a>
+																<span class="qa-c-item-when">
+																	<span class="qa-c-item-when-data"><span class="published"><span class="value-title" title="2015-03-11T13:27:14+0000"></span>Mar 11, 2015</span></span>
+																</span>
+																<span class="qa-c-item-who">
+																	<span class="qa-c-item-who-pad">by </span>
+																	<span class="qa-c-item-who-data"><span class="vcard author"><a href="../../user/EliFri" class="qa-user-link url nickname">EliFri</a></span></span>
+																	<span class="qa-c-item-who-title">FEniCS Novice</span>
+																	<span class="qa-c-item-who-points">
+																		<span class="qa-c-item-who-points-pad">(</span><span class="qa-c-item-who-points-data">190</span><span class="qa-c-item-who-points-pad"> points)</span>
+																	</span>
+																</span>
+															</span>
+														</span>
+														<div class="qa-c-item-buttons">
+														</div>
+													</div>
+													<div class="qa-c-item-clear">
+													</div>
+												</div> <!-- END qa-c-item -->
+											</div> <!-- END qa-c-list -->
+											
+											<input type="hidden" name="code" value="0-1516468086-19b91d3b3a741be6a5eb56ec56b5cfbbe4dbcf4f">
+											<input type="hidden" name="qa_click" value="">
+										</form>
+										<div class="qa-c-form">
+										</div> <!-- END qa-c-form -->
+										
+									</div> <!-- END qa-a-item-main -->
+									<div class="qa-a-item-clear">
+									</div>
+								</div> <!-- END qa-a-list-item -->
+								
+								<div class="qa-a-list-item  hentry answer" id="a6751">
+									<form method="post" action="../../6743/variational-problem-with-user-defined-function-depending">
+										<div class="qa-voting qa-voting-net" id="voting_6751">
+											<div class="qa-vote-count qa-vote-count-net">
+												<span class="qa-netvote-count">
+													<span class="qa-netvote-count-data">0<span class="votes-up"><span class="value-title" title="0"></span></span><span class="votes-down"><span class="value-title" title="0"></span></span></span><span class="qa-netvote-count-pad"> votes</span>
+												</span>
+											</div>
+											<div class="qa-vote-clear">
+											</div>
+										</div>
+										<input type="hidden" name="code" value="0-1516468086-e9816d7d2b3d94999aea175517ea6f8ed7ca45fa">
+									</form>
+									<div class="qa-a-item-main">
+										<form method="post" action="../../6743/variational-problem-with-user-defined-function-depending">
+											<div class="qa-a-selection">
+											</div>
+											<div class="qa-a-item-content">
+												<a name="6751"></a><div class="entry-content"><p>I'm sorry I couldn't provide you with a quick and easy solution, but there probably isn't one, for very general reasons:</p>
+
+<p>In the Jacobian of your nonlinear form, the derivative of your (original) function g has to enter somewhere. But how is fenics supposed to know it? The automatic derivative(F,u_,u) tries to apply symbolic differentiation to a symbolically defined ufl form. Hence it can only handle the limited number of nonlinear expressions that are predefined in ufl, as you already noticed in the beginning.</p>
+
+<p>Hence, to be able to use a Newton method, you have to supply the derivative of g yourself (if this is even possible), build the Jacobian bilinear form yourself and implement the Newton iteration yourself, since the derivative of g probably is again a complicated Expression that you have to interpolate manually to use it inside a ufl form.</p>
+
+<p>Maybe Newton isn't the way to go? If you're lucky, you maybe can get away with a simple fixed-point iteration (Picard iteration). This should be implementable rather straightforward in fenics, but still, you will have to write the iteration loop yourself...</p>
+
+<p>Some things just can't be done automatically ;) I hope you figure it out! Cheers</p>
+</div>
+											</div>
+											<span class="qa-a-item-avatar-meta">
+												<span class="qa-a-item-avatar">
+													<a href="../../user/Gregor+Mitscha-Baude" class="qa-avatar-link"><img src="../../?qa=image&amp;qa_blobid=3856551404141824203&amp;qa_size=40" width="32" height="40" class="qa-avatar-image" alt=""></a>
+												</span>
+												<span class="qa-a-item-meta">
+													<a href="../../6743/variational-problem-with-user-defined-function-depending?show=6751#a6751" class="qa-a-item-what">answered</a>
+													<span class="qa-a-item-when">
+														<span class="qa-a-item-when-data"><span class="published"><span class="value-title" title="2015-03-11T13:45:38+0000"></span>Mar 11, 2015</span></span>
+													</span>
+													<span class="qa-a-item-who">
+														<span class="qa-a-item-who-pad">by </span>
+														<span class="qa-a-item-who-data"><span class="vcard author"><a href="../../user/Gregor+Mitscha-Baude" class="qa-user-link url nickname">Gregor Mitscha-Baude</a></span></span>
+														<span class="qa-a-item-who-title">FEniCS User</span>
+														<span class="qa-a-item-who-points">
+															<span class="qa-a-item-who-points-pad">(</span><span class="qa-a-item-who-points-data">2,280</span><span class="qa-a-item-who-points-pad"> points)</span>
+														</span>
+													</span>
+												</span>
+											</span>
+											<div class="qa-a-item-buttons">
+												</div>
+											
+											<div class="qa-a-item-c-list" style="display:none;" id="c6751_list">
+											</div> <!-- END qa-c-list -->
+											
+											<input type="hidden" name="code" value="0-1516468086-8f9a67c3cc09d7c7b221b412c051069a726cbb4f">
+											<input type="hidden" name="qa_click" value="">
+										</form>
+										<div class="qa-c-form">
+										</div> <!-- END qa-c-form -->
+										
+									</div> <!-- END qa-a-item-main -->
+									<div class="qa-a-item-clear">
+									</div>
+								</div> <!-- END qa-a-list-item -->
+								
+								<div class="qa-a-list-item  hentry answer" id="a9362">
+									<form method="post" action="../../6743/variational-problem-with-user-defined-function-depending">
+										<div class="qa-voting qa-voting-net" id="voting_9362">
+											<div class="qa-vote-count qa-vote-count-net">
+												<span class="qa-netvote-count">
+													<span class="qa-netvote-count-data">0<span class="votes-up"><span class="value-title" title="0"></span></span><span class="votes-down"><span class="value-title" title="0"></span></span></span><span class="qa-netvote-count-pad"> votes</span>
+												</span>
+											</div>
+											<div class="qa-vote-clear">
+											</div>
+										</div>
+										<input type="hidden" name="code" value="0-1516468086-e9816d7d2b3d94999aea175517ea6f8ed7ca45fa">
+									</form>
+									<div class="qa-a-item-main">
+										<form method="post" action="../../6743/variational-problem-with-user-defined-function-depending">
+											<div class="qa-a-selection">
+											</div>
+											<div class="qa-a-item-content">
+												<a name="9362"></a><div class="entry-content"><p>Maybe this discussion is helpful? <a rel="nofollow" href="http://fenicsproject.org/qa/8169/expressions-automated-differentiation-custom-functions">http://fenicsproject.org/qa/8169/expressions-automated-differentiation-custom-functions</a></p>
+</div>
+											</div>
+											<span class="qa-a-item-avatar-meta">
+												<span class="qa-a-item-avatar">
+													<a href="../../user/Martin+Genet" class="qa-avatar-link"><img src="../../?qa=image&amp;qa_blobid=4996080535152988109&amp;qa_size=40" width="40" height="40" class="qa-avatar-image" alt=""></a>
+												</span>
+												<span class="qa-a-item-meta">
+													<a href="../../6743/variational-problem-with-user-defined-function-depending?show=9362#a9362" class="qa-a-item-what">answered</a>
+													<span class="qa-a-item-when">
+														<span class="qa-a-item-when-data"><span class="published"><span class="value-title" title="2016-02-20T10:29:47+0000"></span>Feb 20, 2016</span></span>
+													</span>
+													<span class="qa-a-item-who">
+														<span class="qa-a-item-who-pad">by </span>
+														<span class="qa-a-item-who-data"><span class="vcard author"><a href="../../user/Martin+Genet" class="qa-user-link url nickname">Martin Genet</a></span></span>
+														<span class="qa-a-item-who-title">FEniCS User</span>
+														<span class="qa-a-item-who-points">
+															<span class="qa-a-item-who-points-pad">(</span><span class="qa-a-item-who-points-data">1,460</span><span class="qa-a-item-who-points-pad"> points)</span>
+														</span>
+													</span>
+												</span>
+											</span>
+											<div class="qa-a-item-buttons">
+												</div>
+											
+											<div class="qa-a-item-c-list" style="display:none;" id="c9362_list">
+											</div> <!-- END qa-c-list -->
+											
+											<input type="hidden" name="code" value="0-1516468086-cc66a741a9f6cdcef70324e324dd43c1b4f8e212">
+											<input type="hidden" name="qa_click" value="">
+										</form>
+										<div class="qa-c-form">
+										</div> <!-- END qa-c-form -->
+										
+									</div> <!-- END qa-a-item-main -->
+									<div class="qa-a-item-clear">
+									</div>
+								</div> <!-- END qa-a-list-item -->
+								
+								<div class="qa-a-list-item  hentry answer" id="a9363">
+									<form method="post" action="../../6743/variational-problem-with-user-defined-function-depending">
+										<div class="qa-voting qa-voting-net" id="voting_9363">
+											<div class="qa-vote-count qa-vote-count-net">
+												<span class="qa-netvote-count">
+													<span class="qa-netvote-count-data">0<span class="votes-up"><span class="value-title" title="0"></span></span><span class="votes-down"><span class="value-title" title="0"></span></span></span><span class="qa-netvote-count-pad"> votes</span>
+												</span>
+											</div>
+											<div class="qa-vote-clear">
+											</div>
+										</div>
+										<input type="hidden" name="code" value="0-1516468086-e9816d7d2b3d94999aea175517ea6f8ed7ca45fa">
+									</form>
+									<div class="qa-a-item-main">
+										<form method="post" action="../../6743/variational-problem-with-user-defined-function-depending">
+											<div class="qa-a-selection">
+											</div>
+											<div class="qa-a-item-content">
+												<a name="9363"></a><div class="entry-content"><p>You can use the "R" space + defining functions as expressions or via UFL. <br>
+See the following code: </p>
+
+<p>from fenics import *</p>
+
+<p>mesh = UnitIntervalMesh(100)<br>
+dim = 5<br>
+R = VectorFunctionSpace(mesh, "R", 0, dim=dim)<br>
+x = SpatialCoordinate(mesh)</p>
+
+<h2>Define reduced basis</h2>
+
+<p>rb = [sin(pi<em>x[0]</em>(i+1)) for i in range(dim)]</p>
+
+<p>udofs = TrialFunction(R)<br>
+vdofs = TestFunction(R)<br>
+u = sum([udofs[i]<em>rb[i] for i in range(dim)])<br>
+v = sum([vdofs[i]</em>rb[i] for i in range(dim)])</p>
+
+<p>L = v*dx(degree=3)</p>
+
+<p>a = u<em>v</em>dx + inner(grad(u), grad(v))*dx(degree=3)</p>
+
+<p>xdofs = Function(R)<br>
+solve(a == L, xdofs)</p>
+
+<h2>Get full solution</h2>
+
+<p>x = sum([xdofs[i]*rb[i] for i in range(dim)])<br>
+plot(x, interactive=True)</p>
+</div>
+											</div>
+											<span class="qa-a-item-avatar-meta">
+												<span class="qa-a-item-meta">
+													<a href="../../6743/variational-problem-with-user-defined-function-depending?show=9363#a9363" class="qa-a-item-what">answered</a>
+													<span class="qa-a-item-when">
+														<span class="qa-a-item-when-data"><span class="published"><span class="value-title" title="2016-02-20T10:56:37+0000"></span>Feb 20, 2016</span></span>
+													</span>
+													<span class="qa-a-item-who">
+														<span class="qa-a-item-who-pad">by </span>
+														<span class="qa-a-item-who-data"><span class="vcard author"><a href="../../user/Kent-Andre+Mardal" class="qa-user-link url nickname">Kent-Andre Mardal</a></span></span>
+														<span class="qa-a-item-who-title">FEniCS Expert</span>
+														<span class="qa-a-item-who-points">
+															<span class="qa-a-item-who-points-pad">(</span><span class="qa-a-item-who-points-data">14,380</span><span class="qa-a-item-who-points-pad"> points)</span>
+														</span>
+													</span>
+												</span>
+											</span>
+											<div class="qa-a-item-buttons">
+												</div>
+											
+											<div class="qa-a-item-c-list" style="display:none;" id="c9363_list">
+											</div> <!-- END qa-c-list -->
+											
+											<input type="hidden" name="code" value="0-1516468086-6be845430f8d0c693d24677f9181ee186cc4b6c8">
+											<input type="hidden" name="qa_click" value="">
+										</form>
+										<div class="qa-c-form">
+										</div> <!-- END qa-c-form -->
+										
+									</div> <!-- END qa-a-item-main -->
+									<div class="qa-a-item-clear">
+									</div>
+								</div> <!-- END qa-a-list-item -->
+								
+							</div> <!-- END qa-a-list -->
+							
+						</div>
+					</div> <!-- END qa-main -->
+					
+				</div> <!-- END main-wrapper -->
+			</div> <!-- END main-shadow -->
+		</div> <!-- END body-wrapper -->
+		<!-- END footer-bottom-group -->
+		
+		<div style="position:absolute; left:-9999px; top:-9999px;">
+			<span id="qa-waiting-template" class="qa-waiting">...</span>
+		</div>
+	
+	
+
+</body><!-- Powered by Question2Answer - http://www.question2answer.org/ --></html>

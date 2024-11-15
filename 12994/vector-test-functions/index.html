@@ -1,0 +1,838 @@
+<html><!-- Powered by Question2Answer - http://www.question2answer.org/ --><head>
+		<meta http-equiv="content-type" content="text/html; charset=utf-8">
+		<title>Vector Test Functions - FEniCS Q&amp;A</title>
+		<meta name="description" content="Hello, I would like to solve this second order equation in a 2D domain: \rho d^2u(x,t)/dt ...  be more specific or provide the entire code if needed.">
+		<meta name="keywords" content="test-function,vectorfunctionspace,assemble">
+		<link rel="stylesheet" type="text/css" href="../../qa-theme/Snow/qa-styles.css">
+		<link rel="canonical" href="http://fenicsproject.org/qa/12994/vector-test-functions">
+		<script type="text/x-mathjax-config">
+  MathJax.Hub.Config({
+    extensions: ["tex2jax.js"],
+    jax: ["input/TeX","output/HTML-CSS"],
+    tex2jax: {inlineMath: [["$","$"],["\\(","\\)"]]},
+    TeX: { extensions: ["AMSmath.js","AMSsymbols.js"]}
+  });
+</script>
+<script type="text/javascript" src="../../mathjax/MathJax.js"></script>
+		<script src="../../jquery-1.7.2.min.js" type="text/javascript"></script>
+		<script src="../../highlight.min.js"></script>
+<script type="text/javascript">
+$(function(){
+	$('.wmd-input').keypress(function(){
+		window.clearTimeout(hljs.Timeout);
+		hljs.Timeout = window.setTimeout(function() {
+			hljs.initHighlighting.called = false;
+			hljs.initHighlighting();
+		}, 500);
+	});
+	window.setTimeout(function() {
+		hljs.initHighlighting.called = false;
+		hljs.initHighlighting();
+	}, 500);
+});
+</script>
+
+
+	</head>
+	<body class="qa-template-question qa-body-js-off">
+		<div class="qa-body-wrapper">
+			
+			<div class="qa-header">
+				<div class="qa-logo">
+					<a href="../../" class="qa-logo-link" title="FEniCS Q&amp;A"><img src="../../qa-theme/fenics_qa.png" border="0" alt="FEniCS Q&amp;A"></a>
+				</div>
+				<div class="qa-header-clear">
+				</div>
+			</div> <!-- END qa-header -->
+			
+			<div class="qa-main-shadow">
+				
+				<div class="qa-main-wrapper">
+					
+					<div class="qa-sidepanel">
+						<div class="qa-sidebar">
+							This is a read only copy of the old FEniCS QA forum. Please visit the <a href="https://www.allanswered.com/community/s/fenics-project/">new QA forum</a> to ask questions
+						</div>
+						
+					</div>
+					
+					<div class="qa-main">
+						<h1>
+							<span class="entry-title">Vector Test Functions</span>
+						</h1>
+						<div class="qa-part-q-view">
+							<div class="qa-q-view  hentry question" id="q12994">
+								<form method="post" action="../../12994/vector-test-functions">
+									<div class="qa-q-view-stats">
+										<div class="qa-voting qa-voting-net" id="voting_12994">
+											<div class="qa-vote-count qa-vote-count-net">
+												<span class="qa-netvote-count">
+													<span class="qa-netvote-count-data">+1<span class="votes-up"><span class="value-title" title="1"></span></span><span class="votes-down"><span class="value-title" title="0"></span></span></span><span class="qa-netvote-count-pad"> vote</span>
+												</span>
+											</div>
+											<div class="qa-vote-clear">
+											</div>
+										</div>
+									</div>
+									<input type="hidden" name="code" value="0-1516467848-bd6b0032386fb404d8d675433f34b879cf142ecf">
+								</form>
+								<div class="qa-q-view-main">
+									<form method="post" action="../../12994/vector-test-functions">
+										<div class="qa-q-view-content">
+											<a name="12994"></a><div class="entry-content"><p>Hello, </p>
+
+<p>I would like to solve this second order equation in a 2D domain:</p>
+
+<p>\rho d^2u(x,t)/dt^2 = (\lambda+2\mu) grad(div((x,t))) - \mu curl(curl(u(x,t))) + f(x,t)</p>
+
+<p>To do so I would like to solve the following system</p>
+
+<p>M d^2U/dt^2 + S U = F,</p>
+
+<p>where M and S are matrices and F is a vector. </p>
+
+<p>I introduce a basis {Phi_i^1, Phi_i^2} for i=1:#dof and Phi_i^1 = [Phi_i^1; 0] and Phi_i^2 = [0; Phi_i^2]. How can I do such thing in Fenics? </p>
+
+<p>The ultimate goal would be to write M and S as block matrices sin the cbc.block library: for example the first block of S will be:</p>
+
+<pre><code>s1 = ((lambda_+2*mu_) * (div(u_x)*div(phi_x)) - mu_ * inner(curl(u_x),curl(phi_x))) * dx
+S1 = assemble(s1)
+</code></pre>
+
+<p>where u_x = [u1_x; 0] and phi_x = [phi_x; 0] defined in some way.</p>
+
+<p>I've tried the following:</p>
+
+<p><strong>Option (1):</strong></p>
+
+<pre><code>V = VectorFunctionSpace(mesh, 'CG', 1)
+u1, phi = TrialFunction(V), TestFunction(V)
+phi_x = [phi.sub(0); 0] 
+phi_y = [0; phi.sub(1)]
+s1 = ((lambda_+2*mu_) * (div(u_x)*div(phi_x)) - mu_ * inner(curl(u_x),curl(phi_x))) * dx
+</code></pre>
+
+<p>But I should know the dimension of phi.sub(0) and add the same dimension fo the zero part. </p>
+
+<p><strong>Option (2):</strong> </p>
+
+<pre><code>V = VectorFunctionSpace(mesh, 'CG', 1)
+u1, phi = TrialFunction(V), TestFunction(V)
+s1 = ( (lambda_+2*mu_) * (Dx(u1.sub(0),0) * Dx(phi.sub(0),0)) - mu_ * (Dx(u1.sub(0),1)*Dx(phi.sub(0),1))) * dx
+</code></pre>
+
+<p>But I get the following error: <em>AttributeError: 'Argument' object has no attribute 'sub'</em></p>
+
+<p>Can anyone help with this? There are almost no examples of second order equations of the fenics book or online, and none about the above equation. <br>
+How should one treat vector problems ?</p>
+
+<p>Thank you!!! </p>
+
+<p>I can be more specific or provide the entire code if needed. </p>
+</div>
+										</div>
+										<div class="qa-q-view-tags">
+											<ul class="qa-q-view-tag-list">
+												<li class="qa-q-view-tag-item"><a href="../../tag/test-function" rel="tag" class="qa-tag-link">test-function</a></li>
+												<li class="qa-q-view-tag-item"><a href="../../tag/vectorfunctionspace" rel="tag" class="qa-tag-link">vectorfunctionspace</a></li>
+												<li class="qa-q-view-tag-item"><a href="../../tag/assemble" rel="tag" class="qa-tag-link">assemble</a></li>
+											</ul>
+										</div>
+										<span class="qa-q-view-avatar-meta">
+											<span class="qa-q-view-meta">
+												<a href="../../12994/vector-test-functions" class="qa-q-view-what">asked</a>
+												<span class="qa-q-view-when">
+													<span class="qa-q-view-when-data"><span class="published"><span class="value-title" title="2017-04-07T16:00:41+0000"></span>Apr 7, 2017</span></span>
+												</span>
+												<span class="qa-q-view-who">
+													<span class="qa-q-view-who-pad">by </span>
+													<span class="qa-q-view-who-data"><span class="vcard author"><a href="../../user/caterinabig" class="qa-user-link url nickname">caterinabig</a></span></span>
+													<span class="qa-q-view-who-title">FEniCS User</span>
+													<span class="qa-q-view-who-points">
+														<span class="qa-q-view-who-points-pad">(</span><span class="qa-q-view-who-points-data">1,460</span><span class="qa-q-view-who-points-pad"> points)</span>
+													</span>
+												</span>
+											</span>
+										</span>
+										<div class="qa-q-view-buttons">
+										</div>
+										
+										<div class="qa-q-view-c-list" id="c12994_list">
+											<div class="qa-c-list-item  hentry comment" id="c13011">
+												<div class="qa-c-item-content">
+													<a name="13011"></a><div class="entry-content"><p>Hi, please provide the code.</p>
+</div>
+												</div>
+												<div class="qa-c-item-footer">
+													<span class="qa-c-item-avatar-meta">
+														<span class="qa-c-item-avatar">
+															<a href="../../user/MiroK" class="qa-avatar-link"><img src="https://www.gravatar.com/avatar/f566be3274ec73e3a6dda27bca11631c?s=20" width="20" height="20" class="qa-avatar-image" alt=""></a>
+														</span>
+														<span class="qa-c-item-meta">
+															<a href="../../12994/vector-test-functions?show=13011#c13011" class="qa-c-item-what">commented</a>
+															<span class="qa-c-item-when">
+																<span class="qa-c-item-when-data"><span class="published"><span class="value-title" title="2017-04-09T16:15:31+0000"></span>Apr 9, 2017</span></span>
+															</span>
+															<span class="qa-c-item-who">
+																<span class="qa-c-item-who-pad">by </span>
+																<span class="qa-c-item-who-data"><span class="vcard author"><a href="../../user/MiroK" class="qa-user-link url nickname">MiroK</a></span></span>
+																<span class="qa-c-item-who-title">FEniCS Expert</span>
+																<span class="qa-c-item-who-points">
+																	<span class="qa-c-item-who-points-pad">(</span><span class="qa-c-item-who-points-data">80,920</span><span class="qa-c-item-who-points-pad"> points)</span>
+																</span>
+															</span>
+														</span>
+													</span>
+													<div class="qa-c-item-buttons">
+													</div>
+												</div>
+												<div class="qa-c-item-clear">
+												</div>
+											</div> <!-- END qa-c-item -->
+											<div class="qa-c-list-item  hentry comment" id="c13019">
+												<div class="qa-c-item-content">
+													<a name="13019"></a><div class="entry-content"><p>Here you go. Please note that it's not a definitive version: I still need to implement the source term and few other small things. What I really don't know is how to define the test functions for a vector problem. </p>
+
+<p>I hope this code is helpful to understand the problem.</p>
+
+<pre><code>from dolfin import *
+from mshr import *
+import sys
+
+
+# Physics Constants
+rho_ =1
+lambda_ = 1
+mu_ = 1
+
+# Newmark Constants
+beta_ = 0.25
+gamma_ = 0.5
+
+# Time Constants
+dt = 0.1
+T = 2
+
+
+# Create mesh &amp; Define Function space
+domain = Rectangle(Point(0., 0.), Point(1., 1.))
+
+mesh = generate_mesh(domain, 32)
+V = VectorFunctionSpace(mesh, 'CG', 1)
+
+u1, phi = TrialFunction(V), TestFunction(V)
+
+# Is this the way to have vector trial and test function?
+#(u_x,u_y) = TrialFunction(V)
+#(phi_x,phi_y) = TestFunction(V)
+
+# Define natural boundary conditions: &lt;u,n&gt;=0 on each side
+
+def left_boundary(x, on_boundary):
+    return on_boundary and abs(x[0] - 0.) &lt; DOLFIN_EPS
+
+def right_boundary(x, on_boundary):
+    return on_boundary and abs(x[0] - 1.) &lt; DOLFIN_EPS
+
+def top_boundary(x, on_boundary):
+    return on_boundary and abs(x[1] - 1.) &lt; DOLFIN_EPS
+
+def bottom_boundary(x, on_boundary):
+    return on_boundary and abs(x[1] - 0.) &lt; DOLFIN_EPS
+
+ux_0 = Constant(0)
+uy_0 = Constant(0) 
+
+bcL = DirichletBC(V.sub(0), ux_0, left_boundary)
+bcR = DirichletBC(V.sub(0), ux_0, right_boundary)
+bcT = DirichletBC(V.sub(1), uy_0, top_boundary)
+bcB = DirichletBC(V.sub(1), uy_0, bottom_boundary)
+
+bcs = [bcL, bcR, bcT, bcB]
+
+
+
+# Fields from previous time step (displacement, velocity, acceleration)
+
+u0 = Function(V)
+v0 = Function(V)
+a0 = Function(V)
+
+u1 = Function(V)
+
+
+
+# Initial conditions - all zero
+
+zeros = Expression(("0.0","0.0"))
+u0 = interpolate(zeros, V)
+v0 = interpolate(zeros, V)
+a0 = interpolate(zeros, V)
+
+# Define the source term -- it needs to be time dependent
+source_expr = Expression(("1.0","0.0"))
+source = interpolate(source_expr, V)
+
+
+# Problems: Do we need to define phi_1 = [phi1, 0] ? - how do I define the zero?
+u_x = [u1.sub(0); 0]
+u_y = [0; u1.sub(1)]
+phi_x = [phi.sub(0); 0]
+phi_y = [0; phi.sub(1)]
+
+
+#  Matrices
+# Alternative:
+#s1 = ( (lambda_+2*mu_) * (Dx(u1.sub(0),0) * Dx(phi.sub(0),0)) - mu_ * (Dx(u1.sub(0),1)*Dx(phi.sub(0),1))) * dx
+
+s1 = ((lambda_+2*mu_) * (div(u_x)*div(phi_x)) - mu_ * inner(curl(u_x),curl(phi_x))) * dx
+s2 = ((lambda_+2*mu_) * (div(u_x)*div(phi_y)) - mu_ * inner(curl(u_x),curl(phi_y))) * dx
+s3 = ((lambda_+2*mu_) * (div(u_y)*div(phi_x)) - mu_ * inner(curl(u_y),curl(phi_x))) * dx
+s4 = ((lambda_+2*mu_) * (div(u_y)*div(phi_y)) - mu_ * inner(curl(u_y),curl(phi_y))) * dx
+
+S1 = assemble(s1)
+S2 = assemble(s2)
+S3 = assemble(s3)
+S4 = assemble(s4)
+
+print S1
+S = block_mat([[S1, S2]; [S3, S4]])
+
+
+m1 = rho_ * inner(u_x,phi_x) * dx
+m2 = rho_ * inner(u_x,phi_y) * dx
+m3 = rho_ * inner(u_y,phi_x) * dx
+
+m4 = rho_ * inner(u_y,phi_y) * dx
+
+M1 = assemble(m1)
+M2 = assemble(m2)
+M3 = assemble(m3)
+M4 = assemble(m4)
+
+M = block_mat([[M1, M2]; [M3, M4]])
+
+f1 = inner(source, phi_x) * dx
+f2 = inner(source, phi_y) * dx
+
+F1 = assemble(f1)
+F2 = assemble(f2)
+
+F = block_vec([F1; F2])
+
+
+# Total matrices and right hand side
+A = M + beta_*dt**2*S # this is assmbled only once, before the time stepping
+L = beta_*dt**2*F + M*u0 + dt*M*v0 + dt**2*(1-2*beta_)*M*a0
+
+
+# Time loop
+t = dt
+while t &lt;= T:
+    print "t="+str(t)
+
+    # Update the source that is time depedent 
+    # TODO
+
+    # Update the RHS
+    rhs = assemble(L)
+
+    # Axpply BCs
+    bcs.apply(A,rhs)
+
+    # Solve system for displacement
+    solve(A, u1, rhs) 
+
+    # Newmark method to compute acceleration and velocity
+    a1 = (u1-u0-dt*v0)/(beta_*dt**2) - (1-2*beta_)/(2*beta_)*a0
+    v1 = v0 + (1-gamma_)*dt*a0 + gamma_*dt*a1
+
+
+    # Update time and solution
+    t += dt
+
+    u0 = u1
+    v0 = v1
+    a0 = a1
+
+    # # Alternative:
+    # u0.assign(u1)
+    # v0.assign(v1)
+    # a0.assign(a1)
+</code></pre>
+</div>
+												</div>
+												<div class="qa-c-item-footer">
+													<span class="qa-c-item-avatar-meta">
+														<span class="qa-c-item-meta">
+															<a href="../../12994/vector-test-functions?show=13019#c13019" class="qa-c-item-what">commented</a>
+															<span class="qa-c-item-when">
+																<span class="qa-c-item-when-data"><span class="published"><span class="value-title" title="2017-04-10T07:24:17+0000"></span>Apr 10, 2017</span></span>
+															</span>
+															<span class="qa-c-item-who">
+																<span class="qa-c-item-who-pad">by </span>
+																<span class="qa-c-item-who-data"><span class="vcard author"><a href="../../user/caterinabig" class="qa-user-link url nickname">caterinabig</a></span></span>
+																<span class="qa-c-item-who-title">FEniCS User</span>
+																<span class="qa-c-item-who-points">
+																	<span class="qa-c-item-who-points-pad">(</span><span class="qa-c-item-who-points-data">1,460</span><span class="qa-c-item-who-points-pad"> points)</span>
+																</span>
+															</span>
+														</span>
+													</span>
+													<div class="qa-c-item-buttons">
+													</div>
+												</div>
+												<div class="qa-c-item-clear">
+												</div>
+											</div> <!-- END qa-c-item -->
+										</div> <!-- END qa-c-list -->
+										
+										<input type="hidden" name="code" value="0-1516467848-fae3a8442611b59b09d40eda4fe8c03a9d70ae3d">
+										<input type="hidden" name="qa_click" value="">
+									</form>
+									<div class="qa-c-form">
+									</div> <!-- END qa-c-form -->
+									
+								</div> <!-- END qa-q-view-main -->
+								<div class="qa-q-view-clear">
+								</div>
+							</div> <!-- END qa-q-view -->
+							
+						</div>
+						<div class="qa-part-a-list">
+							<h2 id="a_list_title">1 Answer</h2>
+							<div class="qa-a-list" id="a_list">
+								
+								<div class="qa-a-list-item  hentry answer" id="a13022">
+									<form method="post" action="../../12994/vector-test-functions">
+										<div class="qa-voting qa-voting-net" id="voting_13022">
+											<div class="qa-vote-count qa-vote-count-net">
+												<span class="qa-netvote-count">
+													<span class="qa-netvote-count-data">+2<span class="votes-up"><span class="value-title" title="2"></span></span><span class="votes-down"><span class="value-title" title="0"></span></span></span><span class="qa-netvote-count-pad"> votes</span>
+												</span>
+											</div>
+											<div class="qa-vote-clear">
+											</div>
+										</div>
+										<input type="hidden" name="code" value="0-1516467848-bd6b0032386fb404d8d675433f34b879cf142ecf">
+									</form>
+									<div class="qa-a-item-main">
+										<form method="post" action="../../12994/vector-test-functions">
+											<div class="qa-a-selection">
+											</div>
+											<div class="qa-a-item-content">
+												<a name="13022"></a><div class="entry-content"><p>Hi, consider the following example</p>
+
+<pre><code>from dolfin import *
+from block import block_mat, block_vec
+import numpy as np
+
+mesh = UnitSquareMesh(10, 10)
+V = VectorFunctionSpace(mesh, 'CG', 1)
+
+v = TestFunction(V)
+vx, vy = v[0], v[1]  # In the assembly these act like (vx, 0), (0, vy) but vx, vy are scalars
+dofs_x = V.sub(0).dofmap().dofs()
+dofs_y = V.sub(1).dofmap().dofs()
+
+f = Constant(1)
+
+# Illustration of the zero component
+# (vx, 0) - so second comp is 0
+b = assemble(inner(vx, f)*dx)
+b_array = b.array()
+print np.linalg.norm(b_array[dofs_y])
+# (0, vy) - so first comp is 0
+b = assemble(inner(vy, f)*dx)
+b_array = b.array()
+print np.linalg.norm(b_array[dofs_x])
+
+# Consider the mass matrix
+u = TrialFunction(V)
+M = assemble(inner(u, v)*dx)
+
+# With cbc.block it is defined in terms of scalar components
+Q = FunctionSpace(mesh, 'CG', 1)
+p, q = TrialFunction(Q), TestFunction(Q)
+block = assemble(inner(p, q)*dx)
+Mb = block_mat([[block, 0],
+                [0, block]])
+
+# The equivalence: let's see how the two operators act on representation of the same
+# function. For cbc block the dofs of subspaces are serialized.
+x_array = np.random.rand(V.dim())
+x = Function(V).vector(); x.set_local(x_array); x.apply('insert')
+# Reorder for cbc.block
+xx_array = x_array[dofs_x]
+xy_array = x_array[dofs_y]
+xx = Function(Q).vector(); xx.set_local(xx_array); xx.apply('insert')
+xy = Function(Q).vector(); xy.set_local(xy_array); xy.apply('insert')
+xb = block_vec([xx, xy])
+
+# Action
+y = x.copy() 
+M.mult(x, y)
+yx, yy = y.array()[dofs_x], y.array()[dofs_y]
+
+yb = Mb*xb
+ybx, yby = yb[0].array(), yb[1].array()
+
+print np.linalg.norm(yx-ybx), np.linalg.norm(yy-yby)
+</code></pre>
+</div>
+											</div>
+											<span class="qa-a-item-avatar-meta">
+												<span class="qa-a-item-avatar">
+													<a href="../../user/MiroK" class="qa-avatar-link"><img src="https://www.gravatar.com/avatar/f566be3274ec73e3a6dda27bca11631c?s=40" width="40" height="40" class="qa-avatar-image" alt=""></a>
+												</span>
+												<span class="qa-a-item-meta">
+													<a href="../../12994/vector-test-functions?show=13022#a13022" class="qa-a-item-what">answered</a>
+													<span class="qa-a-item-when">
+														<span class="qa-a-item-when-data"><span class="published"><span class="value-title" title="2017-04-10T08:56:31+0000"></span>Apr 10, 2017</span></span>
+													</span>
+													<span class="qa-a-item-who">
+														<span class="qa-a-item-who-pad">by </span>
+														<span class="qa-a-item-who-data"><span class="vcard author"><a href="../../user/MiroK" class="qa-user-link url nickname">MiroK</a></span></span>
+														<span class="qa-a-item-who-title">FEniCS Expert</span>
+														<span class="qa-a-item-who-points">
+															<span class="qa-a-item-who-points-pad">(</span><span class="qa-a-item-who-points-data">80,920</span><span class="qa-a-item-who-points-pad"> points)</span>
+														</span>
+													</span>
+												</span>
+											</span>
+											<div class="qa-a-item-buttons">
+												</div>
+											
+											<div class="qa-a-item-c-list" id="c13022_list">
+												<div class="qa-c-list-item  hentry comment" id="c13029">
+													<div class="qa-c-item-content">
+														<a name="13029"></a><div class="entry-content"><p>Thank you MiroK for your reply. Let me see if I understand what you've tried to show me here. </p>
+
+<p>vx = v[0] and vy = v[1] are scalars, acting as vectors in the assembly part with second and first component equal to 0 respectively.</p>
+
+<p>This means that in my example I could write </p>
+
+<pre><code>u_x, u_y = u1[0], u1[1]
+phi_x, phi_y = phi[0], phi[1]
+</code></pre>
+
+<p>and then </p>
+
+<pre><code>s1 = ((lambda_+2*mu_) * (div(u_x)*div(phi_x)) - mu_ * inner(curl(u_x),curl(phi_x))) * dx
+S1 = assemble(s1)
+</code></pre>
+
+<p>so to get </p>
+
+<p>div(u_x)*div(phi_x) = d(u_x)/dx * d(phi_x)/dx (derivative of the first component of u with respect to the x direction times derivative of the first component of phi with respect to the x direction)</p>
+
+<p>and similarly </p>
+
+<p>inner(curl(u_x),curl(phi_x)) =  d(u_x)/dy * d(phi_x)/dy (derivative of the first component of u with respect to the y direction times derivative of the first component of phi with respect to the y direction)</p>
+
+<p>I don't know where I did wrong as I get the following error:</p>
+
+<pre><code>Attempting to index with (Ellipsis, Index(8)), but object is already indexed: Indexed(Argument(FunctionSpace(Mesh(VectorElement(FiniteElement('Lagrange', triangle, 1), dim=2), 1), VectorElement(FiniteElement('Lagrange', triangle, 1), dim=2)), 0, None), MultiIndex((FixedIndex(0),)))
+Traceback (most recent call last):
+  File "my.py", line 101, in &lt;module&gt;
+    S1 = assemble(s1)
+  File "/usr/local/lib/python2.7/dist-packages/dolfin/fem/assembling.py", line 192, in assemble
+    dolfin_form = _create_dolfin_form(form, form_compiler_parameters)
+  File "/usr/local/lib/python2.7/dist-packages/dolfin/fem/assembling.py", line 66, in _create_dolfin_form
+    function_spaces=function_spaces)
+  File "/usr/local/lib/python2.7/dist-packages/dolfin/fem/form.py", line 94, in __init__
+    mpi_comm=mesh.mpi_comm())
+  File "/usr/local/lib/python2.7/dist-packages/dolfin/compilemodules/jit.py", line 65, in mpi_jit
+    return local_jit(*args, **kwargs)
+  File "/usr/local/lib/python2.7/dist-packages/dolfin/compilemodules/jit.py", line 124, in jit
+    result = ffc.jit(ufl_object, parameters=p)
+  File "/usr/local/lib/python2.7/dist-packages/ffc/jitcompiler.py", line 201, in jit
+    module = jit_build_with_instant(ufl_object, module_name, parameters)
+  File "/usr/local/lib/python2.7/dist-packages/ffc/jitcompiler.py", line 98, in jit_build_with_instant
+    code_h, code_c = jit_generate(ufl_object, module_name, parameters)
+  File "/usr/local/lib/python2.7/dist-packages/ffc/jitcompiler.py", line 62, in jit_generate
+    parameters=parameters, jit=True)
+  File "/usr/local/lib/python2.7/dist-packages/ffc/compiler.py", line 154, in compile_form
+    analysis = analyze_forms(forms, parameters)
+  File "/usr/local/lib/python2.7/dist-packages/ffc/analysis.py", line 60, in analyze_forms
+    parameters) for form in forms)
+  File "/usr/local/lib/python2.7/dist-packages/ffc/analysis.py", line 60, in &lt;genexpr&gt;
+    parameters) for form in forms)
+  File "/usr/local/lib/python2.7/dist-packages/ffc/analysis.py", line 142, in _analyze_form
+    form_data = compute_form_data(form)
+  File "/usr/local/lib/python2.7/dist-packages/ufl/algorithms/compute_form_data.py", line 235, in compute_form_data
+    form = apply_algebra_lowering(form)
+  File "/usr/local/lib/python2.7/dist-packages/ufl/algorithms/apply_algebra_lowering.py", line 178, in apply_algebra_lowering
+    return map_integrand_dags(LowerCompoundAlgebra(), expr)
+  File "/usr/local/lib/python2.7/dist-packages/ufl/algorithms/map_integrands.py", line 60, in map_integrand_dags
+    return map_integrands(lambda expr: map_expr_dag(function, expr, compress), form, only_integral_type)
+  File "/usr/local/lib/python2.7/dist-packages/ufl/algorithms/map_integrands.py", line 39, in map_integrands
+    mapped_integrals = [map_integrands(function, itg, only_integral_type) for itg in form.integrals()]
+  File "/usr/local/lib/python2.7/dist-packages/ufl/algorithms/map_integrands.py", line 46, in map_integrands
+    return itg.reconstruct(function(itg.integrand()))
+  File "/usr/local/lib/python2.7/dist-packages/ufl/algorithms/map_integrands.py", line 60, in &lt;lambda&gt;
+    return map_integrands(lambda expr: map_expr_dag(function, expr, compress), form, only_integral_type)
+  File "/usr/local/lib/python2.7/dist-packages/ufl/corealg/map_dag.py", line 35, in map_expr_dag
+    result, = map_expr_dags(function, [expression], compress=compress)
+  File "/usr/local/lib/python2.7/dist-packages/ufl/corealg/map_dag.py", line 84, in map_expr_dags
+    r = handlers[v._ufl_typecode_](v, *[vcache[u] for u in v.ufl_operands])
+  File "/usr/local/lib/python2.7/dist-packages/ufl/algorithms/apply_algebra_lowering.py", line 144, in div
+    return a[..., i].dx(i)
+  File "/usr/local/lib/python2.7/dist-packages/ufl/indexed.py", line 99, in __getitem__
+    error("Attempting to index with %r, but object is already indexed: %r" % (key, self))
+  File "/usr/local/lib/python2.7/dist-packages/ufl/log.py", line 158, in error
+    raise self._exception_type(self._format_raw(*message))
+ufl.log.UFLException: Attempting to index with (Ellipsis, Index(8)), but object is already indexed: Indexed(Argument(FunctionSpace(Mesh(VectorElement(FiniteElement('Lagrange', triangle, 1), dim=2), 1), VectorElement(FiniteElement('Lagrange', triangle, 1), dim=2)), 0, None), MultiIndex((FixedIndex(0),)))
+Aborted
+</code></pre>
+
+<p>In your example I don't understand the point in using a scalar FunctionSpace Q instead of a VectorFunctionSpace. Can you please example it a bit more?</p>
+
+<p>Thank you very much for your time -- I appreciate it. </p>
+</div>
+													</div>
+													<div class="qa-c-item-footer">
+														<span class="qa-c-item-avatar-meta">
+															<span class="qa-c-item-meta">
+																<a href="../../12994/vector-test-functions?show=13029#c13029" class="qa-c-item-what">commented</a>
+																<span class="qa-c-item-when">
+																	<span class="qa-c-item-when-data"><span class="published"><span class="value-title" title="2017-04-10T10:32:26+0000"></span>Apr 10, 2017</span></span>
+																</span>
+																<span class="qa-c-item-who">
+																	<span class="qa-c-item-who-pad">by </span>
+																	<span class="qa-c-item-who-data"><span class="vcard author"><a href="../../user/caterinabig" class="qa-user-link url nickname">caterinabig</a></span></span>
+																	<span class="qa-c-item-who-title">FEniCS User</span>
+																	<span class="qa-c-item-who-points">
+																		<span class="qa-c-item-who-points-pad">(</span><span class="qa-c-item-who-points-data">1,460</span><span class="qa-c-item-who-points-pad"> points)</span>
+																	</span>
+																</span>
+															</span>
+														</span>
+														<div class="qa-c-item-buttons">
+														</div>
+													</div>
+													<div class="qa-c-item-clear">
+													</div>
+												</div> <!-- END qa-c-item -->
+												<div class="qa-c-list-item  hentry comment" id="c13033">
+													<div class="qa-c-item-content">
+														<a name="13033"></a><div class="entry-content"><p>Hi again, the idea was that the blocks of a cbc.block operator over vector-valued function space are defined in terms of the components of that space, i.e. scalar-valued spaces. This should make it more clear</p>
+
+<pre><code>from dolfin import *
+from block import block_mat, block_vec
+import numpy as np
+
+mesh = UnitSquareMesh(10, 10)
+V = VectorFunctionSpace(mesh, 'CG', 1)
+
+u, v = TrialFunction(V), TestFunction(V)
+dofs_x = V.sub(0).dofmap().dofs()
+dofs_y = V.sub(1).dofmap().dofs()
+
+M = assemble(inner(div(u), div(v))*dx)
+
+# With cbc.block
+Q = FunctionSpace(mesh, 'CG', 1)
+p, q = TrialFunction(Q), TestFunction(Q)
+block00 = assemble(inner(p.dx(0), q.dx(0))*dx)
+block01 = assemble(inner(p.dx(1), q.dx(0))*dx)
+block10 = assemble(inner(p.dx(0), q.dx(1))*dx)
+block11 = assemble(inner(p.dx(1), q.dx(1))*dx)
+Mb = block_mat([[block00, block01],
+                [block10, block11]])
+
+# The equivalence: let's see how the two operators act on representation of the same
+# function. For cbc block the dofs of subspaces are serialized.
+x_array = np.random.rand(V.dim())
+x = Function(V).vector(); x.set_local(x_array); x.apply('insert')
+# Reorder for cbc.block
+xx_array = x_array[dofs_x]
+xy_array = x_array[dofs_y]
+xx = Function(Q).vector(); xx.set_local(xx_array); xx.apply('insert')
+xy = Function(Q).vector(); xy.set_local(xy_array); xy.apply('insert')
+xb = block_vec([xx, xy])
+
+# Action
+y = x.copy()
+M.mult(x, y)
+yx, yy = y.array()[dofs_x], y.array()[dofs_y]
+
+yb = Mb*xb
+ybx, yby = yb[0].array(), yb[1].array()
+
+print np.linalg.norm(yx-ybx), np.linalg.norm(yy-yby) 
+</code></pre>
+
+<p>Note that <code>solve</code> will not work with <code>block_mat</code> operators that you want to create. Have a look at the <a rel="nofollow" href="https://bitbucket.org/fenics-apps/cbc.block/src/master/demo/poisson.py?at=master&amp;fileviewer=file-view-default#poisson.py-27">demos</a> to see how to setup the solver.</p>
+</div>
+													</div>
+													<div class="qa-c-item-footer">
+														<span class="qa-c-item-avatar-meta">
+															<span class="qa-c-item-avatar">
+																<a href="../../user/MiroK" class="qa-avatar-link"><img src="https://www.gravatar.com/avatar/f566be3274ec73e3a6dda27bca11631c?s=20" width="20" height="20" class="qa-avatar-image" alt=""></a>
+															</span>
+															<span class="qa-c-item-meta">
+																<a href="../../12994/vector-test-functions?show=13033#c13033" class="qa-c-item-what">commented</a>
+																<span class="qa-c-item-when">
+																	<span class="qa-c-item-when-data"><span class="published"><span class="value-title" title="2017-04-10T19:55:38+0000"></span>Apr 10, 2017</span></span>
+																</span>
+																<span class="qa-c-item-who">
+																	<span class="qa-c-item-who-pad">by </span>
+																	<span class="qa-c-item-who-data"><span class="vcard author"><a href="../../user/MiroK" class="qa-user-link url nickname">MiroK</a></span></span>
+																	<span class="qa-c-item-who-title">FEniCS Expert</span>
+																	<span class="qa-c-item-who-points">
+																		<span class="qa-c-item-who-points-pad">(</span><span class="qa-c-item-who-points-data">80,920</span><span class="qa-c-item-who-points-pad"> points)</span>
+																	</span>
+																</span>
+															</span>
+														</span>
+														<div class="qa-c-item-buttons">
+														</div>
+													</div>
+													<div class="qa-c-item-clear">
+													</div>
+												</div> <!-- END qa-c-item -->
+												<div class="qa-c-list-item  hentry comment" id="c13037">
+													<div class="qa-c-item-content">
+														<a name="13037"></a><div class="entry-content"><p>Hi,</p>
+
+<p>thanks a lot for the reply. The equivalence is clearer now.</p>
+
+<p>However, when you do </p>
+
+<pre><code>block00 = assemble(inner(p.dx(0), q.dx(0))*dx) 
+</code></pre>
+
+<p>I am not sure if this is exactly what I'd like to do. You've written the derivative of p with respect of x times the derivative of q with respect of x. How can we prescribe to take the derivative only of the FIRST COMPONENT of <code>p</code> and the only the first component of <code>q</code>? I understand that <code>p</code> and <code>q</code> are scalars functions, but is there a way to specify and differentiate  <code>p_x</code> and <code>p_y</code>? </p>
+
+<p>I'd like to write</p>
+
+<p>block00 = INT [ d(u_x)/dy * d(phi_x)/dy ] * dA, </p>
+
+<p>where <code>u_x</code> is the first component of the trial function and <code>phi_x</code> is the first component of the test function.</p>
+
+<p>I have two small extra questions:<br>
+1) Is it necessary to write <strong>inner</strong> product even if we are dealing with scalars (in my example we have one vector equation or two scalar equations)?<br>
+2) When you say that the solve won't work with block_mat operations, you mean that I shouldn't use the <code>vector_mat</code> for the right hand side or that I should write <code>u1.vector()</code> instead of simply <code>u1</code>?</p>
+</div>
+													</div>
+													<div class="qa-c-item-footer">
+														<span class="qa-c-item-avatar-meta">
+															<span class="qa-c-item-meta">
+																<a href="../../12994/vector-test-functions?show=13037#c13037" class="qa-c-item-what">commented</a>
+																<span class="qa-c-item-when">
+																	<span class="qa-c-item-when-data"><span class="published"><span class="value-title" title="2017-04-11T09:39:19+0000"></span>Apr 11, 2017</span></span>
+																</span>
+																<span class="qa-c-item-who">
+																	<span class="qa-c-item-who-pad">by </span>
+																	<span class="qa-c-item-who-data"><span class="vcard author"><a href="../../user/caterinabig" class="qa-user-link url nickname">caterinabig</a></span></span>
+																	<span class="qa-c-item-who-title">FEniCS User</span>
+																	<span class="qa-c-item-who-points">
+																		<span class="qa-c-item-who-points-pad">(</span><span class="qa-c-item-who-points-data">1,460</span><span class="qa-c-item-who-points-pad"> points)</span>
+																	</span>
+																</span>
+															</span>
+														</span>
+														<div class="qa-c-item-buttons">
+														</div>
+													</div>
+													<div class="qa-c-item-clear">
+													</div>
+												</div> <!-- END qa-c-item -->
+												<div class="qa-c-list-item  hentry comment" id="c13060">
+													<div class="qa-c-item-content">
+														<a name="13060"></a><div class="entry-content"><p>Hi MiroK,</p>
+
+<p>I can't simply use p and q defined on a FunctionSpace Q as then I'd like to have access the components of the vector. For example to assigne natural boundary conditions inner(u,n)=0 on all the borders I need to prescribe u_x=0 on the left and right boundaries and u_y=0 on the top and bottom boundaries. </p>
+
+<p>Is my problem more understandable now?</p>
+
+<p>Thank you very much!!</p>
+</div>
+													</div>
+													<div class="qa-c-item-footer">
+														<span class="qa-c-item-avatar-meta">
+															<span class="qa-c-item-meta">
+																<a href="../../12994/vector-test-functions?show=13060#c13060" class="qa-c-item-what">commented</a>
+																<span class="qa-c-item-when">
+																	<span class="qa-c-item-when-data"><span class="published"><span class="value-title" title="2017-04-12T12:57:48+0000"></span>Apr 12, 2017</span></span>
+																</span>
+																<span class="qa-c-item-who">
+																	<span class="qa-c-item-who-pad">by </span>
+																	<span class="qa-c-item-who-data"><span class="vcard author"><a href="../../user/caterinabig" class="qa-user-link url nickname">caterinabig</a></span></span>
+																	<span class="qa-c-item-who-title">FEniCS User</span>
+																	<span class="qa-c-item-who-points">
+																		<span class="qa-c-item-who-points-pad">(</span><span class="qa-c-item-who-points-data">1,460</span><span class="qa-c-item-who-points-pad"> points)</span>
+																	</span>
+																</span>
+															</span>
+														</span>
+														<div class="qa-c-item-buttons">
+														</div>
+													</div>
+													<div class="qa-c-item-clear">
+													</div>
+												</div> <!-- END qa-c-item -->
+												<div class="qa-c-list-item  hentry comment" id="c13065">
+													<div class="qa-c-item-content">
+														<a name="13065"></a><div class="entry-content"><p>1) I use <code>inner</code> because it works for scalar, vectors ...<br>
+2) cbc.block builds on top of FEniCS. The former does not define its own <code>solve</code> method while the latter does not support <code>block_mat</code> objects. Have a look at the linked demo.<br>
+3) Not really, I don't see why you want for cbc.block in the first place.</p>
+</div>
+													</div>
+													<div class="qa-c-item-footer">
+														<span class="qa-c-item-avatar-meta">
+															<span class="qa-c-item-avatar">
+																<a href="../../user/MiroK" class="qa-avatar-link"><img src="https://www.gravatar.com/avatar/f566be3274ec73e3a6dda27bca11631c?s=20" width="20" height="20" class="qa-avatar-image" alt=""></a>
+															</span>
+															<span class="qa-c-item-meta">
+																<a href="../../12994/vector-test-functions?show=13065#c13065" class="qa-c-item-what">commented</a>
+																<span class="qa-c-item-when">
+																	<span class="qa-c-item-when-data"><span class="published"><span class="value-title" title="2017-04-14T06:51:04+0000"></span>Apr 14, 2017</span></span>
+																</span>
+																<span class="qa-c-item-who">
+																	<span class="qa-c-item-who-pad">by </span>
+																	<span class="qa-c-item-who-data"><span class="vcard author"><a href="../../user/MiroK" class="qa-user-link url nickname">MiroK</a></span></span>
+																	<span class="qa-c-item-who-title">FEniCS Expert</span>
+																	<span class="qa-c-item-who-points">
+																		<span class="qa-c-item-who-points-pad">(</span><span class="qa-c-item-who-points-data">80,920</span><span class="qa-c-item-who-points-pad"> points)</span>
+																	</span>
+																</span>
+															</span>
+														</span>
+														<div class="qa-c-item-buttons">
+														</div>
+													</div>
+													<div class="qa-c-item-clear">
+													</div>
+												</div> <!-- END qa-c-item -->
+											</div> <!-- END qa-c-list -->
+											
+											<input type="hidden" name="code" value="0-1516467848-c2d97f5b2bfea9d3d82fdfd50af9adfc50d5ed7e">
+											<input type="hidden" name="qa_click" value="">
+										</form>
+										<div class="qa-c-form">
+										</div> <!-- END qa-c-form -->
+										
+									</div> <!-- END qa-a-item-main -->
+									<div class="qa-a-item-clear">
+									</div>
+								</div> <!-- END qa-a-list-item -->
+								
+							</div> <!-- END qa-a-list -->
+							
+						</div>
+					</div> <!-- END qa-main -->
+					
+				</div> <!-- END main-wrapper -->
+			</div> <!-- END main-shadow -->
+		</div> <!-- END body-wrapper -->
+		<!-- END footer-bottom-group -->
+		
+		<div style="position:absolute; left:-9999px; top:-9999px;">
+			<span id="qa-waiting-template" class="qa-waiting">...</span>
+		</div>
+	
+	
+
+</body><!-- Powered by Question2Answer - http://www.question2answer.org/ --></html>

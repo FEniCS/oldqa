@@ -1,0 +1,520 @@
+<html><!-- Powered by Question2Answer - http://www.question2answer.org/ --><head>
+		<meta http-equiv="content-type" content="text/html; charset=utf-8">
+		<title>Segfault on assembly of facets with 1.4? (with repo) - FEniCS Q&amp;A</title>
+		<meta name="description" content="I found that Functionals assembling over boundaries throw a segfault when they are run in parallel now that ...  it's by far the most expensive step.">
+		<meta name="keywords" content="assemble,parallel,fenics-dolfin-openmp">
+		<link rel="stylesheet" type="text/css" href="../../qa-theme/Snow/qa-styles.css">
+		<link rel="canonical" href="http://fenicsproject.org/qa/4127/segfault-on-assembly-of-facets-with-1-4-with-repo">
+		<script type="text/x-mathjax-config">
+  MathJax.Hub.Config({
+    extensions: ["tex2jax.js"],
+    jax: ["input/TeX","output/HTML-CSS"],
+    tex2jax: {inlineMath: [["$","$"],["\\(","\\)"]]},
+    TeX: { extensions: ["AMSmath.js","AMSsymbols.js"]}
+  });
+</script>
+<script type="text/javascript" src="../../mathjax/MathJax.js"></script>
+		<script src="../../jquery-1.7.2.min.js" type="text/javascript"></script>
+		<script src="../../highlight.min.js"></script>
+<script type="text/javascript">
+$(function(){
+	$('.wmd-input').keypress(function(){
+		window.clearTimeout(hljs.Timeout);
+		hljs.Timeout = window.setTimeout(function() {
+			hljs.initHighlighting.called = false;
+			hljs.initHighlighting();
+		}, 500);
+	});
+	window.setTimeout(function() {
+		hljs.initHighlighting.called = false;
+		hljs.initHighlighting();
+	}, 500);
+});
+</script>
+
+
+	</head>
+	<body class="qa-template-question qa-body-js-off">
+		<div class="qa-body-wrapper">
+			
+			<div class="qa-header">
+				<div class="qa-logo">
+					<a href="../../" class="qa-logo-link" title="FEniCS Q&amp;A"><img src="../../qa-theme/fenics_qa.png" border="0" alt="FEniCS Q&amp;A"></a>
+				</div>
+				<div class="qa-header-clear">
+				</div>
+			</div> <!-- END qa-header -->
+			
+			<div class="qa-main-shadow">
+				
+				<div class="qa-main-wrapper">
+					
+					<div class="qa-sidepanel">
+						<div class="qa-sidebar">
+							This is a read only copy of the old FEniCS QA forum. Please visit the <a href="https://www.allanswered.com/community/s/fenics-project/">new QA forum</a> to ask questions
+						</div>
+						
+					</div>
+					
+					<div class="qa-main">
+						<h1>
+							<span class="entry-title">Segfault on assembly of facets with 1.4? (with repo)</span>
+						</h1>
+						<div class="qa-part-q-view">
+							<div class="qa-q-view  hentry question" id="q4127">
+								<form method="post" action="../../4127/segfault-on-assembly-of-facets-with-1-4-with-repo">
+									<div class="qa-q-view-stats">
+										<div class="qa-voting qa-voting-net" id="voting_4127">
+											<div class="qa-vote-count qa-vote-count-net">
+												<span class="qa-netvote-count">
+													<span class="qa-netvote-count-data">+1<span class="votes-up"><span class="value-title" title="1"></span></span><span class="votes-down"><span class="value-title" title="0"></span></span></span><span class="qa-netvote-count-pad"> vote</span>
+												</span>
+											</div>
+											<div class="qa-vote-clear">
+											</div>
+										</div>
+									</div>
+									<input type="hidden" name="code" value="0-1516468003-e8201ba1935963291c6e0036c9381144c8bf6052">
+								</form>
+								<div class="qa-q-view-main">
+									<form method="post" action="../../4127/segfault-on-assembly-of-facets-with-1-4-with-repo">
+										<div class="qa-q-view-content">
+											<a name="4127"></a><div class="entry-content"><p>I found that Functionals assembling over boundaries throw a segfault when they are run in parallel now that I have updated to 1.4 (I had no issue in 1.2)</p>
+
+<p>Modifying demo/undocumented/functional/cpp slightly produces the segfault.</p>
+
+<p>Into main() I add</p>
+
+<pre><code>dolfin::parameters["num_threads"] = 8;
+</code></pre>
+
+<p>In the form file, I updated it to use the FacetNormal</p>
+
+<pre><code>element = FiniteElement("Lagrange", triangle, 2)
+n = FacetNormal(triangle)     # New line
+v = Coefficient(element)
+M = (  Dx(v,i)*n[i])*ds    # Modified just to use the FacetNormal on Facet
+</code></pre>
+
+<p>Running the demo simply with </p>
+
+<pre><code>$ ffc -l dolfin EnergyNorm.ufl &amp;&amp; make &amp;&amp; ./demo_functional
+</code></pre>
+
+<p>produces the segfault:</p>
+
+<pre><code>FFC finished in 0.12523 seconds.
+Scanning dependencies of target demo_functional
+[100%] Building CXX object CMakeFiles/demo_functional.dir/main.cpp.o
+Linking CXX executable demo_functional
+[100%] Built target demo_functional
+*** Warning: Form::coloring does not properly consider form type.
+Coloring mesh.
+[ubuntu:03700] *** Process received signal ***
+[ubuntu:03700] Signal: Segmentation fault (11)
+[ubuntu:03700] Signal code: Address not mapped (1)
+[ubuntu:03700] Failing at address: (nil)
+Segmentation fault (core dumped)
+</code></pre>
+
+<p>Is this functionality no longer supported?  I had been using it to integrate a temperature gradient along a wall previously.</p>
+
+<p>I tried to work around it by using SpatialCoordinate(triangle), but the result was the same.</p>
+
+<hr>
+
+<p>I found an old workaround that's letting me proceed just fine (the boundary assembly is cheap)</p>
+
+<p><a rel="nofollow" href="https://answers.launchpad.net/dolfin/+question/173088">https://answers.launchpad.net/dolfin/+question/173088</a></p>
+
+<p>I set the number of threads to zero just before the assembly and restore it to the original value just after.</p>
+
+<hr>
+
+<p><a rel="nofollow" href="https://bitbucket.org/fenics-project/dolfin/issue/326/intermittent-failures-with-multiple">https://bitbucket.org/fenics-project/dolfin/issue/326/intermittent-failures-with-multiple</a></p>
+
+<p>I believe this is my issue - trying to compile petsc with openmp support.</p>
+
+<hr>
+
+<p>For now I have all assembly occurring on a single thread, this has resolved the segfault issue.  It would be nice to have OpenMP parallelization on assembly - in my case it's by far the most expensive step.</p>
+</div>
+										</div>
+										<div class="qa-q-view-tags">
+											<ul class="qa-q-view-tag-list">
+												<li class="qa-q-view-tag-item"><a href="../../tag/assemble" rel="tag" class="qa-tag-link">assemble</a></li>
+												<li class="qa-q-view-tag-item"><a href="../../tag/parallel" rel="tag" class="qa-tag-link">parallel</a></li>
+												<li class="qa-q-view-tag-item"><a href="../../tag/fenics-dolfin-openmp" rel="tag" class="qa-tag-link">fenics-dolfin-openmp</a></li>
+											</ul>
+										</div>
+										<span class="qa-q-view-avatar-meta">
+											<span class="qa-q-view-avatar">
+												<a href="../../user/Charles" class="qa-avatar-link"><img src="https://www.gravatar.com/avatar/22e56480a5d5f76ee11abebe5dc8d5a6?s=50" width="50" height="50" class="qa-avatar-image" alt=""></a>
+											</span>
+											<span class="qa-q-view-meta">
+												<a href="../../4127/segfault-on-assembly-of-facets-with-1-4-with-repo" class="qa-q-view-what">asked</a>
+												<span class="qa-q-view-when">
+													<span class="qa-q-view-when-data"><span class="published"><span class="value-title" title="2014-07-15T03:16:21+0000"></span>Jul 15, 2014</span></span>
+												</span>
+												<span class="qa-q-view-who">
+													<span class="qa-q-view-who-pad">by </span>
+													<span class="qa-q-view-who-data"><span class="vcard author"><a href="../../user/Charles" class="qa-user-link url nickname">Charles</a></span></span>
+													<span class="qa-q-view-who-title">FEniCS User</span>
+													<span class="qa-q-view-who-points">
+														<span class="qa-q-view-who-points-pad">(</span><span class="qa-q-view-who-points-data">4,220</span><span class="qa-q-view-who-points-pad"> points)</span>
+													</span>
+												</span>
+												<br>
+												<span class="qa-q-view-what">edited</span>
+												<span class="qa-q-view-when">
+													<span class="qa-q-view-when-data"><span class="updated"><span class="value-title" title="2014-07-16T14:24:16+0000"></span>Jul 16, 2014</span></span>
+												</span>
+												<span class="qa-q-view-who">
+													<span class="qa-q-view-who-pad">by </span><span class="qa-q-view-who-data"><a href="../../user/Charles" class="qa-user-link url nickname">Charles</a></span>
+												</span>
+											</span>
+										</span>
+										<div class="qa-q-view-buttons">
+										</div>
+										
+										<div class="qa-q-view-c-list" style="display:none;" id="c4127_list">
+										</div> <!-- END qa-c-list -->
+										
+										<input type="hidden" name="code" value="0-1516468003-f1f07691a8a6be28438b5ddc212422c988156752">
+										<input type="hidden" name="qa_click" value="">
+									</form>
+									<div class="qa-c-form">
+									</div> <!-- END qa-c-form -->
+									
+								</div> <!-- END qa-q-view-main -->
+								<div class="qa-q-view-clear">
+								</div>
+							</div> <!-- END qa-q-view -->
+							
+						</div>
+						<div class="qa-part-a-list">
+							<h2 id="a_list_title">1 Answer</h2>
+							<div class="qa-a-list" id="a_list">
+								
+								<div class="qa-a-list-item  hentry answer answer-selected qa-a-list-item-selected" id="a4171">
+									<form method="post" action="../../4127/segfault-on-assembly-of-facets-with-1-4-with-repo">
+										<div class="qa-voting qa-voting-net" id="voting_4171">
+											<div class="qa-vote-count qa-vote-count-net">
+												<span class="qa-netvote-count">
+													<span class="qa-netvote-count-data">+1<span class="votes-up"><span class="value-title" title="1"></span></span><span class="votes-down"><span class="value-title" title="0"></span></span></span><span class="qa-netvote-count-pad"> vote</span>
+												</span>
+											</div>
+											<div class="qa-vote-clear">
+											</div>
+										</div>
+										<input type="hidden" name="code" value="0-1516468003-e8201ba1935963291c6e0036c9381144c8bf6052">
+									</form>
+									<div class="qa-a-item-main">
+										<form method="post" action="../../4127/segfault-on-assembly-of-facets-with-1-4-with-repo">
+											<div class="qa-a-item-selected">
+												<div class="qa-a-selection">
+													<div class="qa-a-selected">&#160;</div>
+													<div class="qa-a-selected-text">Best answer</div>
+												</div>
+												<div class="qa-a-item-content">
+													<a name="4171"></a><div class="entry-content"><p>This was odd, but simply constructing SystemAssembler and calling the instance's assemble member works well with multiple threads (MPI and MP) with SLEPc.</p>
+
+<p>I would get the seg faults on numerous forms whenever calling the dolfin::assemble(,) functions directly.  Replacing those calls removed the seg faults.  I didn't find a way to replace the helper for assembling a scalar, so i just forced that assembly down to one thread and it works well enough (the boundary assembly is quick).</p>
+
+<p>Overall I am <strong><em>floored</em></strong> by how nice getting to MPI support has been - thank you for an amazing framework!</p>
+</div>
+												</div>
+												<span class="qa-a-item-avatar-meta">
+													<span class="qa-a-item-avatar">
+														<a href="../../user/Charles" class="qa-avatar-link"><img src="https://www.gravatar.com/avatar/22e56480a5d5f76ee11abebe5dc8d5a6?s=40" width="40" height="40" class="qa-avatar-image" alt=""></a>
+													</span>
+													<span class="qa-a-item-meta">
+														<a href="../../4127/segfault-on-assembly-of-facets-with-1-4-with-repo?show=4171#a4171" class="qa-a-item-what">answered</a>
+														<span class="qa-a-item-when">
+															<span class="qa-a-item-when-data"><span class="published"><span class="value-title" title="2014-07-19T23:25:02+0000"></span>Jul 20, 2014</span></span>
+														</span>
+														<span class="qa-a-item-who">
+															<span class="qa-a-item-who-pad">by </span>
+															<span class="qa-a-item-who-data"><span class="vcard author"><a href="../../user/Charles" class="qa-user-link url nickname">Charles</a></span></span>
+															<span class="qa-a-item-who-title">FEniCS User</span>
+															<span class="qa-a-item-who-points">
+																<span class="qa-a-item-who-points-pad">(</span><span class="qa-a-item-who-points-data">4,220</span><span class="qa-a-item-who-points-pad"> points)</span>
+															</span>
+														</span>
+													</span>
+												</span>
+											</div>
+											<div class="qa-a-item-buttons">
+												</div>
+											
+											<div class="qa-a-item-c-list" id="c4171_list">
+												<div class="qa-c-list-item  hentry comment" id="c7563">
+													<div class="qa-c-item-content">
+														<a name="7563"></a><div class="entry-content"><p>Yes, I have the same issue.</p>
+
+<p>I use PETSc:</p>
+
+<pre><code>parameters["linear_algebra_backend"] = "PETSc";
+</code></pre>
+
+<p>If I run a solver like this:</p>
+
+<pre><code>  LinearVariationalProblem problem(a, L, u, bc);
+  LinearVariationalSolver solver(problem);
+  solver.parameters["linear_solver"] = "gmres";
+  solver.parameters["preconditioner"] = "ilu";
+  solver.solve();
+</code></pre>
+
+<p>or like this:</p>
+
+<pre><code>solve(a == L, u, bc);
+</code></pre>
+
+<p>I don't have an error.</p>
+
+<p>But when I try to assemble a matrix and vector and then solve it then the solver crashes:</p>
+
+<pre><code>  Matrix A;
+  Vector b;
+
+  assemble(A, a);
+  assemble(b, L);
+
+  solve(A, *u.vector(), b, "gmres", "default");
+</code></pre>
+
+<p>Error message:</p>
+
+<pre><code>location: location = "PETScKrylovSolver.cpp"
+task: task = "solve linear system using PETSc Krylov solver"
+reason: reason = "Solution failed to converge in 10000 iterations (PETSc reason DIVERGED_ITS, residual norm ||r|| = 2.446559e-003)"
+mpi_rank = -1
+</code></pre>
+</div>
+													</div>
+													<div class="qa-c-item-footer">
+														<span class="qa-c-item-avatar-meta">
+															<span class="qa-c-item-meta">
+																<a href="../../4127/segfault-on-assembly-of-facets-with-1-4-with-repo?show=7563#c7563" class="qa-c-item-what">commented</a>
+																<span class="qa-c-item-when">
+																	<span class="qa-c-item-when-data"><span class="published"><span class="value-title" title="2015-07-13T17:29:58+0000"></span>Jul 13, 2015</span></span>
+																</span>
+																<span class="qa-c-item-who">
+																	<span class="qa-c-item-who-pad">by </span>
+																	<span class="qa-c-item-who-data"><span class="vcard author"><a href="../../user/Maks" class="qa-user-link url nickname">Maks</a></span></span>
+																	<span class="qa-c-item-who-title">FEniCS User</span>
+																	<span class="qa-c-item-who-points">
+																		<span class="qa-c-item-who-points-pad">(</span><span class="qa-c-item-who-points-data">2,430</span><span class="qa-c-item-who-points-pad"> points)</span>
+																	</span>
+																</span>
+															</span>
+														</span>
+														<div class="qa-c-item-buttons">
+														</div>
+													</div>
+													<div class="qa-c-item-clear">
+													</div>
+												</div> <!-- END qa-c-item -->
+												<div class="qa-c-list-item  hentry comment" id="c7565">
+													<div class="qa-c-item-content">
+														<a name="7565"></a><div class="entry-content"><p>That's a different issue where the Krylov Solver failed to converge.</p>
+</div>
+													</div>
+													<div class="qa-c-item-footer">
+														<span class="qa-c-item-avatar-meta">
+															<span class="qa-c-item-avatar">
+																<a href="../../user/Charles" class="qa-avatar-link"><img src="https://www.gravatar.com/avatar/22e56480a5d5f76ee11abebe5dc8d5a6?s=20" width="20" height="20" class="qa-avatar-image" alt=""></a>
+															</span>
+															<span class="qa-c-item-meta">
+																<a href="../../4127/segfault-on-assembly-of-facets-with-1-4-with-repo?show=7565#c7565" class="qa-c-item-what">commented</a>
+																<span class="qa-c-item-when">
+																	<span class="qa-c-item-when-data"><span class="published"><span class="value-title" title="2015-07-13T17:32:56+0000"></span>Jul 13, 2015</span></span>
+																</span>
+																<span class="qa-c-item-who">
+																	<span class="qa-c-item-who-pad">by </span>
+																	<span class="qa-c-item-who-data"><span class="vcard author"><a href="../../user/Charles" class="qa-user-link url nickname">Charles</a></span></span>
+																	<span class="qa-c-item-who-title">FEniCS User</span>
+																	<span class="qa-c-item-who-points">
+																		<span class="qa-c-item-who-points-pad">(</span><span class="qa-c-item-who-points-data">4,220</span><span class="qa-c-item-who-points-pad"> points)</span>
+																	</span>
+																</span>
+															</span>
+														</span>
+														<div class="qa-c-item-buttons">
+														</div>
+													</div>
+													<div class="qa-c-item-clear">
+													</div>
+												</div> <!-- END qa-c-item -->
+												<div class="qa-c-list-item  hentry comment" id="c7567">
+													<div class="qa-c-item-content">
+														<a name="7567"></a><div class="entry-content"><p>But If I solve the same problem like this:</p>
+
+<pre><code>  LinearVariationalProblem problem(a, L, u, bc);
+  LinearVariationalSolver solver(problem);
+  solver.parameters["linear_solver"] = "gmres";
+  solver.parameters["preconditioner"] = "ilu";
+</code></pre>
+
+<p>solution converges successfully<br>
+I think the problem with assemble/solve</p>
+</div>
+													</div>
+													<div class="qa-c-item-footer">
+														<span class="qa-c-item-avatar-meta">
+															<span class="qa-c-item-meta">
+																<a href="../../4127/segfault-on-assembly-of-facets-with-1-4-with-repo?show=7567#c7567" class="qa-c-item-what">commented</a>
+																<span class="qa-c-item-when">
+																	<span class="qa-c-item-when-data"><span class="published"><span class="value-title" title="2015-07-13T18:21:40+0000"></span>Jul 13, 2015</span></span>
+																</span>
+																<span class="qa-c-item-who">
+																	<span class="qa-c-item-who-pad">by </span>
+																	<span class="qa-c-item-who-data"><span class="vcard author"><a href="../../user/Maks" class="qa-user-link url nickname">Maks</a></span></span>
+																	<span class="qa-c-item-who-title">FEniCS User</span>
+																	<span class="qa-c-item-who-points">
+																		<span class="qa-c-item-who-points-pad">(</span><span class="qa-c-item-who-points-data">2,430</span><span class="qa-c-item-who-points-pad"> points)</span>
+																	</span>
+																</span>
+															</span>
+														</span>
+														<div class="qa-c-item-buttons">
+														</div>
+													</div>
+													<div class="qa-c-item-clear">
+													</div>
+												</div> <!-- END qa-c-item -->
+												<div class="qa-c-list-item  hentry comment" id="c7568">
+													<div class="qa-c-item-content">
+														<a name="7568"></a><div class="entry-content"><p>This is unrelated to the original question, but... try a different solver/preconditioner.  such as</p>
+
+<p>solve(A, *u.vector(), b, "bicgstab", "bjacobi");</p>
+</div>
+													</div>
+													<div class="qa-c-item-footer">
+														<span class="qa-c-item-avatar-meta">
+															<span class="qa-c-item-avatar">
+																<a href="../../user/Charles" class="qa-avatar-link"><img src="https://www.gravatar.com/avatar/22e56480a5d5f76ee11abebe5dc8d5a6?s=20" width="20" height="20" class="qa-avatar-image" alt=""></a>
+															</span>
+															<span class="qa-c-item-meta">
+																<a href="../../4127/segfault-on-assembly-of-facets-with-1-4-with-repo?show=7568#c7568" class="qa-c-item-what">commented</a>
+																<span class="qa-c-item-when">
+																	<span class="qa-c-item-when-data"><span class="published"><span class="value-title" title="2015-07-13T18:26:57+0000"></span>Jul 13, 2015</span></span>
+																</span>
+																<span class="qa-c-item-who">
+																	<span class="qa-c-item-who-pad">by </span>
+																	<span class="qa-c-item-who-data"><span class="vcard author"><a href="../../user/Charles" class="qa-user-link url nickname">Charles</a></span></span>
+																	<span class="qa-c-item-who-title">FEniCS User</span>
+																	<span class="qa-c-item-who-points">
+																		<span class="qa-c-item-who-points-pad">(</span><span class="qa-c-item-who-points-data">4,220</span><span class="qa-c-item-who-points-pad"> points)</span>
+																	</span>
+																</span>
+															</span>
+														</span>
+														<div class="qa-c-item-buttons">
+														</div>
+													</div>
+													<div class="qa-c-item-clear">
+													</div>
+												</div> <!-- END qa-c-item -->
+												<div class="qa-c-list-item  hentry comment" id="c7569">
+													<div class="qa-c-item-content">
+														<a name="7569"></a><div class="entry-content"><p>Yes, you right. Thank you very much!</p>
+
+<p>I simple forget to add "bc.apply(A, b);" after assemble so the problem doesn't converge.</p>
+</div>
+													</div>
+													<div class="qa-c-item-footer">
+														<span class="qa-c-item-avatar-meta">
+															<span class="qa-c-item-meta">
+																<a href="../../4127/segfault-on-assembly-of-facets-with-1-4-with-repo?show=7569#c7569" class="qa-c-item-what">commented</a>
+																<span class="qa-c-item-when">
+																	<span class="qa-c-item-when-data"><span class="published"><span class="value-title" title="2015-07-13T18:32:26+0000"></span>Jul 13, 2015</span></span>
+																</span>
+																<span class="qa-c-item-who">
+																	<span class="qa-c-item-who-pad">by </span>
+																	<span class="qa-c-item-who-data"><span class="vcard author"><a href="../../user/Maks" class="qa-user-link url nickname">Maks</a></span></span>
+																	<span class="qa-c-item-who-title">FEniCS User</span>
+																	<span class="qa-c-item-who-points">
+																		<span class="qa-c-item-who-points-pad">(</span><span class="qa-c-item-who-points-data">2,430</span><span class="qa-c-item-who-points-pad"> points)</span>
+																	</span>
+																</span>
+															</span>
+														</span>
+														<div class="qa-c-item-buttons">
+														</div>
+													</div>
+													<div class="qa-c-item-clear">
+													</div>
+												</div> <!-- END qa-c-item -->
+												<div class="qa-c-list-item  hentry comment" id="c7570">
+													<div class="qa-c-item-content">
+														<a name="7570"></a><div class="entry-content"><p>Hovewer, I can't run solve "Incompressible Navier-Stokes equations" even with direct lu solver and PETSc linear algebra backend with OpenMP threads.</p>
+
+<pre><code>parameters["linear_algebra_backend"] = "PETSc"
+</code></pre>
+
+<p>link to the code:<br>
+<a rel="nofollow" href="http://fenicsproject.org/documentation/dolfin/1.5.0/cpp/demo/documented/navier-stokes/cpp/documentation.html">http://fenicsproject.org/documentation/dolfin/1.5.0/cpp/demo/documented/navier-stokes/cpp/documentation.html</a></p>
+
+<p>If I set another linear algebra backend, like uBLAS, I solve the problem easily.</p>
+
+<pre><code>parameters["linear_algebra_backend"] = "uBLAS";
+</code></pre>
+
+<p>But how about PETSc, do you use it or not with OpenMP threads?</p>
+</div>
+													</div>
+													<div class="qa-c-item-footer">
+														<span class="qa-c-item-avatar-meta">
+															<span class="qa-c-item-meta">
+																<a href="../../4127/segfault-on-assembly-of-facets-with-1-4-with-repo?show=7570#c7570" class="qa-c-item-what">commented</a>
+																<span class="qa-c-item-when">
+																	<span class="qa-c-item-when-data"><span class="published"><span class="value-title" title="2015-07-13T19:37:37+0000"></span>Jul 13, 2015</span></span>
+																</span>
+																<span class="qa-c-item-who">
+																	<span class="qa-c-item-who-pad">by </span>
+																	<span class="qa-c-item-who-data"><span class="vcard author"><a href="../../user/Maks" class="qa-user-link url nickname">Maks</a></span></span>
+																	<span class="qa-c-item-who-title">FEniCS User</span>
+																	<span class="qa-c-item-who-points">
+																		<span class="qa-c-item-who-points-pad">(</span><span class="qa-c-item-who-points-data">2,430</span><span class="qa-c-item-who-points-pad"> points)</span>
+																	</span>
+																</span>
+															</span>
+														</span>
+														<div class="qa-c-item-buttons">
+														</div>
+													</div>
+													<div class="qa-c-item-clear">
+													</div>
+												</div> <!-- END qa-c-item -->
+											</div> <!-- END qa-c-list -->
+											
+											<input type="hidden" name="code" value="0-1516468003-8871feea98d317ebce399404c9f40af5ed1e4284">
+											<input type="hidden" name="qa_click" value="">
+										</form>
+										<div class="qa-c-form">
+										</div> <!-- END qa-c-form -->
+										
+									</div> <!-- END qa-a-item-main -->
+									<div class="qa-a-item-clear">
+									</div>
+								</div> <!-- END qa-a-list-item -->
+								
+							</div> <!-- END qa-a-list -->
+							
+						</div>
+					</div> <!-- END qa-main -->
+					
+				</div> <!-- END main-wrapper -->
+			</div> <!-- END main-shadow -->
+		</div> <!-- END body-wrapper -->
+		<!-- END footer-bottom-group -->
+		
+		<div style="position:absolute; left:-9999px; top:-9999px;">
+			<span id="qa-waiting-template" class="qa-waiting">...</span>
+		</div>
+	
+	
+
+</body><!-- Powered by Question2Answer - http://www.question2answer.org/ --></html>

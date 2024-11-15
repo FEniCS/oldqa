@@ -1,0 +1,511 @@
+<html><!-- Powered by Question2Answer - http://www.question2answer.org/ --><head>
+		<meta http-equiv="content-type" content="text/html; charset=utf-8">
+		<title>Interpolate from enriched space to non-enriched space with identical meshes. - FEniCS Q&amp;A</title>
+		<meta name="description" content="I know that there are some difficulties interpolating from Enriched function spaces to non-enriched spaces. The  ... xlim([0,0.3]) grid() show()">
+		<meta name="keywords" content="enriched,space,interpolate">
+		<link rel="stylesheet" type="text/css" href="../../qa-theme/Snow/qa-styles.css">
+		<link rel="canonical" href="http://fenicsproject.org/qa/10818/interpolate-enriched-space-enriched-space-identical-meshes">
+		<script type="text/x-mathjax-config">
+  MathJax.Hub.Config({
+    extensions: ["tex2jax.js"],
+    jax: ["input/TeX","output/HTML-CSS"],
+    tex2jax: {inlineMath: [["$","$"],["\\(","\\)"]]},
+    TeX: { extensions: ["AMSmath.js","AMSsymbols.js"]}
+  });
+</script>
+<script type="text/javascript" src="../../mathjax/MathJax.js"></script>
+		<script src="../../jquery-1.7.2.min.js" type="text/javascript"></script>
+		<script src="../../highlight.min.js"></script>
+<script type="text/javascript">
+$(function(){
+	$('.wmd-input').keypress(function(){
+		window.clearTimeout(hljs.Timeout);
+		hljs.Timeout = window.setTimeout(function() {
+			hljs.initHighlighting.called = false;
+			hljs.initHighlighting();
+		}, 500);
+	});
+	window.setTimeout(function() {
+		hljs.initHighlighting.called = false;
+		hljs.initHighlighting();
+	}, 500);
+});
+</script>
+
+
+	</head>
+	<body class="qa-template-question qa-body-js-off">
+		<div class="qa-body-wrapper">
+			
+			<div class="qa-header">
+				<div class="qa-logo">
+					<a href="../../" class="qa-logo-link" title="FEniCS Q&amp;A"><img src="../../qa-theme/fenics_qa.png" border="0" alt="FEniCS Q&amp;A"></a>
+				</div>
+				<div class="qa-header-clear">
+				</div>
+			</div> <!-- END qa-header -->
+			
+			<div class="qa-main-shadow">
+				
+				<div class="qa-main-wrapper">
+					
+					<div class="qa-sidepanel">
+						<div class="qa-sidebar">
+							This is a read only copy of the old FEniCS QA forum. Please visit the <a href="https://www.allanswered.com/community/s/fenics-project/">new QA forum</a> to ask questions
+						</div>
+						
+					</div>
+					
+					<div class="qa-main">
+						<h1>
+							<span class="entry-title">Interpolate from enriched space to non-enriched space with identical meshes.</span>
+						</h1>
+						<div class="qa-part-q-view">
+							<div class="qa-q-view  hentry question" id="q10818">
+								<form method="post" action="../../10818/interpolate-enriched-space-enriched-space-identical-meshes">
+									<div class="qa-q-view-stats">
+										<div class="qa-voting qa-voting-net" id="voting_10818">
+											<div class="qa-vote-count qa-vote-count-net">
+												<span class="qa-netvote-count">
+													<span class="qa-netvote-count-data">+1<span class="votes-up"><span class="value-title" title="1"></span></span><span class="votes-down"><span class="value-title" title="0"></span></span></span><span class="qa-netvote-count-pad"> vote</span>
+												</span>
+											</div>
+											<div class="qa-vote-clear">
+											</div>
+										</div>
+									</div>
+									<input type="hidden" name="code" value="0-1516467080-a68f8c8317dbabb76b6a29415dc067a7b0da6cbe">
+								</form>
+								<div class="qa-q-view-main">
+									<form method="post" action="../../10818/interpolate-enriched-space-enriched-space-identical-meshes">
+										<div class="qa-q-view-content">
+											<a name="10818"></a><div class="entry-content"><p>I know that there are some difficulties interpolating from Enriched function spaces to non-enriched spaces.</p>
+
+<p>The attached script here used to work, but now the "stabilized" solution is not correct.  Is there a way to fix this with dolfin 1.6?</p>
+
+<p>Thanks again,<br>
+Evan</p>
+
+<pre><code>from fenics import *
+
+mesh = IntervalMesh(10,0,1)
+
+Q    = FunctionSpace(mesh, 'CG', 1)
+B    = FunctionSpace(mesh, 'B',  2)
+M    = Q + B
+
+def left(x, on_boundary):
+  return on_boundary and x[0] == 0
+
+leftBC  = DirichletBC(Q, 1.0, left)
+
+kappa = 1.0/500.0
+s     = 1.0
+f     = Constant(0.0)
+
+#==============================================================================
+# unstabilized :
+
+u   = TrialFunction(Q)
+v   = TestFunction(Q)
+us  = Function(Q)
+uf1 = Function(Q)
+
+a  = + kappa * u.dx(0) * v.dx(0) * dx \
+     + s * u * v * dx
+L  = f * v * dx
+
+solve(a == L, us, leftBC)
+
+uf1.interpolate(us)
+
+#==============================================================================
+# stabilized :
+
+u   = TrialFunction(M)
+v   = TestFunction(M)
+us  = Function(M)
+uf2 = Function(Q)
+
+a  = + kappa * u.dx(0) * v.dx(0) * dx \
+     + s * u * v * dx
+L  = f * v * dx
+
+solve(a == L, us, leftBC)
+
+uf2.interpolate(us)
+
+#==============================================================================
+# plotting :
+from pylab import *
+
+t    = mesh.coordinates()[:,0][::-1]
+uf1  = uf1.vector().array()
+uf2  = uf2.vector().array()
+
+x    = linspace(0, 1, 1000)
+ue   = (exp(-10*sqrt(5)*(x-2)) + exp(10*sqrt(5)*x))/(1 + exp(20*sqrt(5)))
+
+plot(t, uf1, 'r',   lw=2.0, label=r"$u_1$")
+plot(t, uf2, 'k',   lw=2.0, label=r"$u_2$")
+plot(x, ue,  'k--', lw=2.0, label=r"$u_a$")
+
+xlabel(r'$x$')
+ylabel(r'$u$')
+legend()
+xlim([0,0.3])
+grid()
+show()
+</code></pre>
+</div>
+										</div>
+										<div class="qa-q-view-tags">
+											<ul class="qa-q-view-tag-list">
+												<li class="qa-q-view-tag-item"><a href="../../tag/enriched" rel="tag" class="qa-tag-link">enriched</a></li>
+												<li class="qa-q-view-tag-item"><a href="../../tag/space" rel="tag" class="qa-tag-link">space</a></li>
+												<li class="qa-q-view-tag-item"><a href="../../tag/interpolate" rel="tag" class="qa-tag-link">interpolate</a></li>
+											</ul>
+										</div>
+										<span class="qa-q-view-avatar-meta">
+											<span class="qa-q-view-avatar">
+												<a href="../../user/pf4d" class="qa-avatar-link"><img src="https://www.gravatar.com/avatar/102105360e5a49a3d555fb320b328a11?s=50" width="50" height="50" class="qa-avatar-image" alt=""></a>
+											</span>
+											<span class="qa-q-view-meta">
+												<a href="../../10818/interpolate-enriched-space-enriched-space-identical-meshes" class="qa-q-view-what">asked</a>
+												<span class="qa-q-view-when">
+													<span class="qa-q-view-when-data"><span class="published"><span class="value-title" title="2016-08-05T20:59:29+0000"></span>Aug 5, 2016</span></span>
+												</span>
+												<span class="qa-q-view-who">
+													<span class="qa-q-view-who-pad">by </span>
+													<span class="qa-q-view-who-data"><span class="vcard author"><a href="../../user/pf4d" class="qa-user-link url nickname">pf4d</a></span></span>
+													<span class="qa-q-view-who-title">FEniCS User</span>
+													<span class="qa-q-view-who-points">
+														<span class="qa-q-view-who-points-pad">(</span><span class="qa-q-view-who-points-data">2,970</span><span class="qa-q-view-who-points-pad"> points)</span>
+													</span>
+												</span>
+											</span>
+										</span>
+										<div class="qa-q-view-buttons">
+										</div>
+										
+										<div class="qa-q-view-c-list" style="display:none;" id="c10818_list">
+										</div> <!-- END qa-c-list -->
+										
+										<input type="hidden" name="code" value="0-1516467080-57e2f043d43fc1944dbb7db2a4abcbd313e9dc26">
+										<input type="hidden" name="qa_click" value="">
+									</form>
+									<div class="qa-c-form">
+									</div> <!-- END qa-c-form -->
+									
+								</div> <!-- END qa-q-view-main -->
+								<div class="qa-q-view-clear">
+								</div>
+							</div> <!-- END qa-q-view -->
+							
+						</div>
+						<div class="qa-part-a-list">
+							<h2 id="a_list_title">1 Answer</h2>
+							<div class="qa-a-list" id="a_list">
+								
+								<div class="qa-a-list-item  hentry answer answer-selected qa-a-list-item-selected" id="a10836">
+									<form method="post" action="../../10818/interpolate-enriched-space-enriched-space-identical-meshes">
+										<div class="qa-voting qa-voting-net" id="voting_10836">
+											<div class="qa-vote-count qa-vote-count-net">
+												<span class="qa-netvote-count">
+													<span class="qa-netvote-count-data">0<span class="votes-up"><span class="value-title" title="0"></span></span><span class="votes-down"><span class="value-title" title="0"></span></span></span><span class="qa-netvote-count-pad"> votes</span>
+												</span>
+											</div>
+											<div class="qa-vote-clear">
+											</div>
+										</div>
+										<input type="hidden" name="code" value="0-1516467080-a68f8c8317dbabb76b6a29415dc067a7b0da6cbe">
+									</form>
+									<div class="qa-a-item-main">
+										<form method="post" action="../../10818/interpolate-enriched-space-enriched-space-identical-meshes">
+											<div class="qa-a-item-selected">
+												<div class="qa-a-selection">
+													<div class="qa-a-selected">&#160;</div>
+													<div class="qa-a-selected-text">Best answer</div>
+												</div>
+												<div class="qa-a-item-content">
+													<a name="10836"></a><div class="entry-content"><p>Interpolation from enriched to non-enriched on the same mesh should be fine. Watch <a rel="nofollow" href="https://bitbucket.org/fenics-project/ffc/issues/69">https://bitbucket.org/fenics-project/ffc/issues/69</a> for the resolution of problems with enriched element. Any known problem with enriched element should raise an error rather than compute a rubbish. If not it should be reported.</p>
+
+<p>Anyway your code contains a mistake. You should rather do:</p>
+
+<pre><code>uD = project(Constant(1.0), M) # workaround FFC issue #69
+leftBC  = DirichletBC(M, uD, left)
+</code></pre>
+</div>
+												</div>
+												<span class="qa-a-item-avatar-meta">
+													<span class="qa-a-item-avatar">
+														<a href="../../user/Jan+Blechta" class="qa-avatar-link"><img src="https://www.gravatar.com/avatar/dc6f8dce77e4a0bd5adc7ff31ab83741?s=40" width="40" height="40" class="qa-avatar-image" alt=""></a>
+													</span>
+													<span class="qa-a-item-meta">
+														<a href="../../10818/interpolate-enriched-space-enriched-space-identical-meshes?show=10836#a10836" class="qa-a-item-what">answered</a>
+														<span class="qa-a-item-when">
+															<span class="qa-a-item-when-data"><span class="published"><span class="value-title" title="2016-08-08T14:02:06+0000"></span>Aug 8, 2016</span></span>
+														</span>
+														<span class="qa-a-item-who">
+															<span class="qa-a-item-who-pad">by </span>
+															<span class="qa-a-item-who-data"><span class="vcard author"><a href="../../user/Jan+Blechta" class="qa-user-link url nickname">Jan Blechta</a></span></span>
+															<span class="qa-a-item-who-title">FEniCS Expert</span>
+															<span class="qa-a-item-who-points">
+																<span class="qa-a-item-who-points-pad">(</span><span class="qa-a-item-who-points-data">51,420</span><span class="qa-a-item-who-points-pad"> points)</span>
+															</span>
+														</span>
+														<br>
+														<span class="qa-a-item-what">selected</span>
+														<span class="qa-a-item-when">
+															<span class="qa-a-item-when-data"><span class="updated"><span class="value-title" title="2016-08-10T18:08:55+0000"></span>Aug 10, 2016</span></span>
+														</span>
+														<span class="qa-a-item-who">
+															<span class="qa-a-item-who-pad">by </span><span class="qa-a-item-who-data"><a href="../../user/pf4d" class="qa-user-link url nickname">pf4d</a></span>
+														</span>
+													</span>
+												</span>
+											</div>
+											<div class="qa-a-item-buttons">
+												</div>
+											
+											<div class="qa-a-item-c-list" id="c10836_list">
+												<div class="qa-c-list-item  hentry comment" id="c10851">
+													<div class="qa-c-item-content">
+														<a name="10851"></a><div class="entry-content"><p>First, I upgraded to v. 2016.1.0 recently.  I tried your workaround, but am getting the same rubbish output as before.</p>
+
+<p>I have the full code with a plot to demonstrate:</p>
+
+<pre><code>from fenics import *
+
+mesh = IntervalMesh(10,0,1)
+
+Q    = FunctionSpace(mesh, 'CG', 1)
+B    = FunctionSpace(mesh, 'B',  2)
+M    = Q + B
+
+def left(x, on_boundary):
+  return on_boundary and x[0] == 0
+
+leftBC  = DirichletBC(Q, 1.0, left)
+
+kappa = Constant(1.0/500.0)
+s     = Constant(1.0)
+f     = Constant(0.0)
+
+#==============================================================================
+# standard Galerkin solution :
+
+u   = TrialFunction(Q)
+v   = TestFunction(Q)
+us  = Function(Q)
+uf1 = Function(Q)
+
+a  = + kappa * u.dx(0) * v.dx(0) * dx \
+     + s * u * v * dx
+L  = f * v * dx
+
+solve(a == L, us, leftBC)
+
+uf1.interpolate(us)
+
+#==============================================================================
+# enriched space solution :
+
+uD      = project(Constant(1.0), M)
+leftBC  = DirichletBC(Q, uD, left)
+
+u   = TrialFunction(M)
+v   = TestFunction(M)
+us  = Function(M)
+uf2 = Function(Q)
+
+a  = + kappa * u.dx(0) * v.dx(0) * dx \
+     + s * u * v * dx
+L  = f * v * dx
+
+solve(a == L, us, leftBC)
+
+uf2.interpolate(us)
+#==============================================================================  
+# plotting :
+from pylab import *
+
+t    = mesh.coordinates()[:,0][::-1]
+uf1  = uf1.vector().array()
+uf2  = uf2.vector().array()
+
+x    = linspace(0, 1, 1000)
+ue   = (exp(-10*sqrt(5)*(x-2)) + exp(10*sqrt(5)*x))/(1 + exp(20*sqrt(5)))
+
+fig  = figure(figsize=(6 ,4))
+ax   = fig.add_subplot(111)
+
+ax.plot(t, uf1, 'r',   lw=2.0, label=r"$u$")
+ax.plot(t, uf2, 'k',   lw=2.0, label=r"$\hat{u},\ \tilde{u}$")
+ax.plot(x, ue,  'k--', lw=2.0, label=r"$u_{\mathrm{a}}$")
+
+ax.set_xlabel(r'$x$')
+ax.set_ylabel(r'$u$')
+ax.grid()
+leg = ax.legend(loc='upper right')
+leg.get_frame().set_alpha(0.0)
+#ax.set_xlim([0,0.3])
+tight_layout()
+show()
+</code></pre>
+</div>
+													</div>
+													<div class="qa-c-item-footer">
+														<span class="qa-c-item-avatar-meta">
+															<span class="qa-c-item-avatar">
+																<a href="../../user/pf4d" class="qa-avatar-link"><img src="https://www.gravatar.com/avatar/102105360e5a49a3d555fb320b328a11?s=20" width="20" height="20" class="qa-avatar-image" alt=""></a>
+															</span>
+															<span class="qa-c-item-meta">
+																<a href="../../10818/interpolate-enriched-space-enriched-space-identical-meshes?show=10851#c10851" class="qa-c-item-what">commented</a>
+																<span class="qa-c-item-when">
+																	<span class="qa-c-item-when-data"><span class="published"><span class="value-title" title="2016-08-10T16:25:06+0000"></span>Aug 10, 2016</span></span>
+																</span>
+																<span class="qa-c-item-who">
+																	<span class="qa-c-item-who-pad">by </span>
+																	<span class="qa-c-item-who-data"><span class="vcard author"><a href="../../user/pf4d" class="qa-user-link url nickname">pf4d</a></span></span>
+																	<span class="qa-c-item-who-title">FEniCS User</span>
+																	<span class="qa-c-item-who-points">
+																		<span class="qa-c-item-who-points-pad">(</span><span class="qa-c-item-who-points-data">2,970</span><span class="qa-c-item-who-points-pad"> points)</span>
+																	</span>
+																</span>
+															</span>
+														</span>
+														<div class="qa-c-item-buttons">
+														</div>
+													</div>
+													<div class="qa-c-item-clear">
+													</div>
+												</div> <!-- END qa-c-item -->
+												<div class="qa-c-list-item  hentry comment" id="c10852">
+													<div class="qa-c-item-content">
+														<a name="10852"></a><div class="entry-content"><p>The actual mistake is in the space on which BC lives:</p>
+
+<pre><code>leftBC  = DirichletBC(M, uD, left)
+</code></pre>
+
+<p>There must be <code>M</code>, not <code>Q</code>. Workaround to FFC #69 is unimportant here.</p>
+</div>
+													</div>
+													<div class="qa-c-item-footer">
+														<span class="qa-c-item-avatar-meta">
+															<span class="qa-c-item-avatar">
+																<a href="../../user/Jan+Blechta" class="qa-avatar-link"><img src="https://www.gravatar.com/avatar/dc6f8dce77e4a0bd5adc7ff31ab83741?s=20" width="20" height="20" class="qa-avatar-image" alt=""></a>
+															</span>
+															<span class="qa-c-item-meta">
+																<a href="../../10818/interpolate-enriched-space-enriched-space-identical-meshes?show=10852#c10852" class="qa-c-item-what">commented</a>
+																<span class="qa-c-item-when">
+																	<span class="qa-c-item-when-data"><span class="published"><span class="value-title" title="2016-08-10T16:40:10+0000"></span>Aug 10, 2016</span></span>
+																</span>
+																<span class="qa-c-item-who">
+																	<span class="qa-c-item-who-pad">by </span>
+																	<span class="qa-c-item-who-data"><span class="vcard author"><a href="../../user/Jan+Blechta" class="qa-user-link url nickname">Jan Blechta</a></span></span>
+																	<span class="qa-c-item-who-title">FEniCS Expert</span>
+																	<span class="qa-c-item-who-points">
+																		<span class="qa-c-item-who-points-pad">(</span><span class="qa-c-item-who-points-data">51,420</span><span class="qa-c-item-who-points-pad"> points)</span>
+																	</span>
+																</span>
+															</span>
+														</span>
+														<div class="qa-c-item-buttons">
+														</div>
+													</div>
+													<div class="qa-c-item-clear">
+													</div>
+												</div> <!-- END qa-c-item -->
+												<div class="qa-c-list-item  hentry comment" id="c10853">
+													<div class="qa-c-item-content">
+														<a name="10853"></a><div class="entry-content"><p>Oh my, of course.  My bad.</p>
+</div>
+													</div>
+													<div class="qa-c-item-footer">
+														<span class="qa-c-item-avatar-meta">
+															<span class="qa-c-item-avatar">
+																<a href="../../user/pf4d" class="qa-avatar-link"><img src="https://www.gravatar.com/avatar/102105360e5a49a3d555fb320b328a11?s=20" width="20" height="20" class="qa-avatar-image" alt=""></a>
+															</span>
+															<span class="qa-c-item-meta">
+																<a href="../../10818/interpolate-enriched-space-enriched-space-identical-meshes?show=10853#c10853" class="qa-c-item-what">commented</a>
+																<span class="qa-c-item-when">
+																	<span class="qa-c-item-when-data"><span class="published"><span class="value-title" title="2016-08-10T18:09:51+0000"></span>Aug 10, 2016</span></span>
+																</span>
+																<span class="qa-c-item-who">
+																	<span class="qa-c-item-who-pad">by </span>
+																	<span class="qa-c-item-who-data"><span class="vcard author"><a href="../../user/pf4d" class="qa-user-link url nickname">pf4d</a></span></span>
+																	<span class="qa-c-item-who-title">FEniCS User</span>
+																	<span class="qa-c-item-who-points">
+																		<span class="qa-c-item-who-points-pad">(</span><span class="qa-c-item-who-points-data">2,970</span><span class="qa-c-item-who-points-pad"> points)</span>
+																	</span>
+																</span>
+															</span>
+														</span>
+														<div class="qa-c-item-buttons">
+														</div>
+													</div>
+													<div class="qa-c-item-clear">
+													</div>
+												</div> <!-- END qa-c-item -->
+												<div class="qa-c-list-item  hentry comment" id="c10854">
+													<div class="qa-c-item-content">
+														<a name="10854"></a><div class="entry-content"><p>Function <code>solve</code> should not tolerate this. I've filed an issue at <a rel="nofollow" href="https://bitbucket.org/fenics-project/dolfin/issues/717">https://bitbucket.org/fenics-project/dolfin/issues/717</a> and started fixing it.</p>
+</div>
+													</div>
+													<div class="qa-c-item-footer">
+														<span class="qa-c-item-avatar-meta">
+															<span class="qa-c-item-avatar">
+																<a href="../../user/Jan+Blechta" class="qa-avatar-link"><img src="https://www.gravatar.com/avatar/dc6f8dce77e4a0bd5adc7ff31ab83741?s=20" width="20" height="20" class="qa-avatar-image" alt=""></a>
+															</span>
+															<span class="qa-c-item-meta">
+																<a href="../../10818/interpolate-enriched-space-enriched-space-identical-meshes?show=10854#c10854" class="qa-c-item-what">commented</a>
+																<span class="qa-c-item-when">
+																	<span class="qa-c-item-when-data"><span class="published"><span class="value-title" title="2016-08-10T19:02:49+0000"></span>Aug 10, 2016</span></span>
+																</span>
+																<span class="qa-c-item-who">
+																	<span class="qa-c-item-who-pad">by </span>
+																	<span class="qa-c-item-who-data"><span class="vcard author"><a href="../../user/Jan+Blechta" class="qa-user-link url nickname">Jan Blechta</a></span></span>
+																	<span class="qa-c-item-who-title">FEniCS Expert</span>
+																	<span class="qa-c-item-who-points">
+																		<span class="qa-c-item-who-points-pad">(</span><span class="qa-c-item-who-points-data">51,420</span><span class="qa-c-item-who-points-pad"> points)</span>
+																	</span>
+																</span>
+															</span>
+														</span>
+														<div class="qa-c-item-buttons">
+														</div>
+													</div>
+													<div class="qa-c-item-clear">
+													</div>
+												</div> <!-- END qa-c-item -->
+											</div> <!-- END qa-c-list -->
+											
+											<input type="hidden" name="code" value="0-1516467080-74ab3ce23a88acc0fa34a46fdbb0d2e7246ff133">
+											<input type="hidden" name="qa_click" value="">
+										</form>
+										<div class="qa-c-form">
+										</div> <!-- END qa-c-form -->
+										
+									</div> <!-- END qa-a-item-main -->
+									<div class="qa-a-item-clear">
+									</div>
+								</div> <!-- END qa-a-list-item -->
+								
+							</div> <!-- END qa-a-list -->
+							
+						</div>
+					</div> <!-- END qa-main -->
+					
+				</div> <!-- END main-wrapper -->
+			</div> <!-- END main-shadow -->
+		</div> <!-- END body-wrapper -->
+		<!-- END footer-bottom-group -->
+		
+		<div style="position:absolute; left:-9999px; top:-9999px;">
+			<span id="qa-waiting-template" class="qa-waiting">...</span>
+		</div>
+	
+	
+
+</body><!-- Powered by Question2Answer - http://www.question2answer.org/ --></html>

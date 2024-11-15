@@ -1,0 +1,387 @@
+<html><!-- Powered by Question2Answer - http://www.question2answer.org/ --><head>
+		<meta http-equiv="content-type" content="text/html; charset=utf-8">
+		<title>arity-mismatch-exception - FEniCS Q&amp;A</title>
+		<meta name="description" content='Posting Dear Fenics users, I am trying to assembly a linear system. It should combine linear  ...  solution to VTK format File("displacement.pvd")'>
+		<meta name="keywords" content="mixed-formulation,arity-mismatch,non-matching,form,arguments">
+		<link rel="stylesheet" type="text/css" href="../../qa-theme/Snow/qa-styles.css">
+		<link rel="canonical" href="http://fenicsproject.org/qa/11171/arity-mismatch-exception">
+		<script type="text/x-mathjax-config">
+  MathJax.Hub.Config({
+    extensions: ["tex2jax.js"],
+    jax: ["input/TeX","output/HTML-CSS"],
+    tex2jax: {inlineMath: [["$","$"],["\\(","\\)"]]},
+    TeX: { extensions: ["AMSmath.js","AMSsymbols.js"]}
+  });
+</script>
+<script type="text/javascript" src="../../mathjax/MathJax.js"></script>
+		<script src="../../jquery-1.7.2.min.js" type="text/javascript"></script>
+		<script src="../../highlight.min.js"></script>
+<script type="text/javascript">
+$(function(){
+	$('.wmd-input').keypress(function(){
+		window.clearTimeout(hljs.Timeout);
+		hljs.Timeout = window.setTimeout(function() {
+			hljs.initHighlighting.called = false;
+			hljs.initHighlighting();
+		}, 500);
+	});
+	window.setTimeout(function() {
+		hljs.initHighlighting.called = false;
+		hljs.initHighlighting();
+	}, 500);
+});
+</script>
+
+
+	</head>
+	<body class="qa-template-question qa-body-js-off">
+		<div class="qa-body-wrapper">
+			
+			<div class="qa-header">
+				<div class="qa-logo">
+					<a href="../../" class="qa-logo-link" title="FEniCS Q&amp;A"><img src="../../qa-theme/fenics_qa.png" border="0" alt="FEniCS Q&amp;A"></a>
+				</div>
+				<div class="qa-header-clear">
+				</div>
+			</div> <!-- END qa-header -->
+			
+			<div class="qa-main-shadow">
+				
+				<div class="qa-main-wrapper">
+					
+					<div class="qa-sidepanel">
+						<div class="qa-sidebar">
+							This is a read only copy of the old FEniCS QA forum. Please visit the <a href="https://www.allanswered.com/community/s/fenics-project/">new QA forum</a> to ask questions
+						</div>
+						
+					</div>
+					
+					<div class="qa-main">
+						<h1>
+							<span class="entry-title">arity-mismatch-exception</span>
+						</h1>
+						<div class="qa-part-q-view">
+							<div class="qa-q-view  hentry question" id="q11171">
+								<form method="post" action="../../11171/arity-mismatch-exception">
+									<div class="qa-q-view-stats">
+										<div class="qa-voting qa-voting-net" id="voting_11171">
+											<div class="qa-vote-count qa-vote-count-net">
+												<span class="qa-netvote-count">
+													<span class="qa-netvote-count-data">0<span class="votes-up"><span class="value-title" title="0"></span></span><span class="votes-down"><span class="value-title" title="0"></span></span></span><span class="qa-netvote-count-pad"> votes</span>
+												</span>
+											</div>
+											<div class="qa-vote-clear">
+											</div>
+										</div>
+									</div>
+									<input type="hidden" name="code" value="0-1516467097-25eff6f10366569812be1bcde6e16e526d86644c">
+								</form>
+								<div class="qa-q-view-main">
+									<form method="post" action="../../11171/arity-mismatch-exception">
+										<div class="qa-q-view-content">
+											<a name="11171"></a><div class="entry-content"><p>Posting<br>
+Dear Fenics users, I am trying to assembly a linear system. It should combine linear elasticity and electrostatics to simulate piezoelectric materials.<br>
+I've first implemented the equations for the linear elasticity problem, which worked. For the next step i wanted to calculate the effect of a constant electric field. </p>
+
+<p>As you can see i defined it as a 6x1 constant vector of zeros. When i substract that Constant from the defined sigma (as you cann see in the definition of sigma) i recieve the following error.</p>
+
+<pre><code>ArityMismatchTraceback (most recent call last)
+in () 86 # Solve the problem 87 result = Function(VV) ---&gt; 88 solve(a == L, result, boundary) 89 90 # Save solution to VTK format
+...
+ArityMismatch: Adding expressions with non-matching form arguments (Argument(FunctionSpace(Mesh(VectorElement(FiniteElement('Lagrange', tetrahedron, 1), dim=3), 6664), VectorElement(FiniteElement('Lagrange', tetrahedron, 1), dim=3)), 1, None),) vs ().
+</code></pre>
+
+<p>Does somebody has any idea what i'm doing wrong? Without subtracting E it works.</p>
+
+<pre><code>from dolfin import *
+
+dielectric = 28000. * 8.8541878176e-12 * Identity(3)
+# derived lame constants
+Ey = 100.0  # youngs modulus
+nu = 0.3   # poisson ratio
+mu = Ey/(2.0*(1.0 + nu))
+lmbda = Ey*nu/((1.0 + nu)*(1.0 - 2.0*nu))       
+
+# define elasticity tensor
+e1 = (1-nu)/(1.0-2.0*nu)
+e2 = nu/(1.0-2.0*nu)
+# 6x6
+c = as_matrix([[e1, e2, e2, 0., 0., 0.], 
+               [e2, e1, e2, 0., 0., 0.],
+               [e2, e2, e1, 0., 0., 0.],
+               [0., 0., 0., 1., 0., 0],
+               [0., 0., 0., 0., 1., 0.],
+               [0., 0., 0., 0., 0., 1.]]) 
+
+# rewrite the tensor into a vector using Voigt notation
+def as_voigt_vector(ten):
+    # FEniCS does not know anything about Voigt notation, 
+    # so one need to access the components directly as eps[0, 0] etc.   
+    return as_vector([ten[0,0],ten[1,1],ten[2,2],ten[1,2],ten[0,2],ten[0,1]])
+
+# rewrite a vector into a tensor using Voigt notation
+def from_voigt_vector(vec):
+    # FEniCS does not know anything about Voigt notation, 
+    # so one need to rewrite the vector by hand into a tensor.   
+    return as_tensor([[vec[0], vec[5], vec[4]], 
+                      [vec[5], vec[1], vec[3]],
+                      [vec[4], vec[3], vec[2]]])
+
+# first define the function for the strain tensor in fenics notation
+def epsilon(u):
+    # note that it would be shorter to use sym(grad(u)) but the way used now
+    # represents the formula
+    return 1./2.*(grad(u) + transpose(grad(u)))
+
+# now define the stress tensor in fencis notation
+def sigma(u,E):     
+    # calcuate sigma with C-matrix in Voigt notation
+    # sigma = 6x1 vector; E = 6x1 vector
+    sig     = (Ey/(1.+nu))*c* (as_voigt_vector(epsilon(u)) - E(u))    
+
+    # sigma for coupled linear elasicity and electrostatics; d = 3x6 tensor with piezo material constants
+    #sig = (Ey/(1.+nu))*c* (as_voigt_vector(epsilon(u))-(transpose(d_piezo)*E(u)))
+
+    # return sigma as symmetric tensor
+    return from_voigt_vector(sig)
+
+import numpy 
+
+#boundary conditions:
+voltage = 10
+q = Constant(0)
+f = Constant((0., 0., 0.))
+t = Constant((0., 0., -1.))
+
+# build the trial and test function spaces over a domain 
+# Setup domain
+grid = 10
+Omega = UnitCubeMesh(grid, grid, 5*grid)
+x = Omega.coordinates()
+x[:, 0] *= 0.1
+x[:, 1] *= 0.1
+x[:, 2] *= 0.01
+Omega.bounding_box_tree().build(Omega) 
+
+VV = VectorFunctionSpace(Omega, "Lagrange", 1)
+
+# Get the needed boundaries: 
+# 1. To apply a predefined stress on it We keep it simple: the top face sees the same stress vector. 
+# 2. For zero Displacement we choose the bottom face of the cube
+class TopBoundary(SubDomain):
+    def inside(self, x, on_boundary):
+        return on_boundary and near(x[2], 0.01)
+
+class BottomBoundary(SubDomain):
+    def inside(self, x, on_boundary):
+        return on_boundary and near(x[2], 0.)
+
+top_boundary  = TopBoundary()
+bottom_boundary = BottomBoundary()
+
+# Create the boundary condition for displcement
+boundary = []
+boundary.append(DirichletBC(VV, Constant((0., 0., 0.)), bottom_boundary))
+
+# As the stress is defined over the outer surface we need to create a 
+# integral over that surface
+boundaries = FacetFunction("size_t", Omega)
+boundaries.set_all(0)
+top_boundary.mark(boundaries, 1)
+ds = Measure("ds", subdomain_data=boundaries)
+
+E = lambda u: as_vector(Constant((0.,0.,0.,0.,0.,0.)))
+
+# Define the variational problem: get all variables and implement function given above
+u = TrialFunction(VV)
+v = TestFunction(VV)
+
+a = inner(sigma(u,E), grad(v))*dx        # typically called a
+L = inner(f, v)*dx + inner(t, v)*ds(1)   # typically called L
+
+# Solve the problem
+result = Function(VV)
+solve(a == L, result, boundary)
+
+# Save solution to VTK format
+File("displacement.pvd") &lt;&lt; result
+print "Done"
+</code></pre>
+</div>
+										</div>
+										<div class="qa-q-view-tags">
+											<ul class="qa-q-view-tag-list">
+												<li class="qa-q-view-tag-item"><a href="../../tag/mixed-formulation" rel="tag" class="qa-tag-link">mixed-formulation</a></li>
+												<li class="qa-q-view-tag-item"><a href="../../tag/arity-mismatch" rel="tag" class="qa-tag-link">arity-mismatch</a></li>
+												<li class="qa-q-view-tag-item"><a href="../../tag/non-matching" rel="tag" class="qa-tag-link">non-matching</a></li>
+												<li class="qa-q-view-tag-item"><a href="../../tag/form" rel="tag" class="qa-tag-link">form</a></li>
+												<li class="qa-q-view-tag-item"><a href="../../tag/arguments" rel="tag" class="qa-tag-link">arguments</a></li>
+											</ul>
+										</div>
+										<span class="qa-q-view-avatar-meta">
+											<span class="qa-q-view-meta">
+												<a href="../../11171/arity-mismatch-exception" class="qa-q-view-what">asked</a>
+												<span class="qa-q-view-when">
+													<span class="qa-q-view-when-data"><span class="published"><span class="value-title" title="2016-09-20T07:19:37+0000"></span>Sep 20, 2016</span></span>
+												</span>
+												<span class="qa-q-view-who">
+													<span class="qa-q-view-who-pad">by </span>
+													<span class="qa-q-view-who-data"><span class="vcard author"><a href="../../user/andifl" class="qa-user-link url nickname">andifl</a></span></span>
+													<span class="qa-q-view-who-title">FEniCS Novice</span>
+													<span class="qa-q-view-who-points">
+														<span class="qa-q-view-who-points-pad">(</span><span class="qa-q-view-who-points-data">120</span><span class="qa-q-view-who-points-pad"> points)</span>
+													</span>
+												</span>
+												<br>
+												<span class="qa-q-view-what">edited</span>
+												<span class="qa-q-view-when">
+													<span class="qa-q-view-when-data"><span class="updated"><span class="value-title" title="2016-09-20T07:51:10+0000"></span>Sep 20, 2016</span></span>
+												</span>
+												<span class="qa-q-view-who">
+													<span class="qa-q-view-who-pad">by </span><span class="qa-q-view-who-data"><a href="../../user/andifl" class="qa-user-link url nickname">andifl</a></span>
+												</span>
+											</span>
+										</span>
+										<div class="qa-q-view-buttons">
+										</div>
+										
+										<div class="qa-q-view-c-list" style="display:none;" id="c11171_list">
+										</div> <!-- END qa-c-list -->
+										
+										<input type="hidden" name="code" value="0-1516467097-799ea758ce5baeffea8801625c05f2fc19f0392e">
+										<input type="hidden" name="qa_click" value="">
+									</form>
+									<div class="qa-c-form">
+									</div> <!-- END qa-c-form -->
+									
+								</div> <!-- END qa-q-view-main -->
+								<div class="qa-q-view-clear">
+								</div>
+							</div> <!-- END qa-q-view -->
+							
+						</div>
+						<div class="qa-part-a-list">
+							<h2 id="a_list_title">1 Answer</h2>
+							<div class="qa-a-list" id="a_list">
+								
+								<div class="qa-a-list-item  hentry answer" id="a11181">
+									<form method="post" action="../../11171/arity-mismatch-exception">
+										<div class="qa-voting qa-voting-net" id="voting_11181">
+											<div class="qa-vote-count qa-vote-count-net">
+												<span class="qa-netvote-count">
+													<span class="qa-netvote-count-data">0<span class="votes-up"><span class="value-title" title="0"></span></span><span class="votes-down"><span class="value-title" title="0"></span></span></span><span class="qa-netvote-count-pad"> votes</span>
+												</span>
+											</div>
+											<div class="qa-vote-clear">
+											</div>
+										</div>
+										<input type="hidden" name="code" value="0-1516467097-25eff6f10366569812be1bcde6e16e526d86644c">
+									</form>
+									<div class="qa-a-item-main">
+										<form method="post" action="../../11171/arity-mismatch-exception">
+											<div class="qa-a-selection">
+											</div>
+											<div class="qa-a-item-content">
+												<a name="11181"></a><div class="entry-content"><p>Hi,<br>
+consider to use</p>
+
+<pre><code>F = inner(sigma(u,E), grad(v))*dx - inner(f, v)*dx + inner(t, v)*ds(1)
+a, L = lhs(F), rhs(F)
+
+# Solve the problem
+result = Function(VV)
+solve(a == L, result, boundary)
+</code></pre>
+
+<p>The error message indicate that your form a isn't bilinear (because the term E(u) is constant).</p>
+</div>
+											</div>
+											<span class="qa-a-item-avatar-meta">
+												<span class="qa-a-item-avatar">
+													<a href="../../user/hernan_mella" class="qa-avatar-link"><img src="../../?qa=image&amp;qa_blobid=14920815903966845416&amp;qa_size=40" width="40" height="22" class="qa-avatar-image" alt=""></a>
+												</span>
+												<span class="qa-a-item-meta">
+													<a href="../../11171/arity-mismatch-exception?show=11181#a11181" class="qa-a-item-what">answered</a>
+													<span class="qa-a-item-when">
+														<span class="qa-a-item-when-data"><span class="published"><span class="value-title" title="2016-09-21T01:30:28+0000"></span>Sep 21, 2016</span></span>
+													</span>
+													<span class="qa-a-item-who">
+														<span class="qa-a-item-who-pad">by </span>
+														<span class="qa-a-item-who-data"><span class="vcard author"><a href="../../user/hernan_mella" class="qa-user-link url nickname">hernan_mella</a></span></span>
+														<span class="qa-a-item-who-title">FEniCS Expert</span>
+														<span class="qa-a-item-who-points">
+															<span class="qa-a-item-who-points-pad">(</span><span class="qa-a-item-who-points-data">19,460</span><span class="qa-a-item-who-points-pad"> points)</span>
+														</span>
+													</span>
+													<br>
+													<span class="qa-a-item-what">edited</span>
+													<span class="qa-a-item-when">
+														<span class="qa-a-item-when-data"><span class="updated"><span class="value-title" title="2016-09-21T01:36:41+0000"></span>Sep 21, 2016</span></span>
+													</span>
+													<span class="qa-a-item-who">
+														<span class="qa-a-item-who-pad">by </span><span class="qa-a-item-who-data"><a href="../../user/hernan_mella" class="qa-user-link url nickname">hernan_mella</a></span>
+													</span>
+												</span>
+											</span>
+											<div class="qa-a-item-buttons">
+												</div>
+											
+											<div class="qa-a-item-c-list" id="c11181_list">
+												<div class="qa-c-list-item  hentry comment" id="c11182">
+													<div class="qa-c-item-content">
+														<a name="11182"></a><div class="entry-content"><p>Yes, that works. Thank you for the response!</p>
+</div>
+													</div>
+													<div class="qa-c-item-footer">
+														<span class="qa-c-item-avatar-meta">
+															<span class="qa-c-item-meta">
+																<a href="../../11171/arity-mismatch-exception?show=11182#c11182" class="qa-c-item-what">commented</a>
+																<span class="qa-c-item-when">
+																	<span class="qa-c-item-when-data"><span class="published"><span class="value-title" title="2016-09-21T06:03:23+0000"></span>Sep 21, 2016</span></span>
+																</span>
+																<span class="qa-c-item-who">
+																	<span class="qa-c-item-who-pad">by </span>
+																	<span class="qa-c-item-who-data"><span class="vcard author"><a href="../../user/andifl" class="qa-user-link url nickname">andifl</a></span></span>
+																	<span class="qa-c-item-who-title">FEniCS Novice</span>
+																	<span class="qa-c-item-who-points">
+																		<span class="qa-c-item-who-points-pad">(</span><span class="qa-c-item-who-points-data">120</span><span class="qa-c-item-who-points-pad"> points)</span>
+																	</span>
+																</span>
+															</span>
+														</span>
+														<div class="qa-c-item-buttons">
+														</div>
+													</div>
+													<div class="qa-c-item-clear">
+													</div>
+												</div> <!-- END qa-c-item -->
+											</div> <!-- END qa-c-list -->
+											
+											<input type="hidden" name="code" value="0-1516467097-55290319c91e0601458bcd05632f2b93c691819c">
+											<input type="hidden" name="qa_click" value="">
+										</form>
+										<div class="qa-c-form">
+										</div> <!-- END qa-c-form -->
+										
+									</div> <!-- END qa-a-item-main -->
+									<div class="qa-a-item-clear">
+									</div>
+								</div> <!-- END qa-a-list-item -->
+								
+							</div> <!-- END qa-a-list -->
+							
+						</div>
+					</div> <!-- END qa-main -->
+					
+				</div> <!-- END main-wrapper -->
+			</div> <!-- END main-shadow -->
+		</div> <!-- END body-wrapper -->
+		<!-- END footer-bottom-group -->
+		
+		<div style="position:absolute; left:-9999px; top:-9999px;">
+			<span id="qa-waiting-template" class="qa-waiting">...</span>
+		</div>
+	
+	
+
+</body><!-- Powered by Question2Answer - http://www.question2answer.org/ --></html>

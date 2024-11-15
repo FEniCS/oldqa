@@ -1,0 +1,574 @@
+<html><!-- Powered by Question2Answer - http://www.question2answer.org/ --><head>
+		<meta http-equiv="content-type" content="text/html; charset=utf-8">
+		<title>Problem with control constraint optimization with NonlinearVariationalSolver - FEniCS Q&amp;A</title>
+		<meta name="description" content="Hi, I am considering the simple optimization problem $0.5 \cdot \| y - y_d \|^2 + \alpha \|u^ ... make it run? Or: What am i doing wrong. Best regards">
+		<meta name="keywords" content="constrained,optimization">
+		<link rel="stylesheet" type="text/css" href="../../qa-theme/Snow/qa-styles.css">
+		<link rel="canonical" href="http://fenicsproject.org/qa/9936/problem-constraint-optimization-nonlinearvariationalsolver">
+		<script type="text/x-mathjax-config">
+  MathJax.Hub.Config({
+    extensions: ["tex2jax.js"],
+    jax: ["input/TeX","output/HTML-CSS"],
+    tex2jax: {inlineMath: [["$","$"],["\\(","\\)"]]},
+    TeX: { extensions: ["AMSmath.js","AMSsymbols.js"]}
+  });
+</script>
+<script type="text/javascript" src="../../mathjax/MathJax.js"></script>
+		<script src="../../jquery-1.7.2.min.js" type="text/javascript"></script>
+		<script src="../../highlight.min.js"></script>
+<script type="text/javascript">
+$(function(){
+	$('.wmd-input').keypress(function(){
+		window.clearTimeout(hljs.Timeout);
+		hljs.Timeout = window.setTimeout(function() {
+			hljs.initHighlighting.called = false;
+			hljs.initHighlighting();
+		}, 500);
+	});
+	window.setTimeout(function() {
+		hljs.initHighlighting.called = false;
+		hljs.initHighlighting();
+	}, 500);
+});
+</script>
+
+
+	</head>
+	<body class="qa-template-question qa-body-js-off">
+		<div class="qa-body-wrapper">
+			
+			<div class="qa-header">
+				<div class="qa-logo">
+					<a href="../../" class="qa-logo-link" title="FEniCS Q&amp;A"><img src="../../qa-theme/fenics_qa.png" border="0" alt="FEniCS Q&amp;A"></a>
+				</div>
+				<div class="qa-header-clear">
+				</div>
+			</div> <!-- END qa-header -->
+			
+			<div class="qa-main-shadow">
+				
+				<div class="qa-main-wrapper">
+					
+					<div class="qa-sidepanel">
+						<div class="qa-sidebar">
+							This is a read only copy of the old FEniCS QA forum. Please visit the <a href="https://www.allanswered.com/community/s/fenics-project/">new QA forum</a> to ask questions
+						</div>
+						
+					</div>
+					
+					<div class="qa-main">
+						<h1>
+							<span class="entry-title">Problem with control constraint optimization with NonlinearVariationalSolver</span>
+						</h1>
+						<div class="qa-part-q-view">
+							<div class="qa-q-view  hentry question" id="q9936">
+								<form method="post" action="../../9936/problem-constraint-optimization-nonlinearvariationalsolver">
+									<div class="qa-q-view-stats">
+										<div class="qa-voting qa-voting-net" id="voting_9936">
+											<div class="qa-vote-count qa-vote-count-net">
+												<span class="qa-netvote-count">
+													<span class="qa-netvote-count-data">+1<span class="votes-up"><span class="value-title" title="1"></span></span><span class="votes-down"><span class="value-title" title="0"></span></span></span><span class="qa-netvote-count-pad"> vote</span>
+												</span>
+											</div>
+											<div class="qa-vote-clear">
+											</div>
+										</div>
+									</div>
+									<input type="hidden" name="code" value="0-1516468246-214d311b4d185c0dcee8bcf51806fde5bff7c383">
+								</form>
+								<div class="qa-q-view-main">
+									<form method="post" action="../../9936/problem-constraint-optimization-nonlinearvariationalsolver">
+										<div class="qa-q-view-content">
+											<a name="9936"></a><div class="entry-content"><p>Hi,<br>
+I am considering the simple optimization problem<br>
+$0.5 \cdot \| y - y_d \|^2 + \alpha \|u^2\|^2$<br>
+such that $-\Delta y = u$ in $\Omega$ and zero Dirchlet boundary conditions. This can be easy solved with the use of the Lagrange-Funktion</p>
+
+<pre><code>from dolfin import *
+mesh = UnitSquareMesh(100,100)
+U = FunctionSpace(mesh, "CG", 1)
+Z = MixedFunctionSpace([U, U, U])
+
+z = Function(Z)
+(y, p, u) = split(z)
+
+F = inner(grad(y) , grad(p))*dx - u*p*dx
+
+yd = Expression(...)
+
+J = inner(y-yd, y-yd)*dx + Constant(alpha)*inner(u,u)*dx
+
+bc_y = DirichletBZ(Z.sub(0), 0.0, "on_boundary")
+bc_p = DirichletBZ(Z.sub(1), 0.0, "on_boundary")
+bcs = [bc_y, bc_p]
+
+L = J + F
+kkt = derivative(L, z, TestFunction(Z))
+
+solve(kkt == 0, z, bcs)
+
+plot(y)
+plot(u)
+interactive()
+</code></pre>
+
+<p>I now want to add the control constaints $-1 \leq u \leq 1$. According to several threads here I should use PETScSNESSolver. I am not sure how to change the Form of F properly to NonVariationalForm F(u,v):</p>
+
+<p>Second: How do i impose box constraints only to u (as part of z) )</p>
+
+<pre><code>from dolfin import *
+mesh = UnitSquareMesh(100,100)
+U = FunctionSpace(mesh, "CG", 1)
+Z = MixedFunctionSpace([U, U, U])
+v = TestFunction(U)
+
+z = Function(Z)
+(y, p, u) = split(z)
+
+F = inner(grad(y) , grad(p))*v*dx - u*p*v*dx
+
+yd = Expression(...)
+
+J = inner(y-yd, y-yd)*v*dx + Constant(alpha)*inner(u,u)*v*dx
+
+bc_y = DirichletBZ(Z.sub(0), 0.0, "on_boundary")
+bc_p = DirichletBZ(Z.sub(1), 0.0, "on_boundary")
+bcs = [bc_y, bc_p]
+
+L = J + F
+kkt = derivative(L, z, TestFunction(Z))
+d_kkt = derivative(kkt, z, TestFunction(Z))
+
+# How to impose correctly? This is obviously wrong?
+constraint_u = Constant(-1)
+constraint_l = Constant(1)
+umin = interpolate(constraint_l, Z.sub(2))
+umax = interpolate(constraint_u, Z.sub(2))
+
+snes_solver_parameters = {"nonlinear_solver": "snes",
+                      "snes_solver": {"linear_solver": "lu",
+                                      "maximum_iterations": 20,
+                                      "report": True,
+                                      "error_on_nonconvergence": False}}
+
+problem = NonlinearVariationalProblem(kkt, u, bc, d_kkt)
+problem.set_bounds(umin, umax)
+
+solver  = NonlinearVariationalSolver(problem)
+solver.parameters.update(snes_solver_parameters)
+info(solver.parameters, True)
+
+(iter, converged) = solver.solve()
+
+plot(y)
+plot(u)
+interactive()
+</code></pre>
+
+<p>Of course the code above is not working - the definition of umin and umax is wrong:</p>
+
+<pre><code>Error: Unable to create function
+Error: Connot be created from subspace. Consider collapsing the function space
+</code></pre>
+
+<p>How do i have to change the code to make it run? Or: What am i doing wrong.</p>
+
+<p>Best regards</p>
+</div>
+										</div>
+										<div class="qa-q-view-tags">
+											<ul class="qa-q-view-tag-list">
+												<li class="qa-q-view-tag-item"><a href="../../tag/constrained" rel="tag" class="qa-tag-link">constrained</a></li>
+												<li class="qa-q-view-tag-item"><a href="../../tag/optimization" rel="tag" class="qa-tag-link">optimization</a></li>
+											</ul>
+										</div>
+										<span class="qa-q-view-avatar-meta">
+											<span class="qa-q-view-meta">
+												<a href="../../9936/problem-constraint-optimization-nonlinearvariationalsolver" class="qa-q-view-what">asked</a>
+												<span class="qa-q-view-when">
+													<span class="qa-q-view-when-data"><span class="published"><span class="value-title" title="2016-04-22T21:37:17+0000"></span>Apr 22, 2016</span></span>
+												</span>
+												<span class="qa-q-view-who">
+													<span class="qa-q-view-who-pad">by </span>
+													<span class="qa-q-view-who-data"><span class="vcard author"><a href="../../user/Kokett" class="qa-user-link url nickname">Kokett</a></span></span>
+													<span class="qa-q-view-who-title">FEniCS Novice</span>
+													<span class="qa-q-view-who-points">
+														<span class="qa-q-view-who-points-pad">(</span><span class="qa-q-view-who-points-data">300</span><span class="qa-q-view-who-points-pad"> points)</span>
+													</span>
+												</span>
+											</span>
+										</span>
+										<div class="qa-q-view-buttons">
+										</div>
+										
+										<div class="qa-q-view-c-list" style="display:none;" id="c9936_list">
+										</div> <!-- END qa-c-list -->
+										
+										<input type="hidden" name="code" value="0-1516468246-887b8082f718eaaef7dd87aa8dcf4d3118afe59c">
+										<input type="hidden" name="qa_click" value="">
+									</form>
+									<div class="qa-c-form">
+									</div> <!-- END qa-c-form -->
+									
+								</div> <!-- END qa-q-view-main -->
+								<div class="qa-q-view-clear">
+								</div>
+							</div> <!-- END qa-q-view -->
+							
+						</div>
+						<div class="qa-part-a-list">
+							<h2 id="a_list_title">2 Answers</h2>
+							<div class="qa-a-list" id="a_list">
+								
+								<div class="qa-a-list-item  hentry answer answer-selected qa-a-list-item-selected" id="a9955">
+									<form method="post" action="../../9936/problem-constraint-optimization-nonlinearvariationalsolver">
+										<div class="qa-voting qa-voting-net" id="voting_9955">
+											<div class="qa-vote-count qa-vote-count-net">
+												<span class="qa-netvote-count">
+													<span class="qa-netvote-count-data">+3<span class="votes-up"><span class="value-title" title="3"></span></span><span class="votes-down"><span class="value-title" title="0"></span></span></span><span class="qa-netvote-count-pad"> votes</span>
+												</span>
+											</div>
+											<div class="qa-vote-clear">
+											</div>
+										</div>
+										<input type="hidden" name="code" value="0-1516468246-214d311b4d185c0dcee8bcf51806fde5bff7c383">
+									</form>
+									<div class="qa-a-item-main">
+										<form method="post" action="../../9936/problem-constraint-optimization-nonlinearvariationalsolver">
+											<div class="qa-a-item-selected">
+												<div class="qa-a-selection">
+													<div class="qa-a-selected">&#160;</div>
+													<div class="qa-a-selected-text">Best answer</div>
+												</div>
+												<div class="qa-a-item-content">
+													<a name="9955"></a><div class="entry-content"><p>You need to pass bounds for the entire mixed space function. Since you only want to impose bounds for the state component, you can set the remaining bounds to $\pm \infty$. You can FunctionAssigner for this as suggested by Kent.</p>
+
+<p>See complete example below.</p>
+
+<pre><code>from dolfin import *
+import numpy
+
+N = 64
+alpha = 1e-4
+d = Constant(0.9)
+
+y_lower = Constant(0.0) # lower bound for state
+y_upper = Constant(1.0) # upper bound 
+
+mesh = UnitSquareMesh(N, N)
+V = FunctionSpace(mesh, "CG", 1)
+W = VectorFunctionSpace(mesh, "CG", 1, dim = 3)
+
+w = Function(W)
+u, y, p = split(w) # = (control, state, adjoint)
+
+# Lagrangian
+L = (y - d)**2 * dx + Constant(alpha) * u**2 * dx \
+  + inner(grad(y), grad(p)) * dx - u * p * dx
+
+# First derivative
+J = derivative(L, w, TestFunction(W))
+
+# second derivative
+H = derivative(J, w, TrialFunction(W))
+
+# bcs
+bc_y = DirichletBC(W.sub(1), 0.0, "on_boundary")
+bc_p = DirichletBC(W.sub(2), 0.0, "on_boundary")
+bcs = [bc_y, bc_p]
+
+
+snes_solver_parameters = {"nonlinear_solver": "snes",
+                          "snes_solver": {"linear_solver": "lu",
+                                          "maximum_iterations": 20,
+                                          "report": True,
+                                          "error_on_nonconvergence": False}}
+
+problem = NonlinearVariationalProblem(J, w, bcs, H)
+
+# handle the bounds
+lower = Function(W)
+upper = Function(W)
+
+ninfty = Function(V); ninfty.vector()[:] = -numpy.infty
+pinfty = Function(V); pinfty.vector()[:] =  numpy.infty
+
+fa = FunctionAssigner(W, [V, V, V])
+fa.assign(lower, [ninfty, interpolate(y_lower, V), ninfty])
+fa.assign(upper, [pinfty, interpolate(y_upper, V), pinfty])
+
+# set bounds and solve
+problem.set_bounds(lower, upper)
+
+solver  = NonlinearVariationalSolver(problem)
+solver.parameters.update(snes_solver_parameters)
+info(solver.parameters, True)
+
+(iter, converged) = solver.solve()
+
+u, y, p = w.split()
+
+parameters["plotting_backend"] = "matplotlib"
+from matplotlib import pyplot
+pyplot.figure()
+ax = plot(u)
+pyplot.title("Optimized control")
+pyplot.colorbar(ax)
+
+pyplot.figure()
+ax = plot(y)
+pyplot.title("Optimized state")
+pyplot.colorbar(ax)
+
+pyplot.show()
+</code></pre>
+</div>
+												</div>
+												<span class="qa-a-item-avatar-meta">
+													<span class="qa-a-item-meta">
+														<a href="../../9936/problem-constraint-optimization-nonlinearvariationalsolver?show=9955#a9955" class="qa-a-item-what">answered</a>
+														<span class="qa-a-item-when">
+															<span class="qa-a-item-when-data"><span class="published"><span class="value-title" title="2016-04-26T12:42:29+0000"></span>Apr 26, 2016</span></span>
+														</span>
+														<span class="qa-a-item-who">
+															<span class="qa-a-item-who-pad">by </span>
+															<span class="qa-a-item-who-data"><span class="vcard author"><a href="../../user/Magne+Nordaas" class="qa-user-link url nickname">Magne Nordaas</a></span></span>
+															<span class="qa-a-item-who-title">FEniCS Expert</span>
+															<span class="qa-a-item-who-points">
+																<span class="qa-a-item-who-points-pad">(</span><span class="qa-a-item-who-points-data">13,820</span><span class="qa-a-item-who-points-pad"> points)</span>
+															</span>
+														</span>
+														<br>
+														<span class="qa-a-item-what">selected</span>
+														<span class="qa-a-item-when">
+															<span class="qa-a-item-when-data"><span class="updated"><span class="value-title" title="2016-04-27T13:54:06+0000"></span>Apr 27, 2016</span></span>
+														</span>
+														<span class="qa-a-item-who">
+															<span class="qa-a-item-who-pad">by </span><span class="qa-a-item-who-data"><a href="../../user/Kokett" class="qa-user-link url nickname">Kokett</a></span>
+														</span>
+													</span>
+												</span>
+											</div>
+											<div class="qa-a-item-buttons">
+												</div>
+											
+											<div class="qa-a-item-c-list" id="c9955_list">
+												<div class="qa-c-list-item  hentry comment" id="c9960">
+													<div class="qa-c-item-content">
+														<a name="9960"></a><div class="entry-content"><p>Thank you!</p>
+
+<p>FunctionAssigner was exactly what i was looking for!</p>
+
+<p>Still I have another question - related to this topic here, so I don't open a new thread. In my Lagrange-Function I have some parameter: The value alpha and a function lambda. In the end i want to implement an iterative method, so just this two parameter are changing.</p>
+
+<p>In C++ and UFL i would handle this via Coefficient, and assign J.lmbda = lmbda, H.lmbda = lmbda. Is there a way to copy this in Python? I don't want to call FFC JIT in every iteration to compute the derivates and construct the solver.</p>
+
+<p>The best way would be if I am able to set up the solver just one time in the beginning, and in each iteration i just assign the parameters and call solve. Is this somehow possible? </p>
+
+<p>The following code is working, but very inefficient</p>
+
+<pre><code>k = 0
+while k&lt;100:
+    w = Function(W)
+    u, y, p = split(w) # = (control, state, adjoint)
+
+    # Lagrangian
+    L = 0.5*(y - d)**2 * dx + Constant(alpha) * ( 0.5*u**2 * dx - u*lmbda*dx ) \
+        + inner(grad(y), grad(p)) * dx - u * p * dx
+
+    # First derivative
+    J = derivative(L, w, TestFunction(W))
+
+    # second derivative
+    H = derivative(J, w, TrialFunction(W))
+
+
+    problem = NonlinearVariationalProblem(J, w, bcs, H)
+    # set bounds and solve
+    problem.set_bounds(lower, upper)
+
+    solver  = NonlinearVariationalSolver(problem)
+    solver.parameters.update(snes_solver_parameters)
+
+    (iter, converged) = solver.solve()
+
+    u, y, p = w.split()
+
+    # update lambda
+    lmbda = 1.0/alpha*p + lmbda
+
+        k  = k+1
+</code></pre>
+</div>
+													</div>
+													<div class="qa-c-item-footer">
+														<span class="qa-c-item-avatar-meta">
+															<span class="qa-c-item-meta">
+																<a href="../../9936/problem-constraint-optimization-nonlinearvariationalsolver?show=9960#c9960" class="qa-c-item-what">commented</a>
+																<span class="qa-c-item-when">
+																	<span class="qa-c-item-when-data"><span class="published"><span class="value-title" title="2016-04-27T14:04:17+0000"></span>Apr 27, 2016</span></span>
+																</span>
+																<span class="qa-c-item-who">
+																	<span class="qa-c-item-who-pad">by </span>
+																	<span class="qa-c-item-who-data"><span class="vcard author"><a href="../../user/Kokett" class="qa-user-link url nickname">Kokett</a></span></span>
+																	<span class="qa-c-item-who-title">FEniCS Novice</span>
+																	<span class="qa-c-item-who-points">
+																		<span class="qa-c-item-who-points-pad">(</span><span class="qa-c-item-who-points-data">300</span><span class="qa-c-item-who-points-pad"> points)</span>
+																	</span>
+																</span>
+															</span>
+														</span>
+														<div class="qa-c-item-buttons">
+														</div>
+													</div>
+													<div class="qa-c-item-clear">
+													</div>
+												</div> <!-- END qa-c-item -->
+												<div class="qa-c-list-item  hentry comment" id="c9970">
+													<div class="qa-c-item-content">
+														<a name="9970"></a><div class="entry-content"><p>Try making the scalar parameter a Constant in the form, i.e.</p>
+
+<pre><code># Lagrangian
+L = 0.5*(y - d)**2 * dx \
+    + Constant(alpha) * (0.5 * u**2 * dx - u * Constant(lmbda)*dx) \
+    + inner(grad(y), grad(p)) * dx - u * p * dx
+</code></pre>
+</div>
+													</div>
+													<div class="qa-c-item-footer">
+														<span class="qa-c-item-avatar-meta">
+															<span class="qa-c-item-meta">
+																<a href="../../9936/problem-constraint-optimization-nonlinearvariationalsolver?show=9970#c9970" class="qa-c-item-what">commented</a>
+																<span class="qa-c-item-when">
+																	<span class="qa-c-item-when-data"><span class="published"><span class="value-title" title="2016-04-28T04:55:41+0000"></span>Apr 28, 2016</span></span>
+																</span>
+																<span class="qa-c-item-who">
+																	<span class="qa-c-item-who-pad">by </span>
+																	<span class="qa-c-item-who-data"><span class="vcard author"><a href="../../user/Magne+Nordaas" class="qa-user-link url nickname">Magne Nordaas</a></span></span>
+																	<span class="qa-c-item-who-title">FEniCS Expert</span>
+																	<span class="qa-c-item-who-points">
+																		<span class="qa-c-item-who-points-pad">(</span><span class="qa-c-item-who-points-data">13,820</span><span class="qa-c-item-who-points-pad"> points)</span>
+																	</span>
+																</span>
+															</span>
+														</span>
+														<div class="qa-c-item-buttons">
+														</div>
+													</div>
+													<div class="qa-c-item-clear">
+													</div>
+												</div> <!-- END qa-c-item -->
+												<div class="qa-c-list-item  hentry comment" id="c9971">
+													<div class="qa-c-item-content">
+														<a name="9971"></a><div class="entry-content"><p>Hi,</p>
+
+<p>lmbda is a Function, not a constant, so this is not working. Im not sure how to avoid recompilation.</p>
+</div>
+													</div>
+													<div class="qa-c-item-footer">
+														<span class="qa-c-item-avatar-meta">
+															<span class="qa-c-item-meta">
+																<a href="../../9936/problem-constraint-optimization-nonlinearvariationalsolver?show=9971#c9971" class="qa-c-item-what">commented</a>
+																<span class="qa-c-item-when">
+																	<span class="qa-c-item-when-data"><span class="published"><span class="value-title" title="2016-04-28T06:24:09+0000"></span>Apr 28, 2016</span></span>
+																</span>
+																<span class="qa-c-item-who">
+																	<span class="qa-c-item-who-pad">by </span>
+																	<span class="qa-c-item-who-data"><span class="vcard author"><a href="../../user/Kokett" class="qa-user-link url nickname">Kokett</a></span></span>
+																	<span class="qa-c-item-who-title">FEniCS Novice</span>
+																	<span class="qa-c-item-who-points">
+																		<span class="qa-c-item-who-points-pad">(</span><span class="qa-c-item-who-points-data">300</span><span class="qa-c-item-who-points-pad"> points)</span>
+																	</span>
+																</span>
+															</span>
+														</span>
+														<div class="qa-c-item-buttons">
+														</div>
+													</div>
+													<div class="qa-c-item-clear">
+													</div>
+												</div> <!-- END qa-c-item -->
+											</div> <!-- END qa-c-list -->
+											
+											<input type="hidden" name="code" value="0-1516468246-bd1fd5782ebefcba55a83877d1edb61b2a9f6a9a">
+											<input type="hidden" name="qa_click" value="">
+										</form>
+										<div class="qa-c-form">
+										</div> <!-- END qa-c-form -->
+										
+									</div> <!-- END qa-a-item-main -->
+									<div class="qa-a-item-clear">
+									</div>
+								</div> <!-- END qa-a-list-item -->
+								
+								<div class="qa-a-list-item  hentry answer" id="a9952">
+									<form method="post" action="../../9936/problem-constraint-optimization-nonlinearvariationalsolver">
+										<div class="qa-voting qa-voting-net" id="voting_9952">
+											<div class="qa-vote-count qa-vote-count-net">
+												<span class="qa-netvote-count">
+													<span class="qa-netvote-count-data">0<span class="votes-up"><span class="value-title" title="0"></span></span><span class="votes-down"><span class="value-title" title="0"></span></span></span><span class="qa-netvote-count-pad"> votes</span>
+												</span>
+											</div>
+											<div class="qa-vote-clear">
+											</div>
+										</div>
+										<input type="hidden" name="code" value="0-1516468246-214d311b4d185c0dcee8bcf51806fde5bff7c383">
+									</form>
+									<div class="qa-a-item-main">
+										<form method="post" action="../../9936/problem-constraint-optimization-nonlinearvariationalsolver">
+											<div class="qa-a-selection">
+											</div>
+											<div class="qa-a-item-content">
+												<a name="9952"></a><div class="entry-content"><p>You should use FunctionAssigner. </p>
+</div>
+											</div>
+											<span class="qa-a-item-avatar-meta">
+												<span class="qa-a-item-meta">
+													<a href="../../9936/problem-constraint-optimization-nonlinearvariationalsolver?show=9952#a9952" class="qa-a-item-what">answered</a>
+													<span class="qa-a-item-when">
+														<span class="qa-a-item-when-data"><span class="published"><span class="value-title" title="2016-04-25T19:31:15+0000"></span>Apr 25, 2016</span></span>
+													</span>
+													<span class="qa-a-item-who">
+														<span class="qa-a-item-who-pad">by </span>
+														<span class="qa-a-item-who-data"><span class="vcard author"><a href="../../user/Kent-Andre+Mardal" class="qa-user-link url nickname">Kent-Andre Mardal</a></span></span>
+														<span class="qa-a-item-who-title">FEniCS Expert</span>
+														<span class="qa-a-item-who-points">
+															<span class="qa-a-item-who-points-pad">(</span><span class="qa-a-item-who-points-data">14,380</span><span class="qa-a-item-who-points-pad"> points)</span>
+														</span>
+													</span>
+												</span>
+											</span>
+											<div class="qa-a-item-buttons">
+												</div>
+											
+											<div class="qa-a-item-c-list" style="display:none;" id="c9952_list">
+											</div> <!-- END qa-c-list -->
+											
+											<input type="hidden" name="code" value="0-1516468246-88dd1919233162bacb24926b868ba70416c419ad">
+											<input type="hidden" name="qa_click" value="">
+										</form>
+										<div class="qa-c-form">
+										</div> <!-- END qa-c-form -->
+										
+									</div> <!-- END qa-a-item-main -->
+									<div class="qa-a-item-clear">
+									</div>
+								</div> <!-- END qa-a-list-item -->
+								
+							</div> <!-- END qa-a-list -->
+							
+						</div>
+					</div> <!-- END qa-main -->
+					
+				</div> <!-- END main-wrapper -->
+			</div> <!-- END main-shadow -->
+		</div> <!-- END body-wrapper -->
+		<!-- END footer-bottom-group -->
+		
+		<div style="position:absolute; left:-9999px; top:-9999px;">
+			<span id="qa-waiting-template" class="qa-waiting">...</span>
+		</div>
+	
+	
+
+</body><!-- Powered by Question2Answer - http://www.question2answer.org/ --></html>

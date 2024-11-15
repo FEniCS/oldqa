@@ -1,0 +1,373 @@
+<html><!-- Powered by Question2Answer - http://www.question2answer.org/ --><head>
+		<meta http-equiv="content-type" content="text/html; charset=utf-8">
+		<title>Suggestions for increasing the accuracy of assemble(), or a different approach for integration - FEniCS Q&amp;A</title>
+		<meta name="description" content='I am trying to find a way to integrate a second order expression with "sufficient" accuracy using ...  int2=-8.26801403224e-05 int3=5.02225121338e-05'>
+		<meta name="keywords" content="assemble,accuracy">
+		<link rel="stylesheet" type="text/css" href="../../qa-theme/Snow/qa-styles.css">
+		<link rel="canonical" href="http://fenicsproject.org/qa/12499/suggestions-increasing-assemble-different-approach-integration">
+		<script type="text/x-mathjax-config">
+  MathJax.Hub.Config({
+    extensions: ["tex2jax.js"],
+    jax: ["input/TeX","output/HTML-CSS"],
+    tex2jax: {inlineMath: [["$","$"],["\\(","\\)"]]},
+    TeX: { extensions: ["AMSmath.js","AMSsymbols.js"]}
+  });
+</script>
+<script type="text/javascript" src="../../mathjax/MathJax.js"></script>
+		<script src="../../jquery-1.7.2.min.js" type="text/javascript"></script>
+		<script src="../../highlight.min.js"></script>
+<script type="text/javascript">
+$(function(){
+	$('.wmd-input').keypress(function(){
+		window.clearTimeout(hljs.Timeout);
+		hljs.Timeout = window.setTimeout(function() {
+			hljs.initHighlighting.called = false;
+			hljs.initHighlighting();
+		}, 500);
+	});
+	window.setTimeout(function() {
+		hljs.initHighlighting.called = false;
+		hljs.initHighlighting();
+	}, 500);
+});
+</script>
+
+
+	</head>
+	<body class="qa-template-question qa-body-js-off">
+		<div class="qa-body-wrapper">
+			
+			<div class="qa-header">
+				<div class="qa-logo">
+					<a href="../../" class="qa-logo-link" title="FEniCS Q&amp;A"><img src="../../qa-theme/fenics_qa.png" border="0" alt="FEniCS Q&amp;A"></a>
+				</div>
+				<div class="qa-header-clear">
+				</div>
+			</div> <!-- END qa-header -->
+			
+			<div class="qa-main-shadow">
+				
+				<div class="qa-main-wrapper">
+					
+					<div class="qa-sidepanel">
+						<div class="qa-sidebar">
+							This is a read only copy of the old FEniCS QA forum. Please visit the <a href="https://www.allanswered.com/community/s/fenics-project/">new QA forum</a> to ask questions
+						</div>
+						
+					</div>
+					
+					<div class="qa-main">
+						<h1>
+							<span class="entry-title">Suggestions for increasing the accuracy of assemble(), or a different approach for integration</span>
+						</h1>
+						<div class="qa-part-q-view">
+							<div class="qa-q-view  hentry question" id="q12499">
+								<form method="post" action="../../12499/suggestions-increasing-assemble-different-approach-integration">
+									<div class="qa-q-view-stats">
+										<div class="qa-voting qa-voting-net" id="voting_12499">
+											<div class="qa-vote-count qa-vote-count-net">
+												<span class="qa-netvote-count">
+													<span class="qa-netvote-count-data">+1<span class="votes-up"><span class="value-title" title="1"></span></span><span class="votes-down"><span class="value-title" title="0"></span></span></span><span class="qa-netvote-count-pad"> vote</span>
+												</span>
+											</div>
+											<div class="qa-vote-clear">
+											</div>
+										</div>
+									</div>
+									<input type="hidden" name="code" value="0-1516467826-f21400688dae8a83b75f067de942aa626017dc4e">
+								</form>
+								<div class="qa-q-view-main">
+									<form method="post" action="../../12499/suggestions-increasing-assemble-different-approach-integration">
+										<div class="qa-q-view-content">
+											<a name="12499"></a><div class="entry-content"><p>I am trying to find a way to integrate a second order expression with "sufficient" accuracy using assemble().  The simplified working examples below demonstrate the issue I am having.  I would have expected an answer much closer to zero (I was hopping for something less than 1e-6).  As shown below, the situation improves when refining the mesh, but I am perplexed by the odd way it improves.   I am new to FENICS, and would very much appreciate any insight on how to address this (I have been unsuccessful finding it elsewhere).</p>
+
+<pre><code>from __future__ import print_function
+from __future__ import division
+from dolfin import *
+import mshr as ms
+import numpy as np
+
+seg = 100
+circle = ms.Circle(Point(0,0), 1, seg)
+mesh = ms.generate_mesh(circle, seg/3.14)
+
+dx = Measure('dx', domain=mesh)
+
+expr = Expression('2*(x[0]*x[0] + x[1]*x[1]) - 1', degree=2)
+
+int1 = assemble(expr*dx)
+
+V = FunctionSpace(mesh, "CG", 2)
+expr_i = interpolate(expr, V)
+int2 = assemble(expr_i*dx)
+
+V = FunctionSpace(mesh, "CG", 1)
+expr_i = interpolate(expr, V)
+int3 = assemble(expr_i*dx)
+
+print('int1={} int2={} int3={}'.format(int1, int2, int3))
+</code></pre>
+
+<p>Result:<br>
+int1=-0.00206504578602 int2=-0.00206504578602 int3=0.00127584823819</p>
+
+<p>Below I just refine the mesh by changing by increasing seg from 100 to 400</p>
+
+<pre><code>seg = 400
+circle = ms.Circle(Point(0,0), 1, seg)
+mesh = ms.generate_mesh(circle,seg/3.14)
+
+dx = Measure('dx', domain=mesh)
+
+expr = Expression('2*(x[0]*x[0] + x[1]*x[1]) - 1', degree=2)
+
+int1 = assemble(expr*dx)
+
+V = FunctionSpace(mesh, "CG", 2)
+expr_i = interpolate(expr, V)
+int2 = assemble(expr_i*dx)
+
+V = FunctionSpace(mesh, "CG", 1)
+expr_i = interpolate(expr, V)
+int3 = assemble(expr_i*dx)
+
+print('int1={} int2={} int3={}'.format(int1, int2, int3))
+</code></pre>
+
+<p>Result:<br>
+int1=-0.000129184850435 int2=-0.000129184850435 int3=7.73547968041e-05</p>
+
+<p>With seg = 500 I get:<br>
+int1=-0.000129184850435 int2=-8.26801403224e-05 int3=5.02225121338e-05</p>
+</div>
+										</div>
+										<div class="qa-q-view-tags">
+											<ul class="qa-q-view-tag-list">
+												<li class="qa-q-view-tag-item"><a href="../../tag/assemble" rel="tag" class="qa-tag-link">assemble</a></li>
+												<li class="qa-q-view-tag-item"><a href="../../tag/accuracy" rel="tag" class="qa-tag-link">accuracy</a></li>
+											</ul>
+										</div>
+										<span class="qa-q-view-avatar-meta">
+											<span class="qa-q-view-meta">
+												<a href="../../12499/suggestions-increasing-assemble-different-approach-integration" class="qa-q-view-what">asked</a>
+												<span class="qa-q-view-when">
+													<span class="qa-q-view-when-data"><span class="published"><span class="value-title" title="2017-02-23T13:47:03+0000"></span>Feb 23, 2017</span></span>
+												</span>
+												<span class="qa-q-view-who">
+													<span class="qa-q-view-who-pad">by </span>
+													<span class="qa-q-view-who-data"><span class="vcard author"><a href="../../user/Barty" class="qa-user-link url nickname">Barty</a></span></span>
+													<span class="qa-q-view-who-title">FEniCS Novice</span>
+													<span class="qa-q-view-who-points">
+														<span class="qa-q-view-who-points-pad">(</span><span class="qa-q-view-who-points-data">160</span><span class="qa-q-view-who-points-pad"> points)</span>
+													</span>
+												</span>
+											</span>
+										</span>
+										<div class="qa-q-view-buttons">
+										</div>
+										
+										<div class="qa-q-view-c-list" style="display:none;" id="c12499_list">
+										</div> <!-- END qa-c-list -->
+										
+										<input type="hidden" name="code" value="0-1516467826-63a0c3996d4420831fbd40b8ced63a26d7fdd1ea">
+										<input type="hidden" name="qa_click" value="">
+									</form>
+									<div class="qa-c-form">
+									</div> <!-- END qa-c-form -->
+									
+								</div> <!-- END qa-q-view-main -->
+								<div class="qa-q-view-clear">
+								</div>
+							</div> <!-- END qa-q-view -->
+							
+						</div>
+						<div class="qa-part-a-list">
+							<h2 id="a_list_title">1 Answer</h2>
+							<div class="qa-a-list" id="a_list">
+								
+								<div class="qa-a-list-item  hentry answer" id="a12507">
+									<form method="post" action="../../12499/suggestions-increasing-assemble-different-approach-integration">
+										<div class="qa-voting qa-voting-net" id="voting_12507">
+											<div class="qa-vote-count qa-vote-count-net">
+												<span class="qa-netvote-count">
+													<span class="qa-netvote-count-data">+5<span class="votes-up"><span class="value-title" title="5"></span></span><span class="votes-down"><span class="value-title" title="0"></span></span></span><span class="qa-netvote-count-pad"> votes</span>
+												</span>
+											</div>
+											<div class="qa-vote-clear">
+											</div>
+										</div>
+										<input type="hidden" name="code" value="0-1516467826-f21400688dae8a83b75f067de942aa626017dc4e">
+									</form>
+									<div class="qa-a-item-main">
+										<form method="post" action="../../12499/suggestions-increasing-assemble-different-approach-integration">
+											<div class="qa-a-selection">
+											</div>
+											<div class="qa-a-item-content">
+												<a name="12507"></a><div class="entry-content"><p>The slow rates of convergence you see are arising due to committing the variational crime that your computation domain is not an exact representation of the geometry. I.e. $$\Omega_h \neq \Omega.$$</p>
+
+<p>FEniCS has some support for curved elements with quadratic boundary representation.</p>
+
+<p>Consider the following:</p>
+
+<pre><code>from dolfin import *
+import mshr as ms
+import numpy as np
+
+np.set_printoptions(3)
+
+n = 5
+boundary_face_order = 2
+
+p1_err = np.zeros(n)
+p2_err = np.zeros(n)
+p3_err = np.zeros(n)
+h = np.zeros(n)
+
+for j in range(n):
+  mesh = UnitDiscMesh(mpi_comm_world(), 2**(j+1), boundary_face_order, 2)
+
+  expr = Expression('2*(x[0]*x[0] + x[1]*x[1]) - 1', degree=5)
+
+  V1 = FunctionSpace(mesh, "CG", 1)
+  p1_err[j] = abs(assemble(interpolate(expr, V1)*dx))
+
+  V2 = FunctionSpace(mesh, "CG", 2)
+  p2_err[j] = abs(assemble(interpolate(expr, V2)*dx))
+
+  V3 = FunctionSpace(mesh, "CG", 3)
+  p3_err[j] = abs(assemble(interpolate(expr, V3)*dx))
+
+  h[j] = mesh.hmax()
+
+print "P1 error"
+print p1_err
+print "P1 rate of convergence"
+print np.log(p1_err[1:]/p1_err[:-1])/np.log(h[1:]/h[:-1])
+
+print "P2 error"
+print p2_err
+print "P2 rate of convergence"
+print np.log(p2_err[1:]/p2_err[:-1])/np.log(h[1:]/h[:-1])
+
+print "P3 error"
+print p3_err
+print "P3 rate of convergence"
+print np.log(p3_err[1:]/p3_err[:-1])/np.log(h[1:]/h[:-1])
+</code></pre>
+
+<p>You should observe the following output when <code>boundary_face_order = 1</code></p>
+
+<pre><code>P1 error
+[ 0.317  0.087  0.022  0.006  0.001]
+P1 rate of convergence
+[ 2.132  2.078  2.042  2.022]
+P2 error
+[ 0.134  0.035  0.009  0.002  0.001]
+P2 rate of convergence
+[ 2.192  2.094  2.047  2.023]
+P3 error
+[ 0.134  0.035  0.009  0.002  0.001]
+P3 rate of convergence
+[ 2.192  2.094  2.047  2.023]
+</code></pre>
+
+<p>and the following when <code>boundary_face_order = 2</code></p>
+
+<pre><code>P1 error
+[ 0.388  0.112  0.03   0.008  0.002]
+P1 rate of convergence
+[ 2.041  2.021  2.011  2.006]
+P2 error
+[  6.720e-02   8.764e-03   1.111e-03   1.396e-04   1.749e-05]
+P2 rate of convergence
+[ 3.345  3.149  3.07   3.034]
+P3 error
+[  6.724e-02   8.768e-03   1.111e-03   1.396e-04   1.749e-05]
+P3 rate of convergence
+[ 3.346  3.149  3.07   3.034]
+</code></pre>
+
+<p>You can see that you will only have optimal convergence in your FEM scheme if the order of the boundary representation is equal to the polynomial order of the approximation space. This is a well known result in FEM theory.</p>
+</div>
+											</div>
+											<span class="qa-a-item-avatar-meta">
+												<span class="qa-a-item-avatar">
+													<a href="../../user/nate" class="qa-avatar-link"><img src="../../?qa=image&amp;qa_blobid=969593914916706065&amp;qa_size=40" width="40" height="40" class="qa-avatar-image" alt=""></a>
+												</span>
+												<span class="qa-a-item-meta">
+													<a href="../../12499/suggestions-increasing-assemble-different-approach-integration?show=12507#a12507" class="qa-a-item-what">answered</a>
+													<span class="qa-a-item-when">
+														<span class="qa-a-item-when-data"><span class="published"><span class="value-title" title="2017-02-23T17:03:45+0000"></span>Feb 23, 2017</span></span>
+													</span>
+													<span class="qa-a-item-who">
+														<span class="qa-a-item-who-pad">by </span>
+														<span class="qa-a-item-who-data"><span class="vcard author"><a href="../../user/nate" class="qa-user-link url nickname">nate</a></span></span>
+														<span class="qa-a-item-who-title">FEniCS Expert</span>
+														<span class="qa-a-item-who-points">
+															<span class="qa-a-item-who-points-pad">(</span><span class="qa-a-item-who-points-data">17,050</span><span class="qa-a-item-who-points-pad"> points)</span>
+														</span>
+													</span>
+												</span>
+											</span>
+											<div class="qa-a-item-buttons">
+												</div>
+											
+											<div class="qa-a-item-c-list" id="c12507_list">
+												<div class="qa-c-list-item  hentry comment" id="c12509">
+													<div class="qa-c-item-content">
+														<a name="12509"></a><div class="entry-content"><p>Very helpful.  Thank you.</p>
+</div>
+													</div>
+													<div class="qa-c-item-footer">
+														<span class="qa-c-item-avatar-meta">
+															<span class="qa-c-item-meta">
+																<a href="../../12499/suggestions-increasing-assemble-different-approach-integration?show=12509#c12509" class="qa-c-item-what">commented</a>
+																<span class="qa-c-item-when">
+																	<span class="qa-c-item-when-data"><span class="published"><span class="value-title" title="2017-02-23T19:00:12+0000"></span>Feb 23, 2017</span></span>
+																</span>
+																<span class="qa-c-item-who">
+																	<span class="qa-c-item-who-pad">by </span>
+																	<span class="qa-c-item-who-data"><span class="vcard author"><a href="../../user/Barty" class="qa-user-link url nickname">Barty</a></span></span>
+																	<span class="qa-c-item-who-title">FEniCS Novice</span>
+																	<span class="qa-c-item-who-points">
+																		<span class="qa-c-item-who-points-pad">(</span><span class="qa-c-item-who-points-data">160</span><span class="qa-c-item-who-points-pad"> points)</span>
+																	</span>
+																</span>
+															</span>
+														</span>
+														<div class="qa-c-item-buttons">
+														</div>
+													</div>
+													<div class="qa-c-item-clear">
+													</div>
+												</div> <!-- END qa-c-item -->
+											</div> <!-- END qa-c-list -->
+											
+											<input type="hidden" name="code" value="0-1516467826-b2ac38845efd57d7ffe4f93972dfcbc35e3feec1">
+											<input type="hidden" name="qa_click" value="">
+										</form>
+										<div class="qa-c-form">
+										</div> <!-- END qa-c-form -->
+										
+									</div> <!-- END qa-a-item-main -->
+									<div class="qa-a-item-clear">
+									</div>
+								</div> <!-- END qa-a-list-item -->
+								
+							</div> <!-- END qa-a-list -->
+							
+						</div>
+					</div> <!-- END qa-main -->
+					
+				</div> <!-- END main-wrapper -->
+			</div> <!-- END main-shadow -->
+		</div> <!-- END body-wrapper -->
+		<!-- END footer-bottom-group -->
+		
+		<div style="position:absolute; left:-9999px; top:-9999px;">
+			<span id="qa-waiting-template" class="qa-waiting">...</span>
+		</div>
+	
+	
+
+</body><!-- Powered by Question2Answer - http://www.question2answer.org/ --></html>

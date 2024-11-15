@@ -1,0 +1,317 @@
+<html><!-- Powered by Question2Answer - http://www.question2answer.org/ --><head>
+		<meta http-equiv="content-type" content="text/html; charset=utf-8">
+		<title>Expression degree and quadrature rules - FEniCS Q&amp;A</title>
+		<meta name="description" content="I'm trying to understand what happens when we specify the flag `degree` in an `Expression`. In  ... quotient)/np.log(2) print &quot;rate: &quot;, rateh1">
+		<meta name="keywords" content="quadrature,expression,convergence">
+		<link rel="stylesheet" type="text/css" href="../../qa-theme/Snow/qa-styles.css">
+		<link rel="canonical" href="http://fenicsproject.org/qa/10991/expression-degree-and-quadrature-rules">
+		<script type="text/x-mathjax-config">
+  MathJax.Hub.Config({
+    extensions: ["tex2jax.js"],
+    jax: ["input/TeX","output/HTML-CSS"],
+    tex2jax: {inlineMath: [["$","$"],["\\(","\\)"]]},
+    TeX: { extensions: ["AMSmath.js","AMSsymbols.js"]}
+  });
+</script>
+<script type="text/javascript" src="../../mathjax/MathJax.js"></script>
+		<script src="../../jquery-1.7.2.min.js" type="text/javascript"></script>
+		<script src="../../highlight.min.js"></script>
+<script type="text/javascript">
+$(function(){
+	$('.wmd-input').keypress(function(){
+		window.clearTimeout(hljs.Timeout);
+		hljs.Timeout = window.setTimeout(function() {
+			hljs.initHighlighting.called = false;
+			hljs.initHighlighting();
+		}, 500);
+	});
+	window.setTimeout(function() {
+		hljs.initHighlighting.called = false;
+		hljs.initHighlighting();
+	}, 500);
+});
+</script>
+
+
+	</head>
+	<body class="qa-template-question qa-body-js-off">
+		<div class="qa-body-wrapper">
+			
+			<div class="qa-header">
+				<div class="qa-logo">
+					<a href="../../" class="qa-logo-link" title="FEniCS Q&amp;A"><img src="../../qa-theme/fenics_qa.png" border="0" alt="FEniCS Q&amp;A"></a>
+				</div>
+				<div class="qa-header-clear">
+				</div>
+			</div> <!-- END qa-header -->
+			
+			<div class="qa-main-shadow">
+				
+				<div class="qa-main-wrapper">
+					
+					<div class="qa-sidepanel">
+						<div class="qa-sidebar">
+							This is a read only copy of the old FEniCS QA forum. Please visit the <a href="https://www.allanswered.com/community/s/fenics-project/">new QA forum</a> to ask questions
+						</div>
+						
+					</div>
+					
+					<div class="qa-main">
+						<h1>
+							<span class="entry-title">Expression degree and quadrature rules</span>
+						</h1>
+						<div class="qa-part-q-view">
+							<div class="qa-q-view  hentry question" id="q10991">
+								<form method="post" action="../../10991/expression-degree-and-quadrature-rules">
+									<div class="qa-q-view-stats">
+										<div class="qa-voting qa-voting-net" id="voting_10991">
+											<div class="qa-vote-count qa-vote-count-net">
+												<span class="qa-netvote-count">
+													<span class="qa-netvote-count-data">+2<span class="votes-up"><span class="value-title" title="2"></span></span><span class="votes-down"><span class="value-title" title="0"></span></span></span><span class="qa-netvote-count-pad"> votes</span>
+												</span>
+											</div>
+											<div class="qa-vote-clear">
+											</div>
+										</div>
+									</div>
+									<input type="hidden" name="code" value="0-1516467087-8641a1716adc760299c63fb0d40ce079ea6e713b">
+								</form>
+								<div class="qa-q-view-main">
+									<form method="post" action="../../10991/expression-degree-and-quadrature-rules">
+										<div class="qa-q-view-content">
+											<a name="10991"></a><div class="entry-content"><p>I'm trying to understand what happens when we specify the flag <code>degree</code><br>
+in an <code>Expression</code>. In particular, I'd like to understand what impact it has<br>
+on convergence and how to interpret it in terms of quadrature rules.</p>
+
+<p>For this purpose, I've experimented with the following code, which<br>
+estimates FE convergence in $H^1$. When constructing the expression of <code>rhs</code>,<br>
+it is sufficient to set its <code>degree</code> to be $\geq 2$ to maintain cubic convergence.<br>
+On the other hand, the order of convergence decreases to 2 when degree<br>
+is set it to 0 or 1.</p>
+
+<p><em>Bonus question</em>: how to manually impose the order of the quadrature rule to<br>
+be employed when assembling the stiffness matrix and the rhs in the variational<br>
+form?</p>
+
+<pre><code>from dolfin import *
+import numpy as np
+import sympy as sy
+from sympy.printing import ccode
+
+#build reference solution
+x_ = sy.Symbol('x[0]')
+y_ = sy.Symbol('x[1]')
+uref_ = sy.sin(x_ + 2*y_)
+rhs_ = - sy.diff(uref_, x_, x_) - sy.diff(uref_, y_, y_)
+
+uref = Expression(ccode(uref_), degree=10)
+rhs = Expression(ccode(rhs_), degree=10)
+
+err_h1 = []
+iMax = 4
+nElem = [20*2**ii for ii in range(iMax)]
+for N in nElem:
+    mesh = UnitSquareMesh(N, N)
+
+    U = FunctionSpace(mesh, "CG", 3)
+
+    u = Function(U)
+    v = TestFunction(U)
+
+    F = inner(grad(v), grad(u))*dx - rhs*v*dx
+    bc = DirichletBC(U, uref, "on_boundary")
+    solve(F == 0, u, bc)
+    err_h1.append(errornorm(uref, u, 'H1'))
+
+print "H1 error: ", err_h1
+
+#estimate rate of convergence
+errh1 = np.array(err_h1) 
+quotient = errh1[:-1]/errh1[1:]
+rateh1 = np.log(quotient)/np.log(2)
+print "rate: ", rateh1
+</code></pre>
+</div>
+										</div>
+										<div class="qa-q-view-tags">
+											<ul class="qa-q-view-tag-list">
+												<li class="qa-q-view-tag-item"><a href="../../tag/quadrature" rel="tag" class="qa-tag-link">quadrature</a></li>
+												<li class="qa-q-view-tag-item"><a href="../../tag/expression" rel="tag" class="qa-tag-link">expression</a></li>
+												<li class="qa-q-view-tag-item"><a href="../../tag/convergence" rel="tag" class="qa-tag-link">convergence</a></li>
+											</ul>
+										</div>
+										<span class="qa-q-view-avatar-meta">
+											<span class="qa-q-view-meta">
+												<a href="../../10991/expression-degree-and-quadrature-rules" class="qa-q-view-what">asked</a>
+												<span class="qa-q-view-when">
+													<span class="qa-q-view-when-data"><span class="published"><span class="value-title" title="2016-08-26T09:18:47+0000"></span>Aug 26, 2016</span></span>
+												</span>
+												<span class="qa-q-view-who">
+													<span class="qa-q-view-who-pad">by </span>
+													<span class="qa-q-view-who-data"><span class="vcard author"><a href="../../user/aldapa" class="qa-user-link url nickname">aldapa</a></span></span>
+													<span class="qa-q-view-who-title">FEniCS Novice</span>
+													<span class="qa-q-view-who-points">
+														<span class="qa-q-view-who-points-pad">(</span><span class="qa-q-view-who-points-data">380</span><span class="qa-q-view-who-points-pad"> points)</span>
+													</span>
+												</span>
+											</span>
+										</span>
+										<div class="qa-q-view-buttons">
+										</div>
+										
+										<div class="qa-q-view-c-list" style="display:none;" id="c10991_list">
+										</div> <!-- END qa-c-list -->
+										
+										<input type="hidden" name="code" value="0-1516467087-dd06b1e1492220cfff91b562eea185252f534f47">
+										<input type="hidden" name="qa_click" value="">
+									</form>
+									<div class="qa-c-form">
+									</div> <!-- END qa-c-form -->
+									
+								</div> <!-- END qa-q-view-main -->
+								<div class="qa-q-view-clear">
+								</div>
+							</div> <!-- END qa-q-view -->
+							
+						</div>
+						<div class="qa-part-a-list">
+							<h2 id="a_list_title">1 Answer</h2>
+							<div class="qa-a-list" id="a_list">
+								
+								<div class="qa-a-list-item  hentry answer answer-selected qa-a-list-item-selected" id="a11017">
+									<form method="post" action="../../10991/expression-degree-and-quadrature-rules">
+										<div class="qa-voting qa-voting-net" id="voting_11017">
+											<div class="qa-vote-count qa-vote-count-net">
+												<span class="qa-netvote-count">
+													<span class="qa-netvote-count-data">+3<span class="votes-up"><span class="value-title" title="3"></span></span><span class="votes-down"><span class="value-title" title="0"></span></span></span><span class="qa-netvote-count-pad"> votes</span>
+												</span>
+											</div>
+											<div class="qa-vote-clear">
+											</div>
+										</div>
+										<input type="hidden" name="code" value="0-1516467087-8641a1716adc760299c63fb0d40ce079ea6e713b">
+									</form>
+									<div class="qa-a-item-main">
+										<form method="post" action="../../10991/expression-degree-and-quadrature-rules">
+											<div class="qa-a-item-selected">
+												<div class="qa-a-selection">
+													<div class="qa-a-selected">&#160;</div>
+													<div class="qa-a-selected-text">Best answer</div>
+												</div>
+												<div class="qa-a-item-content">
+													<a name="11017"></a><div class="entry-content"><p>An Expression will be interpolated into a finite element space before the quadrature is carried out. The degree argument to the Expression constructor is the degree of the FE space. Alternatively, you can specify the element, e.g.</p>
+
+<pre><code>P1 = FiniteElement("Lagrange", triangle, 1)
+f = Expression("sin(x[0])", element = P1)
+</code></pre>
+
+<p>The quadrature degree is by default automatically determined by dolfin, such that the quadrature is exact for highest order polynomial in the form being assembled. You can manually set the quadrature degree by passing additional arguments to assemble. For example, </p>
+
+<pre><code>A = assemble(form, form_compiler_options = {"quadrature_degree", 2})
+</code></pre>
+
+<p>Also note that if the Expression is replaced with a ufl function of the coordinates it will not be interpolated. For example, you can replace the code for your reference solution with the following.</p>
+
+<pre><code>x = SpatialCoordinate(mesh)
+uref = sin(x[0] + 2 * x[1])
+rhs = -div(grad(uref))
+</code></pre>
+</div>
+												</div>
+												<span class="qa-a-item-avatar-meta">
+													<span class="qa-a-item-meta">
+														<a href="../../10991/expression-degree-and-quadrature-rules?show=11017#a11017" class="qa-a-item-what">answered</a>
+														<span class="qa-a-item-when">
+															<span class="qa-a-item-when-data"><span class="published"><span class="value-title" title="2016-08-31T10:59:13+0000"></span>Aug 31, 2016</span></span>
+														</span>
+														<span class="qa-a-item-who">
+															<span class="qa-a-item-who-pad">by </span>
+															<span class="qa-a-item-who-data"><span class="vcard author"><a href="../../user/Magne+Nordaas" class="qa-user-link url nickname">Magne Nordaas</a></span></span>
+															<span class="qa-a-item-who-title">FEniCS Expert</span>
+															<span class="qa-a-item-who-points">
+																<span class="qa-a-item-who-points-pad">(</span><span class="qa-a-item-who-points-data">13,820</span><span class="qa-a-item-who-points-pad"> points)</span>
+															</span>
+														</span>
+														<br>
+														<span class="qa-a-item-what">selected</span>
+														<span class="qa-a-item-when">
+															<span class="qa-a-item-when-data"><span class="updated"><span class="value-title" title="2016-09-01T08:35:58+0000"></span>Sep 1, 2016</span></span>
+														</span>
+														<span class="qa-a-item-who">
+															<span class="qa-a-item-who-pad">by </span><span class="qa-a-item-who-data"><a href="../../user/aldapa" class="qa-user-link url nickname">aldapa</a></span>
+														</span>
+													</span>
+												</span>
+											</div>
+											<div class="qa-a-item-buttons">
+												</div>
+											
+											<div class="qa-a-item-c-list" id="c11017_list">
+												<div class="qa-c-list-item  hentry comment" id="c11109">
+													<div class="qa-c-item-content">
+														<a name="11109"></a><div class="entry-content"><p>I noticed that the name of the flag should probably be</p>
+
+<pre><code>form_compiler_parameters
+</code></pre>
+
+<p>and the syntax should be</p>
+
+<pre><code>form_compiler_parameters = {"quadrature_degree": 2}
+</code></pre>
+
+<p>Thank you once again</p>
+</div>
+													</div>
+													<div class="qa-c-item-footer">
+														<span class="qa-c-item-avatar-meta">
+															<span class="qa-c-item-meta">
+																<a href="../../10991/expression-degree-and-quadrature-rules?show=11109#c11109" class="qa-c-item-what">commented</a>
+																<span class="qa-c-item-when">
+																	<span class="qa-c-item-when-data"><span class="published"><span class="value-title" title="2016-09-12T10:10:01+0000"></span>Sep 12, 2016</span></span>
+																</span>
+																<span class="qa-c-item-who">
+																	<span class="qa-c-item-who-pad">by </span>
+																	<span class="qa-c-item-who-data"><span class="vcard author"><a href="../../user/aldapa" class="qa-user-link url nickname">aldapa</a></span></span>
+																	<span class="qa-c-item-who-title">FEniCS Novice</span>
+																	<span class="qa-c-item-who-points">
+																		<span class="qa-c-item-who-points-pad">(</span><span class="qa-c-item-who-points-data">380</span><span class="qa-c-item-who-points-pad"> points)</span>
+																	</span>
+																</span>
+															</span>
+														</span>
+														<div class="qa-c-item-buttons">
+														</div>
+													</div>
+													<div class="qa-c-item-clear">
+													</div>
+												</div> <!-- END qa-c-item -->
+											</div> <!-- END qa-c-list -->
+											
+											<input type="hidden" name="code" value="0-1516467087-ca40132b0e3415fee29ab09d772e24b725072899">
+											<input type="hidden" name="qa_click" value="">
+										</form>
+										<div class="qa-c-form">
+										</div> <!-- END qa-c-form -->
+										
+									</div> <!-- END qa-a-item-main -->
+									<div class="qa-a-item-clear">
+									</div>
+								</div> <!-- END qa-a-list-item -->
+								
+							</div> <!-- END qa-a-list -->
+							
+						</div>
+					</div> <!-- END qa-main -->
+					
+				</div> <!-- END main-wrapper -->
+			</div> <!-- END main-shadow -->
+		</div> <!-- END body-wrapper -->
+		<!-- END footer-bottom-group -->
+		
+		<div style="position:absolute; left:-9999px; top:-9999px;">
+			<span id="qa-waiting-template" class="qa-waiting">...</span>
+		</div>
+	
+	
+
+</body><!-- Powered by Question2Answer - http://www.question2answer.org/ --></html>

@@ -1,0 +1,397 @@
+<html><!-- Powered by Question2Answer - http://www.question2answer.org/ --><head>
+		<meta http-equiv="content-type" content="text/html; charset=utf-8">
+		<title>Unexpected solution to incomp. Navier-Stokes - FEniCS Q&amp;A</title>
+		<meta name="description" content="Hi, I have a simple problem. Im trying to solve a standard incomp. fluid flow governed by Navier-Stokes equations. The ...  =2.0 and x[0]=2.0 and x[0]">
+		<meta name="keywords" content="navier-stokes">
+		<link rel="stylesheet" type="text/css" href="../../qa-theme/Snow/qa-styles.css">
+		<link rel="canonical" href="http://fenicsproject.org/qa/7383/unexpected-solution-to-incomp-navier-stokes">
+		<script type="text/x-mathjax-config">
+  MathJax.Hub.Config({
+    extensions: ["tex2jax.js"],
+    jax: ["input/TeX","output/HTML-CSS"],
+    tex2jax: {inlineMath: [["$","$"],["\\(","\\)"]]},
+    TeX: { extensions: ["AMSmath.js","AMSsymbols.js"]}
+  });
+</script>
+<script type="text/javascript" src="../../mathjax/MathJax.js"></script>
+		<script src="../../jquery-1.7.2.min.js" type="text/javascript"></script>
+		<script src="../../highlight.min.js"></script>
+<script type="text/javascript">
+$(function(){
+	$('.wmd-input').keypress(function(){
+		window.clearTimeout(hljs.Timeout);
+		hljs.Timeout = window.setTimeout(function() {
+			hljs.initHighlighting.called = false;
+			hljs.initHighlighting();
+		}, 500);
+	});
+	window.setTimeout(function() {
+		hljs.initHighlighting.called = false;
+		hljs.initHighlighting();
+	}, 500);
+});
+</script>
+
+
+	</head>
+	<body class="qa-template-question qa-body-js-off">
+		<div class="qa-body-wrapper">
+			
+			<div class="qa-header">
+				<div class="qa-logo">
+					<a href="../../" class="qa-logo-link" title="FEniCS Q&amp;A"><img src="../../qa-theme/fenics_qa.png" border="0" alt="FEniCS Q&amp;A"></a>
+				</div>
+				<div class="qa-header-clear">
+				</div>
+			</div> <!-- END qa-header -->
+			
+			<div class="qa-main-shadow">
+				
+				<div class="qa-main-wrapper">
+					
+					<div class="qa-sidepanel">
+						<div class="qa-sidebar">
+							This is a read only copy of the old FEniCS QA forum. Please visit the <a href="https://www.allanswered.com/community/s/fenics-project/">new QA forum</a> to ask questions
+						</div>
+						
+					</div>
+					
+					<div class="qa-main">
+						<h1>
+							<span class="entry-title">Unexpected solution to incomp. Navier-Stokes</span>
+						</h1>
+						<div class="qa-part-q-view">
+							<div class="qa-q-view  hentry question" id="q7383">
+								<form method="post" action="../../7383/unexpected-solution-to-incomp-navier-stokes">
+									<div class="qa-q-view-stats">
+										<div class="qa-voting qa-voting-net" id="voting_7383">
+											<div class="qa-vote-count qa-vote-count-net">
+												<span class="qa-netvote-count">
+													<span class="qa-netvote-count-data">0<span class="votes-up"><span class="value-title" title="0"></span></span><span class="votes-down"><span class="value-title" title="0"></span></span></span><span class="qa-netvote-count-pad"> votes</span>
+												</span>
+											</div>
+											<div class="qa-vote-clear">
+											</div>
+										</div>
+									</div>
+									<input type="hidden" name="code" value="0-1516468117-2a6c07d40a9fb443882a786ece8be42b83570400">
+								</form>
+								<div class="qa-q-view-main">
+									<form method="post" action="../../7383/unexpected-solution-to-incomp-navier-stokes">
+										<div class="qa-q-view-content">
+											<a name="7383"></a><div class="entry-content"><p>Hi, I have a simple problem. Im trying to solve a standard incomp. fluid flow governed by Navier-Stokes equations. The DG method I have implemented gives me the right results on several examples. But in the following domain, just the zero solution is found. </p>
+
+<p>Here is the definition of domain and mesh, together with boundary description </p>
+
+<pre><code>from dolfin import *
+import mshr
+
+dim = 2
+
+
+# Define Domain
+###############
+
+SquareSize  = 5.0
+
+LeftDownCorner  = Point(2.48,1.0)
+RightTopCorner  = Point(2.52,4.0)
+
+def closeToMid(x):
+    dx = RightTopCorner[0] - x[0] 
+    dy = RightTopCorner[1] - x[1]
+    divX = RightTopCorner[0] - LeftDownCorner[0]
+    divY = RightTopCorner[1] - LeftDownCorner[1]
+    if ((dx &gt;= -DOLFIN_EPS and dx &lt;= divX+DOLFIN_EPS) and (dy &gt;= -DOLFIN_EPS and dy &lt;= divY+DOLFIN_EPS)):
+        return True
+    else:
+        return False
+
+def inlet(x):
+    if ( near(x[1],0.0) and ( (x[0]&gt;=2.0 and x[0]&lt;=3.0) ) ): 
+        return True
+    else:
+        return False
+
+def outlet(x):
+    if ( near(x[1],SquareSize) and (x[0]&gt;=2.0 and x[0]&lt;=3.0) ):
+        return True
+    else:
+        return False
+
+def noslip(x):
+    if (not outlet(x) and not inlet(x)) and ( near(x[0],0.0) or near(x[0],SquareSize) or near(x[1],0.0) or near(x[1],SquareSize) or closeToMid(x) ):
+        return True
+    else:
+        return False
+
+geometry =  mshr.Rectangle(Point(0.0,0.0), Point(SquareSize, SquareSize)) - mshr.Rectangle(LeftDownCorner,RightTopCorner)
+
+# Build mesh
+############
+mesh    = mshr.generate_mesh(geometry, 20)
+def onMid(x,bndry):
+    return bndry and closeToMid(x)
+
+def inletV(x,bndry):
+    return bndry and inlet(x)
+
+def outletV(x,bndry):
+    return bndry and outlet(x)
+
+def noslipV(x,bndry):
+    return bndry and noslip(x)
+
+# Boundary description
+######################
+bndry   = FacetFunction("size_t", mesh)
+
+for f in facets(mesh):
+     mp = f.midpoint()
+     if inlet(mp): bndry[f] = 1  # inflow
+     elif outlet(mp): bndry[f] = 2  # outflow
+     elif noslip(mp): bndry[f] = 3  # walls
+
+plot(bndry,interactive = True)
+</code></pre>
+
+<p>You can run the previous code to see how the domain, inlet, outlet and noslip look like. My hope is that just there is some problem. The result looks like the inlet condition is not fulfiled.</p>
+
+<p>The following is the rest of the code, where are among others defined DirichletBC's and the whole DG method. </p>
+
+<pre><code># Function spaces
+V = VectorFunctionSpace(mesh, 'DG', 2)
+Q = FunctionSpace(mesh, 'DG', 1)
+W = MixedFunctionSpace([V,Q])
+
+zeroD       = Expression(("0.0", "0.0"), t = 0.0)
+u_IN        = Expression(("0.0","100*(x[0]-2.0)*(3.0-x[0])"))
+
+bc_inV      = DirichletBC(W.sub(0), u_IN, inletV,'pointwise')
+bc_noslipV  = DirichletBC(W.sub(0), zeroD, noslipV, 'pointwise')
+
+bcs = [bc_inV, bc_noslipV]
+
+# Unknown and test functions
+w   = Function(W)
+(u, p)  = split(w)
+(v, q)  = TestFunctions(W)
+u_1 = Function(V) # velocity from previous time step
+
+u0  = Expression(("0.0", "0.0"))
+u_1.assign(interpolate(u0,V))
+
+# Problem parameters
+T_end   = 3.14
+dt  = 0.2
+t   = dt
+
+sigma   = 10.0
+mu  = 1.36*1.e-4
+
+# Variational formulation
+n   = FacetNormal(mesh)
+ds  = Measure("ds", subdomain_data = bndry)
+I   = Identity(u.geometric_dimension())
+D   = mu*(grad(u) + grad(u).T)
+F   = D
+def a(u,v):
+    M = inner(F,grad(v))*dx - inner(avg(F)*n('+'),jump(v))*dS 
+    return M
+
+def J(u,v):
+    M = sigma*inner(jump(u),jump(v))*dS
+    return M
+
+def b(p,v):
+    M = -p*div(v)*dx  + avg(p)*dot(jump(v),n('+'))*dS
+    return M
+
+def c(u,w,v):   
+    P = avg(dot(w,n))
+    H = conditional(P &lt; 0.0, dot(u('+'),w('+')), dot(u('-'),w('-')))
+    M = -0.5*inner(grad(v)*u,w)*dx + inner(0.5*H*n('+'),jump(v))*dS
+    return M
+
+
+T = (1/dt)*inner(u - u_1,v)*dx + a(u,v) + J(u,v) + b(p,v) + b(q,u) + c(u,u_1,v)
+
+# Solution
+t = dt
+
+plt = plot(u, mesh = mesh, mode="color", interactive = True, wireframe = False)
+pltP = plot(p, mesh = mesh, mode="color", interactive = True, wireframe = False)
+
+while t&lt;=T_end: 
+    solve(T==0,w,bcs)
+    (u,p) = w.split(True)
+    u_1.assign(u)       
+    t += float(dt)
+    plt.plot(u)
+    pltP.plot(p)
+</code></pre>
+
+<p>I'm sorry for such a long code, but in order to provide the whole information I kind of didn't want to cut it more. </p>
+
+<p>So, if you can please help me find the reason why the zero solution is computed, even though there is a nonzero inlet flow, I will be very thanhkfull.</p>
+</div>
+										</div>
+										<div class="qa-q-view-tags">
+											<ul class="qa-q-view-tag-list">
+												<li class="qa-q-view-tag-item"><a href="../../tag/navier-stokes" rel="tag" class="qa-tag-link">navier-stokes</a></li>
+											</ul>
+										</div>
+										<span class="qa-q-view-avatar-meta">
+											<span class="qa-q-view-meta">
+												<a href="../../7383/unexpected-solution-to-incomp-navier-stokes" class="qa-q-view-what">asked</a>
+												<span class="qa-q-view-when">
+													<span class="qa-q-view-when-data"><span class="published"><span class="value-title" title="2015-06-09T15:35:47+0000"></span>Jun 9, 2015</span></span>
+												</span>
+												<span class="qa-q-view-who">
+													<span class="qa-q-view-who-pad">by </span>
+													<span class="qa-q-view-who-data"><span class="vcard author"><a href="../../user/Ianx86" class="qa-user-link url nickname">Ianx86</a></span></span>
+													<span class="qa-q-view-who-title">FEniCS User</span>
+													<span class="qa-q-view-who-points">
+														<span class="qa-q-view-who-points-pad">(</span><span class="qa-q-view-who-points-data">1,050</span><span class="qa-q-view-who-points-pad"> points)</span>
+													</span>
+												</span>
+											</span>
+										</span>
+										<div class="qa-q-view-buttons">
+										</div>
+										
+										<div class="qa-q-view-c-list" style="display:none;" id="c7383_list">
+										</div> <!-- END qa-c-list -->
+										
+										<input type="hidden" name="code" value="0-1516468117-d6d818f0a5c4fc0de0de7a6a5af383cb239ebb50">
+										<input type="hidden" name="qa_click" value="">
+									</form>
+									<div class="qa-c-form">
+									</div> <!-- END qa-c-form -->
+									
+								</div> <!-- END qa-q-view-main -->
+								<div class="qa-q-view-clear">
+								</div>
+							</div> <!-- END qa-q-view -->
+							
+						</div>
+						<div class="qa-part-a-list">
+							<h2 id="a_list_title">1 Answer</h2>
+							<div class="qa-a-list" id="a_list">
+								
+								<div class="qa-a-list-item  hentry answer answer-selected qa-a-list-item-selected" id="a7384">
+									<form method="post" action="../../7383/unexpected-solution-to-incomp-navier-stokes">
+										<div class="qa-voting qa-voting-net" id="voting_7384">
+											<div class="qa-vote-count qa-vote-count-net">
+												<span class="qa-netvote-count">
+													<span class="qa-netvote-count-data">+1<span class="votes-up"><span class="value-title" title="1"></span></span><span class="votes-down"><span class="value-title" title="0"></span></span></span><span class="qa-netvote-count-pad"> vote</span>
+												</span>
+											</div>
+											<div class="qa-vote-clear">
+											</div>
+										</div>
+										<input type="hidden" name="code" value="0-1516468117-2a6c07d40a9fb443882a786ece8be42b83570400">
+									</form>
+									<div class="qa-a-item-main">
+										<form method="post" action="../../7383/unexpected-solution-to-incomp-navier-stokes">
+											<div class="qa-a-item-selected">
+												<div class="qa-a-selection">
+													<div class="qa-a-selected">&#160;</div>
+													<div class="qa-a-selected-text">Best answer</div>
+												</div>
+												<div class="qa-a-item-content">
+													<a name="7384"></a><div class="entry-content"><p>Hi,</p>
+
+<p>With pointwise boundary conditions the  "on_boundary" variable, or "bndry" as you call it, will allways be False. Try switching to "geometric" and see if that helps. Also see the docstring of DirichletBC.</p>
+</div>
+												</div>
+												<span class="qa-a-item-avatar-meta">
+													<span class="qa-a-item-avatar">
+														<a href="../../user/mikael-mortensen" class="qa-avatar-link"><img src="https://www.gravatar.com/avatar/d5614112a2818f1800a461e49ac229df?s=40" width="40" height="40" class="qa-avatar-image" alt=""></a>
+													</span>
+													<span class="qa-a-item-meta">
+														<a href="../../7383/unexpected-solution-to-incomp-navier-stokes?show=7384#a7384" class="qa-a-item-what">answered</a>
+														<span class="qa-a-item-when">
+															<span class="qa-a-item-when-data"><span class="published"><span class="value-title" title="2015-06-09T16:58:19+0000"></span>Jun 9, 2015</span></span>
+														</span>
+														<span class="qa-a-item-who">
+															<span class="qa-a-item-who-pad">by </span>
+															<span class="qa-a-item-who-data"><span class="vcard author"><a href="../../user/mikael-mortensen" class="qa-user-link url nickname">mikael-mortensen</a></span></span>
+															<span class="qa-a-item-who-title">FEniCS Expert</span>
+															<span class="qa-a-item-who-points">
+																<span class="qa-a-item-who-points-pad">(</span><span class="qa-a-item-who-points-data">29,340</span><span class="qa-a-item-who-points-pad"> points)</span>
+															</span>
+														</span>
+														<br>
+														<span class="qa-a-item-what">selected</span>
+														<span class="qa-a-item-when">
+															<span class="qa-a-item-when-data"><span class="updated"><span class="value-title" title="2015-06-09T17:36:52+0000"></span>Jun 9, 2015</span></span>
+														</span>
+														<span class="qa-a-item-who">
+															<span class="qa-a-item-who-pad">by </span><span class="qa-a-item-who-data"><a href="../../user/Ianx86" class="qa-user-link url nickname">Ianx86</a></span>
+														</span>
+													</span>
+												</span>
+											</div>
+											<div class="qa-a-item-buttons">
+												</div>
+											
+											<div class="qa-a-item-c-list" id="c7384_list">
+												<div class="qa-c-list-item  hentry comment" id="c7385">
+													<div class="qa-c-item-content">
+														<a name="7385"></a><div class="entry-content"><p>Thank you very much. That solves my problem and I will check closely DirichletBC to see the details.</p>
+</div>
+													</div>
+													<div class="qa-c-item-footer">
+														<span class="qa-c-item-avatar-meta">
+															<span class="qa-c-item-meta">
+																<a href="../../7383/unexpected-solution-to-incomp-navier-stokes?show=7385#c7385" class="qa-c-item-what">commented</a>
+																<span class="qa-c-item-when">
+																	<span class="qa-c-item-when-data"><span class="published"><span class="value-title" title="2015-06-09T17:38:01+0000"></span>Jun 9, 2015</span></span>
+																</span>
+																<span class="qa-c-item-who">
+																	<span class="qa-c-item-who-pad">by </span>
+																	<span class="qa-c-item-who-data"><span class="vcard author"><a href="../../user/Ianx86" class="qa-user-link url nickname">Ianx86</a></span></span>
+																	<span class="qa-c-item-who-title">FEniCS User</span>
+																	<span class="qa-c-item-who-points">
+																		<span class="qa-c-item-who-points-pad">(</span><span class="qa-c-item-who-points-data">1,050</span><span class="qa-c-item-who-points-pad"> points)</span>
+																	</span>
+																</span>
+															</span>
+														</span>
+														<div class="qa-c-item-buttons">
+														</div>
+													</div>
+													<div class="qa-c-item-clear">
+													</div>
+												</div> <!-- END qa-c-item -->
+											</div> <!-- END qa-c-list -->
+											
+											<input type="hidden" name="code" value="0-1516468117-dd928498430655f33785f81f93830a54a73cf2f3">
+											<input type="hidden" name="qa_click" value="">
+										</form>
+										<div class="qa-c-form">
+										</div> <!-- END qa-c-form -->
+										
+									</div> <!-- END qa-a-item-main -->
+									<div class="qa-a-item-clear">
+									</div>
+								</div> <!-- END qa-a-list-item -->
+								
+							</div> <!-- END qa-a-list -->
+							
+						</div>
+					</div> <!-- END qa-main -->
+					
+				</div> <!-- END main-wrapper -->
+			</div> <!-- END main-shadow -->
+		</div> <!-- END body-wrapper -->
+		<!-- END footer-bottom-group -->
+		
+		<div style="position:absolute; left:-9999px; top:-9999px;">
+			<span id="qa-waiting-template" class="qa-waiting">...</span>
+		</div>
+	
+	
+
+</body><!-- Powered by Question2Answer - http://www.question2answer.org/ --></html>

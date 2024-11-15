@@ -1,0 +1,342 @@
+<html><!-- Powered by Question2Answer - http://www.question2answer.org/ --><head>
+		<meta http-equiv="content-type" content="text/html; charset=utf-8">
+		<title>Help on SUPG method in the advection-diffusion demo - FEniCS Q&amp;A</title>
+		<meta name="description" content="Hi there, I'm studying the SUPG method in the [advection-diffusion demo](https://github. ... 17717296021 1.26275244823 1.0 1.32089652341 1.32089652341">
+		<meta name="keywords" content="supg,convection-diffusion,demo">
+		<link rel="stylesheet" type="text/css" href="../../qa-theme/Snow/qa-styles.css">
+		<link rel="canonical" href="http://fenicsproject.org/qa/6951/help-on-supg-method-in-the-advection-diffusion-demo">
+		<script type="text/x-mathjax-config">
+  MathJax.Hub.Config({
+    extensions: ["tex2jax.js"],
+    jax: ["input/TeX","output/HTML-CSS"],
+    tex2jax: {inlineMath: [["$","$"],["\\(","\\)"]]},
+    TeX: { extensions: ["AMSmath.js","AMSsymbols.js"]}
+  });
+</script>
+<script type="text/javascript" src="../../mathjax/MathJax.js"></script>
+		<script src="../../jquery-1.7.2.min.js" type="text/javascript"></script>
+		<script src="../../highlight.min.js"></script>
+<script type="text/javascript">
+$(function(){
+	$('.wmd-input').keypress(function(){
+		window.clearTimeout(hljs.Timeout);
+		hljs.Timeout = window.setTimeout(function() {
+			hljs.initHighlighting.called = false;
+			hljs.initHighlighting();
+		}, 500);
+	});
+	window.setTimeout(function() {
+		hljs.initHighlighting.called = false;
+		hljs.initHighlighting();
+	}, 500);
+});
+</script>
+
+
+	</head>
+	<body class="qa-template-question qa-body-js-off">
+		<div class="qa-body-wrapper">
+			
+			<div class="qa-header">
+				<div class="qa-logo">
+					<a href="../../" class="qa-logo-link" title="FEniCS Q&amp;A"><img src="../../qa-theme/fenics_qa.png" border="0" alt="FEniCS Q&amp;A"></a>
+				</div>
+				<div class="qa-header-clear">
+				</div>
+			</div> <!-- END qa-header -->
+			
+			<div class="qa-main-shadow">
+				
+				<div class="qa-main-wrapper">
+					
+					<div class="qa-sidepanel">
+						<div class="qa-sidebar">
+							This is a read only copy of the old FEniCS QA forum. Please visit the <a href="https://www.allanswered.com/community/s/fenics-project/">new QA forum</a> to ask questions
+						</div>
+						
+					</div>
+					
+					<div class="qa-main">
+						<h1>
+							<span class="entry-title">Help on SUPG method in the advection-diffusion demo</span>
+						</h1>
+						<div class="qa-part-q-view">
+							<div class="qa-q-view  hentry question" id="q6951">
+								<form method="post" action="../../6951/help-on-supg-method-in-the-advection-diffusion-demo">
+									<div class="qa-q-view-stats">
+										<div class="qa-voting qa-voting-net" id="voting_6951">
+											<div class="qa-vote-count qa-vote-count-net">
+												<span class="qa-netvote-count">
+													<span class="qa-netvote-count-data">+2<span class="votes-up"><span class="value-title" title="2"></span></span><span class="votes-down"><span class="value-title" title="0"></span></span></span><span class="qa-netvote-count-pad"> votes</span>
+												</span>
+											</div>
+											<div class="qa-vote-clear">
+											</div>
+										</div>
+									</div>
+									<input type="hidden" name="code" value="0-1516468095-c1273c23871ff71cc7c075a400ed3eed6063b91d">
+								</form>
+								<div class="qa-q-view-main">
+									<form method="post" action="../../6951/help-on-supg-method-in-the-advection-diffusion-demo">
+										<div class="qa-q-view-content">
+											<a name="6951"></a><div class="entry-content"><p>Hi there,</p>
+
+<p>I'm studying the SUPG method in the <a rel="nofollow" href="https://github.com/FEniCS/dolfin/blob/master/demo/undocumented/advection-diffusion/python/demo_advection-diffusion.py">advection-diffusion demo</a>, and tested a manufactured stationary  problem on a unit square mesh.<br>
+Basically, I kept the frame of the demo script, and did some modifications, like 1)defining a different velocity field, 2)changing boundary condition and source term as a manufactured problem, 3)reducing to a stationary problem. I used the same SUPG stabilization term as in the demo, and expected a good solution.<br>
+However, the calculated result is not consistent with the exact solution. I can't figure out which part goes wrong in my script. It will be great if you give me a clue.<br>
+A short working script is attached here.</p>
+
+<pre><code>'''
+Problem:
+    b*grad(u) - div(c*grad(u)) = f  in domain
+                             u = g  on boundary
+    where b = [1, 1], c = 1, f = cos(x[0]) + cos(x[1]) + sin(x[0]) + sin(x[1]), and g = 'sin(x[0]) + sin(x[1])'
+Exact solution;
+    u = sin(x[0]) + sin(x[1])
+'''
+from dolfin import *
+
+# Create mesh and function space
+mesh = UnitSquareMesh(100, 100)
+Q = FunctionSpace(mesh, "CG", 1)
+
+# Define velocity as vector
+velocity = as_vector([1.0, 1.0])
+
+c = 1.0
+
+# Test and trial functions
+u, v = TrialFunction(Q), TestFunction(Q)
+
+# Manufactured right hand side
+f = Expression('cos(x[0]) + cos(x[1]) + sin(x[0]) + sin(x[1])')
+
+# Residual
+r = dot(velocity, grad(u)) - c*div(grad(u)) - f
+
+# Galerkin variational problem
+F = v*dot(velocity, grad(u))*dx + c*dot(grad(v), grad(u))*dx
+
+# Add SUPG stabilisation terms
+vnorm = sqrt(dot(velocity, velocity))
+h = CellSize(mesh)
+delta = h/(2.0*vnorm)
+F += delta*dot(velocity, grad(v))*r*dx
+
+# Create bilinear and linear forms
+a = lhs(F)
+L = rhs(F)
+
+# Define boundary condition
+def u0_boundary(x, on_boundary):
+    return on_boundary
+U0_expression = Expression('sin(x[0]) + sin(x[1])')
+bc = DirichletBC(Q, U0_expression, u0_boundary)
+
+# Solve
+u = Function(Q)
+solve(a == L, u, bc)
+
+# Print out calcuated and exact solution
+u_exact = interpolate(U0_expression, Q)
+print 'x--', 'u------------ ', 'u_exact-------'
+for i in xrange(0, 11):
+    x = [0.5, i/10.0]
+    print i/10.0, u(x), u_exact(x)
+
+plot(u, interactive = True)
+</code></pre>
+
+<p>The calculated result and exact solution:<br>
+x--- u--------------------  u_exact-----------<br>
+0.0 0.479425538604 0.479425538604<br>
+0.1 0.513434804217 0.579258955251<br>
+0.2 0.561320051723 0.678094869399<br>
+0.3 0.620772943328 0.774945745266<br>
+0.4 0.689892906796 0.868843880913<br>
+0.5 0.767492771946 0.958851077208<br>
+0.6 0.853337272127 1.044068012<br>
+0.7 0.948370475345 1.12364322584<br>
+0.8 1.05496498288  1.1967816295<br>
+0.9 1.17717296021  1.26275244823<br>
+1.0 1.32089652341  1.32089652341</p>
+</div>
+										</div>
+										<div class="qa-q-view-tags">
+											<ul class="qa-q-view-tag-list">
+												<li class="qa-q-view-tag-item"><a href="../../tag/supg" rel="tag" class="qa-tag-link">supg</a></li>
+												<li class="qa-q-view-tag-item"><a href="../../tag/convection-diffusion" rel="tag" class="qa-tag-link">convection-diffusion</a></li>
+												<li class="qa-q-view-tag-item"><a href="../../tag/demo" rel="tag" class="qa-tag-link">demo</a></li>
+											</ul>
+										</div>
+										<span class="qa-q-view-avatar-meta">
+											<span class="qa-q-view-avatar">
+												<a href="../../user/Chao+Zhang" class="qa-avatar-link"><img src="https://www.gravatar.com/avatar/a50d81c60676e9ac40552912720d7b96?s=50" width="50" height="50" class="qa-avatar-image" alt=""></a>
+											</span>
+											<span class="qa-q-view-meta">
+												<a href="../../6951/help-on-supg-method-in-the-advection-diffusion-demo" class="qa-q-view-what">asked</a>
+												<span class="qa-q-view-when">
+													<span class="qa-q-view-when-data"><span class="published"><span class="value-title" title="2015-04-11T06:29:44+0000"></span>Apr 11, 2015</span></span>
+												</span>
+												<span class="qa-q-view-who">
+													<span class="qa-q-view-who-pad">by </span>
+													<span class="qa-q-view-who-data"><span class="vcard author"><a href="../../user/Chao+Zhang" class="qa-user-link url nickname">Chao Zhang</a></span></span>
+													<span class="qa-q-view-who-title">FEniCS User</span>
+													<span class="qa-q-view-who-points">
+														<span class="qa-q-view-who-points-pad">(</span><span class="qa-q-view-who-points-data">1,180</span><span class="qa-q-view-who-points-pad"> points)</span>
+													</span>
+												</span>
+												<br>
+												<span class="qa-q-view-what">edited</span>
+												<span class="qa-q-view-when">
+													<span class="qa-q-view-when-data"><span class="updated"><span class="value-title" title="2015-04-11T08:17:39+0000"></span>Apr 11, 2015</span></span>
+												</span>
+												<span class="qa-q-view-who">
+													<span class="qa-q-view-who-pad">by </span><span class="qa-q-view-who-data"><a href="../../user/Chao+Zhang" class="qa-user-link url nickname">Chao Zhang</a></span>
+												</span>
+											</span>
+										</span>
+										<div class="qa-q-view-buttons">
+										</div>
+										
+										<div class="qa-q-view-c-list" style="display:none;" id="c6951_list">
+										</div> <!-- END qa-c-list -->
+										
+										<input type="hidden" name="code" value="0-1516468095-d32515664171787e05e2a12838c1236bbfab9773">
+										<input type="hidden" name="qa_click" value="">
+									</form>
+									<div class="qa-c-form">
+									</div> <!-- END qa-c-form -->
+									
+								</div> <!-- END qa-q-view-main -->
+								<div class="qa-q-view-clear">
+								</div>
+							</div> <!-- END qa-q-view -->
+							
+						</div>
+						<div class="qa-part-a-list">
+							<h2 id="a_list_title">1 Answer</h2>
+							<div class="qa-a-list" id="a_list">
+								
+								<div class="qa-a-list-item  hentry answer answer-selected qa-a-list-item-selected" id="a6952">
+									<form method="post" action="../../6951/help-on-supg-method-in-the-advection-diffusion-demo">
+										<div class="qa-voting qa-voting-net" id="voting_6952">
+											<div class="qa-vote-count qa-vote-count-net">
+												<span class="qa-netvote-count">
+													<span class="qa-netvote-count-data">+2<span class="votes-up"><span class="value-title" title="2"></span></span><span class="votes-down"><span class="value-title" title="0"></span></span></span><span class="qa-netvote-count-pad"> votes</span>
+												</span>
+											</div>
+											<div class="qa-vote-clear">
+											</div>
+										</div>
+										<input type="hidden" name="code" value="0-1516468095-c1273c23871ff71cc7c075a400ed3eed6063b91d">
+									</form>
+									<div class="qa-a-item-main">
+										<form method="post" action="../../6951/help-on-supg-method-in-the-advection-diffusion-demo">
+											<div class="qa-a-item-selected">
+												<div class="qa-a-selection">
+													<div class="qa-a-selected">&#160;</div>
+													<div class="qa-a-selected-text">Best answer</div>
+												</div>
+												<div class="qa-a-item-content">
+													<a name="6952"></a><div class="entry-content"><p>Hi, the form without stabilization is missing the forcing term. You should have</p>
+
+<pre><code>F = v*dot(velocity, grad(u))*dx + c*dot(grad(v), grad(u))*dx - f*v*dx
+</code></pre>
+
+<p>The absence of <code>f</code> term in the form from demo has no effect since <code>f = Constant(0.)</code> there.</p>
+</div>
+												</div>
+												<span class="qa-a-item-avatar-meta">
+													<span class="qa-a-item-avatar">
+														<a href="../../user/MiroK" class="qa-avatar-link"><img src="https://www.gravatar.com/avatar/f566be3274ec73e3a6dda27bca11631c?s=40" width="40" height="40" class="qa-avatar-image" alt=""></a>
+													</span>
+													<span class="qa-a-item-meta">
+														<a href="../../6951/help-on-supg-method-in-the-advection-diffusion-demo?show=6952#a6952" class="qa-a-item-what">answered</a>
+														<span class="qa-a-item-when">
+															<span class="qa-a-item-when-data"><span class="published"><span class="value-title" title="2015-04-11T08:07:28+0000"></span>Apr 11, 2015</span></span>
+														</span>
+														<span class="qa-a-item-who">
+															<span class="qa-a-item-who-pad">by </span>
+															<span class="qa-a-item-who-data"><span class="vcard author"><a href="../../user/MiroK" class="qa-user-link url nickname">MiroK</a></span></span>
+															<span class="qa-a-item-who-title">FEniCS Expert</span>
+															<span class="qa-a-item-who-points">
+																<span class="qa-a-item-who-points-pad">(</span><span class="qa-a-item-who-points-data">80,920</span><span class="qa-a-item-who-points-pad"> points)</span>
+															</span>
+														</span>
+														<br>
+														<span class="qa-a-item-what">selected</span>
+														<span class="qa-a-item-when">
+															<span class="qa-a-item-when-data"><span class="updated"><span class="value-title" title="2015-04-11T08:19:03+0000"></span>Apr 11, 2015</span></span>
+														</span>
+														<span class="qa-a-item-who">
+															<span class="qa-a-item-who-pad">by </span><span class="qa-a-item-who-data"><a href="../../user/Chao+Zhang" class="qa-user-link url nickname">Chao Zhang</a></span>
+														</span>
+													</span>
+												</span>
+											</div>
+											<div class="qa-a-item-buttons">
+												</div>
+											
+											<div class="qa-a-item-c-list" id="c6952_list">
+												<div class="qa-c-list-item  hentry comment" id="c6953">
+													<div class="qa-c-item-content">
+														<a name="6953"></a><div class="entry-content"><p>Thank you very much for your time. I'm really sorry I missed that part.</p>
+</div>
+													</div>
+													<div class="qa-c-item-footer">
+														<span class="qa-c-item-avatar-meta">
+															<span class="qa-c-item-avatar">
+																<a href="../../user/Chao+Zhang" class="qa-avatar-link"><img src="https://www.gravatar.com/avatar/a50d81c60676e9ac40552912720d7b96?s=20" width="20" height="20" class="qa-avatar-image" alt=""></a>
+															</span>
+															<span class="qa-c-item-meta">
+																<a href="../../6951/help-on-supg-method-in-the-advection-diffusion-demo?show=6953#c6953" class="qa-c-item-what">commented</a>
+																<span class="qa-c-item-when">
+																	<span class="qa-c-item-when-data"><span class="published"><span class="value-title" title="2015-04-11T08:20:06+0000"></span>Apr 11, 2015</span></span>
+																</span>
+																<span class="qa-c-item-who">
+																	<span class="qa-c-item-who-pad">by </span>
+																	<span class="qa-c-item-who-data"><span class="vcard author"><a href="../../user/Chao+Zhang" class="qa-user-link url nickname">Chao Zhang</a></span></span>
+																	<span class="qa-c-item-who-title">FEniCS User</span>
+																	<span class="qa-c-item-who-points">
+																		<span class="qa-c-item-who-points-pad">(</span><span class="qa-c-item-who-points-data">1,180</span><span class="qa-c-item-who-points-pad"> points)</span>
+																	</span>
+																</span>
+															</span>
+														</span>
+														<div class="qa-c-item-buttons">
+														</div>
+													</div>
+													<div class="qa-c-item-clear">
+													</div>
+												</div> <!-- END qa-c-item -->
+											</div> <!-- END qa-c-list -->
+											
+											<input type="hidden" name="code" value="0-1516468095-150de27145cc0ec438f3d3e3d9c19228f4f87ec1">
+											<input type="hidden" name="qa_click" value="">
+										</form>
+										<div class="qa-c-form">
+										</div> <!-- END qa-c-form -->
+										
+									</div> <!-- END qa-a-item-main -->
+									<div class="qa-a-item-clear">
+									</div>
+								</div> <!-- END qa-a-list-item -->
+								
+							</div> <!-- END qa-a-list -->
+							
+						</div>
+					</div> <!-- END qa-main -->
+					
+				</div> <!-- END main-wrapper -->
+			</div> <!-- END main-shadow -->
+		</div> <!-- END body-wrapper -->
+		<!-- END footer-bottom-group -->
+		
+		<div style="position:absolute; left:-9999px; top:-9999px;">
+			<span id="qa-waiting-template" class="qa-waiting">...</span>
+		</div>
+	
+	
+
+</body><!-- Powered by Question2Answer - http://www.question2answer.org/ --></html>

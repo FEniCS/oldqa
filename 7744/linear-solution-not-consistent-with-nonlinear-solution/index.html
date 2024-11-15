@@ -1,0 +1,281 @@
+<html><!-- Powered by Question2Answer - http://www.question2answer.org/ --><head>
+		<meta http-equiv="content-type" content="text/html; charset=utf-8">
+		<title>linear solution not consistent with nonlinear solution - FEniCS Q&amp;A</title>
+		<meta name="description" content="Suppose $u$ is the nonlinear weak solution for a nonlinear system $a.u=f(u)$. Then $u$  ...  plot(u_linear, title='Linear solution', interactive=True)">
+		<link rel="stylesheet" type="text/css" href="../../qa-theme/Snow/qa-styles.css">
+		<link rel="canonical" href="http://fenicsproject.org/qa/7744/linear-solution-not-consistent-with-nonlinear-solution">
+		<script type="text/x-mathjax-config">
+  MathJax.Hub.Config({
+    extensions: ["tex2jax.js"],
+    jax: ["input/TeX","output/HTML-CSS"],
+    tex2jax: {inlineMath: [["$","$"],["\\(","\\)"]]},
+    TeX: { extensions: ["AMSmath.js","AMSsymbols.js"]}
+  });
+</script>
+<script type="text/javascript" src="../../mathjax/MathJax.js"></script>
+		<script src="../../jquery-1.7.2.min.js" type="text/javascript"></script>
+		<script src="../../highlight.min.js"></script>
+<script type="text/javascript">
+$(function(){
+	$('.wmd-input').keypress(function(){
+		window.clearTimeout(hljs.Timeout);
+		hljs.Timeout = window.setTimeout(function() {
+			hljs.initHighlighting.called = false;
+			hljs.initHighlighting();
+		}, 500);
+	});
+	window.setTimeout(function() {
+		hljs.initHighlighting.called = false;
+		hljs.initHighlighting();
+	}, 500);
+});
+</script>
+
+
+	</head>
+	<body class="qa-template-question qa-body-js-off">
+		<div class="qa-body-wrapper">
+			
+			<div class="qa-header">
+				<div class="qa-logo">
+					<a href="../../" class="qa-logo-link" title="FEniCS Q&amp;A"><img src="../../qa-theme/fenics_qa.png" border="0" alt="FEniCS Q&amp;A"></a>
+				</div>
+				<div class="qa-header-clear">
+				</div>
+			</div> <!-- END qa-header -->
+			
+			<div class="qa-main-shadow">
+				
+				<div class="qa-main-wrapper">
+					
+					<div class="qa-sidepanel">
+						<div class="qa-sidebar">
+							This is a read only copy of the old FEniCS QA forum. Please visit the <a href="https://www.allanswered.com/community/s/fenics-project/">new QA forum</a> to ask questions
+						</div>
+						
+					</div>
+					
+					<div class="qa-main">
+						<h1>
+							<span class="entry-title">linear solution not consistent with nonlinear solution</span>
+						</h1>
+						<div class="qa-part-q-view">
+							<div class="qa-q-view  hentry question" id="q7744">
+								<form method="post" action="../../7744/linear-solution-not-consistent-with-nonlinear-solution">
+									<div class="qa-q-view-stats">
+										<div class="qa-voting qa-voting-net" id="voting_7744">
+											<div class="qa-vote-count qa-vote-count-net">
+												<span class="qa-netvote-count">
+													<span class="qa-netvote-count-data">0<span class="votes-up"><span class="value-title" title="0"></span></span><span class="votes-down"><span class="value-title" title="0"></span></span></span><span class="qa-netvote-count-pad"> votes</span>
+												</span>
+											</div>
+											<div class="qa-vote-clear">
+											</div>
+										</div>
+									</div>
+									<input type="hidden" name="code" value="0-1516468135-c46cafd672746a4d5d451995f43d754e03f76a52">
+								</form>
+								<div class="qa-q-view-main">
+									<form method="post" action="../../7744/linear-solution-not-consistent-with-nonlinear-solution">
+										<div class="qa-q-view-content">
+											<a name="7744"></a><div class="entry-content"><p>Suppose $u$ is the nonlinear weak solution for a nonlinear system<br>
+$a.u=f(u)$.   Then $u$ should also be the solution for the linear system $a.u=g$, where $g$ is fixed using the nonlinear solution, $g=f(u)$.</p>
+
+<p>I'm not getting this self-consistency in FEniCS.   Taking $a$ as the standard Poisson operator and solving over the unit interval with Dirichlet boundary conditions ($u$=10 on the boundary), I get a sensible nonlinear solution (with $u&gt;0$ everywhere) with $f=\exp(-u)-\exp(u)$.</p>
+
+<p>But when I apply a linear solver after projecting $f$ using the nonlinear solution, the linear solution diverges wildly from the nonlinear solution, picking up a large negative value at the midpoint.  </p>
+
+<p>errornorm returns a residual of 415.7, where I'd want it to be 1e-6 or less.</p>
+
+<p>Is this a bug in FEniCS?</p>
+
+<p>minimal code:</p>
+
+<pre><code>from dolfin import *
+import numpy
+
+# Sub domain for Dirichlet boundary condition
+class DirichletBoundary(SubDomain):
+  def inside(self, x, on_boundary):
+    return on_boundary
+
+def source(u):
+  return exp(-u)-exp(u)
+
+# Create mesh and function space
+mesh = UnitIntervalMesh(200)
+V = FunctionSpace(mesh, "CG", 1)
+
+# Define boundary condition
+u0 = Constant(10)
+bc = DirichletBC(V, u0, DirichletBoundary())
+
+
+# Define variational problem
+u = TrialFunction(V)
+v = TestFunction(V)
+
+# standard Poisson operator
+a = inner(nabla_grad(u), nabla_grad(v))*dx
+
+# first get nonlinear solution
+f_nonlinear=source(u)
+L_nonlinear = f_nonlinear*v*dx
+
+F=a-L_nonlinear
+u_=Function(V)    
+F=action(F,u_)
+J=derivative(F,u_,u)
+
+u_nonlinear=Function(V)
+problem = NonlinearVariationalProblem(F, u_nonlinear, bc, J)
+solver  = NonlinearVariationalSolver(problem)
+solver.solve()
+
+# then fix source term using the nonlinear solution to get the linear solution
+f_linear = project(source(u_nonlinear),V)
+L_linear = f_linear*v*dx
+
+u_linear=Function(V)
+solve(a == L_linear, u_linear, bc)
+
+print('error norm between nonlinear and linear solutions = ' + str(errornorm(u_nonlinear,u_linear)) )
+
+plot(u_nonlinear, title='Nonlinear solution')
+plot(u_linear, title='Linear solution', interactive=True)
+</code></pre>
+</div>
+										</div>
+										<span class="qa-q-view-avatar-meta">
+											<span class="qa-q-view-meta">
+												<a href="../../7744/linear-solution-not-consistent-with-nonlinear-solution" class="qa-q-view-what">asked</a>
+												<span class="qa-q-view-when">
+													<span class="qa-q-view-when-data"><span class="published"><span class="value-title" title="2015-08-03T07:42:40+0000"></span>Aug 3, 2015</span></span>
+												</span>
+												<span class="qa-q-view-who">
+													<span class="qa-q-view-who-pad">by </span>
+													<span class="qa-q-view-who-data"><span class="vcard author"><a href="../../user/dparsons" class="qa-user-link url nickname">dparsons</a></span></span>
+													<span class="qa-q-view-who-title">FEniCS Novice</span>
+													<span class="qa-q-view-who-points">
+														<span class="qa-q-view-who-points-pad">(</span><span class="qa-q-view-who-points-data">490</span><span class="qa-q-view-who-points-pad"> points)</span>
+													</span>
+												</span>
+												<br>
+												<span class="qa-q-view-what">edited</span>
+												<span class="qa-q-view-when">
+													<span class="qa-q-view-when-data"><span class="updated"><span class="value-title" title="2015-08-03T07:54:55+0000"></span>Aug 3, 2015</span></span>
+												</span>
+												<span class="qa-q-view-who">
+													<span class="qa-q-view-who-pad">by </span><span class="qa-q-view-who-data"><a href="../../user/dparsons" class="qa-user-link url nickname">dparsons</a></span>
+												</span>
+											</span>
+										</span>
+										<div class="qa-q-view-buttons">
+										</div>
+										
+										<div class="qa-q-view-c-list" style="display:none;" id="c7744_list">
+										</div> <!-- END qa-c-list -->
+										
+										<input type="hidden" name="code" value="0-1516468135-04d70058ce547c33511e0766437ee2bd511b2239">
+										<input type="hidden" name="qa_click" value="">
+									</form>
+									<div class="qa-c-form">
+									</div> <!-- END qa-c-form -->
+									
+								</div> <!-- END qa-q-view-main -->
+								<div class="qa-q-view-clear">
+								</div>
+							</div> <!-- END qa-q-view -->
+							
+						</div>
+						<div class="qa-part-a-list">
+							<h2 id="a_list_title">1 Answer</h2>
+							<div class="qa-a-list" id="a_list">
+								
+								<div class="qa-a-list-item  hentry answer" id="a7746">
+									<form method="post" action="../../7744/linear-solution-not-consistent-with-nonlinear-solution">
+										<div class="qa-voting qa-voting-net" id="voting_7746">
+											<div class="qa-vote-count qa-vote-count-net">
+												<span class="qa-netvote-count">
+													<span class="qa-netvote-count-data">0<span class="votes-up"><span class="value-title" title="0"></span></span><span class="votes-down"><span class="value-title" title="0"></span></span></span><span class="qa-netvote-count-pad"> votes</span>
+												</span>
+											</div>
+											<div class="qa-vote-clear">
+											</div>
+										</div>
+										<input type="hidden" name="code" value="0-1516468135-c46cafd672746a4d5d451995f43d754e03f76a52">
+									</form>
+									<div class="qa-a-item-main">
+										<form method="post" action="../../7744/linear-solution-not-consistent-with-nonlinear-solution">
+											<div class="qa-a-selection">
+											</div>
+											<div class="qa-a-item-content">
+												<a name="7746"></a><div class="entry-content"><p>Mikael Mortensen gave me the solution in the answer to a separate question, <a rel="nofollow" href="http://fenicsproject.org/qa/7732/nonlinear-system-with-different-user-defined-source-terms?show=7743#a7743">http://fenicsproject.org/qa/7732/nonlinear-system-with-different-user-defined-source-terms?show=7743#a7743</a></p>
+
+<p>The nonlinear system needs to be solved for the same Function used to define it.</p>
+
+<p>So where I have</p>
+
+<pre><code>u_=Function(V)    
+F=action(F,u_)
+J=derivative(F,u_,u)
+</code></pre>
+
+<p>defining the nonlinear components using <code>u_</code>, I also need to define the problem and solve it using the same <code>u_</code> (and not using a new Function  <code>u_nonlinear</code>):</p>
+
+<pre><code>problem = NonlinearVariationalProblem(F, u_, bc, J)
+</code></pre>
+
+<p>The way I had it, J was not being updated correctly.</p>
+</div>
+											</div>
+											<span class="qa-a-item-avatar-meta">
+												<span class="qa-a-item-meta">
+													<a href="../../7744/linear-solution-not-consistent-with-nonlinear-solution?show=7746#a7746" class="qa-a-item-what">answered</a>
+													<span class="qa-a-item-when">
+														<span class="qa-a-item-when-data"><span class="published"><span class="value-title" title="2015-08-03T08:23:06+0000"></span>Aug 3, 2015</span></span>
+													</span>
+													<span class="qa-a-item-who">
+														<span class="qa-a-item-who-pad">by </span>
+														<span class="qa-a-item-who-data"><span class="vcard author"><a href="../../user/dparsons" class="qa-user-link url nickname">dparsons</a></span></span>
+														<span class="qa-a-item-who-title">FEniCS Novice</span>
+														<span class="qa-a-item-who-points">
+															<span class="qa-a-item-who-points-pad">(</span><span class="qa-a-item-who-points-data">490</span><span class="qa-a-item-who-points-pad"> points)</span>
+														</span>
+													</span>
+												</span>
+											</span>
+											<div class="qa-a-item-buttons">
+												</div>
+											
+											<div class="qa-a-item-c-list" style="display:none;" id="c7746_list">
+											</div> <!-- END qa-c-list -->
+											
+											<input type="hidden" name="code" value="0-1516468135-73c1f0b0275ccb0d5c8800cabb34f8160d6a8c70">
+											<input type="hidden" name="qa_click" value="">
+										</form>
+										<div class="qa-c-form">
+										</div> <!-- END qa-c-form -->
+										
+									</div> <!-- END qa-a-item-main -->
+									<div class="qa-a-item-clear">
+									</div>
+								</div> <!-- END qa-a-list-item -->
+								
+							</div> <!-- END qa-a-list -->
+							
+						</div>
+					</div> <!-- END qa-main -->
+					
+				</div> <!-- END main-wrapper -->
+			</div> <!-- END main-shadow -->
+		</div> <!-- END body-wrapper -->
+		<!-- END footer-bottom-group -->
+		
+		<div style="position:absolute; left:-9999px; top:-9999px;">
+			<span id="qa-waiting-template" class="qa-waiting">...</span>
+		</div>
+	
+	
+
+</body><!-- Powered by Question2Answer - http://www.question2answer.org/ --></html>

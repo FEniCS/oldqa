@@ -1,0 +1,267 @@
+<html><!-- Powered by Question2Answer - http://www.question2answer.org/ --><head>
+		<meta http-equiv="content-type" content="text/html; charset=utf-8">
+		<title>How to slove this coupled BVP equation - FEniCS Q&amp;A</title>
+		<meta name="description" content="Here is the coupled equation u1'' = u1 + u1^3 - 2* u1*u2-(1/r)*u1' u2'' = u2 -2*u2^3  ... () plot(u1,title=&quot;u_1&quot;) plot(u2,title=&quot;u_2&quot;) interactive()">
+		<meta name="keywords" content="coupled-equations">
+		<link rel="stylesheet" type="text/css" href="../../qa-theme/Snow/qa-styles.css">
+		<link rel="canonical" href="http://fenicsproject.org/qa/3220/how-to-slove-this-coupled-bvp-equation">
+		<script type="text/x-mathjax-config">
+  MathJax.Hub.Config({
+    extensions: ["tex2jax.js"],
+    jax: ["input/TeX","output/HTML-CSS"],
+    tex2jax: {inlineMath: [["$","$"],["\\(","\\)"]]},
+    TeX: { extensions: ["AMSmath.js","AMSsymbols.js"]}
+  });
+</script>
+<script type="text/javascript" src="../../mathjax/MathJax.js"></script>
+		<script src="../../jquery-1.7.2.min.js" type="text/javascript"></script>
+		<script src="../../highlight.min.js"></script>
+<script type="text/javascript">
+$(function(){
+	$('.wmd-input').keypress(function(){
+		window.clearTimeout(hljs.Timeout);
+		hljs.Timeout = window.setTimeout(function() {
+			hljs.initHighlighting.called = false;
+			hljs.initHighlighting();
+		}, 500);
+	});
+	window.setTimeout(function() {
+		hljs.initHighlighting.called = false;
+		hljs.initHighlighting();
+	}, 500);
+});
+</script>
+
+
+	</head>
+	<body class="qa-template-question qa-body-js-off">
+		<div class="qa-body-wrapper">
+			
+			<div class="qa-header">
+				<div class="qa-logo">
+					<a href="../../" class="qa-logo-link" title="FEniCS Q&amp;A"><img src="../../qa-theme/fenics_qa.png" border="0" alt="FEniCS Q&amp;A"></a>
+				</div>
+				<div class="qa-header-clear">
+				</div>
+			</div> <!-- END qa-header -->
+			
+			<div class="qa-main-shadow">
+				
+				<div class="qa-main-wrapper">
+					
+					<div class="qa-sidepanel">
+						<div class="qa-sidebar">
+							This is a read only copy of the old FEniCS QA forum. Please visit the <a href="https://www.allanswered.com/community/s/fenics-project/">new QA forum</a> to ask questions
+						</div>
+						
+					</div>
+					
+					<div class="qa-main">
+						<h1>
+							<span class="entry-title">How to slove this coupled BVP equation</span>
+						</h1>
+						<div class="qa-part-q-view">
+							<div class="qa-q-view  hentry question" id="q3220">
+								<form method="post" action="../../3220/how-to-slove-this-coupled-bvp-equation">
+									<div class="qa-q-view-stats">
+										<div class="qa-voting qa-voting-net" id="voting_3220">
+											<div class="qa-vote-count qa-vote-count-net">
+												<span class="qa-netvote-count">
+													<span class="qa-netvote-count-data">0<span class="votes-up"><span class="value-title" title="0"></span></span><span class="votes-down"><span class="value-title" title="0"></span></span></span><span class="qa-netvote-count-pad"> votes</span>
+												</span>
+											</div>
+											<div class="qa-vote-clear">
+											</div>
+										</div>
+									</div>
+									<input type="hidden" name="code" value="0-1516467962-20675f3eabbb21875a37502c7599cf811ddb1c6c">
+								</form>
+								<div class="qa-q-view-main">
+									<form method="post" action="../../3220/how-to-slove-this-coupled-bvp-equation">
+										<div class="qa-q-view-content">
+											<a name="3220"></a><div class="entry-content"><p>Here is the coupled equation</p>
+
+<p>u1'' = u1 +  u1^3 - 2* u1<em>u2-(1/r)</em>u1'<br>
+u2'' = u2  -2<em>u2^3 +  u2^3-(1/r)</em>u2'- (u1*u1)<br>
+with this condition<br>
+u1(0)=0, u1'(\infinite)=0<br>
+u2'(0)=0,u2'(\infinite)=0 (The mixed boundary condition)</p>
+
+<pre><code>from dolfin import *
+
+# Number of elements
+nel = 30
+
+# Polynomial order
+p = 2
+
+# Create mesh and function space
+mesh = IntervalMesh(nel,0,1)
+
+V = FunctionSpace(mesh,"CG",p)
+
+# Product space 
+V2 = V*V
+
+# Define boundary values 
+boundary= Expression("x[0]")
+
+def u0_boundary(x,on_boundary):
+    return on_boundary
+
+# Dirichlet boundary conditions
+bc = DirichletBC(V2.sub(0),boundary,u0_boundary)
+bcs = [bc,0]
+
+# Define variational problem
+(u1,u2) = TrialFunctions(V2)
+(v1,v2) = TestFunctions(V2)
+
+f1 = Expression("-u1-u1*u1*u1+2*u1*u2")
+f2 = Expression("-u2+2*u2*u2-u2*u2*u2+u1*u1")
+g  = Expression("pow(x[0],-1)")
+a = inner(grad(u1),grad(v1))*dx + g*grad(u1)*v1*dx + \
+    g*grad(u2)*v2*dx + inner(grad(u2),grad(v2))*dx
+
+L = f1*v1*dx + f2*v2*dx + v1*ds +v2*ds
+
+u = Function(V2)
+solve(a == L, u, bcs)
+
+u1,u2 = u.split()
+plot(u1,title="u_1")
+plot(u2,title="u_2")
+interactive()
+</code></pre>
+</div>
+										</div>
+										<div class="qa-q-view-tags">
+											<ul class="qa-q-view-tag-list">
+												<li class="qa-q-view-tag-item"><a href="../../tag/coupled-equations" rel="tag" class="qa-tag-link">coupled-equations</a></li>
+											</ul>
+										</div>
+										<span class="qa-q-view-avatar-meta">
+											<span class="qa-q-view-meta">
+												<a href="../../3220/how-to-slove-this-coupled-bvp-equation" class="qa-q-view-what">asked</a>
+												<span class="qa-q-view-when">
+													<span class="qa-q-view-when-data"><span class="published"><span class="value-title" title="2014-04-09T09:55:40+0000"></span>Apr 9, 2014</span></span>
+												</span>
+												<span class="qa-q-view-who">
+													<span class="qa-q-view-who-pad">by </span>
+													<span class="qa-q-view-who-data"><span class="vcard author"><a href="../../user/pengfuping" class="qa-user-link url nickname">pengfuping</a></span></span>
+													<span class="qa-q-view-who-title">FEniCS Novice</span>
+													<span class="qa-q-view-who-points">
+														<span class="qa-q-view-who-points-pad">(</span><span class="qa-q-view-who-points-data">120</span><span class="qa-q-view-who-points-pad"> points)</span>
+													</span>
+												</span>
+												<br>
+												<span class="qa-q-view-what">edited</span>
+												<span class="qa-q-view-when">
+													<span class="qa-q-view-when-data"><span class="updated"><span class="value-title" title="2014-04-10T01:11:09+0000"></span>Apr 10, 2014</span></span>
+												</span>
+												<span class="qa-q-view-who">
+													<span class="qa-q-view-who-pad">by </span><span class="qa-q-view-who-data"><a href="../../user/pengfuping" class="qa-user-link url nickname">pengfuping</a></span>
+												</span>
+											</span>
+										</span>
+										<div class="qa-q-view-buttons">
+										</div>
+										
+										<div class="qa-q-view-c-list" id="c3220_list">
+											<div class="qa-c-list-item  hentry comment" id="c3224">
+												<div class="qa-c-item-content">
+													<a name="3224"></a><div class="entry-content"><p>Use latex commands to format your maths and to improve your chances on an answer.</p>
+</div>
+												</div>
+												<div class="qa-c-item-footer">
+													<span class="qa-c-item-avatar-meta">
+														<span class="qa-c-item-avatar">
+															<a href="../../user/Jan" class="qa-avatar-link"><img src="https://www.gravatar.com/avatar/c71e1343e533ab01bcce8649718574fa?s=20" width="20" height="20" class="qa-avatar-image" alt=""></a>
+														</span>
+														<span class="qa-c-item-meta">
+															<a href="../../3220/how-to-slove-this-coupled-bvp-equation?show=3224#c3224" class="qa-c-item-what">commented</a>
+															<span class="qa-c-item-when">
+																<span class="qa-c-item-when-data"><span class="published"><span class="value-title" title="2014-04-09T15:41:06+0000"></span>Apr 9, 2014</span></span>
+															</span>
+															<span class="qa-c-item-who">
+																<span class="qa-c-item-who-pad">by </span>
+																<span class="qa-c-item-who-data"><span class="vcard author"><a href="../../user/Jan" class="qa-user-link url nickname">Jan</a></span></span>
+																<span class="qa-c-item-who-title">FEniCS User</span>
+																<span class="qa-c-item-who-points">
+																	<span class="qa-c-item-who-points-pad">(</span><span class="qa-c-item-who-points-data">8,290</span><span class="qa-c-item-who-points-pad"> points)</span>
+																</span>
+															</span>
+														</span>
+													</span>
+													<div class="qa-c-item-buttons">
+													</div>
+												</div>
+												<div class="qa-c-item-clear">
+												</div>
+											</div> <!-- END qa-c-item -->
+											<div class="qa-c-list-item  hentry comment" id="c3508">
+												<div class="qa-c-item-content">
+													<a name="3508"></a><div class="entry-content"><p>There is no question in your description. Please state your question clearly.</p>
+</div>
+												</div>
+												<div class="qa-c-item-footer">
+													<span class="qa-c-item-avatar-meta">
+														<span class="qa-c-item-avatar">
+															<a href="../../user/simon_funke" class="qa-avatar-link"><img src="https://www.gravatar.com/avatar/3f5c486079726d30e286665941d53c56?s=20" width="20" height="20" class="qa-avatar-image" alt=""></a>
+														</span>
+														<span class="qa-c-item-meta">
+															<a href="../../3220/how-to-slove-this-coupled-bvp-equation?show=3508#c3508" class="qa-c-item-what">commented</a>
+															<span class="qa-c-item-when">
+																<span class="qa-c-item-when-data"><span class="published"><span class="value-title" title="2014-05-09T11:47:00+0000"></span>May 9, 2014</span></span>
+															</span>
+															<span class="qa-c-item-who">
+																<span class="qa-c-item-who-pad">by </span>
+																<span class="qa-c-item-who-data"><span class="vcard author"><a href="../../user/simon_funke" class="qa-user-link url nickname">simon_funke</a></span></span>
+																<span class="qa-c-item-who-title">FEniCS Novice</span>
+																<span class="qa-c-item-who-points">
+																	<span class="qa-c-item-who-points-pad">(</span><span class="qa-c-item-who-points-data">690</span><span class="qa-c-item-who-points-pad"> points)</span>
+																</span>
+															</span>
+														</span>
+													</span>
+													<div class="qa-c-item-buttons">
+													</div>
+												</div>
+												<div class="qa-c-item-clear">
+												</div>
+											</div> <!-- END qa-c-item -->
+										</div> <!-- END qa-c-list -->
+										
+										<input type="hidden" name="code" value="0-1516467962-6d56c5c6cbb19f6572e49d0ee3764c7ef5e9fbd4">
+										<input type="hidden" name="qa_click" value="">
+									</form>
+									<div class="qa-c-form">
+									</div> <!-- END qa-c-form -->
+									
+								</div> <!-- END qa-q-view-main -->
+								<div class="qa-q-view-clear">
+								</div>
+							</div> <!-- END qa-q-view -->
+							
+						</div>
+						<div class="qa-part-a-list">
+							<h2 id="a_list_title" style="display:none;"></h2>
+							<div class="qa-a-list" id="a_list">
+								
+							</div> <!-- END qa-a-list -->
+							
+						</div>
+					</div> <!-- END qa-main -->
+					
+				</div> <!-- END main-wrapper -->
+			</div> <!-- END main-shadow -->
+		</div> <!-- END body-wrapper -->
+		<!-- END footer-bottom-group -->
+		
+		<div style="position:absolute; left:-9999px; top:-9999px;">
+			<span id="qa-waiting-template" class="qa-waiting">...</span>
+		</div>
+	
+	
+
+</body><!-- Powered by Question2Answer - http://www.question2answer.org/ --></html>

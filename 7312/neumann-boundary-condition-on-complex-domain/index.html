@@ -1,0 +1,413 @@
+<html><!-- Powered by Question2Answer - http://www.question2answer.org/ --><head>
+		<meta http-equiv="content-type" content="text/html; charset=utf-8">
+		<title>Neumann boundary condition on complex domain - FEniCS Q&amp;A</title>
+		<meta name="description" content='Hi FEniCS community, I am still quite new to FEniCS, but after my first steps I am now trying ... (g_expr) # initial values init_expr = "x[0]'>
+		<meta name="keywords" content="boundary-conditions,neumann,complex,domain">
+		<link rel="stylesheet" type="text/css" href="../../qa-theme/Snow/qa-styles.css">
+		<link rel="canonical" href="http://fenicsproject.org/qa/7312/neumann-boundary-condition-on-complex-domain">
+		<script type="text/x-mathjax-config">
+  MathJax.Hub.Config({
+    extensions: ["tex2jax.js"],
+    jax: ["input/TeX","output/HTML-CSS"],
+    tex2jax: {inlineMath: [["$","$"],["\\(","\\)"]]},
+    TeX: { extensions: ["AMSmath.js","AMSsymbols.js"]}
+  });
+</script>
+<script type="text/javascript" src="../../mathjax/MathJax.js"></script>
+		<script src="../../jquery-1.7.2.min.js" type="text/javascript"></script>
+		<script src="../../highlight.min.js"></script>
+<script type="text/javascript">
+$(function(){
+	$('.wmd-input').keypress(function(){
+		window.clearTimeout(hljs.Timeout);
+		hljs.Timeout = window.setTimeout(function() {
+			hljs.initHighlighting.called = false;
+			hljs.initHighlighting();
+		}, 500);
+	});
+	window.setTimeout(function() {
+		hljs.initHighlighting.called = false;
+		hljs.initHighlighting();
+	}, 500);
+});
+</script>
+
+
+	</head>
+	<body class="qa-template-question qa-body-js-off">
+		<div class="qa-body-wrapper">
+			
+			<div class="qa-header">
+				<div class="qa-logo">
+					<a href="../../" class="qa-logo-link" title="FEniCS Q&amp;A"><img src="../../qa-theme/fenics_qa.png" border="0" alt="FEniCS Q&amp;A"></a>
+				</div>
+				<div class="qa-header-clear">
+				</div>
+			</div> <!-- END qa-header -->
+			
+			<div class="qa-main-shadow">
+				
+				<div class="qa-main-wrapper">
+					
+					<div class="qa-sidepanel">
+						<div class="qa-sidebar">
+							This is a read only copy of the old FEniCS QA forum. Please visit the <a href="https://www.allanswered.com/community/s/fenics-project/">new QA forum</a> to ask questions
+						</div>
+						
+					</div>
+					
+					<div class="qa-main">
+						<h1>
+							<span class="entry-title">Neumann boundary condition on complex domain</span>
+						</h1>
+						<div class="qa-part-q-view">
+							<div class="qa-q-view  hentry question" id="q7312">
+								<form method="post" action="../../7312/neumann-boundary-condition-on-complex-domain">
+									<div class="qa-q-view-stats">
+										<div class="qa-voting qa-voting-net" id="voting_7312">
+											<div class="qa-vote-count qa-vote-count-net">
+												<span class="qa-netvote-count">
+													<span class="qa-netvote-count-data">0<span class="votes-up"><span class="value-title" title="0"></span></span><span class="votes-down"><span class="value-title" title="0"></span></span></span><span class="qa-netvote-count-pad"> votes</span>
+												</span>
+											</div>
+											<div class="qa-vote-clear">
+											</div>
+										</div>
+									</div>
+									<input type="hidden" name="code" value="0-1516468114-31815e6da90e6a747c320285a4871a3e744fc4c3">
+								</form>
+								<div class="qa-q-view-main">
+									<form method="post" action="../../7312/neumann-boundary-condition-on-complex-domain">
+										<div class="qa-q-view-content">
+											<a name="7312"></a><div class="entry-content"><p>Hi FEniCS community,</p>
+
+<p>I am still quite new to FEniCS, but after my first steps I am now trying to solve the diffusion equation with Neumann boundary conditions (no-flux on the boundaries) on a domain with a hole in it. I created this domain using mesh2d in matlab and then imported it into FEniCS which seems to work out properly.</p>
+
+<p>I already managed to apply Neumann BCs on the boundaries of the domain, but I cannot figure out how to specify that the circle is also a boundary of the domain.<br>
+I found some similar code for defining the boundary as this:</p>
+
+<pre><code> class Boundary(SubDomain):
+ def inside(x, on_boundary):        
+     return on_boundary or on_circle
+</code></pre>
+
+<p>where i have on_circle return if x lies inside of the circular hole.<br>
+When I declare ds as follows I get an error </p>
+
+<blockquote>
+  <p>boundary = Boundary()<br>
+  ds = Measure("ds")[boundary]</p>
+</blockquote>
+
+<p>It seems like I am not using the function 'Measure' correctly.</p>
+
+<p>So, how can I tell 'ds' that it should also take the boundary of the hole?</p>
+
+<p>I also attached my code below, but I am not sure if I can also add the .xml file for the mesh.<br>
+Also note that for no-flux BCs I would pick g = 0. When picking g=0.5 it becomes clear that there is no flux around the hole.</p>
+
+<pre><code>from dolfin import *
+import time
+
+center = [1.5,2]
+radius = 0.8
+
+def on_circle(x, on_boundary):    
+    oncircle = ((x[0]-center[0])*(x[0]-center[0]) + (x[1]-center[1])*(x[1]-center[1])) &lt;= radius
+    return (on_boundary or oncircle) and x[0]&gt;DOLFIN_EPS
+
+class Boundary(SubDomain):
+    def inside(x, on_boundary):        
+        return on_boundary or on_circle
+        #return on_circle
+
+mesh = Mesh('test.xml')        
+
+boundary = Boundary()
+#ds = Measure("ds")[boundary]
+
+V = FunctionSpace(mesh, "Lagrange", 1)
+
+# Time variables
+dt = Constant(0.3); t = float(dt); T = 5
+g_expr = "0.5"
+g = Expression(g_expr)
+
+# initial values
+init_expr = "x[0]&lt;DOLFIN_EPS"
+init = Expression(init_expr)
+u0 = interpolate(init, V);
+
+u1 = Function(V)
+u = TrialFunction(V)
+v = TestFunction(V)
+f = Constant(0)
+a = u*v*dx(0) + dt*inner(grad(u), grad(v))*dx(0)
+L = u0*v*dx(0) + dt*f*v*dx(0) + dt*g*v*ds(0) #for neumann condition with g on boundary
+
+u_plot = plot(u0, interactive=True,axes=True,rescale=False,scalarbar=True)
+while t &lt;= T:    
+    solve(a == L, u1)
+    u0.assign(u1)
+    t += float(dt)    
+    time.sleep(0.2)
+    u_plot.update(u1)
+plot(mesh,interactive=True,rescale=False,scalarbar=True)
+</code></pre>
+
+<p>And here is also a picture of the mesh:<br>
+<img src="http://i57.tinypic.com/a0fg50.jpg" alt="test.xml mesh"></p>
+
+<p>I would really appreciate any help!<br>
+Thank you!</p>
+</div>
+										</div>
+										<div class="qa-q-view-tags">
+											<ul class="qa-q-view-tag-list">
+												<li class="qa-q-view-tag-item"><a href="../../tag/boundary-conditions" rel="tag" class="qa-tag-link">boundary-conditions</a></li>
+												<li class="qa-q-view-tag-item"><a href="../../tag/neumann" rel="tag" class="qa-tag-link">neumann</a></li>
+												<li class="qa-q-view-tag-item"><a href="../../tag/complex" rel="tag" class="qa-tag-link">complex</a></li>
+												<li class="qa-q-view-tag-item"><a href="../../tag/domain" rel="tag" class="qa-tag-link">domain</a></li>
+											</ul>
+										</div>
+										<span class="qa-q-view-avatar-meta">
+											<span class="qa-q-view-meta">
+												<a href="../../7312/neumann-boundary-condition-on-complex-domain" class="qa-q-view-what">asked</a>
+												<span class="qa-q-view-when">
+													<span class="qa-q-view-when-data"><span class="published"><span class="value-title" title="2015-06-01T13:53:20+0000"></span>Jun 1, 2015</span></span>
+												</span>
+												<span class="qa-q-view-who">
+													<span class="qa-q-view-who-pad">by </span>
+													<span class="qa-q-view-who-data"><span class="vcard author"><a href="../../user/johannes" class="qa-user-link url nickname">johannes</a></span></span>
+													<span class="qa-q-view-who-title">FEniCS Novice</span>
+													<span class="qa-q-view-who-points">
+														<span class="qa-q-view-who-points-pad">(</span><span class="qa-q-view-who-points-data">160</span><span class="qa-q-view-who-points-pad"> points)</span>
+													</span>
+												</span>
+											</span>
+										</span>
+										<div class="qa-q-view-buttons">
+										</div>
+										
+										<div class="qa-q-view-c-list" style="display:none;" id="c7312_list">
+										</div> <!-- END qa-c-list -->
+										
+										<input type="hidden" name="code" value="0-1516468114-66ff52077fe4c48e13f0314208762a07dff801cf">
+										<input type="hidden" name="qa_click" value="">
+									</form>
+									<div class="qa-c-form">
+									</div> <!-- END qa-c-form -->
+									
+								</div> <!-- END qa-q-view-main -->
+								<div class="qa-q-view-clear">
+								</div>
+							</div> <!-- END qa-q-view -->
+							
+						</div>
+						<div class="qa-part-a-list">
+							<h2 id="a_list_title">1 Answer</h2>
+							<div class="qa-a-list" id="a_list">
+								
+								<div class="qa-a-list-item  hentry answer answer-selected qa-a-list-item-selected" id="a7314">
+									<form method="post" action="../../7312/neumann-boundary-condition-on-complex-domain">
+										<div class="qa-voting qa-voting-net" id="voting_7314">
+											<div class="qa-vote-count qa-vote-count-net">
+												<span class="qa-netvote-count">
+													<span class="qa-netvote-count-data">+1<span class="votes-up"><span class="value-title" title="1"></span></span><span class="votes-down"><span class="value-title" title="0"></span></span></span><span class="qa-netvote-count-pad"> vote</span>
+												</span>
+											</div>
+											<div class="qa-vote-clear">
+											</div>
+										</div>
+										<input type="hidden" name="code" value="0-1516468114-31815e6da90e6a747c320285a4871a3e744fc4c3">
+									</form>
+									<div class="qa-a-item-main">
+										<form method="post" action="../../7312/neumann-boundary-condition-on-complex-domain">
+											<div class="qa-a-item-selected">
+												<div class="qa-a-selection">
+													<div class="qa-a-selected">&#160;</div>
+													<div class="qa-a-selected-text">Best answer</div>
+												</div>
+												<div class="qa-a-item-content">
+													<a name="7314"></a><div class="entry-content"><p>Hi Johannes,</p>
+
+<pre><code>class Boundary(SubDomain):
+    def inside(x, on_boundary):        
+        return on_boundary
+</code></pre>
+
+<p>is true for all points/edges on the outer boundary (i.e. the rectangle) and the inner boundary (i.e. the circle).</p>
+
+<p>If you want to impose the same bc on both the outer and inner boundary then you don't have to explicitly define on_circle...</p>
+
+<p>Best,<br>
+Umbe</p>
+</div>
+												</div>
+												<span class="qa-a-item-avatar-meta">
+													<span class="qa-a-item-meta">
+														<a href="../../7312/neumann-boundary-condition-on-complex-domain?show=7314#a7314" class="qa-a-item-what">answered</a>
+														<span class="qa-a-item-when">
+															<span class="qa-a-item-when-data"><span class="published"><span class="value-title" title="2015-06-01T15:52:47+0000"></span>Jun 1, 2015</span></span>
+														</span>
+														<span class="qa-a-item-who">
+															<span class="qa-a-item-who-pad">by </span>
+															<span class="qa-a-item-who-data"><span class="vcard author"><a href="../../user/umberto" class="qa-user-link url nickname">umberto</a></span></span>
+															<span class="qa-a-item-who-title">FEniCS User</span>
+															<span class="qa-a-item-who-points">
+																<span class="qa-a-item-who-points-pad">(</span><span class="qa-a-item-who-points-data">6,440</span><span class="qa-a-item-who-points-pad"> points)</span>
+															</span>
+														</span>
+														<br>
+														<span class="qa-a-item-what">selected</span>
+														<span class="qa-a-item-when">
+															<span class="qa-a-item-when-data"><span class="updated"><span class="value-title" title="2015-06-01T23:12:43+0000"></span>Jun 2, 2015</span></span>
+														</span>
+														<span class="qa-a-item-who">
+															<span class="qa-a-item-who-pad">by </span><span class="qa-a-item-who-data"><a href="../../user/johannes" class="qa-user-link url nickname">johannes</a></span>
+														</span>
+													</span>
+												</span>
+											</div>
+											<div class="qa-a-item-buttons">
+												</div>
+											
+											<div class="qa-a-item-c-list" id="c7314_list">
+												<div class="qa-c-list-item  hentry comment" id="c7315">
+													<div class="qa-c-item-content">
+														<a name="7315"></a><div class="entry-content"><p>Thank you very much for your quick reply, Umbe!<br>
+Does this mean that I don't even need to add</p>
+
+<pre><code>boundary = Boundary()
+ds = Measure("ds")[boundary]
+</code></pre>
+
+<p>?</p>
+</div>
+													</div>
+													<div class="qa-c-item-footer">
+														<span class="qa-c-item-avatar-meta">
+															<span class="qa-c-item-meta">
+																<a href="../../7312/neumann-boundary-condition-on-complex-domain?show=7315#c7315" class="qa-c-item-what">commented</a>
+																<span class="qa-c-item-when">
+																	<span class="qa-c-item-when-data"><span class="published"><span class="value-title" title="2015-06-01T15:58:44+0000"></span>Jun 1, 2015</span></span>
+																</span>
+																<span class="qa-c-item-who">
+																	<span class="qa-c-item-who-pad">by </span>
+																	<span class="qa-c-item-who-data"><span class="vcard author"><a href="../../user/johannes" class="qa-user-link url nickname">johannes</a></span></span>
+																	<span class="qa-c-item-who-title">FEniCS Novice</span>
+																	<span class="qa-c-item-who-points">
+																		<span class="qa-c-item-who-points-pad">(</span><span class="qa-c-item-who-points-data">160</span><span class="qa-c-item-who-points-pad"> points)</span>
+																	</span>
+																</span>
+															</span>
+														</span>
+														<div class="qa-c-item-buttons">
+														</div>
+													</div>
+													<div class="qa-c-item-clear">
+													</div>
+												</div> <!-- END qa-c-item -->
+												<div class="qa-c-list-item  hentry comment" id="c7317">
+													<div class="qa-c-item-content">
+														<a name="7317"></a><div class="entry-content"><p>Just tried it and now it seems to work!<br>
+Thank you so much, Umbe!<br>
+This was really causing me headaches</p>
+</div>
+													</div>
+													<div class="qa-c-item-footer">
+														<span class="qa-c-item-avatar-meta">
+															<span class="qa-c-item-meta">
+																<a href="../../7312/neumann-boundary-condition-on-complex-domain?show=7317#c7317" class="qa-c-item-what">commented</a>
+																<span class="qa-c-item-when">
+																	<span class="qa-c-item-when-data"><span class="published"><span class="value-title" title="2015-06-01T16:07:03+0000"></span>Jun 1, 2015</span></span>
+																</span>
+																<span class="qa-c-item-who">
+																	<span class="qa-c-item-who-pad">by </span>
+																	<span class="qa-c-item-who-data"><span class="vcard author"><a href="../../user/johannes" class="qa-user-link url nickname">johannes</a></span></span>
+																	<span class="qa-c-item-who-title">FEniCS Novice</span>
+																	<span class="qa-c-item-who-points">
+																		<span class="qa-c-item-who-points-pad">(</span><span class="qa-c-item-who-points-data">160</span><span class="qa-c-item-who-points-pad"> points)</span>
+																	</span>
+																</span>
+																<br>
+																<span class="qa-c-item-what">edited</span>
+																<span class="qa-c-item-when">
+																	<span class="qa-c-item-when-data"><span class="updated"><span class="value-title" title="2015-06-01T23:11:03+0000"></span>Jun 2, 2015</span></span>
+																</span>
+																<span class="qa-c-item-who">
+																	<span class="qa-c-item-who-pad">by </span><span class="qa-c-item-who-data"><a href="../../user/johannes" class="qa-user-link url nickname">johannes</a></span>
+																</span>
+															</span>
+														</span>
+														<div class="qa-c-item-buttons">
+														</div>
+													</div>
+													<div class="qa-c-item-clear">
+													</div>
+												</div> <!-- END qa-c-item -->
+												<div class="qa-c-list-item  hentry comment" id="c7321">
+													<div class="qa-c-item-content">
+														<a name="7321"></a><div class="entry-content"><p>Hi Johannes,</p>
+
+<p>Yes, if you are integrating over all boundaries the symbol ds is already defined.<br>
+I also believe that the definition of ds is exactly the one you wrote above above.</p>
+
+<p>Best,</p>
+
+<p>Umbe</p>
+</div>
+													</div>
+													<div class="qa-c-item-footer">
+														<span class="qa-c-item-avatar-meta">
+															<span class="qa-c-item-meta">
+																<a href="../../7312/neumann-boundary-condition-on-complex-domain?show=7321#c7321" class="qa-c-item-what">commented</a>
+																<span class="qa-c-item-when">
+																	<span class="qa-c-item-when-data"><span class="published"><span class="value-title" title="2015-06-02T03:49:38+0000"></span>Jun 2, 2015</span></span>
+																</span>
+																<span class="qa-c-item-who">
+																	<span class="qa-c-item-who-pad">by </span>
+																	<span class="qa-c-item-who-data"><span class="vcard author"><a href="../../user/umberto" class="qa-user-link url nickname">umberto</a></span></span>
+																	<span class="qa-c-item-who-title">FEniCS User</span>
+																	<span class="qa-c-item-who-points">
+																		<span class="qa-c-item-who-points-pad">(</span><span class="qa-c-item-who-points-data">6,440</span><span class="qa-c-item-who-points-pad"> points)</span>
+																	</span>
+																</span>
+															</span>
+														</span>
+														<div class="qa-c-item-buttons">
+														</div>
+													</div>
+													<div class="qa-c-item-clear">
+													</div>
+												</div> <!-- END qa-c-item -->
+											</div> <!-- END qa-c-list -->
+											
+											<input type="hidden" name="code" value="0-1516468114-899c404df56f668bb49f8eb79f34e194889b0ebc">
+											<input type="hidden" name="qa_click" value="">
+										</form>
+										<div class="qa-c-form">
+										</div> <!-- END qa-c-form -->
+										
+									</div> <!-- END qa-a-item-main -->
+									<div class="qa-a-item-clear">
+									</div>
+								</div> <!-- END qa-a-list-item -->
+								
+							</div> <!-- END qa-a-list -->
+							
+						</div>
+					</div> <!-- END qa-main -->
+					
+				</div> <!-- END main-wrapper -->
+			</div> <!-- END main-shadow -->
+		</div> <!-- END body-wrapper -->
+		<!-- END footer-bottom-group -->
+		
+		<div style="position:absolute; left:-9999px; top:-9999px;">
+			<span id="qa-waiting-template" class="qa-waiting">...</span>
+		</div>
+	
+	
+
+</body><!-- Powered by Question2Answer - http://www.question2answer.org/ --></html>

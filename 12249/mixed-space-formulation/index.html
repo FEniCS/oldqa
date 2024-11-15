@@ -1,0 +1,379 @@
+<html><!-- Powered by Question2Answer - http://www.question2answer.org/ --><head>
+		<meta http-equiv="content-type" content="text/html; charset=utf-8">
+		<title>mixed space formulation - FEniCS Q&amp;A</title>
+		<meta name="description" content="Hello, I am having mixed form problem. from dolfin import * import numpy as np from numpy import linalg ...  = 0 maxiter = 2 # Iterations # while iter">
+		<meta name="keywords" content="bug,mixed-function-space,mixed-formulation">
+		<link rel="stylesheet" type="text/css" href="../../qa-theme/Snow/qa-styles.css">
+		<link rel="canonical" href="http://fenicsproject.org/qa/12249/mixed-space-formulation">
+		<script type="text/x-mathjax-config">
+  MathJax.Hub.Config({
+    extensions: ["tex2jax.js"],
+    jax: ["input/TeX","output/HTML-CSS"],
+    tex2jax: {inlineMath: [["$","$"],["\\(","\\)"]]},
+    TeX: { extensions: ["AMSmath.js","AMSsymbols.js"]}
+  });
+</script>
+<script type="text/javascript" src="../../mathjax/MathJax.js"></script>
+		<script src="../../jquery-1.7.2.min.js" type="text/javascript"></script>
+		<script src="../../highlight.min.js"></script>
+<script type="text/javascript">
+$(function(){
+	$('.wmd-input').keypress(function(){
+		window.clearTimeout(hljs.Timeout);
+		hljs.Timeout = window.setTimeout(function() {
+			hljs.initHighlighting.called = false;
+			hljs.initHighlighting();
+		}, 500);
+	});
+	window.setTimeout(function() {
+		hljs.initHighlighting.called = false;
+		hljs.initHighlighting();
+	}, 500);
+});
+</script>
+
+
+	</head>
+	<body class="qa-template-question qa-body-js-off">
+		<div class="qa-body-wrapper">
+			
+			<div class="qa-header">
+				<div class="qa-logo">
+					<a href="../../" class="qa-logo-link" title="FEniCS Q&amp;A"><img src="../../qa-theme/fenics_qa.png" border="0" alt="FEniCS Q&amp;A"></a>
+				</div>
+				<div class="qa-header-clear">
+				</div>
+			</div> <!-- END qa-header -->
+			
+			<div class="qa-main-shadow">
+				
+				<div class="qa-main-wrapper">
+					
+					<div class="qa-sidepanel">
+						<div class="qa-sidebar">
+							This is a read only copy of the old FEniCS QA forum. Please visit the <a href="https://www.allanswered.com/community/s/fenics-project/">new QA forum</a> to ask questions
+						</div>
+						
+					</div>
+					
+					<div class="qa-main">
+						<h1>
+							<span class="entry-title">mixed space formulation</span>
+						</h1>
+						<div class="qa-part-q-view">
+							<div class="qa-q-view  hentry question" id="q12249">
+								<form method="post" action="../../12249/mixed-space-formulation">
+									<div class="qa-q-view-stats">
+										<div class="qa-voting qa-voting-net" id="voting_12249">
+											<div class="qa-vote-count qa-vote-count-net">
+												<span class="qa-netvote-count">
+													<span class="qa-netvote-count-data">0<span class="votes-up"><span class="value-title" title="0"></span></span><span class="votes-down"><span class="value-title" title="0"></span></span></span><span class="qa-netvote-count-pad"> votes</span>
+												</span>
+											</div>
+											<div class="qa-vote-clear">
+											</div>
+										</div>
+									</div>
+									<input type="hidden" name="code" value="0-1516467814-94c0c2fe65c18ff1c54452e030adec3133de9014">
+								</form>
+								<div class="qa-q-view-main">
+									<form method="post" action="../../12249/mixed-space-formulation">
+										<div class="qa-q-view-content">
+											<a name="12249"></a><div class="entry-content"><p>Hello, <br>
+I am having mixed form problem.</p>
+
+<pre><code>from dolfin import *
+import numpy as np
+from numpy import linalg as LA
+
+mesh = UnitCubeMesh(5, 5, 5)
+
+#  bc
+def left_boundary(x):
+    return x[0] &lt; DOLFIN_EPS 
+
+def right_boundary(x):
+    return (x[1] &lt; (1.0 - DOLFIN_EPS))
+
+
+V = VectorFunctionSpace(mesh, "CG", 1)
+W = FunctionSpace(mesh, "CG", 1)
+Q = FunctionSpace(mesh, "CG", 1)
+
+Z = MixedFunctionSpace([V,W,Q])
+
+z = TrialFunction(Z)
+(u,c,b) = split(z)
+
+
+zn = TestFunction(Z)
+(du, dc, db) = split(zn)
+
+
+z0  = Function(Z)
+(u0, c0, b0) = split(z0)
+
+f = Constant((1.0, 0.0, 0.0))
+
+# params
+E, nu = 10.0, 0.3
+mu, lmbda = E/(2.0*(1.0 + nu)), E*nu/((1.0 + nu)*(1.0 - 2.0*nu))
+l       = Constant(0.7,    name="l")
+gc      = Constant(1e-3,    name="gc")
+k       = Constant(1.0e-6, name="eps")
+kappa   = Constant(180.0,   name="kappa")
+eta     = 1e-3
+
+
+ffp = lambda d: (d+abs(d))/2.0
+ffm = lambda d: (d-abs(d))/2.0
+
+
+def g(c):
+    return (1-c)**2
+
+def eps(v):
+    return sym(grad(v))
+
+def sigma_0(v):
+    mu = E/(2.0*(1.0 + nu))
+    lmbda = E*nu/(1.0 - nu**2)
+    return 2.0*mu*(eps(v)) + lmbda*tr(eps(v))*Identity(3)
+
+def sigma(u,c):
+    return (g(c)+k)*sigma_0(u)
+
+def elastic_energy(u):
+    return 0.5*inner(sigma(u,c),eps(u))
+
+
+dt = 1e-6
+F1 = inner(sigma(u, c), grad(du))*dx 
+F2 = inner(l*grad(c), grad(dc))*dx 
+F3 = c*db*dx  - c0*db*dx + dt*inner(-1/eta * ffp(b + 2 * (1-c) *(elastic_energy(u))/gc - c/l), db) * dx
+
+F = F1 + F2 + F3
+
+
+zz = Function(Z)
+dF = derivative(F,z, zn)
+
+
+tension = Constant((0.0, -1.0, 0.0))    
+fixed   = Constant((0.0, 0.0, 0.0))
+
+bct = DirichletBC(V, tension, right_boundary)
+bcf = DirichletBC(V, fixed, left_boundary)
+bcs = [bct, bcf]
+
+zz0 = Function(Z)  
+# c     = Function(W)
+# c0    = Function(W)
+
+
+iter = 0
+maxiter = 2
+
+# Iterations
+# while iter&lt;maxiter:
+#     c0.vector()[:] = c.vector()[:]
+solve(F == 0, zz0, bcs, J=dF)
+#     iter=iter+1
+</code></pre>
+
+<p>But I am running to following error, does anybody have suggestion, what could be possibly wrong? </p>
+
+<pre><code>Invalid coefficient type for Argument(MixedElement(*[VectorElement('Lagrange', Domain(Cell('tetrahedron', 3), label='dolfin_mesh_with_id_0', data='&lt;data with id 0&gt;'), 1, dim=3, quad_scheme=None), FiniteElement('Lagrange', Domain(Cell('tetrahedron', 3), label='dolfin_mesh_with_id_0', data='&lt;data with id 0&gt;'), 1, quad_scheme=None), FiniteElement('Lagrange', Domain(Cell('tetrahedron', 3), label='dolfin_mesh_with_id_0', data='&lt;data with id 0&gt;'), 1, quad_scheme=None)], **{'value_shape': (5,) }), 1, None)
+Traceback (most recent call last):
+  File "linear_phase_field_without_decomposition.py", line 78, in &lt;module&gt;
+    dF = derivative(F,z, zn)
+  File "/home/fenics/build/lib/python2.7/site-packages/dolfin/fem/formmanipulations.py", line 80, in derivative
+    return ufl.derivative(form, u, du, coefficient_derivatives)
+  File "/home/fenics/build/lib/python2.7/site-packages/ufl/formoperators.py", line 244, in derivative
+    coefficients, arguments = _handle_derivative_arguments(form, coefficient, argument)
+  File "/home/fenics/build/lib/python2.7/site-packages/ufl/formoperators.py", line 197, in _handle_derivative_arguments
+    ufl_assert(isinstance(c, Indexed), "Invalid coefficient type for %s" % repr(c))
+  File "/home/fenics/build/lib/python2.7/site-packages/ufl/assertions.py", line 37, in ufl_assert
+    if not condition: error(*message)
+  File "/home/fenics/build/lib/python2.7/site-packages/ufl/log.py", line 151, in error
+    raise self._exception_type(self._format_raw(*message))
+ufl.log.UFLException: Invalid coefficient type for Argument(MixedElement(*[VectorElement('Lagrange', Domain(Cell('tetrahedron', 3), label='dolfin_mesh_with_id_0', data='&lt;data with id 0&gt;'), 1, dim=3, quad_scheme=None), FiniteElement('Lagrange', Domain(Cell('tetrahedron', 3), label='dolfin_mesh_with_id_0', data='&lt;data with id 0&gt;'), 1, quad_scheme=None), FiniteElement('Lagrange', Domain(Cell('tetrahedron', 3), label='dolfin_mesh_with_id_0', data='&lt;data with id 0&gt;'), 1, quad_scheme=None)], **{'value_shape': (5,) }), 1, None)
+</code></pre>
+</div>
+										</div>
+										<div class="qa-q-view-tags">
+											<ul class="qa-q-view-tag-list">
+												<li class="qa-q-view-tag-item"><a href="../../tag/bug" rel="tag" class="qa-tag-link">bug</a></li>
+												<li class="qa-q-view-tag-item"><a href="../../tag/mixed-function-space" rel="tag" class="qa-tag-link">mixed-function-space</a></li>
+												<li class="qa-q-view-tag-item"><a href="../../tag/mixed-formulation" rel="tag" class="qa-tag-link">mixed-formulation</a></li>
+											</ul>
+										</div>
+										<span class="qa-q-view-avatar-meta">
+											<span class="qa-q-view-meta">
+												<a href="../../12249/mixed-space-formulation" class="qa-q-view-what">asked</a>
+												<span class="qa-q-view-when">
+													<span class="qa-q-view-when-data"><span class="published"><span class="value-title" title="2017-01-25T19:46:44+0000"></span>Jan 25, 2017</span></span>
+												</span>
+												<span class="qa-q-view-who">
+													<span class="qa-q-view-who-pad">by </span>
+													<span class="qa-q-view-who-data"><span class="vcard author"><a href="../../user/alena" class="qa-user-link url nickname">alena</a></span></span>
+													<span class="qa-q-view-who-title">FEniCS Novice</span>
+													<span class="qa-q-view-who-points">
+														<span class="qa-q-view-who-points-pad">(</span><span class="qa-q-view-who-points-data">320</span><span class="qa-q-view-who-points-pad"> points)</span>
+													</span>
+												</span>
+											</span>
+										</span>
+										<div class="qa-q-view-buttons">
+										</div>
+										
+										<div class="qa-q-view-c-list" style="display:none;" id="c12249_list">
+										</div> <!-- END qa-c-list -->
+										
+										<input type="hidden" name="code" value="0-1516467814-0cc277a5b8b88fa84b790f8076d83b435705a0ed">
+										<input type="hidden" name="qa_click" value="">
+									</form>
+									<div class="qa-c-form">
+									</div> <!-- END qa-c-form -->
+									
+								</div> <!-- END qa-q-view-main -->
+								<div class="qa-q-view-clear">
+								</div>
+							</div> <!-- END qa-q-view -->
+							
+						</div>
+						<div class="qa-part-a-list">
+							<h2 id="a_list_title">1 Answer</h2>
+							<div class="qa-a-list" id="a_list">
+								
+								<div class="qa-a-list-item  hentry answer answer-selected qa-a-list-item-selected" id="a12250">
+									<form method="post" action="../../12249/mixed-space-formulation">
+										<div class="qa-voting qa-voting-net" id="voting_12250">
+											<div class="qa-vote-count qa-vote-count-net">
+												<span class="qa-netvote-count">
+													<span class="qa-netvote-count-data">0<span class="votes-up"><span class="value-title" title="0"></span></span><span class="votes-down"><span class="value-title" title="0"></span></span></span><span class="qa-netvote-count-pad"> votes</span>
+												</span>
+											</div>
+											<div class="qa-vote-clear">
+											</div>
+										</div>
+										<input type="hidden" name="code" value="0-1516467814-94c0c2fe65c18ff1c54452e030adec3133de9014">
+									</form>
+									<div class="qa-a-item-main">
+										<form method="post" action="../../12249/mixed-space-formulation">
+											<div class="qa-a-item-selected">
+												<div class="qa-a-selection">
+													<div class="qa-a-selected">&#160;</div>
+													<div class="qa-a-selected-text">Best answer</div>
+												</div>
+												<div class="qa-a-item-content">
+													<a name="12250"></a><div class="entry-content"><p>The nonlinear term must be defined using a Function object (see <a rel="nofollow" href="https://fenicsproject.org/olddocs/dolfin//2016.1.0/python/demo/documented/nonlinear-poisson/python/documentation.html">here</a> for example). Try this:</p>
+
+<pre><code>z = Function(Z)
+(u,c,b) = split(z)
+zt = TrialFunction(Z)
+.
+.
+F1 = inner(sigma(u, c), grad(du))*dx 
+F2 = inner(l*grad(c), grad(dc))*dx 
+F3 = c*db*dx  - c0*db*dx + dt*inner(-1/eta * ffp(b + 2 * (1-c) *(elastic_energy(u))/gc - c/l), db) * dx
+.
+.
+dF = derivative(F,z, zt)
+.
+.
+zz0 = Function(Z)  
+solve(F == 0, zz0, bcs, J=dF)
+</code></pre>
+</div>
+												</div>
+												<span class="qa-a-item-avatar-meta">
+													<span class="qa-a-item-avatar">
+														<a href="../../user/hernan_mella" class="qa-avatar-link"><img src="../../?qa=image&amp;qa_blobid=14920815903966845416&amp;qa_size=40" width="40" height="22" class="qa-avatar-image" alt=""></a>
+													</span>
+													<span class="qa-a-item-meta">
+														<a href="../../12249/mixed-space-formulation?show=12250#a12250" class="qa-a-item-what">answered</a>
+														<span class="qa-a-item-when">
+															<span class="qa-a-item-when-data"><span class="published"><span class="value-title" title="2017-01-25T20:42:30+0000"></span>Jan 25, 2017</span></span>
+														</span>
+														<span class="qa-a-item-who">
+															<span class="qa-a-item-who-pad">by </span>
+															<span class="qa-a-item-who-data"><span class="vcard author"><a href="../../user/hernan_mella" class="qa-user-link url nickname">hernan_mella</a></span></span>
+															<span class="qa-a-item-who-title">FEniCS Expert</span>
+															<span class="qa-a-item-who-points">
+																<span class="qa-a-item-who-points-pad">(</span><span class="qa-a-item-who-points-data">19,460</span><span class="qa-a-item-who-points-pad"> points)</span>
+															</span>
+														</span>
+														<br>
+														<span class="qa-a-item-what">selected</span>
+														<span class="qa-a-item-when">
+															<span class="qa-a-item-when-data"><span class="updated"><span class="value-title" title="2017-01-25T20:49:04+0000"></span>Jan 25, 2017</span></span>
+														</span>
+														<span class="qa-a-item-who">
+															<span class="qa-a-item-who-pad">by </span><span class="qa-a-item-who-data"><a href="../../user/alena" class="qa-user-link url nickname">alena</a></span>
+														</span>
+													</span>
+												</span>
+											</div>
+											<div class="qa-a-item-buttons">
+												</div>
+											
+											<div class="qa-a-item-c-list" id="c12250_list">
+												<div class="qa-c-list-item  hentry comment" id="c12251">
+													<div class="qa-c-item-content">
+														<a name="12251"></a><div class="entry-content"><p>thanks, seems to work</p>
+</div>
+													</div>
+													<div class="qa-c-item-footer">
+														<span class="qa-c-item-avatar-meta">
+															<span class="qa-c-item-meta">
+																<a href="../../12249/mixed-space-formulation?show=12251#c12251" class="qa-c-item-what">commented</a>
+																<span class="qa-c-item-when">
+																	<span class="qa-c-item-when-data"><span class="published"><span class="value-title" title="2017-01-25T20:49:29+0000"></span>Jan 25, 2017</span></span>
+																</span>
+																<span class="qa-c-item-who">
+																	<span class="qa-c-item-who-pad">by </span>
+																	<span class="qa-c-item-who-data"><span class="vcard author"><a href="../../user/alena" class="qa-user-link url nickname">alena</a></span></span>
+																	<span class="qa-c-item-who-title">FEniCS Novice</span>
+																	<span class="qa-c-item-who-points">
+																		<span class="qa-c-item-who-points-pad">(</span><span class="qa-c-item-who-points-data">320</span><span class="qa-c-item-who-points-pad"> points)</span>
+																	</span>
+																</span>
+															</span>
+														</span>
+														<div class="qa-c-item-buttons">
+														</div>
+													</div>
+													<div class="qa-c-item-clear">
+													</div>
+												</div> <!-- END qa-c-item -->
+											</div> <!-- END qa-c-list -->
+											
+											<input type="hidden" name="code" value="0-1516467814-6113a9c957c69498a5809221dbbefd2ee0cc8505">
+											<input type="hidden" name="qa_click" value="">
+										</form>
+										<div class="qa-c-form">
+										</div> <!-- END qa-c-form -->
+										
+									</div> <!-- END qa-a-item-main -->
+									<div class="qa-a-item-clear">
+									</div>
+								</div> <!-- END qa-a-list-item -->
+								
+							</div> <!-- END qa-a-list -->
+							
+						</div>
+					</div> <!-- END qa-main -->
+					
+				</div> <!-- END main-wrapper -->
+			</div> <!-- END main-shadow -->
+		</div> <!-- END body-wrapper -->
+		<!-- END footer-bottom-group -->
+		
+		<div style="position:absolute; left:-9999px; top:-9999px;">
+			<span id="qa-waiting-template" class="qa-waiting">...</span>
+		</div>
+	
+	
+
+</body><!-- Powered by Question2Answer - http://www.question2answer.org/ --></html>

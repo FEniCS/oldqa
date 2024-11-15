@@ -1,0 +1,596 @@
+<html><!-- Powered by Question2Answer - http://www.question2answer.org/ --><head>
+		<meta http-equiv="content-type" content="text/html; charset=utf-8">
+		<title>Mixed kinetic problem - FEniCS Q&amp;A</title>
+		<meta name="description" content="I'm working on a coupled 'kinetics' kind of problem which appears fairly simple, but I'm having  ... *v_1*dx gives errors w.r.t. shape differences.">
+		<meta name="keywords" content="mixed-formulation,time-dependent,variational-form">
+		<link rel="stylesheet" type="text/css" href="../../qa-theme/Snow/qa-styles.css">
+		<link rel="canonical" href="http://fenicsproject.org/qa/11976/mixed-kinetic-problem">
+		<script type="text/x-mathjax-config">
+  MathJax.Hub.Config({
+    extensions: ["tex2jax.js"],
+    jax: ["input/TeX","output/HTML-CSS"],
+    tex2jax: {inlineMath: [["$","$"],["\\(","\\)"]]},
+    TeX: { extensions: ["AMSmath.js","AMSsymbols.js"]}
+  });
+</script>
+<script type="text/javascript" src="../../mathjax/MathJax.js"></script>
+		<script src="../../jquery-1.7.2.min.js" type="text/javascript"></script>
+		<script src="../../highlight.min.js"></script>
+<script type="text/javascript">
+$(function(){
+	$('.wmd-input').keypress(function(){
+		window.clearTimeout(hljs.Timeout);
+		hljs.Timeout = window.setTimeout(function() {
+			hljs.initHighlighting.called = false;
+			hljs.initHighlighting();
+		}, 500);
+	});
+	window.setTimeout(function() {
+		hljs.initHighlighting.called = false;
+		hljs.initHighlighting();
+	}, 500);
+});
+</script>
+
+
+	</head>
+	<body class="qa-template-question qa-body-js-off">
+		<div class="qa-body-wrapper">
+			
+			<div class="qa-header">
+				<div class="qa-logo">
+					<a href="../../" class="qa-logo-link" title="FEniCS Q&amp;A"><img src="../../qa-theme/fenics_qa.png" border="0" alt="FEniCS Q&amp;A"></a>
+				</div>
+				<div class="qa-header-clear">
+				</div>
+			</div> <!-- END qa-header -->
+			
+			<div class="qa-main-shadow">
+				
+				<div class="qa-main-wrapper">
+					
+					<div class="qa-sidepanel">
+						<div class="qa-sidebar">
+							This is a read only copy of the old FEniCS QA forum. Please visit the <a href="https://www.allanswered.com/community/s/fenics-project/">new QA forum</a> to ask questions
+						</div>
+						
+					</div>
+					
+					<div class="qa-main">
+						<h1>
+							<span class="entry-title">Mixed kinetic problem</span>
+						</h1>
+						<div class="qa-part-q-view">
+							<div class="qa-q-view  hentry question" id="q11976">
+								<form method="post" action="../../11976/mixed-kinetic-problem">
+									<div class="qa-q-view-stats">
+										<div class="qa-voting qa-voting-net" id="voting_11976">
+											<div class="qa-vote-count qa-vote-count-net">
+												<span class="qa-netvote-count">
+													<span class="qa-netvote-count-data">0<span class="votes-up"><span class="value-title" title="0"></span></span><span class="votes-down"><span class="value-title" title="0"></span></span></span><span class="qa-netvote-count-pad"> votes</span>
+												</span>
+											</div>
+											<div class="qa-vote-clear">
+											</div>
+										</div>
+									</div>
+									<input type="hidden" name="code" value="0-1516467801-aa2ccf9701125985f13df4470ec025d2ab192a96">
+								</form>
+								<div class="qa-q-view-main">
+									<form method="post" action="../../11976/mixed-kinetic-problem">
+										<div class="qa-q-view-content">
+											<a name="11976"></a><div class="entry-content"><p>I'm working on a coupled 'kinetics' kind of problem which appears fairly simple, but I'm having trouble implementing it into FEniCS. I can also imagine stability issues but I'm not at that point yet. I could go into what's what, but since all parameters are dimensionless it does not seem relevant. Do note that $t$ is time and $x$ is a spatial position. <br>
+The mathematical formulation of the problem is as follows:</p>
+
+<p>$$ \frac{\partial i(x,t)}{\partial x} = - i(x,t) c(x,t) $$<br>
+$$ \frac{\partial c(x,t)}{\partial t} = -i(x,t) c(x,t) $$<br>
+s.t. $c(z,0) =1$, $\frac{\partial c}{\partial x} = 0$ at $x=0$ and $x=L$, with $L$ e.g. 15, and $i(0,t) = 1$. </p>
+
+<p>The implementation should IMO be something like below, but I'm experiencing problems with the variational formulation (for starters): </p>
+
+<pre><code>from dolfin import *
+
+T = 5.0            # final time
+num_steps = 500    # number of time steps
+dt = T / num_steps # time step size
+
+# Create mesh
+mesh = RectangleMesh(Point(0.0, 0.0), Point(15.0, 5.0), 30, 10)
+
+# Define function space
+P1 = FiniteElement('P', triangle, 1)
+element = MixedElement([P1, P1])
+V = FunctionSpace(mesh, element)
+
+# Define test functions
+v_1, v_2= TestFunctions(V)
+
+# Define functions
+u = Function(V)
+u_n = Function(V)
+
+# Split system functions to access components
+u_1, u_2 = split(u)
+u_n1, u_n2 = split(u_n)
+
+# Define Dirichlet boundary (x = 0)
+def boundary(x):
+    return x[0] &lt; DOLFIN_EPS
+
+# Define boundary condition
+u_01 = Constant(1.0)
+bc = DirichletBC(V.sub(0), u_01, boundary)
+
+# Define expressions used in variational forms
+k = Constant(dt)
+
+# Define variational problem
+F = div(u_1)*v_1*dx + u_1*u_2*v_1*dx  \
+  + ((u_2 - u_n2) / k) * u_1*u_2*v_2*dx
+
+# Time-stepping
+t = 0
+for n in range(num_steps):
+
+    # Update current time
+    t += dt
+
+    # Solve variational problem for time step
+    solve(F == 0, u, bc)
+
+    # Update previous solution
+    u_n.assign(u)
+</code></pre>
+
+<p>To narrow down the initial problem, how would the function  </p>
+
+<p>$$ \frac{\partial i(x,t)}{\partial x} = - i(x,t) c(x,t) $$</p>
+
+<p>be written in 'FEniCS python? Considering that </p>
+
+<pre><code>div(u_1)*v_1*dx + u_1*u_2*v_1*dx
+</code></pre>
+
+<p>gives errors w.r.t. shape differences. </p>
+</div>
+										</div>
+										<div class="qa-q-view-tags">
+											<ul class="qa-q-view-tag-list">
+												<li class="qa-q-view-tag-item"><a href="../../tag/mixed-formulation" rel="tag" class="qa-tag-link">mixed-formulation</a></li>
+												<li class="qa-q-view-tag-item"><a href="../../tag/time-dependent" rel="tag" class="qa-tag-link">time-dependent</a></li>
+												<li class="qa-q-view-tag-item"><a href="../../tag/variational-form" rel="tag" class="qa-tag-link">variational-form</a></li>
+											</ul>
+										</div>
+										<span class="qa-q-view-avatar-meta">
+											<span class="qa-q-view-meta">
+												<a href="../../11976/mixed-kinetic-problem" class="qa-q-view-what">asked</a>
+												<span class="qa-q-view-when">
+													<span class="qa-q-view-when-data"><span class="published"><span class="value-title" title="2016-12-16T14:27:38+0000"></span>Dec 16, 2016</span></span>
+												</span>
+												<span class="qa-q-view-who">
+													<span class="qa-q-view-who-pad">by </span>
+													<span class="qa-q-view-who-data"><span class="vcard author"><a href="../../user/steynw" class="qa-user-link url nickname">steynw</a></span></span>
+													<span class="qa-q-view-who-title">FEniCS Novice</span>
+													<span class="qa-q-view-who-points">
+														<span class="qa-q-view-who-points-pad">(</span><span class="qa-q-view-who-points-data">190</span><span class="qa-q-view-who-points-pad"> points)</span>
+													</span>
+												</span>
+												<br>
+												<span class="qa-q-view-what">retagged</span>
+												<span class="qa-q-view-when">
+													<span class="qa-q-view-when-data"><span class="updated"><span class="value-title" title="2016-12-20T09:04:13+0000"></span>Dec 20, 2016</span></span>
+												</span>
+												<span class="qa-q-view-who">
+													<span class="qa-q-view-who-pad">by </span><span class="qa-q-view-who-data"><a href="../../user/steynw" class="qa-user-link url nickname">steynw</a></span>
+												</span>
+											</span>
+										</span>
+										<div class="qa-q-view-buttons">
+										</div>
+										
+										<div class="qa-q-view-c-list" style="display:none;" id="c11976_list">
+										</div> <!-- END qa-c-list -->
+										
+										<input type="hidden" name="code" value="0-1516467801-146337a4facfae7019f84e1f77bca80836eac31a">
+										<input type="hidden" name="qa_click" value="">
+									</form>
+									<div class="qa-c-form">
+									</div> <!-- END qa-c-form -->
+									
+								</div> <!-- END qa-q-view-main -->
+								<div class="qa-q-view-clear">
+								</div>
+							</div> <!-- END qa-q-view -->
+							
+						</div>
+						<div class="qa-part-a-list">
+							<h2 id="a_list_title">1 Answer</h2>
+							<div class="qa-a-list" id="a_list">
+								
+								<div class="qa-a-list-item  hentry answer" id="a11988">
+									<form method="post" action="../../11976/mixed-kinetic-problem">
+										<div class="qa-voting qa-voting-net" id="voting_11988">
+											<div class="qa-vote-count qa-vote-count-net">
+												<span class="qa-netvote-count">
+													<span class="qa-netvote-count-data">+1<span class="votes-up"><span class="value-title" title="1"></span></span><span class="votes-down"><span class="value-title" title="0"></span></span></span><span class="qa-netvote-count-pad"> vote</span>
+												</span>
+											</div>
+											<div class="qa-vote-clear">
+											</div>
+										</div>
+										<input type="hidden" name="code" value="0-1516467801-aa2ccf9701125985f13df4470ec025d2ab192a96">
+									</form>
+									<div class="qa-a-item-main">
+										<form method="post" action="../../11976/mixed-kinetic-problem">
+											<div class="qa-a-selection">
+											</div>
+											<div class="qa-a-item-content">
+												<a name="11988"></a><div class="entry-content"><p>You cannot take the divergence of a scalar. The derivative with respect to the first spatial coordinate is </p>
+
+<pre><code> u_1.dx(0)
+</code></pre>
+</div>
+											</div>
+											<span class="qa-a-item-avatar-meta">
+												<span class="qa-a-item-avatar">
+													<a href="../../user/KristianE" class="qa-avatar-link"><img src="https://www.gravatar.com/avatar/8e8c30d82e263e44bd8fe50055a60421?s=40" width="40" height="40" class="qa-avatar-image" alt=""></a>
+												</span>
+												<span class="qa-a-item-meta">
+													<a href="../../11976/mixed-kinetic-problem?show=11988#a11988" class="qa-a-item-what">answered</a>
+													<span class="qa-a-item-when">
+														<span class="qa-a-item-when-data"><span class="published"><span class="value-title" title="2016-12-20T10:02:37+0000"></span>Dec 20, 2016</span></span>
+													</span>
+													<span class="qa-a-item-who">
+														<span class="qa-a-item-who-pad">by </span>
+														<span class="qa-a-item-who-data"><span class="vcard author"><a href="../../user/KristianE" class="qa-user-link url nickname">KristianE</a></span></span>
+														<span class="qa-a-item-who-title">FEniCS Expert</span>
+														<span class="qa-a-item-who-points">
+															<span class="qa-a-item-who-points-pad">(</span><span class="qa-a-item-who-points-data">12,900</span><span class="qa-a-item-who-points-pad"> points)</span>
+														</span>
+													</span>
+												</span>
+											</span>
+											<div class="qa-a-item-buttons">
+												</div>
+											
+											<div class="qa-a-item-c-list" id="c11988_list">
+												<div class="qa-c-list-item  hentry comment" id="c11995">
+													<div class="qa-c-item-content">
+														<a name="11995"></a><div class="entry-content"><p>And if we were to write the mathematical form in a non-1D form?<br>
+So </p>
+
+<p>$$ \nabla i = -i(\boldsymbol{x},t) c(\boldsymbol{x},t) $$</p>
+</div>
+													</div>
+													<div class="qa-c-item-footer">
+														<span class="qa-c-item-avatar-meta">
+															<span class="qa-c-item-meta">
+																<a href="../../11976/mixed-kinetic-problem?show=11995#c11995" class="qa-c-item-what">commented</a>
+																<span class="qa-c-item-when">
+																	<span class="qa-c-item-when-data"><span class="published"><span class="value-title" title="2016-12-21T06:40:01+0000"></span>Dec 21, 2016</span></span>
+																</span>
+																<span class="qa-c-item-who">
+																	<span class="qa-c-item-who-pad">by </span>
+																	<span class="qa-c-item-who-data"><span class="vcard author"><a href="../../user/steynw" class="qa-user-link url nickname">steynw</a></span></span>
+																	<span class="qa-c-item-who-title">FEniCS Novice</span>
+																	<span class="qa-c-item-who-points">
+																		<span class="qa-c-item-who-points-pad">(</span><span class="qa-c-item-who-points-data">190</span><span class="qa-c-item-who-points-pad"> points)</span>
+																	</span>
+																</span>
+															</span>
+														</span>
+														<div class="qa-c-item-buttons">
+														</div>
+													</div>
+													<div class="qa-c-item-clear">
+													</div>
+												</div> <!-- END qa-c-item -->
+												<div class="qa-c-list-item  hentry comment" id="c11996">
+													<div class="qa-c-item-content">
+														<a name="11996"></a><div class="entry-content"><p>This does not make sense. The left hand side is a vector, while the right hand side is a scalar.</p>
+</div>
+													</div>
+													<div class="qa-c-item-footer">
+														<span class="qa-c-item-avatar-meta">
+															<span class="qa-c-item-avatar">
+																<a href="../../user/KristianE" class="qa-avatar-link"><img src="https://www.gravatar.com/avatar/8e8c30d82e263e44bd8fe50055a60421?s=20" width="20" height="20" class="qa-avatar-image" alt=""></a>
+															</span>
+															<span class="qa-c-item-meta">
+																<a href="../../11976/mixed-kinetic-problem?show=11996#c11996" class="qa-c-item-what">commented</a>
+																<span class="qa-c-item-when">
+																	<span class="qa-c-item-when-data"><span class="published"><span class="value-title" title="2016-12-21T08:13:16+0000"></span>Dec 21, 2016</span></span>
+																</span>
+																<span class="qa-c-item-who">
+																	<span class="qa-c-item-who-pad">by </span>
+																	<span class="qa-c-item-who-data"><span class="vcard author"><a href="../../user/KristianE" class="qa-user-link url nickname">KristianE</a></span></span>
+																	<span class="qa-c-item-who-title">FEniCS Expert</span>
+																	<span class="qa-c-item-who-points">
+																		<span class="qa-c-item-who-points-pad">(</span><span class="qa-c-item-who-points-data">12,900</span><span class="qa-c-item-who-points-pad"> points)</span>
+																	</span>
+																</span>
+															</span>
+														</span>
+														<div class="qa-c-item-buttons">
+														</div>
+													</div>
+													<div class="qa-c-item-clear">
+													</div>
+												</div> <!-- END qa-c-item -->
+												<div class="qa-c-list-item  hentry comment" id="c11997">
+													<div class="qa-c-item-content">
+														<a name="11997"></a><div class="entry-content"><p>My apologies, you are completely right, </p>
+
+<p>This should have been including a $\cdot$, as</p>
+
+<p>$$ \nabla \cdot i(\boldsymbol{x},t) = -i(\boldsymbol{x},t) c(\boldsymbol{x},t), $$</p>
+
+<p>which (please correct me if I'm wrong) in for example two-dimensions would be equivalent to:</p>
+
+<p>$$ \frac{\partial i (\boldsymbol{x},t)}{\partial x} +  \frac{\partial i (\boldsymbol{x},t)}{\partial y} = -i(\boldsymbol{x},t) c(\boldsymbol{x},t). $$</p>
+
+<p>So a scalar equals a scalar. Since, as far as I'm aware, this is the meaning of the <code>div</code> operator, see e.g. <a rel="nofollow" href="http://www.wolframalpha.com/input/?i=div%20%7Bx%5E2,%20y%5E2%7D">WolframAlpha</a>. With your original answer in mind, is this notation different in FEniCS?</p>
+</div>
+													</div>
+													<div class="qa-c-item-footer">
+														<span class="qa-c-item-avatar-meta">
+															<span class="qa-c-item-meta">
+																<a href="../../11976/mixed-kinetic-problem?show=11997#c11997" class="qa-c-item-what">commented</a>
+																<span class="qa-c-item-when">
+																	<span class="qa-c-item-when-data"><span class="published"><span class="value-title" title="2016-12-21T09:38:12+0000"></span>Dec 21, 2016</span></span>
+																</span>
+																<span class="qa-c-item-who">
+																	<span class="qa-c-item-who-pad">by </span>
+																	<span class="qa-c-item-who-data"><span class="vcard author"><a href="../../user/steynw" class="qa-user-link url nickname">steynw</a></span></span>
+																	<span class="qa-c-item-who-title">FEniCS Novice</span>
+																	<span class="qa-c-item-who-points">
+																		<span class="qa-c-item-who-points-pad">(</span><span class="qa-c-item-who-points-data">190</span><span class="qa-c-item-who-points-pad"> points)</span>
+																	</span>
+																</span>
+															</span>
+														</span>
+														<div class="qa-c-item-buttons">
+														</div>
+													</div>
+													<div class="qa-c-item-clear">
+													</div>
+												</div> <!-- END qa-c-item -->
+												<div class="qa-c-list-item  hentry comment" id="c11998">
+													<div class="qa-c-item-content">
+														<a name="11998"></a><div class="entry-content"><p>The meaning of the div operator is divergence. This is a vector operation, which produces a scalar field from a vector field. This is clear from your WolframAlpha link, see also <a rel="nofollow" href="https://en.wikipedia.org/wiki/Divergence">https://en.wikipedia.org/wiki/Divergence</a></p>
+</div>
+													</div>
+													<div class="qa-c-item-footer">
+														<span class="qa-c-item-avatar-meta">
+															<span class="qa-c-item-avatar">
+																<a href="../../user/KristianE" class="qa-avatar-link"><img src="https://www.gravatar.com/avatar/8e8c30d82e263e44bd8fe50055a60421?s=20" width="20" height="20" class="qa-avatar-image" alt=""></a>
+															</span>
+															<span class="qa-c-item-meta">
+																<a href="../../11976/mixed-kinetic-problem?show=11998#c11998" class="qa-c-item-what">commented</a>
+																<span class="qa-c-item-when">
+																	<span class="qa-c-item-when-data"><span class="published"><span class="value-title" title="2016-12-21T09:46:01+0000"></span>Dec 21, 2016</span></span>
+																</span>
+																<span class="qa-c-item-who">
+																	<span class="qa-c-item-who-pad">by </span>
+																	<span class="qa-c-item-who-data"><span class="vcard author"><a href="../../user/KristianE" class="qa-user-link url nickname">KristianE</a></span></span>
+																	<span class="qa-c-item-who-title">FEniCS Expert</span>
+																	<span class="qa-c-item-who-points">
+																		<span class="qa-c-item-who-points-pad">(</span><span class="qa-c-item-who-points-data">12,900</span><span class="qa-c-item-who-points-pad"> points)</span>
+																	</span>
+																</span>
+															</span>
+														</span>
+														<div class="qa-c-item-buttons">
+														</div>
+													</div>
+													<div class="qa-c-item-clear">
+													</div>
+												</div> <!-- END qa-c-item -->
+												<div class="qa-c-list-item  hentry comment" id="c11999">
+													<div class="qa-c-item-content">
+														<a name="11999"></a><div class="entry-content"><p>Thanks for your quick response, I think I (finally) understood the trivial thing you're saying  - am I correct in stating the equation I put above would thus be:</p>
+
+<pre><code> (u_1.dx(0)+u_1.dx(1))*v_1*dx + u_1*u_2*v_1*dx = 0
+</code></pre>
+
+<p>since we're indeed dealing with a scalar field? </p>
+
+<p>With this the code now becomes as shown below, which unfortunately does not converge. Any ideas on how to overcome this?</p>
+
+<pre><code>from dolfin import *
+
+T = 5.0            # final time
+num_steps = 500    # number of time steps
+dt = T / num_steps # time step size
+
+# Create mesh
+mesh = RectangleMesh(Point(0.0, 0.0), Point(15.0, 5.0), 90, 30)
+
+# Define function space for system of concentrations
+P1 = FiniteElement('P', triangle, 1)
+element = MixedElement([P1, P1])
+V = FunctionSpace(mesh, element)
+
+# Define test functions
+v_1, v_2= TestFunctions(V)
+
+# Define functions for velocity and concentrations
+u = Function(V)
+u_n = Function(V)
+
+# Split system functions to access components
+u_1, u_2 = split(u)
+u_n1, u_n2 = split(u_n)
+
+# Define Dirichlet boundary (x = 0)
+def boundary(x):
+    return x[0] &lt; DOLFIN_EPS
+
+# Define boundary condition
+u_01 = Constant(1.0)
+bc = DirichletBC(V.sub(0), u_01, boundary)
+
+# Define expressions used in variational forms
+k = Constant(dt)
+
+# Define variational problem
+F = (u_1.dx(0)+u_1.dx(1))*v_1*dx + u_1*u_2*v_1*dx  \
+  + ((u_2 - u_n2) / k) * u_1*u_2*v_2*dx
+
+# Create VTK files for visualization output
+vtkfile_u_1 = File('u_1.pvd')
+vtkfile_u_2 = File('u_2.pvd')
+
+# Create progress bar
+progress = Progress('Time-stepping')
+set_log_level(PROGRESS)
+
+# Time-stepping
+t = 0
+for n in range(num_steps):
+
+    # Update current time
+    t += dt
+
+    # Solve variational problem for time step
+    solve(F == 0, u, bc)
+
+    # Save solution to file (VTK)
+    _u_1, _u_2 = u.split()
+    vtkfile_u_1 &lt;&lt; (_u_1, t)
+    vtkfile_u_2 &lt;&lt; (_u_2, t)
+
+    # Update previous solution
+    u_n.assign(u)
+
+    # Update progress bar
+    progress.update(t / T)
+
+# Hold plot
+interactive()
+</code></pre>
+</div>
+													</div>
+													<div class="qa-c-item-footer">
+														<span class="qa-c-item-avatar-meta">
+															<span class="qa-c-item-meta">
+																<a href="../../11976/mixed-kinetic-problem?show=11999#c11999" class="qa-c-item-what">commented</a>
+																<span class="qa-c-item-when">
+																	<span class="qa-c-item-when-data"><span class="published"><span class="value-title" title="2016-12-21T12:10:54+0000"></span>Dec 21, 2016</span></span>
+																</span>
+																<span class="qa-c-item-who">
+																	<span class="qa-c-item-who-pad">by </span>
+																	<span class="qa-c-item-who-data"><span class="vcard author"><a href="../../user/steynw" class="qa-user-link url nickname">steynw</a></span></span>
+																	<span class="qa-c-item-who-title">FEniCS Novice</span>
+																	<span class="qa-c-item-who-points">
+																		<span class="qa-c-item-who-points-pad">(</span><span class="qa-c-item-who-points-data">190</span><span class="qa-c-item-who-points-pad"> points)</span>
+																	</span>
+																</span>
+															</span>
+														</span>
+														<div class="qa-c-item-buttons">
+														</div>
+													</div>
+													<div class="qa-c-item-clear">
+													</div>
+												</div> <!-- END qa-c-item -->
+												<div class="qa-c-list-item  hentry comment" id="c12001">
+													<div class="qa-c-item-content">
+														<a name="12001"></a><div class="entry-content"><p>The problem does not have an elliptic component, i.e.</p>
+
+<pre><code>u_1.dx(0)*v_1.dx(0)*dx
+</code></pre>
+
+<p>so you have to add some sort of stabilization. The choice of stabilization is outside the scope of this board, but </p>
+
+<pre><code> v_1 += CellSize(mesh)*v_1.dx(0)
+</code></pre>
+
+<p>might work.</p>
+</div>
+													</div>
+													<div class="qa-c-item-footer">
+														<span class="qa-c-item-avatar-meta">
+															<span class="qa-c-item-avatar">
+																<a href="../../user/KristianE" class="qa-avatar-link"><img src="https://www.gravatar.com/avatar/8e8c30d82e263e44bd8fe50055a60421?s=20" width="20" height="20" class="qa-avatar-image" alt=""></a>
+															</span>
+															<span class="qa-c-item-meta">
+																<a href="../../11976/mixed-kinetic-problem?show=12001#c12001" class="qa-c-item-what">commented</a>
+																<span class="qa-c-item-when">
+																	<span class="qa-c-item-when-data"><span class="published"><span class="value-title" title="2016-12-21T12:45:27+0000"></span>Dec 21, 2016</span></span>
+																</span>
+																<span class="qa-c-item-who">
+																	<span class="qa-c-item-who-pad">by </span>
+																	<span class="qa-c-item-who-data"><span class="vcard author"><a href="../../user/KristianE" class="qa-user-link url nickname">KristianE</a></span></span>
+																	<span class="qa-c-item-who-title">FEniCS Expert</span>
+																	<span class="qa-c-item-who-points">
+																		<span class="qa-c-item-who-points-pad">(</span><span class="qa-c-item-who-points-data">12,900</span><span class="qa-c-item-who-points-pad"> points)</span>
+																	</span>
+																</span>
+															</span>
+														</span>
+														<div class="qa-c-item-buttons">
+														</div>
+													</div>
+													<div class="qa-c-item-clear">
+													</div>
+												</div> <!-- END qa-c-item -->
+												<div class="qa-c-list-item  hentry comment" id="c12002">
+													<div class="qa-c-item-content">
+														<a name="12002"></a><div class="entry-content"><p>Thanks again!</p>
+
+<p>The suggestion doesn't appear to be a direct plug&amp;play solution but I'll look into that direction further. </p>
+</div>
+													</div>
+													<div class="qa-c-item-footer">
+														<span class="qa-c-item-avatar-meta">
+															<span class="qa-c-item-meta">
+																<a href="../../11976/mixed-kinetic-problem?show=12002#c12002" class="qa-c-item-what">commented</a>
+																<span class="qa-c-item-when">
+																	<span class="qa-c-item-when-data"><span class="published"><span class="value-title" title="2016-12-21T13:08:11+0000"></span>Dec 21, 2016</span></span>
+																</span>
+																<span class="qa-c-item-who">
+																	<span class="qa-c-item-who-pad">by </span>
+																	<span class="qa-c-item-who-data"><span class="vcard author"><a href="../../user/steynw" class="qa-user-link url nickname">steynw</a></span></span>
+																	<span class="qa-c-item-who-title">FEniCS Novice</span>
+																	<span class="qa-c-item-who-points">
+																		<span class="qa-c-item-who-points-pad">(</span><span class="qa-c-item-who-points-data">190</span><span class="qa-c-item-who-points-pad"> points)</span>
+																	</span>
+																</span>
+															</span>
+														</span>
+														<div class="qa-c-item-buttons">
+														</div>
+													</div>
+													<div class="qa-c-item-clear">
+													</div>
+												</div> <!-- END qa-c-item -->
+											</div> <!-- END qa-c-list -->
+											
+											<input type="hidden" name="code" value="0-1516467801-216698a8520860334d0dfb0400eeee8a239f4c13">
+											<input type="hidden" name="qa_click" value="">
+										</form>
+										<div class="qa-c-form">
+										</div> <!-- END qa-c-form -->
+										
+									</div> <!-- END qa-a-item-main -->
+									<div class="qa-a-item-clear">
+									</div>
+								</div> <!-- END qa-a-list-item -->
+								
+							</div> <!-- END qa-a-list -->
+							
+						</div>
+					</div> <!-- END qa-main -->
+					
+				</div> <!-- END main-wrapper -->
+			</div> <!-- END main-shadow -->
+		</div> <!-- END body-wrapper -->
+		<!-- END footer-bottom-group -->
+		
+		<div style="position:absolute; left:-9999px; top:-9999px;">
+			<span id="qa-waiting-template" class="qa-waiting">...</span>
+		</div>
+	
+	
+
+</body><!-- Powered by Question2Answer - http://www.question2answer.org/ --></html>

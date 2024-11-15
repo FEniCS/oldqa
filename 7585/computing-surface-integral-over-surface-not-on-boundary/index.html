@@ -1,0 +1,290 @@
+<html><!-- Powered by Question2Answer - http://www.question2answer.org/ --><head>
+		<meta http-equiv="content-type" content="text/html; charset=utf-8">
+		<title>Computing surface integral over surface not on boundary - FEniCS Q&amp;A</title>
+		<meta name="description" content="Is it possible to compute integral over surface not lying on the domain boundary? I tried to do  ... how can I integrate over a surface inside domain?">
+		<meta name="keywords" content="integration">
+		<link rel="stylesheet" type="text/css" href="../../qa-theme/Snow/qa-styles.css">
+		<link rel="canonical" href="http://fenicsproject.org/qa/7585/computing-surface-integral-over-surface-not-on-boundary">
+		<script type="text/x-mathjax-config">
+  MathJax.Hub.Config({
+    extensions: ["tex2jax.js"],
+    jax: ["input/TeX","output/HTML-CSS"],
+    tex2jax: {inlineMath: [["$","$"],["\\(","\\)"]]},
+    TeX: { extensions: ["AMSmath.js","AMSsymbols.js"]}
+  });
+</script>
+<script type="text/javascript" src="../../mathjax/MathJax.js"></script>
+		<script src="../../jquery-1.7.2.min.js" type="text/javascript"></script>
+		<script src="../../highlight.min.js"></script>
+<script type="text/javascript">
+$(function(){
+	$('.wmd-input').keypress(function(){
+		window.clearTimeout(hljs.Timeout);
+		hljs.Timeout = window.setTimeout(function() {
+			hljs.initHighlighting.called = false;
+			hljs.initHighlighting();
+		}, 500);
+	});
+	window.setTimeout(function() {
+		hljs.initHighlighting.called = false;
+		hljs.initHighlighting();
+	}, 500);
+});
+</script>
+
+
+	</head>
+	<body class="qa-template-question qa-body-js-off">
+		<div class="qa-body-wrapper">
+			
+			<div class="qa-header">
+				<div class="qa-logo">
+					<a href="../../" class="qa-logo-link" title="FEniCS Q&amp;A"><img src="../../qa-theme/fenics_qa.png" border="0" alt="FEniCS Q&amp;A"></a>
+				</div>
+				<div class="qa-header-clear">
+				</div>
+			</div> <!-- END qa-header -->
+			
+			<div class="qa-main-shadow">
+				
+				<div class="qa-main-wrapper">
+					
+					<div class="qa-sidepanel">
+						<div class="qa-sidebar">
+							This is a read only copy of the old FEniCS QA forum. Please visit the <a href="https://www.allanswered.com/community/s/fenics-project/">new QA forum</a> to ask questions
+						</div>
+						
+					</div>
+					
+					<div class="qa-main">
+						<h1>
+							<span class="entry-title">Computing surface integral over surface not on boundary</span>
+						</h1>
+						<div class="qa-part-q-view">
+							<div class="qa-q-view  hentry question" id="q7585">
+								<form method="post" action="../../7585/computing-surface-integral-over-surface-not-on-boundary">
+									<div class="qa-q-view-stats">
+										<div class="qa-voting qa-voting-net" id="voting_7585">
+											<div class="qa-vote-count qa-vote-count-net">
+												<span class="qa-netvote-count">
+													<span class="qa-netvote-count-data">0<span class="votes-up"><span class="value-title" title="0"></span></span><span class="votes-down"><span class="value-title" title="0"></span></span></span><span class="qa-netvote-count-pad"> votes</span>
+												</span>
+											</div>
+											<div class="qa-vote-clear">
+											</div>
+										</div>
+									</div>
+									<input type="hidden" name="code" value="0-1516468127-2510e54b2a1a26c0a2a4e254db27c6fcdaf68322">
+								</form>
+								<div class="qa-q-view-main">
+									<form method="post" action="../../7585/computing-surface-integral-over-surface-not-on-boundary">
+										<div class="qa-q-view-content">
+											<a name="7585"></a><div class="entry-content"><p>Is it possible to compute integral over surface not lying on the domain boundary? I tried to do this straightforwardly but without success:</p>
+
+<pre><code>from dolfin import *
+import sys, math, numpy
+
+nx=10
+ny=20
+nz=20
+
+mesh = UnitCubeMesh(nx,ny,nz)
+V= FunctionSpace(mesh, 'Lagrange', 1)
+
+class LeftBoundary(SubDomain):
+    def inside(self,x,on_boundary):
+        return on_boundary and near(x[0],0.0)
+
+class RightBoundary(SubDomain):
+    def inside(self,x,on_boundary):
+        return on_boundary and near(x[0],1.0)
+
+left_bndr = LeftBoundary()
+right_bndr = RightBoundary()
+
+Gamma_L = DirichletBC(V, Constant(0),left_bndr)
+Gamma_R = DirichletBC(V, Constant(1.0), right_bndr)
+
+u = TrialFunction(V)
+v = TestFunction(V)
+f= Constant(0)
+
+a = inner(nabla_grad(u),nabla_grad(v))*dx
+L= f*v*dx
+u= Function(V)
+solve(a == L, u, [Gamma_L, Gamma_R])
+
+boundary_parts = FacetFunction("size_t", mesh)
+left_bndr.mark(boundary_parts,1)
+right_bndr.mark(boundary_parts,2)
+
+class InnerBoundary(SubDomain):
+    def inside(self,x, on_boundary):
+        return near(x[0],0.5)
+
+inner_bndr = InnerBoundary()
+inner_bndr.mark(boundary_parts,3)
+ds = Measure("ds")[boundary_parts]
+
+flux_l=dot(Constant((1,0,0)),nabla_grad(u))*ds(1)
+flux_r=dot(Constant((1,0,0)),nabla_grad(u))*ds(2)
+print "flux left: ", assemble(flux_l)
+print "flux right: ", assemble(flux_r)
+
+flux_c = dot(Constant((1.0,0.0,0)),nabla_grad(u))*ds(3)
+print "Central flux: ", assemble(flux_c)
+</code></pre>
+
+<p>The result is:<br>
+flux left:  1.0<br>
+flux right:  1.0<br>
+Central flux:  0.0</p>
+
+<p>It is obvious that the flux should be conserved here. So, how can I integrate over a surface inside domain?</p>
+</div>
+										</div>
+										<div class="qa-q-view-tags">
+											<ul class="qa-q-view-tag-list">
+												<li class="qa-q-view-tag-item"><a href="../../tag/integration" rel="tag" class="qa-tag-link">integration</a></li>
+											</ul>
+										</div>
+										<span class="qa-q-view-avatar-meta">
+											<span class="qa-q-view-meta">
+												<a href="../../7585/computing-surface-integral-over-surface-not-on-boundary" class="qa-q-view-what">asked</a>
+												<span class="qa-q-view-when">
+													<span class="qa-q-view-when-data"><span class="published"><span class="value-title" title="2015-07-15T14:13:30+0000"></span>Jul 15, 2015</span></span>
+												</span>
+												<span class="qa-q-view-who">
+													<span class="qa-q-view-who-pad">by </span>
+													<span class="qa-q-view-who-data"><span class="vcard author"><a href="../../user/begemotv2718" class="qa-user-link url nickname">begemotv2718</a></span></span>
+													<span class="qa-q-view-who-title">FEniCS Novice</span>
+													<span class="qa-q-view-who-points">
+														<span class="qa-q-view-who-points-pad">(</span><span class="qa-q-view-who-points-data">380</span><span class="qa-q-view-who-points-pad"> points)</span>
+													</span>
+												</span>
+												<br>
+												<span class="qa-q-view-what">retagged</span>
+												<span class="qa-q-view-when">
+													<span class="qa-q-view-when-data"><span class="updated"><span class="value-title" title="2015-07-15T15:12:24+0000"></span>Jul 15, 2015</span></span>
+												</span>
+												<span class="qa-q-view-who">
+													<span class="qa-q-view-who-pad">by </span><span class="qa-q-view-who-data"><a href="../../user/begemotv2718" class="qa-user-link url nickname">begemotv2718</a></span>
+												</span>
+											</span>
+										</span>
+										<div class="qa-q-view-buttons">
+										</div>
+										
+										<div class="qa-q-view-c-list" style="display:none;" id="c7585_list">
+										</div> <!-- END qa-c-list -->
+										
+										<input type="hidden" name="code" value="0-1516468127-d15c75e3d570cda61b598e111d49691583f49f05">
+										<input type="hidden" name="qa_click" value="">
+									</form>
+									<div class="qa-c-form">
+									</div> <!-- END qa-c-form -->
+									
+								</div> <!-- END qa-q-view-main -->
+								<div class="qa-q-view-clear">
+								</div>
+							</div> <!-- END qa-q-view -->
+							
+						</div>
+						<div class="qa-part-a-list">
+							<h2 id="a_list_title">1 Answer</h2>
+							<div class="qa-a-list" id="a_list">
+								
+								<div class="qa-a-list-item  hentry answer answer-selected qa-a-list-item-selected" id="a7586">
+									<form method="post" action="../../7585/computing-surface-integral-over-surface-not-on-boundary">
+										<div class="qa-voting qa-voting-net" id="voting_7586">
+											<div class="qa-vote-count qa-vote-count-net">
+												<span class="qa-netvote-count">
+													<span class="qa-netvote-count-data">+1<span class="votes-up"><span class="value-title" title="1"></span></span><span class="votes-down"><span class="value-title" title="0"></span></span></span><span class="qa-netvote-count-pad"> vote</span>
+												</span>
+											</div>
+											<div class="qa-vote-clear">
+											</div>
+										</div>
+										<input type="hidden" name="code" value="0-1516468127-2510e54b2a1a26c0a2a4e254db27c6fcdaf68322">
+									</form>
+									<div class="qa-a-item-main">
+										<form method="post" action="../../7585/computing-surface-integral-over-surface-not-on-boundary">
+											<div class="qa-a-item-selected">
+												<div class="qa-a-selection">
+													<div class="qa-a-selected">&#160;</div>
+													<div class="qa-a-selected-text">Best answer</div>
+												</div>
+												<div class="qa-a-item-content">
+													<a name="7586"></a><div class="entry-content"><p>Hi, <code>Measure("ds")</code> gives you measure for exterior facets. What you need is to integrate over interior facets. Consider the code below</p>
+
+<pre><code>dS = Measure("dS")[boundary_parts]
+flux_c = dot(Constant((1.0,0.0,0)), avg(nabla_grad(u)))*dS(3)
+print "Central flux: ", assemble(flux_c) 
+# &gt;&gt;&gt; Central flux: 1.0
+</code></pre>
+
+<p>Note the restriction by <code>avg</code>(averaging) to make the integrand single valued on the facet.</p>
+</div>
+												</div>
+												<span class="qa-a-item-avatar-meta">
+													<span class="qa-a-item-avatar">
+														<a href="../../user/MiroK" class="qa-avatar-link"><img src="https://www.gravatar.com/avatar/f566be3274ec73e3a6dda27bca11631c?s=40" width="40" height="40" class="qa-avatar-image" alt=""></a>
+													</span>
+													<span class="qa-a-item-meta">
+														<a href="../../7585/computing-surface-integral-over-surface-not-on-boundary?show=7586#a7586" class="qa-a-item-what">answered</a>
+														<span class="qa-a-item-when">
+															<span class="qa-a-item-when-data"><span class="published"><span class="value-title" title="2015-07-15T17:21:06+0000"></span>Jul 15, 2015</span></span>
+														</span>
+														<span class="qa-a-item-who">
+															<span class="qa-a-item-who-pad">by </span>
+															<span class="qa-a-item-who-data"><span class="vcard author"><a href="../../user/MiroK" class="qa-user-link url nickname">MiroK</a></span></span>
+															<span class="qa-a-item-who-title">FEniCS Expert</span>
+															<span class="qa-a-item-who-points">
+																<span class="qa-a-item-who-points-pad">(</span><span class="qa-a-item-who-points-data">80,920</span><span class="qa-a-item-who-points-pad"> points)</span>
+															</span>
+														</span>
+														<br>
+														<span class="qa-a-item-what">selected</span>
+														<span class="qa-a-item-when">
+															<span class="qa-a-item-when-data"><span class="updated"><span class="value-title" title="2015-07-16T09:51:10+0000"></span>Jul 16, 2015</span></span>
+														</span>
+														<span class="qa-a-item-who">
+															<span class="qa-a-item-who-pad">by </span><span class="qa-a-item-who-data"><a href="../../user/begemotv2718" class="qa-user-link url nickname">begemotv2718</a></span>
+														</span>
+													</span>
+												</span>
+											</div>
+											<div class="qa-a-item-buttons">
+												</div>
+											
+											<div class="qa-a-item-c-list" style="display:none;" id="c7586_list">
+											</div> <!-- END qa-c-list -->
+											
+											<input type="hidden" name="code" value="0-1516468127-06665c9a4351c446e85a57099c8fea322f666044">
+											<input type="hidden" name="qa_click" value="">
+										</form>
+										<div class="qa-c-form">
+										</div> <!-- END qa-c-form -->
+										
+									</div> <!-- END qa-a-item-main -->
+									<div class="qa-a-item-clear">
+									</div>
+								</div> <!-- END qa-a-list-item -->
+								
+							</div> <!-- END qa-a-list -->
+							
+						</div>
+					</div> <!-- END qa-main -->
+					
+				</div> <!-- END main-wrapper -->
+			</div> <!-- END main-shadow -->
+		</div> <!-- END body-wrapper -->
+		<!-- END footer-bottom-group -->
+		
+		<div style="position:absolute; left:-9999px; top:-9999px;">
+			<span id="qa-waiting-template" class="qa-waiting">...</span>
+		</div>
+	
+	
+
+</body><!-- Powered by Question2Answer - http://www.question2answer.org/ --></html>

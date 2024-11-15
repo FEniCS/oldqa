@@ -1,0 +1,324 @@
+<html><!-- Powered by Question2Answer - http://www.question2answer.org/ --><head>
+		<meta http-equiv="content-type" content="text/html; charset=utf-8">
+		<title>Stokes &amp; Periodic Boundary Conditions - FEniCS Q&amp;A</title>
+		<meta name="description" content='Hi! I have to solve Stokes Equations on a cube domain (side L) with ellipsoidal obstacle in  ... VTK format ufile_pvd = File("velocity.pvd") ufile_pvd'>
+		<link rel="stylesheet" type="text/css" href="../../qa-theme/Snow/qa-styles.css">
+		<link rel="canonical" href="http://fenicsproject.org/qa/7285/stokes-%26-periodic-boundary-conditions">
+		<script type="text/x-mathjax-config">
+  MathJax.Hub.Config({
+    extensions: ["tex2jax.js"],
+    jax: ["input/TeX","output/HTML-CSS"],
+    tex2jax: {inlineMath: [["$","$"],["\\(","\\)"]]},
+    TeX: { extensions: ["AMSmath.js","AMSsymbols.js"]}
+  });
+</script>
+<script type="text/javascript" src="../../mathjax/MathJax.js"></script>
+		<script src="../../jquery-1.7.2.min.js" type="text/javascript"></script>
+		<script src="../../highlight.min.js"></script>
+<script type="text/javascript">
+$(function(){
+	$('.wmd-input').keypress(function(){
+		window.clearTimeout(hljs.Timeout);
+		hljs.Timeout = window.setTimeout(function() {
+			hljs.initHighlighting.called = false;
+			hljs.initHighlighting();
+		}, 500);
+	});
+	window.setTimeout(function() {
+		hljs.initHighlighting.called = false;
+		hljs.initHighlighting();
+	}, 500);
+});
+</script>
+
+
+	</head>
+	<body class="qa-template-question qa-body-js-off">
+		<div class="qa-body-wrapper">
+			
+			<div class="qa-header">
+				<div class="qa-logo">
+					<a href="../../" class="qa-logo-link" title="FEniCS Q&amp;A"><img src="../../qa-theme/fenics_qa.png" border="0" alt="FEniCS Q&amp;A"></a>
+				</div>
+				<div class="qa-header-clear">
+				</div>
+			</div> <!-- END qa-header -->
+			
+			<div class="qa-main-shadow">
+				
+				<div class="qa-main-wrapper">
+					
+					<div class="qa-sidepanel">
+						<div class="qa-sidebar">
+							This is a read only copy of the old FEniCS QA forum. Please visit the <a href="https://www.allanswered.com/community/s/fenics-project/">new QA forum</a> to ask questions
+						</div>
+						
+					</div>
+					
+					<div class="qa-main">
+						<h1>
+							<span class="entry-title">Stokes &amp; Periodic Boundary Conditions</span>
+						</h1>
+						<div class="qa-part-q-view">
+							<div class="qa-q-view  hentry question" id="q7285">
+								<form method="post" action="../../7285/stokes-%26-periodic-boundary-conditions">
+									<div class="qa-q-view-stats">
+										<div class="qa-voting qa-voting-net" id="voting_7285">
+											<div class="qa-vote-count qa-vote-count-net">
+												<span class="qa-netvote-count">
+													<span class="qa-netvote-count-data">+1<span class="votes-up"><span class="value-title" title="1"></span></span><span class="votes-down"><span class="value-title" title="0"></span></span></span><span class="qa-netvote-count-pad"> vote</span>
+												</span>
+											</div>
+											<div class="qa-vote-clear">
+											</div>
+										</div>
+									</div>
+									<input type="hidden" name="code" value="0-1516468113-1cad15e5229c57ff768be4a501767625e41c2ac9">
+								</form>
+								<div class="qa-q-view-main">
+									<form method="post" action="../../7285/stokes-%26-periodic-boundary-conditions">
+										<div class="qa-q-view-content">
+											<a name="7285"></a><div class="entry-content"><p>Hi! I have to solve Stokes Equations on a cube domain (side L) with ellipsoidal obstacle in the middle of the cube (the cube and the obstacle have same center), with the following boundary conditions:</p>
+
+<ul>
+<li>null velocity on the surface of the obstacle</li>
+<li>null normal component of velocity on front and back face of the cube (z direction)</li>
+<li>mean of inflow pressure p1</li>
+<li>mean of outflow pressure null</li>
+<li>periodic condition for pressure and velocity on top and bottom face of the cube (y direction)</li>
+</ul>
+
+<p>This is the code:</p>
+
+<pre><code>from dolfin import *
+import scipy.io as io
+import numpy as np
+import math
+
+#Set test variables
+m = 1e-6;
+
+ncells = 1;
+eta = 0.001;
+a = 7*m;
+b = 10*m;
+c = 10*m;
+eps = 0.6649;
+
+L = (4*math.pi*a*b*c/(3*(1-eps)))**(1.0/3.0);
+
+#Inflow pressure
+p1 = 1*ncells;
+
+# Load mesh
+mesh = Mesh("../Mesh/Ellipsoid.xml")
+boundaries = MeshFunction("size_t", mesh, "../Mesh/Ellipsoid_facet_region.xml")
+
+class PeriodicBoundary(SubDomain):
+
+    def inside(self, x, on_boundary):
+        return bool((x[1] &lt; -L/2 + DOLFIN_EPS and
+                    x[1] &gt; (-L/2 - DOLFIN_EPS)) and on_boundary)
+
+    # Map right boundary (H) to left boundary (G)
+    def map(self, x, y):
+        y[0] = x[0]
+        y[1] = x[1] - L
+        y[2] = x[2]
+
+# Define function spaces
+V = VectorFunctionSpace (mesh, "CG", 2, constrained_domain=PeriodicBoundary())
+Q = FunctionSpace (mesh, "CG", 1, constrained_domain=PeriodicBoundary())
+W = MixedFunctionSpace([V,Q])
+
+n = FacetNormal(mesh)
+ds = Measure("ds", subdomain_data=boundaries)
+
+# Create functions for boundary conditions
+zero = Constant(0.0)
+collector_bc = Constant((0,0,0))
+
+# Boundary condition for velocity on extern boundaries
+bc3 = DirichletBC(W.sub(0).sub(2), zero, boundaries, 3) #front
+bc4 = DirichletBC(W.sub(0).sub(2), zero, boundaries, 4) #back
+
+# Boundary condition for velocity on collector boundary
+bc7 = DirichletBC(W.sub(0), collector_bc, boundaries, 7) #collector
+
+# Collect boundary conditions
+bcs = [bc3,bc4,bc7]
+
+# Define variational problem
+v, q = TestFunctions(W)
+u, p = TrialFunctions(W)
+
+a = eta*inner(grad(u), grad(v))*dx - div(v)*p*dx + q*div(u)*dx
+L = - p1*dot(v,n)*ds(1)
+
+# Compute solution
+w = Function(W)
+solve(a == L, w, bcs, solver_parameters={'linear_solver':'mumps'})
+u, p = w.split(deepcopy=True)
+
+# Save solution in VTK format
+ufile_pvd = File("velocity.pvd")
+ufile_pvd &lt;&lt; u
+pfile_pvd = File("pressure.pvd")
+pfile_pvd &lt;&lt; p
+
+# Plot solution
+plot(mesh)
+plot(u)
+plot(p)
+interactive()
+</code></pre>
+
+<p>but the solution doesn't satisfy periodic boundary condition for velocity, as show in figure<br>
+<img src="http://i59.tinypic.com/imp2lk.png" alt="enter image description here"></p>
+
+<p>And I don't find errors in my code.<br>
+Thank you in advance for your help.</p>
+
+<p><a rel="nofollow" href="https://www.dropbox.com/s/sa81vn5j2la1cbf/Ellipsoid.zip?dl=0">Here</a> the complete code with mesh.</p>
+</div>
+										</div>
+										<span class="qa-q-view-avatar-meta">
+											<span class="qa-q-view-meta">
+												<a href="../../7285/stokes-%26-periodic-boundary-conditions" class="qa-q-view-what">asked</a>
+												<span class="qa-q-view-when">
+													<span class="qa-q-view-when-data"><span class="published"><span class="value-title" title="2015-05-28T07:51:30+0000"></span>May 28, 2015</span></span>
+												</span>
+												<span class="qa-q-view-who">
+													<span class="qa-q-view-who-pad">by </span>
+													<span class="qa-q-view-who-data"><span class="vcard author"><a href="../../user/michele" class="qa-user-link url nickname">michele</a></span></span>
+													<span class="qa-q-view-who-title">FEniCS Novice</span>
+													<span class="qa-q-view-who-points">
+														<span class="qa-q-view-who-points-pad">(</span><span class="qa-q-view-who-points-data">150</span><span class="qa-q-view-who-points-pad"> points)</span>
+													</span>
+												</span>
+											</span>
+										</span>
+										<div class="qa-q-view-buttons">
+										</div>
+										
+										<div class="qa-q-view-c-list" style="display:none;" id="c7285_list">
+										</div> <!-- END qa-c-list -->
+										
+										<input type="hidden" name="code" value="0-1516468113-70470572d379d55561577a10479ae84a677ab6db">
+										<input type="hidden" name="qa_click" value="">
+									</form>
+									<div class="qa-c-form">
+									</div> <!-- END qa-c-form -->
+									
+								</div> <!-- END qa-q-view-main -->
+								<div class="qa-q-view-clear">
+								</div>
+							</div> <!-- END qa-q-view -->
+							
+						</div>
+						<div class="qa-part-a-list">
+							<h2 id="a_list_title">1 Answer</h2>
+							<div class="qa-a-list" id="a_list">
+								
+								<div class="qa-a-list-item  hentry answer" id="a7336">
+									<form method="post" action="../../7285/stokes-%26-periodic-boundary-conditions">
+										<div class="qa-voting qa-voting-net" id="voting_7336">
+											<div class="qa-vote-count qa-vote-count-net">
+												<span class="qa-netvote-count">
+													<span class="qa-netvote-count-data">0<span class="votes-up"><span class="value-title" title="0"></span></span><span class="votes-down"><span class="value-title" title="0"></span></span></span><span class="qa-netvote-count-pad"> votes</span>
+												</span>
+											</div>
+											<div class="qa-vote-clear">
+											</div>
+										</div>
+										<input type="hidden" name="code" value="0-1516468113-1cad15e5229c57ff768be4a501767625e41c2ac9">
+									</form>
+									<div class="qa-a-item-main">
+										<form method="post" action="../../7285/stokes-%26-periodic-boundary-conditions">
+											<div class="qa-a-selection">
+											</div>
+											<div class="qa-a-item-content">
+												<a name="7336"></a><div class="entry-content"><p>Are the points of your mesh at the same y values on both periodic boundaries?</p>
+</div>
+											</div>
+											<span class="qa-a-item-avatar-meta">
+												<span class="qa-a-item-avatar">
+													<a href="../../user/chris_richardson" class="qa-avatar-link"><img src="https://www.gravatar.com/avatar/d779daeb727bcec8f6b2c505810042db?s=40" width="40" height="40" class="qa-avatar-image" alt=""></a>
+												</span>
+												<span class="qa-a-item-meta">
+													<a href="../../7285/stokes-%26-periodic-boundary-conditions?show=7336#a7336" class="qa-a-item-what">answered</a>
+													<span class="qa-a-item-when">
+														<span class="qa-a-item-when-data"><span class="published"><span class="value-title" title="2015-06-02T17:50:22+0000"></span>Jun 2, 2015</span></span>
+													</span>
+													<span class="qa-a-item-who">
+														<span class="qa-a-item-who-pad">by </span>
+														<span class="qa-a-item-who-data"><span class="vcard author"><a href="../../user/chris_richardson" class="qa-user-link url nickname">chris_richardson</a></span></span>
+														<span class="qa-a-item-who-title">FEniCS Expert</span>
+														<span class="qa-a-item-who-points">
+															<span class="qa-a-item-who-points-pad">(</span><span class="qa-a-item-who-points-data">31,740</span><span class="qa-a-item-who-points-pad"> points)</span>
+														</span>
+													</span>
+												</span>
+											</span>
+											<div class="qa-a-item-buttons">
+												</div>
+											
+											<div class="qa-a-item-c-list" id="c7336_list">
+												<div class="qa-c-list-item  hentry comment" id="c7337">
+													<div class="qa-c-item-content">
+														<a name="7337"></a><div class="entry-content"><p>Yes, I created mesh with gmsh and I think that this is true by default.</p>
+</div>
+													</div>
+													<div class="qa-c-item-footer">
+														<span class="qa-c-item-avatar-meta">
+															<span class="qa-c-item-meta">
+																<a href="../../7285/stokes-%26-periodic-boundary-conditions?show=7337#c7337" class="qa-c-item-what">commented</a>
+																<span class="qa-c-item-when">
+																	<span class="qa-c-item-when-data"><span class="published"><span class="value-title" title="2015-06-02T17:54:49+0000"></span>Jun 2, 2015</span></span>
+																</span>
+																<span class="qa-c-item-who">
+																	<span class="qa-c-item-who-pad">by </span>
+																	<span class="qa-c-item-who-data"><span class="vcard author"><a href="../../user/michele" class="qa-user-link url nickname">michele</a></span></span>
+																	<span class="qa-c-item-who-title">FEniCS Novice</span>
+																	<span class="qa-c-item-who-points">
+																		<span class="qa-c-item-who-points-pad">(</span><span class="qa-c-item-who-points-data">150</span><span class="qa-c-item-who-points-pad"> points)</span>
+																	</span>
+																</span>
+															</span>
+														</span>
+														<div class="qa-c-item-buttons">
+														</div>
+													</div>
+													<div class="qa-c-item-clear">
+													</div>
+												</div> <!-- END qa-c-item -->
+											</div> <!-- END qa-c-list -->
+											
+											<input type="hidden" name="code" value="0-1516468113-31d52a16f2869f2169664e4916c69b25ab708e67">
+											<input type="hidden" name="qa_click" value="">
+										</form>
+										<div class="qa-c-form">
+										</div> <!-- END qa-c-form -->
+										
+									</div> <!-- END qa-a-item-main -->
+									<div class="qa-a-item-clear">
+									</div>
+								</div> <!-- END qa-a-list-item -->
+								
+							</div> <!-- END qa-a-list -->
+							
+						</div>
+					</div> <!-- END qa-main -->
+					
+				</div> <!-- END main-wrapper -->
+			</div> <!-- END main-shadow -->
+		</div> <!-- END body-wrapper -->
+		<!-- END footer-bottom-group -->
+		
+		<div style="position:absolute; left:-9999px; top:-9999px;">
+			<span id="qa-waiting-template" class="qa-waiting">...</span>
+		</div>
+	
+	
+
+</body><!-- Powered by Question2Answer - http://www.question2answer.org/ --></html>

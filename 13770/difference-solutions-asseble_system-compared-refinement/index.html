@@ -1,0 +1,393 @@
+<html><!-- Powered by Question2Answer - http://www.question2answer.org/ --><head>
+		<meta http-equiv="content-type" content="text/html; charset=utf-8">
+		<title>Difference in solutions using asseble_system compared to bc.apply() after refinement?? - FEniCS Q&amp;A</title>
+		<meta name="description" content="I have encountered a strange thing when solving a variational problem after refinement of the functionspace.  ... .png') # There is a difference ?">
+		<meta name="keywords" content="refine,boundary-conditions,assemble">
+		<link rel="stylesheet" type="text/css" href="../../qa-theme/Snow/qa-styles.css">
+		<link rel="canonical" href="http://fenicsproject.org/qa/13770/difference-solutions-asseble_system-compared-refinement">
+		<script type="text/x-mathjax-config">
+  MathJax.Hub.Config({
+    extensions: ["tex2jax.js"],
+    jax: ["input/TeX","output/HTML-CSS"],
+    tex2jax: {inlineMath: [["$","$"],["\\(","\\)"]]},
+    TeX: { extensions: ["AMSmath.js","AMSsymbols.js"]}
+  });
+</script>
+<script type="text/javascript" src="../../mathjax/MathJax.js"></script>
+		<script src="../../jquery-1.7.2.min.js" type="text/javascript"></script>
+		<script src="../../highlight.min.js"></script>
+<script type="text/javascript">
+$(function(){
+	$('.wmd-input').keypress(function(){
+		window.clearTimeout(hljs.Timeout);
+		hljs.Timeout = window.setTimeout(function() {
+			hljs.initHighlighting.called = false;
+			hljs.initHighlighting();
+		}, 500);
+	});
+	window.setTimeout(function() {
+		hljs.initHighlighting.called = false;
+		hljs.initHighlighting();
+	}, 500);
+});
+</script>
+
+
+	</head>
+	<body class="qa-template-question qa-body-js-off">
+		<div class="qa-body-wrapper">
+			
+			<div class="qa-header">
+				<div class="qa-logo">
+					<a href="../../" class="qa-logo-link" title="FEniCS Q&amp;A"><img src="../../qa-theme/fenics_qa.png" border="0" alt="FEniCS Q&amp;A"></a>
+				</div>
+				<div class="qa-header-clear">
+				</div>
+			</div> <!-- END qa-header -->
+			
+			<div class="qa-main-shadow">
+				
+				<div class="qa-main-wrapper">
+					
+					<div class="qa-sidepanel">
+						<div class="qa-sidebar">
+							This is a read only copy of the old FEniCS QA forum. Please visit the <a href="https://www.allanswered.com/community/s/fenics-project/">new QA forum</a> to ask questions
+						</div>
+						
+					</div>
+					
+					<div class="qa-main">
+						<h1>
+							<span class="entry-title">Difference in solutions using asseble_system compared to bc.apply() after refinement??</span>
+						</h1>
+						<div class="qa-part-q-view">
+							<div class="qa-q-view  hentry question" id="q13770">
+								<form method="post" action="../../13770/difference-solutions-asseble_system-compared-refinement">
+									<div class="qa-q-view-stats">
+										<div class="qa-voting qa-voting-net" id="voting_13770">
+											<div class="qa-vote-count qa-vote-count-net">
+												<span class="qa-netvote-count">
+													<span class="qa-netvote-count-data">0<span class="votes-up"><span class="value-title" title="0"></span></span><span class="votes-down"><span class="value-title" title="0"></span></span></span><span class="qa-netvote-count-pad"> votes</span>
+												</span>
+											</div>
+											<div class="qa-vote-clear">
+											</div>
+										</div>
+									</div>
+									<input type="hidden" name="code" value="0-1516466494-d6e412564bd0082bd5bea9d74698deb4823fdc22">
+								</form>
+								<div class="qa-q-view-main">
+									<form method="post" action="../../13770/difference-solutions-asseble_system-compared-refinement">
+										<div class="qa-q-view-content">
+											<a name="13770"></a><div class="entry-content"><p>I have encountered a strange thing when solving a variational problem after refinement of the functionspace. </p>
+
+<p>I am solving a problem given by </p>
+
+<pre><code> &lt; r,v &gt;_{H^1(\Omega)}  = &lt; g,v &gt;_{L^2(\Omega)}- \int_\Gamma f v ds
+</code></pre>
+
+<p>where r is a vectorfunction. I have a dirichlet BC on the left part of the rectangular domain, but only in the x-direction (<code>V.sub(0)</code>). I refine the function space, boundary conditions etc. before i solve the problem. </p>
+
+<p>But trying both </p>
+
+<pre><code>K_h1,F = assemble_system(a_h1,R,bcs = bcs2)
+solve(K_h1,r.vector(),F)
+</code></pre>
+
+<p>and</p>
+
+<pre><code>K_h1 = assemble(a_h1)
+F = assemble(R)
+for bc in bcs2:
+    bc.apply(K_h1)
+    bc.apply(F)
+solve(K_h1,r.vector(),F)
+</code></pre>
+
+<p>I get two different results, and it seems like the Dirichlet BC are not satisfied when using <code>assemble_system(...)</code>. It only happens after refinement of the mesh. Any ideas why?</p>
+
+<p>I am using FEniCS 2016.2.0 with Anaconda. Here is a minimal example:</p>
+
+<pre><code>from dolfin import*
+import matplotlib.pyplot as plt
+
+set_log_level(30)
+
+# Define problem mesh
+L = 3; H = 1;
+mesh = RectangleMesh(Point(0,0), Point(L, H), 40, 40,"left/right")
+
+# Function spaces
+V = VectorFunctionSpace(mesh,"CG",1)
+
+# Subdomains
+TopBoundary = CompiledSubDomain("on_boundary &amp;&amp; near(x[1],H) ",H = H)
+Left = CompiledSubDomain("near(x[0],0) &amp;&amp; on_boundary")
+
+# Point load approximated with delta function
+f_bdry = Expression(("0.0", "-1/(ep*sqrt(pi))*exp(-(x[0]*x[0])/(ep*ep))"),H=H,ep=0.01,degree=8)
+
+# Dirichlet boundary conditions
+BC_left     = DirichletBC(V.sub(0),Constant(0.0),Left)
+bcs         = [BC_left]
+
+# Mark the TopBoundary
+markers = FacetFunctionSizet(mesh, 1)
+markers.set_all(0)
+TopBoundary.mark(markers, 1);
+ds = Measure('ds', domain=mesh, subdomain_data=markers)
+
+# Refine
+cell_markers = CellFunction("bool", V.mesh())
+cell_markers.set_all(False)
+ref_mesh = refine(V.mesh(),cell_markers)
+V2 = adapt(V,ref_mesh)
+
+bcs2 = []
+for bc in bcs:
+   bcnew = adapt(bc,V2.mesh(),V2)
+   bcs2.append(bcnew)
+
+m2 = FacetFunctionSizet(V2.mesh(), 1)
+m2.set_all(0)
+TopBoundary.mark(m2,1)
+ds2 = Measure('ds', domain=V2.mesh(), subdomain_data=m2)
+
+# Setup a problem
+r_ = TrialFunction(V2)
+v_ = TestFunction(V2)
+r = Function(V2)
+
+a_h1 = inner(r_,v_)*dx + inner(grad(r_),grad(v_))*dx
+
+g = Expression(('x[0]','x[1]'),degree = 1)
+R =  inner(g,v_)*dx(V2.mesh()) - inner(f_bdry,v_)*ds2(1) # Residual form
+
+K_h1,F = assemble_system(a_h1,R,bcs = bcs2)
+solve(K_h1,r.vector(),F)
+
+plt.figure(1)
+fig = plot(r,backend = 'matplotlib')
+plt.colorbar(fig)
+plt.savefig('r_ass_sys.png') # The BC's are not satisfied?
+
+r2 = Function(V2)
+K_h1 = assemble(a_h1)
+F = assemble(R)
+for bc in bcs2:
+    bc.apply(K_h1)
+    bc.apply(F)
+solve(K_h1,r2.vector(),F)
+
+plt.figure(2)
+fig = plot(r2,backend = 'matplotlib')
+plt.colorbar(fig)
+plt.savefig('r_ass_and_apply.png') # The BC's are satisfied here!!
+
+plt.figure(3)
+fig = plot(abs(r-r2),backend = 'matplotlib')
+plt.colorbar(fig)
+plt.savefig('r_difference.png') # There is a difference ?
+</code></pre>
+</div>
+										</div>
+										<div class="qa-q-view-tags">
+											<ul class="qa-q-view-tag-list">
+												<li class="qa-q-view-tag-item"><a href="../../tag/refine" rel="tag" class="qa-tag-link">refine</a></li>
+												<li class="qa-q-view-tag-item"><a href="../../tag/boundary-conditions" rel="tag" class="qa-tag-link">boundary-conditions</a></li>
+												<li class="qa-q-view-tag-item"><a href="../../tag/assemble" rel="tag" class="qa-tag-link">assemble</a></li>
+											</ul>
+										</div>
+										<span class="qa-q-view-avatar-meta">
+											<span class="qa-q-view-meta">
+												<a href="../../13770/difference-solutions-asseble_system-compared-refinement" class="qa-q-view-what">asked</a>
+												<span class="qa-q-view-when">
+													<span class="qa-q-view-when-data"><span class="published"><span class="value-title" title="2017-06-01T14:37:37+0000"></span>Jun 1, 2017</span></span>
+												</span>
+												<span class="qa-q-view-who">
+													<span class="qa-q-view-who-pad">by </span>
+													<span class="qa-q-view-who-data"><span class="vcard author"><a href="../../user/ALimkilde" class="qa-user-link url nickname">ALimkilde</a></span></span>
+													<span class="qa-q-view-who-title">FEniCS Novice</span>
+													<span class="qa-q-view-who-points">
+														<span class="qa-q-view-who-points-pad">(</span><span class="qa-q-view-who-points-data">120</span><span class="qa-q-view-who-points-pad"> points)</span>
+													</span>
+												</span>
+											</span>
+										</span>
+										<div class="qa-q-view-buttons">
+										</div>
+										
+										<div class="qa-q-view-c-list" style="display:none;" id="c13770_list">
+										</div> <!-- END qa-c-list -->
+										
+										<input type="hidden" name="code" value="0-1516466494-e861fc3dc460b2d0b4cb978abc67bfd7d5655558">
+										<input type="hidden" name="qa_click" value="">
+									</form>
+									<div class="qa-c-form">
+									</div> <!-- END qa-c-form -->
+									
+								</div> <!-- END qa-q-view-main -->
+								<div class="qa-q-view-clear">
+								</div>
+							</div> <!-- END qa-q-view -->
+							
+						</div>
+						<div class="qa-part-a-list">
+							<h2 id="a_list_title">1 Answer</h2>
+							<div class="qa-a-list" id="a_list">
+								
+								<div class="qa-a-list-item  hentry answer" id="a14332">
+									<form method="post" action="../../13770/difference-solutions-asseble_system-compared-refinement">
+										<div class="qa-voting qa-voting-net" id="voting_14332">
+											<div class="qa-vote-count qa-vote-count-net">
+												<span class="qa-netvote-count">
+													<span class="qa-netvote-count-data">0<span class="votes-up"><span class="value-title" title="0"></span></span><span class="votes-down"><span class="value-title" title="0"></span></span></span><span class="qa-netvote-count-pad"> votes</span>
+												</span>
+											</div>
+											<div class="qa-vote-clear">
+											</div>
+										</div>
+										<input type="hidden" name="code" value="0-1516466494-d6e412564bd0082bd5bea9d74698deb4823fdc22">
+									</form>
+									<div class="qa-a-item-main">
+										<form method="post" action="../../13770/difference-solutions-asseble_system-compared-refinement">
+											<div class="qa-a-selection">
+											</div>
+											<div class="qa-a-item-content">
+												<a name="14332"></a><div class="entry-content"><p>Hi there,<br>
+I think the problem is not with assemble_system() and bc.apply()... </p>
+
+<p>I say that because if you change the way you define your bcs2 to sth like:</p>
+
+<pre><code>bcs2 = []
+bcd = DirichletBC(V2, (1.,1.), "x[1]&lt;DOLFIN_EPS")
+bcs2.append(bcd)
+</code></pre>
+
+<p>and then work with this version of bcs2 the both ways of applying the boundaries will produce the same result.. </p>
+
+<p>So, my guess is that something is not 100% correct when refining your mesh and adapting bcs to bcs2....</p>
+
+<p>Regards,<br>
+Leonardo Hax Damiani</p>
+</div>
+											</div>
+											<span class="qa-a-item-avatar-meta">
+												<span class="qa-a-item-meta">
+													<a href="../../13770/difference-solutions-asseble_system-compared-refinement?show=14332#a14332" class="qa-a-item-what">answered</a>
+													<span class="qa-a-item-when">
+														<span class="qa-a-item-when-data"><span class="published"><span class="value-title" title="2017-07-13T08:08:14+0000"></span>Jul 13, 2017</span></span>
+													</span>
+													<span class="qa-a-item-who">
+														<span class="qa-a-item-who-pad">by </span>
+														<span class="qa-a-item-who-data"><span class="vcard author"><a href="../../user/lhdamiani" class="qa-user-link url nickname">lhdamiani</a></span></span>
+														<span class="qa-a-item-who-title">FEniCS User</span>
+														<span class="qa-a-item-who-points">
+															<span class="qa-a-item-who-points-pad">(</span><span class="qa-a-item-who-points-data">2,580</span><span class="qa-a-item-who-points-pad"> points)</span>
+														</span>
+													</span>
+												</span>
+											</span>
+											<div class="qa-a-item-buttons">
+												</div>
+											
+											<div class="qa-a-item-c-list" id="c14332_list">
+												<div class="qa-c-list-item  hentry comment" id="c14338">
+													<div class="qa-c-item-content">
+														<a name="14338"></a><div class="entry-content"><p>Does this also work if we take </p>
+
+<pre><code>bcd = DirichletBC(V2.sub(0), (1.,1.), "x[1]&lt;DOLFIN_EPS")
+</code></pre>
+
+<p>I only observed the different results, when applying the Dirichlet BC in only one direction ( .sub(0) )?</p>
+</div>
+													</div>
+													<div class="qa-c-item-footer">
+														<span class="qa-c-item-avatar-meta">
+															<span class="qa-c-item-meta">
+																<a href="../../13770/difference-solutions-asseble_system-compared-refinement?show=14338#c14338" class="qa-c-item-what">commented</a>
+																<span class="qa-c-item-when">
+																	<span class="qa-c-item-when-data"><span class="published"><span class="value-title" title="2017-07-13T21:34:50+0000"></span>Jul 13, 2017</span></span>
+																</span>
+																<span class="qa-c-item-who">
+																	<span class="qa-c-item-who-pad">by </span>
+																	<span class="qa-c-item-who-data"><span class="vcard author"><a href="../../user/ALimkilde" class="qa-user-link url nickname">ALimkilde</a></span></span>
+																	<span class="qa-c-item-who-title">FEniCS Novice</span>
+																	<span class="qa-c-item-who-points">
+																		<span class="qa-c-item-who-points-pad">(</span><span class="qa-c-item-who-points-data">120</span><span class="qa-c-item-who-points-pad"> points)</span>
+																	</span>
+																</span>
+															</span>
+														</span>
+														<div class="qa-c-item-buttons">
+														</div>
+													</div>
+													<div class="qa-c-item-clear">
+													</div>
+												</div> <!-- END qa-c-item -->
+												<div class="qa-c-list-item  hentry comment" id="c14344">
+													<div class="qa-c-item-content">
+														<a name="14344"></a><div class="entry-content"><p>For a subdomain, you need a scalar boundary value... if you use:</p>
+
+<pre><code>  bcd = DirichletBC(V2.sub(0), (1.), "x[1]&lt;DOLFIN_EPS")
+</code></pre>
+
+<p>It works and the results are the same as when applying to whole V2 as I suggested before.</p>
+
+<p>Regards,<br>
+Leonardo</p>
+</div>
+													</div>
+													<div class="qa-c-item-footer">
+														<span class="qa-c-item-avatar-meta">
+															<span class="qa-c-item-meta">
+																<a href="../../13770/difference-solutions-asseble_system-compared-refinement?show=14344#c14344" class="qa-c-item-what">commented</a>
+																<span class="qa-c-item-when">
+																	<span class="qa-c-item-when-data"><span class="published"><span class="value-title" title="2017-07-14T06:52:04+0000"></span>Jul 14, 2017</span></span>
+																</span>
+																<span class="qa-c-item-who">
+																	<span class="qa-c-item-who-pad">by </span>
+																	<span class="qa-c-item-who-data"><span class="vcard author"><a href="../../user/lhdamiani" class="qa-user-link url nickname">lhdamiani</a></span></span>
+																	<span class="qa-c-item-who-title">FEniCS User</span>
+																	<span class="qa-c-item-who-points">
+																		<span class="qa-c-item-who-points-pad">(</span><span class="qa-c-item-who-points-data">2,580</span><span class="qa-c-item-who-points-pad"> points)</span>
+																	</span>
+																</span>
+															</span>
+														</span>
+														<div class="qa-c-item-buttons">
+														</div>
+													</div>
+													<div class="qa-c-item-clear">
+													</div>
+												</div> <!-- END qa-c-item -->
+											</div> <!-- END qa-c-list -->
+											
+											<input type="hidden" name="code" value="0-1516466494-e67558066b6ced8a29eeaaa56e4f9055e03fc8a3">
+											<input type="hidden" name="qa_click" value="">
+										</form>
+										<div class="qa-c-form">
+										</div> <!-- END qa-c-form -->
+										
+									</div> <!-- END qa-a-item-main -->
+									<div class="qa-a-item-clear">
+									</div>
+								</div> <!-- END qa-a-list-item -->
+								
+							</div> <!-- END qa-a-list -->
+							
+						</div>
+					</div> <!-- END qa-main -->
+					
+				</div> <!-- END main-wrapper -->
+			</div> <!-- END main-shadow -->
+		</div> <!-- END body-wrapper -->
+		<!-- END footer-bottom-group -->
+		
+		<div style="position:absolute; left:-9999px; top:-9999px;">
+			<span id="qa-waiting-template" class="qa-waiting">...</span>
+		</div>
+	
+	
+
+</body><!-- Powered by Question2Answer - http://www.question2answer.org/ --></html>

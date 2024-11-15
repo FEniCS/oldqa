@@ -1,0 +1,529 @@
+<html><!-- Powered by Question2Answer - http://www.question2answer.org/ --><head>
+		<meta http-equiv="content-type" content="text/html; charset=utf-8">
+		<title>Outward-facing normal on interior boundary - FEniCS Q&amp;A</title>
+		<meta name="description" content="I'm still trying to get a grasp on FEniCS and it seems like similar questions have been asked previously ... n('+')) - 1/Rm*forced_jump) + forced_jump">
+		<meta name="keywords" content="internal-boundary,dg,facetnormal,poisson">
+		<link rel="stylesheet" type="text/css" href="../../qa-theme/Snow/qa-styles.css">
+		<link rel="canonical" href="http://fenicsproject.org/qa/13490/outward-facing-normal-on-interior-boundary">
+		<script type="text/x-mathjax-config">
+  MathJax.Hub.Config({
+    extensions: ["tex2jax.js"],
+    jax: ["input/TeX","output/HTML-CSS"],
+    tex2jax: {inlineMath: [["$","$"],["\\(","\\)"]]},
+    TeX: { extensions: ["AMSmath.js","AMSsymbols.js"]}
+  });
+</script>
+<script type="text/javascript" src="../../mathjax/MathJax.js"></script>
+		<script src="../../jquery-1.7.2.min.js" type="text/javascript"></script>
+		<script src="../../highlight.min.js"></script>
+<script type="text/javascript">
+$(function(){
+	$('.wmd-input').keypress(function(){
+		window.clearTimeout(hljs.Timeout);
+		hljs.Timeout = window.setTimeout(function() {
+			hljs.initHighlighting.called = false;
+			hljs.initHighlighting();
+		}, 500);
+	});
+	window.setTimeout(function() {
+		hljs.initHighlighting.called = false;
+		hljs.initHighlighting();
+	}, 500);
+});
+</script>
+
+
+	</head>
+	<body class="qa-template-question qa-body-js-off">
+		<div class="qa-body-wrapper">
+			
+			<div class="qa-header">
+				<div class="qa-logo">
+					<a href="../../" class="qa-logo-link" title="FEniCS Q&amp;A"><img src="../../qa-theme/fenics_qa.png" border="0" alt="FEniCS Q&amp;A"></a>
+				</div>
+				<div class="qa-header-clear">
+				</div>
+			</div> <!-- END qa-header -->
+			
+			<div class="qa-main-shadow">
+				
+				<div class="qa-main-wrapper">
+					
+					<div class="qa-sidepanel">
+						<div class="qa-sidebar">
+							This is a read only copy of the old FEniCS QA forum. Please visit the <a href="https://www.allanswered.com/community/s/fenics-project/">new QA forum</a> to ask questions
+						</div>
+						
+					</div>
+					
+					<div class="qa-main">
+						<h1>
+							<span class="entry-title">Outward-facing normal on interior boundary</span>
+						</h1>
+						<div class="qa-part-q-view">
+							<div class="qa-q-view  hentry question" id="q13490">
+								<form method="post" action="../../13490/outward-facing-normal-on-interior-boundary">
+									<div class="qa-q-view-stats">
+										<div class="qa-voting qa-voting-net" id="voting_13490">
+											<div class="qa-vote-count qa-vote-count-net">
+												<span class="qa-netvote-count">
+													<span class="qa-netvote-count-data">+2<span class="votes-up"><span class="value-title" title="2"></span></span><span class="votes-down"><span class="value-title" title="0"></span></span></span><span class="qa-netvote-count-pad"> votes</span>
+												</span>
+											</div>
+											<div class="qa-vote-clear">
+											</div>
+										</div>
+									</div>
+									<input type="hidden" name="code" value="0-1516467869-a2548ceadd322c80d3c60fe0fcde6d4bdae368cd">
+								</form>
+								<div class="qa-q-view-main">
+									<form method="post" action="../../13490/outward-facing-normal-on-interior-boundary">
+										<div class="qa-q-view-content">
+											<a name="13490"></a><div class="entry-content"><p>I'm still trying to get a grasp on FEniCS and it seems like similar questions have been asked previously:</p>
+
+<p><a rel="nofollow" href="https://fenicsproject.org/qa/10737/compute-normal-derivative-on-boundary">https://fenicsproject.org/qa/10737/compute-normal-derivative-on-boundary</a><br>
+<a rel="nofollow" href="https://fenicsproject.org/qa/11723/boundary-condition-that-depends-on-facet-normal">https://fenicsproject.org/qa/11723/boundary-condition-that-depends-on-facet-normal</a><br>
+<a rel="nofollow" href="https://fenicsproject.org/qa/12074/calculation-functions-containing-normal-vector-boundary">https://fenicsproject.org/qa/12074/calculation-functions-containing-normal-vector-boundary</a></p>
+
+<p>but I'm still struggling with the concept of how to define the outward-facing normal on an interface. I've been experimenting with the following code that implements a DG method for a circular domain immersed in a square domain. I'd like to enforce a jump condition on the interior boundary (of the circle) that depends on the outward-facing normal on that interface. The idea would be to solve the Poisson problem at each time point, update the forced jump condition, then use the updated jump condition to solve the Poisson problem again. Is there an efficient way to do this?</p>
+
+<pre><code>from fenics import *
+import os
+import numpy as np
+import matplotlib.pyplot as plt
+
+# Import the mesh and determine relevant boundaries/subdomains
+ofilename = '2D-DG_cell_fine.xml'
+mesh = Mesh(ofilename)
+subdomains0 = MeshFunction("size_t", mesh, "%s_physical_region.xml"%ofilename.split('.')[0])
+boundaries0 = MeshFunction("size_t", mesh, "%s_facet_region.xml"%ofilename.split('.')[0])
+
+# Rename subdomain numbers from GMSH
+subdomains = CellFunction("size_t", mesh, 0)
+subdomains.set_all(0)
+subdomains.array()[subdomains0.array()==17] = 1
+subdomains.array()[subdomains0.array()==18] = 2
+
+# Rename boundary numbers from GMSH
+boundaries = FacetFunction("size_t", mesh, 0)
+boundaries.set_all(0)
+boundaries.array()[boundaries0.array()==14] = 1
+boundaries.array()[boundaries0.array()==15] = 2
+#boundaries.array()[boundaries0.array()==16] = 3
+
+interfaces = FacetFunction("size_t", mesh, 0)
+interfaces.set_all(0)
+interfaces.array()[boundaries0.array()==16] = 1
+
+ds = Measure('ds', domain=mesh, subdomain_data=boundaries)
+dS = Measure('dS', domain=mesh, subdomain_data=interfaces)
+dx = Measure('dx', domain=mesh, subdomain_data=subdomains)
+
+V = FunctionSpace(mesh, 'DG', 1)
+u = TrialFunction(V)
+v = TestFunction(V)
+
+n = FacetNormal(mesh)
+h = CellSize(mesh)
+h_avg = (h('+') + h('-'))/2
+
+f = Constant(0.0)
+s0 = 1*1e-6
+s1 = 1*1e-6
+dt = 0.1e-9
+sm = 1e-9
+e0 = 12e-12
+dm = 10e-6
+Cm = e0/dm*1e-12
+Rm = sm/dm*1e-12
+
+alpha = 1e4
+gamma = alpha
+
+D1= 0.
+D2 = 0.
+
+forced_jump = 0.00
+
+for i in range(2):
+    D1 = 80
+
+    ## Deal with volume integrals (stiffness matrix)
+    a = dot(grad(v), s0*grad(u))*dx(1) \
+       + dot(grad(v), s1*grad(u))*dx(2)
+
+    ## Deal with internal element interface conditions on non-boundary elements
+    a += -dot(jump(u, n), avg(s0*grad(v)))*dS(0) \
+       - dot(jump(v, n), avg(s0*grad(u)))*dS(0) \
+       + (alpha/h_avg)*dot(jump(v, n), jump(u, n))*dS(0) \
+       - dot(jump(v, n), avg(sm*grad(u)))*dS(1) \
+       + (alpha/h_avg)*dot(jump(v,n), jump(u, n))*dS(1)
+
+    ## Deal with boundary conditions
+    a += - dot(s0*grad(v), u*n)*ds(1) \
+       - dot(v*n, s0*grad(u))*ds(1) \
+       + (gamma/h)*v*u*ds(1) \
+       - dot(s0*grad(v), u*n)*ds(2) \
+       - dot(v*n, s0*grad(u))*ds(2) \
+       + (gamma/h)*v*u*ds(2) \
+
+    ## Deal with source term  
+    L = v*f*dx(1) + v*f*dx(2)
+
+    ## Deal with Dirichlet boundary conditions explicitly
+    L += - D1*dot(s0*grad(v), n)*ds(1) \
+        + (gamma/h)*D1*v*ds(1) \
+        - D2*dot(s0*grad(v), n)*ds(2) \
+        + (gamma/h)*D2*v*ds(2) \
+        - forced_jump*avg(dot(sm*grad(v), n))*dS(1) \
+        + (gamma/h_avg)*forced_jump*jump(v)*dS(1)
+
+
+    u0 = Function(V)
+    solve(a == L, u0)
+
+    ## THE ISSUE IS HERE--HOW DO I DEFINE THE OUTWARD FACING NORMAL ON A SURFACE???
+    forced_jump = dt/Cm*(-s1*dot(grad(u0('+')),n('+')) - 1/Rm*forced_jump) + forced_jump
+</code></pre>
+</div>
+										</div>
+										<div class="qa-q-view-tags">
+											<ul class="qa-q-view-tag-list">
+												<li class="qa-q-view-tag-item"><a href="../../tag/internal-boundary" rel="tag" class="qa-tag-link">internal-boundary</a></li>
+												<li class="qa-q-view-tag-item"><a href="../../tag/dg" rel="tag" class="qa-tag-link">dg</a></li>
+												<li class="qa-q-view-tag-item"><a href="../../tag/facetnormal" rel="tag" class="qa-tag-link">facetnormal</a></li>
+												<li class="qa-q-view-tag-item"><a href="../../tag/poisson" rel="tag" class="qa-tag-link">poisson</a></li>
+											</ul>
+										</div>
+										<span class="qa-q-view-avatar-meta">
+											<span class="qa-q-view-meta">
+												<a href="../../13490/outward-facing-normal-on-interior-boundary" class="qa-q-view-what">asked</a>
+												<span class="qa-q-view-when">
+													<span class="qa-q-view-when-data"><span class="published"><span class="value-title" title="2017-05-16T01:07:40+0000"></span>May 16, 2017</span></span>
+												</span>
+												<span class="qa-q-view-who">
+													<span class="qa-q-view-who-pad">by </span>
+													<span class="qa-q-view-who-data"><span class="vcard author"><a href="../../user/treblebrewing" class="qa-user-link url nickname">treblebrewing</a></span></span>
+													<span class="qa-q-view-who-title">FEniCS Novice</span>
+													<span class="qa-q-view-who-points">
+														<span class="qa-q-view-who-points-pad">(</span><span class="qa-q-view-who-points-data">760</span><span class="qa-q-view-who-points-pad"> points)</span>
+													</span>
+												</span>
+											</span>
+										</span>
+										<div class="qa-q-view-buttons">
+										</div>
+										
+										<div class="qa-q-view-c-list" id="c13490_list">
+											<div class="qa-c-list-item  hentry comment" id="c13676">
+												<div class="qa-c-item-content">
+													<a name="13676"></a><div class="entry-content"><p>I wanted to update this with the jump condition I got to work on the internal boundary.</p>
+
+<pre><code>forced_jump = dt*(dot(grad(u0('-')), n('-')) - jump(u0)) + jump(u0)
+</code></pre>
+
+<p>and for the relevant terms in the linear form</p>
+
+<pre><code>    L += - inner(forced_jump*n('+'), avg(grad(v)))*dS(3) \
+    + (gamma/h_avg)*inner(forced_jump, jump(v))*dS(3) 
+</code></pre>
+
+<p>Thanks again for all the help!</p>
+</div>
+												</div>
+												<div class="qa-c-item-footer">
+													<span class="qa-c-item-avatar-meta">
+														<span class="qa-c-item-meta">
+															<a href="../../13490/outward-facing-normal-on-interior-boundary?show=13676#c13676" class="qa-c-item-what">commented</a>
+															<span class="qa-c-item-when">
+																<span class="qa-c-item-when-data"><span class="published"><span class="value-title" title="2017-05-29T01:39:19+0000"></span>May 29, 2017</span></span>
+															</span>
+															<span class="qa-c-item-who">
+																<span class="qa-c-item-who-pad">by </span>
+																<span class="qa-c-item-who-data"><span class="vcard author"><a href="../../user/treblebrewing" class="qa-user-link url nickname">treblebrewing</a></span></span>
+																<span class="qa-c-item-who-title">FEniCS Novice</span>
+																<span class="qa-c-item-who-points">
+																	<span class="qa-c-item-who-points-pad">(</span><span class="qa-c-item-who-points-data">760</span><span class="qa-c-item-who-points-pad"> points)</span>
+																</span>
+															</span>
+														</span>
+													</span>
+													<div class="qa-c-item-buttons">
+													</div>
+												</div>
+												<div class="qa-c-item-clear">
+												</div>
+											</div> <!-- END qa-c-item -->
+										</div> <!-- END qa-c-list -->
+										
+										<input type="hidden" name="code" value="0-1516467869-0f58a65b4689cd934c5f306407d8fb6e24262f8c">
+										<input type="hidden" name="qa_click" value="">
+									</form>
+									<div class="qa-c-form">
+									</div> <!-- END qa-c-form -->
+									
+								</div> <!-- END qa-q-view-main -->
+								<div class="qa-q-view-clear">
+								</div>
+							</div> <!-- END qa-q-view -->
+							
+						</div>
+						<div class="qa-part-a-list">
+							<h2 id="a_list_title">1 Answer</h2>
+							<div class="qa-a-list" id="a_list">
+								
+								<div class="qa-a-list-item  hentry answer answer-selected qa-a-list-item-selected" id="a13501">
+									<form method="post" action="../../13490/outward-facing-normal-on-interior-boundary">
+										<div class="qa-voting qa-voting-net" id="voting_13501">
+											<div class="qa-vote-count qa-vote-count-net">
+												<span class="qa-netvote-count">
+													<span class="qa-netvote-count-data">+1<span class="votes-up"><span class="value-title" title="1"></span></span><span class="votes-down"><span class="value-title" title="0"></span></span></span><span class="qa-netvote-count-pad"> vote</span>
+												</span>
+											</div>
+											<div class="qa-vote-clear">
+											</div>
+										</div>
+										<input type="hidden" name="code" value="0-1516467869-a2548ceadd322c80d3c60fe0fcde6d4bdae368cd">
+									</form>
+									<div class="qa-a-item-main">
+										<form method="post" action="../../13490/outward-facing-normal-on-interior-boundary">
+											<div class="qa-a-item-selected">
+												<div class="qa-a-selection">
+													<div class="qa-a-selected">&#160;</div>
+													<div class="qa-a-selected-text">Best answer</div>
+												</div>
+												<div class="qa-a-item-content">
+													<a name="13501"></a><div class="entry-content"><p>Read Chapter 30 of the FEniCS book, <em>Modeling evolving discontinuities</em>.</p>
+
+<p><a rel="nofollow" href="https://fenicsproject.org/book/">https://fenicsproject.org/book/</a></p>
+</div>
+												</div>
+												<span class="qa-a-item-avatar-meta">
+													<span class="qa-a-item-avatar">
+														<a href="../../user/pf4d" class="qa-avatar-link"><img src="https://www.gravatar.com/avatar/102105360e5a49a3d555fb320b328a11?s=40" width="40" height="40" class="qa-avatar-image" alt=""></a>
+													</span>
+													<span class="qa-a-item-meta">
+														<a href="../../13490/outward-facing-normal-on-interior-boundary?show=13501#a13501" class="qa-a-item-what">answered</a>
+														<span class="qa-a-item-when">
+															<span class="qa-a-item-when-data"><span class="published"><span class="value-title" title="2017-05-16T09:40:34+0000"></span>May 16, 2017</span></span>
+														</span>
+														<span class="qa-a-item-who">
+															<span class="qa-a-item-who-pad">by </span>
+															<span class="qa-a-item-who-data"><span class="vcard author"><a href="../../user/pf4d" class="qa-user-link url nickname">pf4d</a></span></span>
+															<span class="qa-a-item-who-title">FEniCS User</span>
+															<span class="qa-a-item-who-points">
+																<span class="qa-a-item-who-points-pad">(</span><span class="qa-a-item-who-points-data">2,970</span><span class="qa-a-item-who-points-pad"> points)</span>
+															</span>
+														</span>
+														<br>
+														<span class="qa-a-item-what">selected</span>
+														<span class="qa-a-item-when">
+															<span class="qa-a-item-when-data"><span class="updated"><span class="value-title" title="2017-05-26T13:31:39+0000"></span>May 26, 2017</span></span>
+														</span>
+														<span class="qa-a-item-who">
+															<span class="qa-a-item-who-pad">by </span><span class="qa-a-item-who-data"><a href="../../user/treblebrewing" class="qa-user-link url nickname">treblebrewing</a></span>
+														</span>
+													</span>
+												</span>
+											</div>
+											<div class="qa-a-item-buttons">
+												</div>
+											
+											<div class="qa-a-item-c-list" id="c13501_list">
+												<div class="qa-c-list-item ">
+													<a href="?state=showcomments-13501&amp;show=13501#a13501" onclick="return qa_show_comments(13490, 13501, this);" class="qa-c-item-expand">Show 6 previous comments</a>
+													<div class="qa-c-item-footer">
+														<span class="qa-c-item-avatar-meta">
+															<span class="qa-c-item-meta">
+															</span>
+														</span>
+													</div>
+													<div class="qa-c-item-clear">
+													</div>
+												</div> <!-- END qa-c-item -->
+												<div class="qa-c-list-item  hentry comment" id="c13565">
+													<div class="qa-c-item-content">
+														<a name="13565"></a><div class="entry-content"><p>The documentation makes it appear that the cell_domains variable must be passed to the assembler--is that correct? How does that happen? Does this get passed to the assembler as a keyword argument to a function or is this something that gets set a different way? Thanks!</p>
+</div>
+													</div>
+													<div class="qa-c-item-footer">
+														<span class="qa-c-item-avatar-meta">
+															<span class="qa-c-item-meta">
+																<a href="../../13490/outward-facing-normal-on-interior-boundary?show=13565#c13565" class="qa-c-item-what">commented</a>
+																<span class="qa-c-item-when">
+																	<span class="qa-c-item-when-data"><span class="published"><span class="value-title" title="2017-05-19T13:40:51+0000"></span>May 19, 2017</span></span>
+																</span>
+																<span class="qa-c-item-who">
+																	<span class="qa-c-item-who-pad">by </span>
+																	<span class="qa-c-item-who-data"><span class="vcard author"><a href="../../user/treblebrewing" class="qa-user-link url nickname">treblebrewing</a></span></span>
+																	<span class="qa-c-item-who-title">FEniCS Novice</span>
+																	<span class="qa-c-item-who-points">
+																		<span class="qa-c-item-who-points-pad">(</span><span class="qa-c-item-who-points-data">760</span><span class="qa-c-item-who-points-pad"> points)</span>
+																	</span>
+																</span>
+															</span>
+														</span>
+														<div class="qa-c-item-buttons">
+														</div>
+													</div>
+													<div class="qa-c-item-clear">
+													</div>
+												</div> <!-- END qa-c-item -->
+												<div class="qa-c-list-item  hentry comment" id="c13566">
+													<div class="qa-c-item-content">
+														<a name="13566"></a><div class="entry-content"><p>Orientation will work if the form has a volume integral, where you specify the orienting cell function as <code>subdomain_data</code>. Note, that you can always include such a term as <code>L += Constant(0)*inner(v)*dx(...)</code> where <code>L</code> would be your <code>dx</code>-free form.</p>
+</div>
+													</div>
+													<div class="qa-c-item-footer">
+														<span class="qa-c-item-avatar-meta">
+															<span class="qa-c-item-avatar">
+																<a href="../../user/MiroK" class="qa-avatar-link"><img src="https://www.gravatar.com/avatar/f566be3274ec73e3a6dda27bca11631c?s=20" width="20" height="20" class="qa-avatar-image" alt=""></a>
+															</span>
+															<span class="qa-c-item-meta">
+																<a href="../../13490/outward-facing-normal-on-interior-boundary?show=13566#c13566" class="qa-c-item-what">commented</a>
+																<span class="qa-c-item-when">
+																	<span class="qa-c-item-when-data"><span class="published"><span class="value-title" title="2017-05-19T13:44:12+0000"></span>May 19, 2017</span></span>
+																</span>
+																<span class="qa-c-item-who">
+																	<span class="qa-c-item-who-pad">by </span>
+																	<span class="qa-c-item-who-data"><span class="vcard author"><a href="../../user/MiroK" class="qa-user-link url nickname">MiroK</a></span></span>
+																	<span class="qa-c-item-who-title">FEniCS Expert</span>
+																	<span class="qa-c-item-who-points">
+																		<span class="qa-c-item-who-points-pad">(</span><span class="qa-c-item-who-points-data">80,920</span><span class="qa-c-item-who-points-pad"> points)</span>
+																	</span>
+																</span>
+															</span>
+														</span>
+														<div class="qa-c-item-buttons">
+														</div>
+													</div>
+													<div class="qa-c-item-clear">
+													</div>
+												</div> <!-- END qa-c-item -->
+												<div class="qa-c-list-item  hentry comment" id="c13567">
+													<div class="qa-c-item-content">
+														<a name="13567"></a><div class="entry-content"><p>So something like this should account for orientation if I add it to the LHS?<br>
+<code>L += Constant(0)*v*dx(subdomain_data=subdomains)</code><br>
+Or is this something I have to add to each volume integral?</p>
+</div>
+													</div>
+													<div class="qa-c-item-footer">
+														<span class="qa-c-item-avatar-meta">
+															<span class="qa-c-item-meta">
+																<a href="../../13490/outward-facing-normal-on-interior-boundary?show=13567#c13567" class="qa-c-item-what">commented</a>
+																<span class="qa-c-item-when">
+																	<span class="qa-c-item-when-data"><span class="published"><span class="value-title" title="2017-05-19T13:50:13+0000"></span>May 19, 2017</span></span>
+																</span>
+																<span class="qa-c-item-who">
+																	<span class="qa-c-item-who-pad">by </span>
+																	<span class="qa-c-item-who-data"><span class="vcard author"><a href="../../user/treblebrewing" class="qa-user-link url nickname">treblebrewing</a></span></span>
+																	<span class="qa-c-item-who-title">FEniCS Novice</span>
+																	<span class="qa-c-item-who-points">
+																		<span class="qa-c-item-who-points-pad">(</span><span class="qa-c-item-who-points-data">760</span><span class="qa-c-item-who-points-pad"> points)</span>
+																	</span>
+																</span>
+															</span>
+														</span>
+														<div class="qa-c-item-buttons">
+														</div>
+													</div>
+													<div class="qa-c-item-clear">
+													</div>
+												</div> <!-- END qa-c-item -->
+												<div class="qa-c-list-item  hentry comment" id="c13568">
+													<div class="qa-c-item-content">
+														<a name="13568"></a><div class="entry-content"><p>It should be added only to forms where you want to control normal orientation.</p>
+</div>
+													</div>
+													<div class="qa-c-item-footer">
+														<span class="qa-c-item-avatar-meta">
+															<span class="qa-c-item-avatar">
+																<a href="../../user/MiroK" class="qa-avatar-link"><img src="https://www.gravatar.com/avatar/f566be3274ec73e3a6dda27bca11631c?s=20" width="20" height="20" class="qa-avatar-image" alt=""></a>
+															</span>
+															<span class="qa-c-item-meta">
+																<a href="../../13490/outward-facing-normal-on-interior-boundary?show=13568#c13568" class="qa-c-item-what">commented</a>
+																<span class="qa-c-item-when">
+																	<span class="qa-c-item-when-data"><span class="published"><span class="value-title" title="2017-05-19T13:51:54+0000"></span>May 19, 2017</span></span>
+																</span>
+																<span class="qa-c-item-who">
+																	<span class="qa-c-item-who-pad">by </span>
+																	<span class="qa-c-item-who-data"><span class="vcard author"><a href="../../user/MiroK" class="qa-user-link url nickname">MiroK</a></span></span>
+																	<span class="qa-c-item-who-title">FEniCS Expert</span>
+																	<span class="qa-c-item-who-points">
+																		<span class="qa-c-item-who-points-pad">(</span><span class="qa-c-item-who-points-data">80,920</span><span class="qa-c-item-who-points-pad"> points)</span>
+																	</span>
+																</span>
+															</span>
+														</span>
+														<div class="qa-c-item-buttons">
+														</div>
+													</div>
+													<div class="qa-c-item-clear">
+													</div>
+												</div> <!-- END qa-c-item -->
+												<div class="qa-c-list-item  hentry comment" id="c13569">
+													<div class="qa-c-item-content">
+														<a name="13569"></a><div class="entry-content"><p>I've been working on this problem for a week and I'm wondering if there is a quick way to plot the  direction the '+' and '-' refer to for a given edge/boundary. Is this something that can be done easily, even if this is normally hidden? Thanks!</p>
+</div>
+													</div>
+													<div class="qa-c-item-footer">
+														<span class="qa-c-item-avatar-meta">
+															<span class="qa-c-item-meta">
+																<a href="../../13490/outward-facing-normal-on-interior-boundary?show=13569#c13569" class="qa-c-item-what">commented</a>
+																<span class="qa-c-item-when">
+																	<span class="qa-c-item-when-data"><span class="published"><span class="value-title" title="2017-05-19T13:59:03+0000"></span>May 19, 2017</span></span>
+																</span>
+																<span class="qa-c-item-who">
+																	<span class="qa-c-item-who-pad">by </span>
+																	<span class="qa-c-item-who-data"><span class="vcard author"><a href="../../user/treblebrewing" class="qa-user-link url nickname">treblebrewing</a></span></span>
+																	<span class="qa-c-item-who-title">FEniCS Novice</span>
+																	<span class="qa-c-item-who-points">
+																		<span class="qa-c-item-who-points-pad">(</span><span class="qa-c-item-who-points-data">760</span><span class="qa-c-item-who-points-pad"> points)</span>
+																	</span>
+																</span>
+																<br>
+																<span class="qa-c-item-what">edited</span>
+																<span class="qa-c-item-when">
+																	<span class="qa-c-item-when-data"><span class="updated"><span class="value-title" title="2017-05-25T19:48:54+0000"></span>May 25, 2017</span></span>
+																</span>
+																<span class="qa-c-item-who">
+																	<span class="qa-c-item-who-pad">by </span><span class="qa-c-item-who-data"><a href="../../user/treblebrewing" class="qa-user-link url nickname">treblebrewing</a></span>
+																</span>
+															</span>
+														</span>
+														<div class="qa-c-item-buttons">
+														</div>
+													</div>
+													<div class="qa-c-item-clear">
+													</div>
+												</div> <!-- END qa-c-item -->
+											</div> <!-- END qa-c-list -->
+											
+											<input type="hidden" name="code" value="0-1516467869-16f6788fb8dfeff9e829e0868c39c01d7e701f49">
+											<input type="hidden" name="qa_click" value="">
+										</form>
+										<div class="qa-c-form">
+										</div> <!-- END qa-c-form -->
+										
+									</div> <!-- END qa-a-item-main -->
+									<div class="qa-a-item-clear">
+									</div>
+								</div> <!-- END qa-a-list-item -->
+								
+							</div> <!-- END qa-a-list -->
+							
+						</div>
+					</div> <!-- END qa-main -->
+					
+				</div> <!-- END main-wrapper -->
+			</div> <!-- END main-shadow -->
+		</div> <!-- END body-wrapper -->
+		<!-- END footer-bottom-group -->
+		
+		<div style="position:absolute; left:-9999px; top:-9999px;">
+			<span id="qa-waiting-template" class="qa-waiting">...</span>
+		</div>
+	
+	
+
+</body><!-- Powered by Question2Answer - http://www.question2answer.org/ --></html>

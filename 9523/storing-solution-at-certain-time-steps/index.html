@@ -1,0 +1,328 @@
+<html><!-- Powered by Question2Answer - http://www.question2answer.org/ --><head>
+		<meta http-equiv="content-type" content="text/html; charset=utf-8">
+		<title>Storing solution at certain time steps - FEniCS Q&amp;A</title>
+		<meta name="description" content="Hi, I am trying to store solution for certain time steps (e.g I need solution after every 10 iterations) for  ... ()) if (np.mod(t,nfreq)==0): file">
+		<link rel="stylesheet" type="text/css" href="../../qa-theme/Snow/qa-styles.css">
+		<link rel="canonical" href="http://fenicsproject.org/qa/9523/storing-solution-at-certain-time-steps">
+		<script type="text/x-mathjax-config">
+  MathJax.Hub.Config({
+    extensions: ["tex2jax.js"],
+    jax: ["input/TeX","output/HTML-CSS"],
+    tex2jax: {inlineMath: [["$","$"],["\\(","\\)"]]},
+    TeX: { extensions: ["AMSmath.js","AMSsymbols.js"]}
+  });
+</script>
+<script type="text/javascript" src="../../mathjax/MathJax.js"></script>
+		<script src="../../jquery-1.7.2.min.js" type="text/javascript"></script>
+		<script src="../../highlight.min.js"></script>
+<script type="text/javascript">
+$(function(){
+	$('.wmd-input').keypress(function(){
+		window.clearTimeout(hljs.Timeout);
+		hljs.Timeout = window.setTimeout(function() {
+			hljs.initHighlighting.called = false;
+			hljs.initHighlighting();
+		}, 500);
+	});
+	window.setTimeout(function() {
+		hljs.initHighlighting.called = false;
+		hljs.initHighlighting();
+	}, 500);
+});
+</script>
+
+
+	</head>
+	<body class="qa-template-question qa-body-js-off">
+		<div class="qa-body-wrapper">
+			
+			<div class="qa-header">
+				<div class="qa-logo">
+					<a href="../../" class="qa-logo-link" title="FEniCS Q&amp;A"><img src="../../qa-theme/fenics_qa.png" border="0" alt="FEniCS Q&amp;A"></a>
+				</div>
+				<div class="qa-header-clear">
+				</div>
+			</div> <!-- END qa-header -->
+			
+			<div class="qa-main-shadow">
+				
+				<div class="qa-main-wrapper">
+					
+					<div class="qa-sidepanel">
+						<div class="qa-sidebar">
+							This is a read only copy of the old FEniCS QA forum. Please visit the <a href="https://www.allanswered.com/community/s/fenics-project/">new QA forum</a> to ask questions
+						</div>
+						
+					</div>
+					
+					<div class="qa-main">
+						<h1>
+							<span class="entry-title">Storing solution at certain time steps</span>
+						</h1>
+						<div class="qa-part-q-view">
+							<div class="qa-q-view  hentry question" id="q9523">
+								<form method="post" action="../../9523/storing-solution-at-certain-time-steps">
+									<div class="qa-q-view-stats">
+										<div class="qa-voting qa-voting-net" id="voting_9523">
+											<div class="qa-vote-count qa-vote-count-net">
+												<span class="qa-netvote-count">
+													<span class="qa-netvote-count-data">+1<span class="votes-up"><span class="value-title" title="1"></span></span><span class="votes-down"><span class="value-title" title="0"></span></span></span><span class="qa-netvote-count-pad"> vote</span>
+												</span>
+											</div>
+											<div class="qa-vote-clear">
+											</div>
+										</div>
+									</div>
+									<input type="hidden" name="code" value="0-1516468226-2341f2ee3098d4a6692a27504b648dc807f5c58d">
+								</form>
+								<div class="qa-q-view-main">
+									<form method="post" action="../../9523/storing-solution-at-certain-time-steps">
+										<div class="qa-q-view-content">
+											<a name="9523"></a><div class="entry-content"><p>Hi, I am trying to store solution for certain time steps (e.g I need solution after every 10 iterations) for Cahn-Hilliard equation but i am not able to do it. </p>
+
+<p>import random<br>
+from dolfin import *<br>
+import numpy as np</p>
+
+<h2>Class representing the intial conditions</h2>
+
+<p>class InitialConditions(Expression):<br>
+    def <strong>init</strong>(self):<br>
+        random.seed(2 + MPI.rank(mpi_comm_world()))<br>
+    def eval(self, values, x):<br>
+        values[0] = 0.63 + 0.02*(0.5 - random.random())<br>
+        values[1] = 0.0<br>
+    def value_shape(self):<br>
+        return (2,)</p>
+
+<h2>Class for interfacing with the Newton solver</h2>
+
+<p>class CahnHilliardEquation(NonlinearProblem):<br>
+    def <strong>init</strong>(self, a, L):<br>
+        NonlinearProblem.<strong>init</strong>(self)<br>
+        self.L = L<br>
+        self.a = a<br>
+    def F(self, b, x):<br>
+        assemble(self.L, tensor=b)<br>
+    def J(self, A, x):<br>
+        assemble(self.a, tensor=A)</p>
+
+<h2>Model parameters</h2>
+
+<p>lmbda  = 1.0e-02  # surface parameter<br>
+dt     = 1.0e-06  # time step<br>
+theta  = 0.5      # time stepping family, e.g. theta=1 -&gt; backward Euler, theta=0.5 -&gt; Crank-Nicolson</p>
+
+<h2>Form compiler options</h2>
+
+<p>parameters["form_compiler"]["optimize"]     = True<br>
+parameters["form_compiler"]["cpp_optimize"] = True<br>
+parameters["form_compiler"]["representation"] = "quadrature"</p>
+
+<h2>Create mesh and define function spaces</h2>
+
+<p>mesh = UnitSquareMesh(96, 96)<br>
+V = FunctionSpace(mesh, "Lagrange", 1)<br>
+ME = V*V</p>
+
+<h2>Define trial and test functions</h2>
+
+<p>du    = TrialFunction(ME)<br>
+q, v  = TestFunctions(ME)</p>
+
+<h2>Define functions</h2>
+
+<p>u   = Function(ME)  # current solution<br>
+u0  = Function(ME)  # solution from previous converged step</p>
+
+<h2>Split mixed functions</h2>
+
+<p>dc, dmu = split(du)<br>
+c,  mu  = split(u)<br>
+c0, mu0 = split(u0)</p>
+
+<h2>Create intial conditions and interpolate</h2>
+
+<p>u_init = InitialConditions()<br>
+u.interpolate(u_init)<br>
+u0.interpolate(u_init)</p>
+
+<h2>Compute the chemical potential df/dc</h2>
+
+<p>c = variable(c)<br>
+f    = 100*c<strong>2*(1-c)</strong>2<br>
+dfdc = diff(f, c)</p>
+
+<h2>mu_(n+theta)</h2>
+
+<p>mu_mid = (1.0-theta)<em>mu0 + theta</em>mu</p>
+
+<h2>Weak statement of the equations</h2>
+
+<p>L0 = c<em>q</em>dx - c0<em>q</em>dx + dt<em>dot(grad(mu_mid), grad(q))</em>dx<br>
+L1 = mu<em>v</em>dx - dfdc<em>v</em>dx - lmbda<em>dot(grad(c), grad(v))</em>dx<br>
+L = L0 + L1</p>
+
+<h2>Compute directional derivative about u in the direction of du (Jacobian)</h2>
+
+<p>a = derivative(L, u, du);</p>
+
+<h2>Create nonlinear problem and Newton solver</h2>
+
+<p>problem = CahnHilliardEquation(a, L);<br>
+solver = NewtonSolver();<br>
+solver.parameters["linear_solver"] = "lu"<br>
+solver.parameters["convergence_criterion"] = "incremental"<br>
+solver.parameters["relative_tolerance"] = 1e-6</p>
+
+<h2>Output file</h2>
+
+<p>file = File("Demo/output.pvd", "compressed")</p>
+
+<h2>Step in time</h2>
+
+<p>t = 0.0<br>
+nfreq = 10<em>dt  # every 10th iteration<br>
+T = 200</em>dt<br>
+while (t &lt; T):<br>
+    t += dt<br>
+    u0.vector()[:] = u.vector()<br>
+    solver.solve(problem, u.vector())<br>
+    if (np.mod(t,nfreq)==0):<br>
+        file &lt;&lt; u.split()[0]</p>
+
+<h2>plot(u.split()[0])</h2>
+
+<h2>interactive()</h2>
+</div>
+										</div>
+										<span class="qa-q-view-avatar-meta">
+											<span class="qa-q-view-meta">
+												<a href="../../9523/storing-solution-at-certain-time-steps" class="qa-q-view-what">asked</a>
+												<span class="qa-q-view-when">
+													<span class="qa-q-view-when-data"><span class="published"><span class="value-title" title="2016-03-10T11:54:05+0000"></span>Mar 10, 2016</span></span>
+												</span>
+												<span class="qa-q-view-who">
+													<span class="qa-q-view-who-pad">by </span>
+													<span class="qa-q-view-who-data"><span class="vcard author"><a href="../../user/mafzaal" class="qa-user-link url nickname">mafzaal</a></span></span>
+													<span class="qa-q-view-who-title">FEniCS Novice</span>
+													<span class="qa-q-view-who-points">
+														<span class="qa-q-view-who-points-pad">(</span><span class="qa-q-view-who-points-data">130</span><span class="qa-q-view-who-points-pad"> points)</span>
+													</span>
+												</span>
+											</span>
+										</span>
+										<div class="qa-q-view-buttons">
+										</div>
+										
+										<div class="qa-q-view-c-list" style="display:none;" id="c9523_list">
+										</div> <!-- END qa-c-list -->
+										
+										<input type="hidden" name="code" value="0-1516468226-db28dc1864d4deaccc070ecc1ef2a6eec32ed6aa">
+										<input type="hidden" name="qa_click" value="">
+									</form>
+									<div class="qa-c-form">
+									</div> <!-- END qa-c-form -->
+									
+								</div> <!-- END qa-q-view-main -->
+								<div class="qa-q-view-clear">
+								</div>
+							</div> <!-- END qa-q-view -->
+							
+						</div>
+						<div class="qa-part-a-list">
+							<h2 id="a_list_title">1 Answer</h2>
+							<div class="qa-a-list" id="a_list">
+								
+								<div class="qa-a-list-item  hentry answer" id="a9532">
+									<form method="post" action="../../9523/storing-solution-at-certain-time-steps">
+										<div class="qa-voting qa-voting-net" id="voting_9532">
+											<div class="qa-vote-count qa-vote-count-net">
+												<span class="qa-netvote-count">
+													<span class="qa-netvote-count-data">0<span class="votes-up"><span class="value-title" title="0"></span></span><span class="votes-down"><span class="value-title" title="0"></span></span></span><span class="qa-netvote-count-pad"> votes</span>
+												</span>
+											</div>
+											<div class="qa-vote-clear">
+											</div>
+										</div>
+										<input type="hidden" name="code" value="0-1516468226-2341f2ee3098d4a6692a27504b648dc807f5c58d">
+									</form>
+									<div class="qa-a-item-main">
+										<form method="post" action="../../9523/storing-solution-at-certain-time-steps">
+											<div class="qa-a-selection">
+											</div>
+											<div class="qa-a-item-content">
+												<a name="9532"></a><div class="entry-content"><p>I recommend using <a rel="nofollow" href="http://cbcpost.readthedocs.org/en/latest/">cbcpost</a> for this purpose:</p>
+
+<pre><code>from cbcpost import *
+...
+pp = PostProcessor(dict(casedir="Results", clean_casedir=True))
+pp.add_field(SolutionField("u", dict(save=True, save_as="xdmf", stride_timestep=10)))
+timestep = 0
+while t &lt; T:
+   timestep += 1
+   ...
+   pp.update_all(dict("u"=lambda: u.split()[0], t, timestep))
+</code></pre>
+
+<p>Edit: Please format your code properl1y.</p>
+</div>
+											</div>
+											<span class="qa-a-item-avatar-meta">
+												<span class="qa-a-item-meta">
+													<a href="../../9523/storing-solution-at-certain-time-steps?show=9532#a9532" class="qa-a-item-what">answered</a>
+													<span class="qa-a-item-when">
+														<span class="qa-a-item-when-data"><span class="published"><span class="value-title" title="2016-03-11T08:43:12+0000"></span>Mar 11, 2016</span></span>
+													</span>
+													<span class="qa-a-item-who">
+														<span class="qa-a-item-who-pad">by </span>
+														<span class="qa-a-item-who-data"><span class="vcard author"><a href="../../user/%C3%98yvind+Evju" class="qa-user-link url nickname">&#216;yvind Evju</a></span></span>
+														<span class="qa-a-item-who-title">FEniCS Expert</span>
+														<span class="qa-a-item-who-points">
+															<span class="qa-a-item-who-points-pad">(</span><span class="qa-a-item-who-points-data">17,700</span><span class="qa-a-item-who-points-pad"> points)</span>
+														</span>
+													</span>
+													<br>
+													<span class="qa-a-item-what">edited</span>
+													<span class="qa-a-item-when">
+														<span class="qa-a-item-when-data"><span class="updated"><span class="value-title" title="2016-03-11T13:20:58+0000"></span>Mar 11, 2016</span></span>
+													</span>
+													<span class="qa-a-item-who">
+														<span class="qa-a-item-who-pad">by </span><span class="qa-a-item-who-data"><a href="../../user/%C3%98yvind+Evju" class="qa-user-link url nickname">&#216;yvind Evju</a></span>
+													</span>
+												</span>
+											</span>
+											<div class="qa-a-item-buttons">
+												</div>
+											
+											<div class="qa-a-item-c-list" style="display:none;" id="c9532_list">
+											</div> <!-- END qa-c-list -->
+											
+											<input type="hidden" name="code" value="0-1516468226-01436c73ffef78cd1788dc08772e983b3e46bb1d">
+											<input type="hidden" name="qa_click" value="">
+										</form>
+										<div class="qa-c-form">
+										</div> <!-- END qa-c-form -->
+										
+									</div> <!-- END qa-a-item-main -->
+									<div class="qa-a-item-clear">
+									</div>
+								</div> <!-- END qa-a-list-item -->
+								
+							</div> <!-- END qa-a-list -->
+							
+						</div>
+					</div> <!-- END qa-main -->
+					
+				</div> <!-- END main-wrapper -->
+			</div> <!-- END main-shadow -->
+		</div> <!-- END body-wrapper -->
+		<!-- END footer-bottom-group -->
+		
+		<div style="position:absolute; left:-9999px; top:-9999px;">
+			<span id="qa-waiting-template" class="qa-waiting">...</span>
+		</div>
+	
+	
+
+</body><!-- Powered by Question2Answer - http://www.question2answer.org/ --></html>

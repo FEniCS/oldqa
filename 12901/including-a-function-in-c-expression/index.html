@@ -1,0 +1,592 @@
+<html><!-- Powered by Question2Answer - http://www.question2answer.org/ --><head>
+		<meta http-equiv="content-type" content="text/html; charset=utf-8">
+		<title>Including a function in C++ expression - FEniCS Q&amp;A</title>
+		<meta name="description" content="Hi community, I have been trying to migrate a certain code I had to c++ because the call to  ... declared in this scope u = std::make_shared(mesh) ^">
+		<meta name="keywords" content="cpp,user-defined-expression">
+		<link rel="stylesheet" type="text/css" href="../../qa-theme/Snow/qa-styles.css">
+		<link rel="canonical" href="http://fenicsproject.org/qa/12901/including-a-function-in-c-expression">
+		<script type="text/x-mathjax-config">
+  MathJax.Hub.Config({
+    extensions: ["tex2jax.js"],
+    jax: ["input/TeX","output/HTML-CSS"],
+    tex2jax: {inlineMath: [["$","$"],["\\(","\\)"]]},
+    TeX: { extensions: ["AMSmath.js","AMSsymbols.js"]}
+  });
+</script>
+<script type="text/javascript" src="../../mathjax/MathJax.js"></script>
+		<script src="../../jquery-1.7.2.min.js" type="text/javascript"></script>
+		<script src="../../highlight.min.js"></script>
+<script type="text/javascript">
+$(function(){
+	$('.wmd-input').keypress(function(){
+		window.clearTimeout(hljs.Timeout);
+		hljs.Timeout = window.setTimeout(function() {
+			hljs.initHighlighting.called = false;
+			hljs.initHighlighting();
+		}, 500);
+	});
+	window.setTimeout(function() {
+		hljs.initHighlighting.called = false;
+		hljs.initHighlighting();
+	}, 500);
+});
+</script>
+
+
+	</head>
+	<body class="qa-template-question qa-body-js-off">
+		<div class="qa-body-wrapper">
+			
+			<div class="qa-header">
+				<div class="qa-logo">
+					<a href="../" class="qa-logo-link" title="FEniCS Q&amp;A"><img src="../../qa-theme/fenics_qa.png" border="0" alt="FEniCS Q&amp;A"></a>
+				</div>
+				<div class="qa-header-clear">
+				</div>
+			</div> <!-- END qa-header -->
+			
+			<div class="qa-main-shadow">
+				
+				<div class="qa-main-wrapper">
+					
+					<div class="qa-sidepanel">
+						<div class="qa-sidebar">
+							This is a read only copy of the old FEniCS QA forum. Please visit the <a href="https://www.allanswered.com/community/s/fenics-project/">new QA forum</a> to ask questions
+						</div>
+						
+					</div>
+					
+					<div class="qa-main">
+						<h1>
+							<span class="entry-title">Including a function in C++ expression</span>
+						</h1>
+						<div class="qa-part-q-view">
+							<div class="qa-q-view qa-q-closed hentry question" id="q12901">
+								<form method="post" action="../12901">
+									<div class="qa-q-view-stats">
+										<div class="qa-voting qa-voting-net" id="voting_12901">
+											<div class="qa-vote-count qa-vote-count-net">
+												<span class="qa-netvote-count">
+													<span class="qa-netvote-count-data">0<span class="votes-up"><span class="value-title" title="0"></span></span><span class="votes-down"><span class="value-title" title="0"></span></span></span><span class="qa-netvote-count-pad"> votes</span>
+												</span>
+											</div>
+											<div class="qa-vote-clear">
+											</div>
+										</div>
+									</div>
+									<input type="hidden" name="code" value="0-1516478314-02b761258e22472c170c3769856f62bf6f018552">
+								</form>
+								<div class="qa-q-view-main">
+									<form method="post" action="../12901">
+										<div class="qa-q-view-content">
+											<a name="12901"></a><div class="entry-content"><p>Hi community, </p>
+
+<p>I have been trying to migrate a certain code I had to c++ because the call to python was very slow (very new to C++, answer might be trivial, so please explain in detail :) ). What I had, was a code like this: </p>
+
+<pre><code>        class FExpression(Expression):
+        def __init__(self,element, u = Expression(("0.","0."), degree = 0)):
+            self.element = element
+            self.u = u
+        def eval(self, value, x):
+            p = x+self.u(x)
+            val = alpha*(T(p) - R(x))
+            value[0] = val*T(p,1,0)
+            value[1] = val*T(p,0,1)
+</code></pre>
+
+<p>My C++ proposal goes like this: </p>
+
+<pre><code>class Load : public Expression
+{
+  public:
+
+  Function u;
+
+  Load() : Expression(2) {
+      u = std::make_shared&lt;ImageReg::FunctionSpace&gt;(mesh)
+      u-&gt;vector()-&gt;zero();
+    }   
+
+ void eval(Array&lt;double&gt;&amp; values, const Array&lt;double&gt;&amp; x) const
+ {
+
+    // Constants
+    double beta1 = 0.7;
+    double beta2 = 1.3;
+
+    // Evaluation points
+    double dx = x[0] - 0.5;
+    double dy = x[1] - 0.5;
+
+    // Get reference intensity
+    double R = exp(-(dx*dx + dy*dy));
+
+    // Warped evaluation points
+    double temp [2];
+    u-&gt;eval(values, x);
+    dx += values[0];
+    dy += values[1];
+
+    // Target intensity
+    double T = exp(-beta1*dx*dx - beta2*dy*dy);
+    double k = -2*(R-T)*T;
+    values[0] = k*beta1*(-beta1*dx*dx - beta2*dy*dy);
+    values[1] = k*beta2*(-beta1*dx*dx - beta2*dy*dy);
+    }  
+};
+</code></pre>
+
+<p>The way I see it, I define a Function 'u' in the class, and calling the constructor creates the Function u and sets its coordinates to 0. The problem is that compiling this fails miserably. Below I copy the boundary and main, plus the compiling errors. This is a minimal working version, because in the future R and T will be interpolations of PNG images, but if I manage to load a Function to the expression, then it could be easier to load an array. Thanks in advance. </p>
+
+<pre><code>class DirichletBoundary : public SubDomain
+{
+  bool inside(const Array&lt;double&gt;&amp; x, bool on_boundary) const
+  {
+    return on_boundary;
+  }
+};
+
+
+int main(){
+auto mesh = std::make_shared&lt;UnitSquareMesh&gt;(50, 50);
+auto V = std::make_shared&lt;ImageReg::FunctionSpace&gt;(mesh);
+ImageReg::BilinearForm a(V, V);
+ImageReg::LinearForm L(V);
+
+// Parameters
+auto boundary_value = std::make_shared&lt;Constant&gt;(0.,0.);
+auto mu = std::make_shared&lt;Constant&gt;(1.E5);
+auto lamb = std::make_shared&lt;Constant&gt;(0.);
+auto alpha = std::make_shared&lt;Constant&gt;(1.);
+
+// Boundary conditions
+auto boundary = std::make_shared&lt;DirichletBoundary&gt;();
+DirichletBC bc(V, boundary_value, boundary);
+
+// LHS construction
+a.mu = mu;
+a.lamb = lamb;
+
+// RHS construction
+auto f  = std::make_shared&lt;Load&gt;();
+auto u0 = std::make_shared&lt;Function&gt;(V);
+// u0-&gt;vector()-&gt;zero();
+// f.u = *u0;
+L.f = f;
+
+// Solve problem
+Function u(V);
+solve(a == L, u, bc);
+}
+</code></pre>
+
+<p>[ 50%] Building CXX object CMakeFiles/ImageReg.dir/main.cpp.o<br>
+/home/nico/Dropbox/Magister/MFEM Implementation/Implementation2D/cpp/main.cpp: In constructor &#8216;Load::Load()&#8217;:<br>
+/home/nico/Dropbox/Magister/MFEM Implementation/Implementation2D/cpp/main.cpp:14:24: error: no matching function for call to &#8216;dolfin::Function::Function()&#8217;<br>
+   Load() : Expression(2) {<br>
+                        ^<br>
+In file included from /usr/include/dolfin/ale/MeshDisplacement.h:29:0,<br>
+                 from /usr/include/dolfin/mesh/Mesh.h:35,<br>
+                 from /usr/include/dolfin/mesh/dolfin_mesh.h:11,<br>
+                 from /usr/include/dolfin.h:15,<br>
+                 from /home/nico/Dropbox/Magister/MFEM Implementation/Implementation2D/cpp/main.cpp:1:<br>
+/usr/include/dolfin/function/Function.h:113:5: note: candidate: dolfin::Function::Function(const dolfin::Function&amp;, std::size_t)<br>
+     Function(const Function&amp; v, std::size_t i);<br>
+     ^<br>
+/usr/include/dolfin/function/Function.h:113:5: note:   candidate expects 2 arguments, 0 provided<br>
+/usr/include/dolfin/function/Function.h:102:5: note: candidate: dolfin::Function::Function(const dolfin::Function&amp;)<br>
+     Function(const Function&amp; v);<br>
+     ^<br>
+/usr/include/dolfin/function/Function.h:102:5: note:   candidate expects 1 argument, 0 provided<br>
+/usr/include/dolfin/function/Function.h:94:5: note: candidate: dolfin::Function::Function(std::shared_ptr, std::__cxx11::string)<br>
+     Function(std::shared_ptr V,<br>
+     ^<br>
+/usr/include/dolfin/function/Function.h:94:5: note:   candidate expects 2 arguments, 0 provided<br>
+/usr/include/dolfin/function/Function.h:84:5: note: candidate: dolfin::Function::Function(std::shared_ptr, std::shared_ptr)<br>
+     Function(std::shared_ptr V,<br>
+     ^<br>
+/usr/include/dolfin/function/Function.h:84:5: note:   candidate expects 2 arguments, 0 provided<br>
+/usr/include/dolfin/function/Function.h:72:14: note: candidate: dolfin::Function::Function(std::shared_ptr)<br>
+     explicit Function(std::shared_ptr V);<br>
+              ^<br>
+/usr/include/dolfin/function/Function.h:72:14: note:   candidate expects 1 argument, 0 provided<br>
+/home/nico/Dropbox/Magister/MFEM Implementation/Implementation2D/cpp/main.cpp:15:53: error: &#8216;mesh&#8217; was not declared in this scope<br>
+       u = std::make_shared(mesh)<br>
+                                                     ^</p>
+</div>
+										</div>
+										<div class="qa-q-view-closed">
+											closed with the note:
+											<span class="qa-q-view-closed-content">
+												The problem was solved using other techniques
+											</span>
+										</div>
+										<div class="qa-q-view-tags">
+											<ul class="qa-q-view-tag-list">
+												<li class="qa-q-view-tag-item"><a href="../tag/cpp" rel="tag" class="qa-tag-link">cpp</a></li>
+												<li class="qa-q-view-tag-item"><a href="../tag/user-defined-expression" rel="tag" class="qa-tag-link">user-defined-expression</a></li>
+											</ul>
+										</div>
+										<span class="qa-q-view-avatar-meta">
+											<span class="qa-q-view-avatar">
+												<a href="../../user/nabarnaf" class="qa-avatar-link"><img src="../?qa=image&amp;qa_blobid=6623124104544180019&amp;qa_size=50" width="50" height="37" class="qa-avatar-image" alt=""></a>
+											</span>
+											<span class="qa-q-view-meta">
+												<a href="../12901/including-a-function-in-c-expression" class="qa-q-view-what">asked</a>
+												<span class="qa-q-view-when">
+													<span class="qa-q-view-when-data"><span class="published"><span class="value-title" title="2017-03-30T19:21:00+0000"></span>Mar 30, 2017</span></span>
+												</span>
+												<span class="qa-q-view-who">
+													<span class="qa-q-view-who-pad">by </span>
+													<span class="qa-q-view-who-data"><span class="vcard author"><a href="../../user/nabarnaf" class="qa-user-link url nickname">nabarnaf</a></span></span>
+													<span class="qa-q-view-who-title">FEniCS User</span>
+													<span class="qa-q-view-who-points">
+														<span class="qa-q-view-who-points-pad">(</span><span class="qa-q-view-who-points-data">2,940</span><span class="qa-q-view-who-points-pad"> points)</span>
+													</span>
+												</span>
+												<br>
+												<span class="qa-q-view-what">closed</span>
+												<span class="qa-q-view-when">
+													<span class="qa-q-view-when-data"><span class="updated"><span class="value-title" title="2017-04-11T13:58:16+0000"></span>Apr 11, 2017</span></span>
+												</span>
+												<span class="qa-q-view-who">
+													<span class="qa-q-view-who-pad">by </span><span class="qa-q-view-who-data"><a href="../../user/nabarnaf" class="qa-user-link url nickname">nabarnaf</a></span>
+												</span>
+											</span>
+										</span>
+										<div class="qa-q-view-buttons">
+										</div>
+										
+										<div class="qa-q-view-c-list" id="c12901_list">
+											<div class="qa-c-list-item  hentry comment" id="c12944">
+												<div class="qa-c-item-content">
+													<a name="12944"></a><div class="entry-content"><p>Did you forget to include the compiling errors?</p>
+</div>
+												</div>
+												<div class="qa-c-item-footer">
+													<span class="qa-c-item-avatar-meta">
+														<span class="qa-c-item-avatar">
+															<a href="../../user/johannr" class="qa-avatar-link"><img src="https://www.gravatar.com/avatar/03ca226ee8d51ad8165d455dd3abad66?s=20" width="20" height="20" class="qa-avatar-image" alt=""></a>
+														</span>
+														<span class="qa-c-item-meta">
+															<a href="../12901/including-a-function-in-c-expression?show=12944#c12944" class="qa-c-item-what">commented</a>
+															<span class="qa-c-item-when">
+																<span class="qa-c-item-when-data"><span class="published"><span class="value-title" title="2017-04-03T10:54:57+0000"></span>Apr 3, 2017</span></span>
+															</span>
+															<span class="qa-c-item-who">
+																<span class="qa-c-item-who-pad">by </span>
+																<span class="qa-c-item-who-data"><span class="vcard author"><a href="../../user/johannr" class="qa-user-link url nickname">johannr</a></span></span>
+																<span class="qa-c-item-who-title">FEniCS Expert</span>
+																<span class="qa-c-item-who-points">
+																	<span class="qa-c-item-who-points-pad">(</span><span class="qa-c-item-who-points-data">17,350</span><span class="qa-c-item-who-points-pad"> points)</span>
+																</span>
+															</span>
+														</span>
+													</span>
+													<div class="qa-c-item-buttons">
+													</div>
+												</div>
+												<div class="qa-c-item-clear">
+												</div>
+											</div> <!-- END qa-c-item -->
+											<div class="qa-c-list-item  hentry comment" id="c12951">
+												<div class="qa-c-item-content">
+													<a name="12951"></a><div class="entry-content"><p>Yes, sorry, it is included now. Thanks for the correction.</p>
+</div>
+												</div>
+												<div class="qa-c-item-footer">
+													<span class="qa-c-item-avatar-meta">
+														<span class="qa-c-item-avatar">
+															<a href="../../user/nabarnaf" class="qa-avatar-link"><img src="../?qa=image&amp;qa_blobid=6623124104544180019&amp;qa_size=20" width="20" height="14" class="qa-avatar-image" alt=""></a>
+														</span>
+														<span class="qa-c-item-meta">
+															<a href="../12901/including-a-function-in-c-expression?show=12951#c12951" class="qa-c-item-what">commented</a>
+															<span class="qa-c-item-when">
+																<span class="qa-c-item-when-data"><span class="published"><span class="value-title" title="2017-04-03T16:07:55+0000"></span>Apr 3, 2017</span></span>
+															</span>
+															<span class="qa-c-item-who">
+																<span class="qa-c-item-who-pad">by </span>
+																<span class="qa-c-item-who-data"><span class="vcard author"><a href="../../user/nabarnaf" class="qa-user-link url nickname">nabarnaf</a></span></span>
+																<span class="qa-c-item-who-title">FEniCS User</span>
+																<span class="qa-c-item-who-points">
+																	<span class="qa-c-item-who-points-pad">(</span><span class="qa-c-item-who-points-data">2,940</span><span class="qa-c-item-who-points-pad"> points)</span>
+																</span>
+															</span>
+														</span>
+													</span>
+													<div class="qa-c-item-buttons">
+													</div>
+												</div>
+												<div class="qa-c-item-clear">
+												</div>
+											</div> <!-- END qa-c-item -->
+											<div class="qa-c-list-item  hentry comment" id="c12954">
+												<div class="qa-c-item-content">
+													<a name="12954"></a><div class="entry-content"><p>The <code>Function</code> constructor takes at least one argument (see the <a rel="nofollow" href="https://fenicsproject.org/olddocs/dolfin/2016.2.0/cpp/programmers-reference/function/Function.html#_CPPv28Function">docs</a>). You might also want to look at the C++ demo programs if you haven't already.</p>
+</div>
+												</div>
+												<div class="qa-c-item-footer">
+													<span class="qa-c-item-avatar-meta">
+														<span class="qa-c-item-avatar">
+															<a href="../../user/johannr" class="qa-avatar-link"><img src="https://www.gravatar.com/avatar/03ca226ee8d51ad8165d455dd3abad66?s=20" width="20" height="20" class="qa-avatar-image" alt=""></a>
+														</span>
+														<span class="qa-c-item-meta">
+															<a href="../12901/including-a-function-in-c-expression?show=12954#c12954" class="qa-c-item-what">commented</a>
+															<span class="qa-c-item-when">
+																<span class="qa-c-item-when-data"><span class="published"><span class="value-title" title="2017-04-03T16:27:27+0000"></span>Apr 3, 2017</span></span>
+															</span>
+															<span class="qa-c-item-who">
+																<span class="qa-c-item-who-pad">by </span>
+																<span class="qa-c-item-who-data"><span class="vcard author"><a href="../../user/johannr" class="qa-user-link url nickname">johannr</a></span></span>
+																<span class="qa-c-item-who-title">FEniCS Expert</span>
+																<span class="qa-c-item-who-points">
+																	<span class="qa-c-item-who-points-pad">(</span><span class="qa-c-item-who-points-data">17,350</span><span class="qa-c-item-who-points-pad"> points)</span>
+																</span>
+															</span>
+														</span>
+													</span>
+													<div class="qa-c-item-buttons">
+													</div>
+												</div>
+												<div class="qa-c-item-clear">
+												</div>
+											</div> <!-- END qa-c-item -->
+											<div class="qa-c-list-item  hentry comment" id="c12955">
+												<div class="qa-c-item-content">
+													<a name="12955"></a><div class="entry-content"><p>Thanks for the reference. I have looked at some examples, but none include a function in an expression, and it is not quite clear to me why turn everything into a shared pointer, or even less likely to include some external array data. It would be great to have some references, thanks in advance.</p>
+</div>
+												</div>
+												<div class="qa-c-item-footer">
+													<span class="qa-c-item-avatar-meta">
+														<span class="qa-c-item-avatar">
+															<a href="../../user/nabarnaf" class="qa-avatar-link"><img src="../?qa=image&amp;qa_blobid=6623124104544180019&amp;qa_size=20" width="20" height="14" class="qa-avatar-image" alt=""></a>
+														</span>
+														<span class="qa-c-item-meta">
+															<a href="../12901/including-a-function-in-c-expression?show=12955#c12955" class="qa-c-item-what">commented</a>
+															<span class="qa-c-item-when">
+																<span class="qa-c-item-when-data"><span class="published"><span class="value-title" title="2017-04-03T16:31:20+0000"></span>Apr 3, 2017</span></span>
+															</span>
+															<span class="qa-c-item-who">
+																<span class="qa-c-item-who-pad">by </span>
+																<span class="qa-c-item-who-data"><span class="vcard author"><a href="../../user/nabarnaf" class="qa-user-link url nickname">nabarnaf</a></span></span>
+																<span class="qa-c-item-who-title">FEniCS User</span>
+																<span class="qa-c-item-who-points">
+																	<span class="qa-c-item-who-points-pad">(</span><span class="qa-c-item-who-points-data">2,940</span><span class="qa-c-item-who-points-pad"> points)</span>
+																</span>
+															</span>
+														</span>
+													</span>
+													<div class="qa-c-item-buttons">
+													</div>
+												</div>
+												<div class="qa-c-item-clear">
+												</div>
+											</div> <!-- END qa-c-item -->
+											<div class="qa-c-list-item  hentry comment" id="c12956">
+												<div class="qa-c-item-content">
+													<a name="12956"></a><div class="entry-content"><p>Maybe the <a rel="nofollow" href="https://fenicsproject.org/olddocs/dolfin/2016.2.0/cpp/demo/documented/mixed-poisson/cpp/documentation.html">MixedPoisson</a> demo can help you.</p>
+</div>
+												</div>
+												<div class="qa-c-item-footer">
+													<span class="qa-c-item-avatar-meta">
+														<span class="qa-c-item-avatar">
+															<a href="../../user/johannr" class="qa-avatar-link"><img src="https://www.gravatar.com/avatar/03ca226ee8d51ad8165d455dd3abad66?s=20" width="20" height="20" class="qa-avatar-image" alt=""></a>
+														</span>
+														<span class="qa-c-item-meta">
+															<a href="../12901/including-a-function-in-c-expression?show=12956#c12956" class="qa-c-item-what">commented</a>
+															<span class="qa-c-item-when">
+																<span class="qa-c-item-when-data"><span class="published"><span class="value-title" title="2017-04-03T16:51:24+0000"></span>Apr 3, 2017</span></span>
+															</span>
+															<span class="qa-c-item-who">
+																<span class="qa-c-item-who-pad">by </span>
+																<span class="qa-c-item-who-data"><span class="vcard author"><a href="../../user/johannr" class="qa-user-link url nickname">johannr</a></span></span>
+																<span class="qa-c-item-who-title">FEniCS Expert</span>
+																<span class="qa-c-item-who-points">
+																	<span class="qa-c-item-who-points-pad">(</span><span class="qa-c-item-who-points-data">17,350</span><span class="qa-c-item-who-points-pad"> points)</span>
+																</span>
+															</span>
+														</span>
+													</span>
+													<div class="qa-c-item-buttons">
+													</div>
+												</div>
+												<div class="qa-c-item-clear">
+												</div>
+											</div> <!-- END qa-c-item -->
+											<div class="qa-c-list-item  hentry comment" id="c12957">
+												<div class="qa-c-item-content">
+													<a name="12957"></a><div class="entry-content"><p>Thanks johann, I had checked it already but didn't find it very enlightening. I will read more about c++ to understand the language better and try again. I got a small expression running, compiled it with instant in the python code, so it is much faster than it was, but I still have issues figuring what object the expression should have in order to used an external image as data. </p>
+
+<p>Best regards</p>
+</div>
+												</div>
+												<div class="qa-c-item-footer">
+													<span class="qa-c-item-avatar-meta">
+														<span class="qa-c-item-avatar">
+															<a href="../../user/nabarnaf" class="qa-avatar-link"><img src="../?qa=image&amp;qa_blobid=6623124104544180019&amp;qa_size=20" width="20" height="14" class="qa-avatar-image" alt=""></a>
+														</span>
+														<span class="qa-c-item-meta">
+															<a href="../12901/including-a-function-in-c-expression?show=12957#c12957" class="qa-c-item-what">commented</a>
+															<span class="qa-c-item-when">
+																<span class="qa-c-item-when-data"><span class="published"><span class="value-title" title="2017-04-03T16:54:34+0000"></span>Apr 3, 2017</span></span>
+															</span>
+															<span class="qa-c-item-who">
+																<span class="qa-c-item-who-pad">by </span>
+																<span class="qa-c-item-who-data"><span class="vcard author"><a href="../../user/nabarnaf" class="qa-user-link url nickname">nabarnaf</a></span></span>
+																<span class="qa-c-item-who-title">FEniCS User</span>
+																<span class="qa-c-item-who-points">
+																	<span class="qa-c-item-who-points-pad">(</span><span class="qa-c-item-who-points-data">2,940</span><span class="qa-c-item-who-points-pad"> points)</span>
+																</span>
+															</span>
+														</span>
+													</span>
+													<div class="qa-c-item-buttons">
+													</div>
+												</div>
+												<div class="qa-c-item-clear">
+												</div>
+											</div> <!-- END qa-c-item -->
+											<div class="qa-c-list-item  hentry comment" id="c13041">
+												<div class="qa-c-item-content">
+													<a name="13041"></a><div class="entry-content"><p>Where do you create a Load() object? <br>
+Notes: <br>
+1. Your class Load() doesn't see the mesh. <br>
+2. u is a Function, but you use std::make_shared for it</p>
+</div>
+												</div>
+												<div class="qa-c-item-footer">
+													<span class="qa-c-item-avatar-meta">
+														<span class="qa-c-item-meta">
+															<a href="../12901/including-a-function-in-c-expression?show=13041#c13041" class="qa-c-item-what">commented</a>
+															<span class="qa-c-item-when">
+																<span class="qa-c-item-when-data"><span class="published"><span class="value-title" title="2017-04-11T13:45:59+0000"></span>Apr 11, 2017</span></span>
+															</span>
+															<span class="qa-c-item-who">
+																<span class="qa-c-item-who-pad">by </span>
+																<span class="qa-c-item-who-data"><span class="vcard author"><a href="../../user/str" class="qa-user-link url nickname">str</a></span></span>
+																<span class="qa-c-item-who-title">FEniCS User</span>
+																<span class="qa-c-item-who-points">
+																	<span class="qa-c-item-who-points-pad">(</span><span class="qa-c-item-who-points-data">1,600</span><span class="qa-c-item-who-points-pad"> points)</span>
+																</span>
+															</span>
+														</span>
+													</span>
+													<div class="qa-c-item-buttons">
+													</div>
+												</div>
+												<div class="qa-c-item-clear">
+												</div>
+											</div> <!-- END qa-c-item -->
+											<div class="qa-c-list-item  hentry comment" id="c13042">
+												<div class="qa-c-item-content">
+													<a name="13042"></a><div class="entry-content"><p>Hi str, in the end I created a cpp expression and imported it in python, which solved the problem. For the sake of completeness, what I did was save Functions with the fileds R, T, dT and then load them into a cpp expression with </p>
+
+<pre><code>load = '''
+    class test : public Expression
+        {
+        public:
+
+        test() : Expression(2) { }
+
+        void eval(Array&lt;double&gt;&amp; values, const Array&lt;double&gt;&amp; x) const {                
+            R-&gt;eval(values, x);
+            const double R_val = values[0];
+
+            u-&gt;eval(values, x);
+
+            Array&lt;double&gt; dx (2);
+            dx[0] = values[0] + x[0];                
+            dx[1] = values[1] + x[1];
+
+            TT-&gt;eval(values, dx);
+            const double T_val = values[0];
+
+            dTx-&gt;eval(values, dx);
+            const double dTx_val = values[0];
+
+            dTy-&gt;eval(values, dx);
+            const double dTy_val = values[0];
+
+            values[0] = (T_val - R_val)*dTx_val;
+            values[1] = (T_val - R_val)*dTy_val;
+        }
+
+        std::shared_ptr&lt;const Function&gt; u; 
+        std::shared_ptr&lt;const Function&gt; R;
+        std::shared_ptr&lt;const Function&gt; TT;
+        std::shared_ptr&lt;const Function&gt; dTx;
+        std::shared_ptr&lt;const Function&gt; dTy;
+    };
+    '''
+</code></pre>
+
+<p>and after creating and instance of it, say f = Expression(cpp_code, element), I set them with</p>
+
+<pre><code>f.R = Rfunction
+f.TT = Tfuntion
+</code></pre>
+
+<p>where it is important to note that I used TT instead of T, because T gave errors (it is apparently a reserved variable). I am closing this to new answers. </p>
+</div>
+												</div>
+												<div class="qa-c-item-footer">
+													<span class="qa-c-item-avatar-meta">
+														<span class="qa-c-item-avatar">
+															<a href="../../user/nabarnaf" class="qa-avatar-link"><img src="../?qa=image&amp;qa_blobid=6623124104544180019&amp;qa_size=20" width="20" height="14" class="qa-avatar-image" alt=""></a>
+														</span>
+														<span class="qa-c-item-meta">
+															<a href="../12901/including-a-function-in-c-expression?show=13042#c13042" class="qa-c-item-what">commented</a>
+															<span class="qa-c-item-when">
+																<span class="qa-c-item-when-data"><span class="published"><span class="value-title" title="2017-04-11T13:57:23+0000"></span>Apr 11, 2017</span></span>
+															</span>
+															<span class="qa-c-item-who">
+																<span class="qa-c-item-who-pad">by </span>
+																<span class="qa-c-item-who-data"><span class="vcard author"><a href="../../user/nabarnaf" class="qa-user-link url nickname">nabarnaf</a></span></span>
+																<span class="qa-c-item-who-title">FEniCS User</span>
+																<span class="qa-c-item-who-points">
+																	<span class="qa-c-item-who-points-pad">(</span><span class="qa-c-item-who-points-data">2,940</span><span class="qa-c-item-who-points-pad"> points)</span>
+																</span>
+															</span>
+														</span>
+													</span>
+													<div class="qa-c-item-buttons">
+													</div>
+												</div>
+												<div class="qa-c-item-clear">
+												</div>
+											</div> <!-- END qa-c-item -->
+										</div> <!-- END qa-c-list -->
+										
+										<input type="hidden" name="code" value="0-1516478314-b21e33692a4f61f06f0c907259d1abff970ec3c5">
+										<input type="hidden" name="qa_click" value="">
+									</form>
+									<div class="qa-c-form">
+									</div> <!-- END qa-c-form -->
+									
+								</div> <!-- END qa-q-view-main -->
+								<div class="qa-q-view-clear">
+								</div>
+							</div> <!-- END qa-q-view -->
+							
+						</div>
+						<div class="qa-part-a-list">
+							<h2 id="a_list_title" style="display:none;"></h2>
+							<div class="qa-a-list" id="a_list">
+								
+							</div> <!-- END qa-a-list -->
+							
+						</div>
+					</div> <!-- END qa-main -->
+					
+				</div> <!-- END main-wrapper -->
+			</div> <!-- END main-shadow -->
+		</div> <!-- END body-wrapper -->
+		<!-- END footer-bottom-group -->
+		
+		<div style="position:absolute; left:-9999px; top:-9999px;">
+			<span id="qa-waiting-template" class="qa-waiting">...</span>
+		</div>
+	
+	
+
+</body><!-- Powered by Question2Answer - http://www.question2answer.org/ --></html>

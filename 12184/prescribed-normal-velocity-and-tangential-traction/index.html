@@ -1,0 +1,521 @@
+<html><!-- Powered by Question2Answer - http://www.question2answer.org/ --><head>
+		<meta http-equiv="content-type" content="text/html; charset=utf-8">
+		<title>Prescribed normal velocity and tangential traction - FEniCS Q&amp;A</title>
+		<meta name="description" content="Hello, I am solving the Stokes equations on the unit square. Along one of the boundaries, I would like to prescribe  ... = L, w, bcs) u, p = w.split()">
+		<meta name="keywords" content="boundary-conditions,mixed-boundary-conditions,stokes">
+		<link rel="stylesheet" type="text/css" href="../../qa-theme/Snow/qa-styles.css">
+		<link rel="canonical" href="http://fenicsproject.org/qa/12184/prescribed-normal-velocity-and-tangential-traction">
+		<script type="text/x-mathjax-config">
+  MathJax.Hub.Config({
+    extensions: ["tex2jax.js"],
+    jax: ["input/TeX","output/HTML-CSS"],
+    tex2jax: {inlineMath: [["$","$"],["\\(","\\)"]]},
+    TeX: { extensions: ["AMSmath.js","AMSsymbols.js"]}
+  });
+</script>
+<script type="text/javascript" src="../../mathjax/MathJax.js"></script>
+		<script src="../../jquery-1.7.2.min.js" type="text/javascript"></script>
+		<script src="../../highlight.min.js"></script>
+<script type="text/javascript">
+$(function(){
+	$('.wmd-input').keypress(function(){
+		window.clearTimeout(hljs.Timeout);
+		hljs.Timeout = window.setTimeout(function() {
+			hljs.initHighlighting.called = false;
+			hljs.initHighlighting();
+		}, 500);
+	});
+	window.setTimeout(function() {
+		hljs.initHighlighting.called = false;
+		hljs.initHighlighting();
+	}, 500);
+});
+</script>
+
+
+	</head>
+	<body class="qa-template-question qa-body-js-off">
+		<div class="qa-body-wrapper">
+			
+			<div class="qa-header">
+				<div class="qa-logo">
+					<a href="../../" class="qa-logo-link" title="FEniCS Q&amp;A"><img src="../../qa-theme/fenics_qa.png" border="0" alt="FEniCS Q&amp;A"></a>
+				</div>
+				<div class="qa-header-clear">
+				</div>
+			</div> <!-- END qa-header -->
+			
+			<div class="qa-main-shadow">
+				
+				<div class="qa-main-wrapper">
+					
+					<div class="qa-sidepanel">
+						<div class="qa-sidebar">
+							This is a read only copy of the old FEniCS QA forum. Please visit the <a href="https://www.allanswered.com/community/s/fenics-project/">new QA forum</a> to ask questions
+						</div>
+						
+					</div>
+					
+					<div class="qa-main">
+						<h1>
+							<span class="entry-title">Prescribed normal velocity and tangential traction</span>
+						</h1>
+						<div class="qa-part-q-view">
+							<div class="qa-q-view  hentry question" id="q12184">
+								<form method="post" action="../../12184/prescribed-normal-velocity-and-tangential-traction">
+									<div class="qa-q-view-stats">
+										<div class="qa-voting qa-voting-net" id="voting_12184">
+											<div class="qa-vote-count qa-vote-count-net">
+												<span class="qa-netvote-count">
+													<span class="qa-netvote-count-data">+2<span class="votes-up"><span class="value-title" title="2"></span></span><span class="votes-down"><span class="value-title" title="0"></span></span></span><span class="qa-netvote-count-pad"> votes</span>
+												</span>
+											</div>
+											<div class="qa-vote-clear">
+											</div>
+										</div>
+									</div>
+									<input type="hidden" name="code" value="0-1516467811-95fc3159b4604ec5c5cb1f1782f8606cf58b96dd">
+								</form>
+								<div class="qa-q-view-main">
+									<form method="post" action="../../12184/prescribed-normal-velocity-and-tangential-traction">
+										<div class="qa-q-view-content">
+											<a name="12184"></a><div class="entry-content"><p>Hello,</p>
+
+<p>I am solving the Stokes equations on the unit square.  Along one of the boundaries, I would like to prescribe the normal component of velocity and tangential component of traction, i.e.,<br>
+$$ \vec u\cdot\vec n=g $$<br>
+and<br>
+$$ \vec n\cdot\sigma(\vec u, p)\cdot\vec t = f. $$</p>
+
+<p>This exact question was asked previously [1] in the context of complex geometries, but I got lost in the rather general implementation that was provided in the solution. [2] asked for independent control of the stress components.  [3] asked an ill-posed version of the same problem.  I got the first line of code from [4].</p>
+
+<p>[1] <a rel="nofollow" href="https://fenicsproject.org/qa/9926/boundary-conditions-in-normal-and-tangent-directions">https://fenicsproject.org/qa/9926/boundary-conditions-in-normal-and-tangent-directions</a><br>
+[2] <a rel="nofollow" href="https://fenicsproject.org/qa/8335/normal-tangential-stress-boundary-conditions-elasticity">https://fenicsproject.org/qa/8335/normal-tangential-stress-boundary-conditions-elasticity</a><br>
+[3] <a rel="nofollow" href="https://fenicsproject.org/qa/8543/tangential-gradient-boundary-conditions">https://fenicsproject.org/qa/8543/tangential-gradient-boundary-conditions</a><br>
+[4] <a rel="nofollow" href="https://fenicsproject.org/qa/5236/setting-boundary-condition-vector-component-dirichletbc">https://fenicsproject.org/qa/5236/setting-boundary-condition-vector-component-dirichletbc</a></p>
+
+<p>Below is a minimal working example of the environment where I would like to implement this type of boundary condition.  I would like to implement the "normal velocity, tangential traction" boundary condition on "bed".</p>
+
+<pre><code>from dolfin import *
+
+mesh = UnitSquareMesh(32,32)
+n = FacetNormal(mesh)
+P2 = VectorElement("Lagrange", mesh.ufl_cell(), 2)
+P1 = FiniteElement("Lagrange", mesh.ufl_cell(), 1)
+TH = P2 * P1
+W = FunctionSpace(mesh, TH)
+
+def left(x, on_boundary): return near(x[0],0.0)
+inflow = Expression(("-x[1]*(x[1]-2)", "0.0"), degree=2)
+bc1 = DirichletBC(W.sub(0), inflow, left)
+
+class SlidingBoundary(SubDomain):
+  def inside(self, x, on_boundary):
+    return on_boundary and near(x[1], 0)
+bed= SlidingBoundary()
+bc0 = DirichletBC(W.sub(0).sub(1), Constant(0), bed)
+
+bcs  = [bc1,bc0]
+
+boundaries = FacetFunction("size_t", mesh)
+boundaries.set_all(0)
+bed.mark(boundaries, 1)
+ds = Measure('ds', domain=mesh, subdomain_data=boundaries)
+
+(u, p) = TrialFunctions(W)
+(v, q) = TestFunctions(W)
+f = Constant((0, 0))
+g = Constant((1, 0))
+a = (inner(grad(u), grad(v)) - div(v)*p + q*div(u))*dx
+L = inner(f, v)*dx + inner(g,v)*ds(1)
+
+w = Function(W)
+solve(a == L, w, bcs)
+u, p = w.split()
+</code></pre>
+</div>
+										</div>
+										<div class="qa-q-view-tags">
+											<ul class="qa-q-view-tag-list">
+												<li class="qa-q-view-tag-item"><a href="../../tag/boundary-conditions" rel="tag" class="qa-tag-link">boundary-conditions</a></li>
+												<li class="qa-q-view-tag-item"><a href="../../tag/mixed-boundary-conditions" rel="tag" class="qa-tag-link">mixed-boundary-conditions</a></li>
+												<li class="qa-q-view-tag-item"><a href="../../tag/stokes" rel="tag" class="qa-tag-link">stokes</a></li>
+											</ul>
+										</div>
+										<span class="qa-q-view-avatar-meta">
+											<span class="qa-q-view-meta">
+												<a href="../../12184/prescribed-normal-velocity-and-tangential-traction" class="qa-q-view-what">asked</a>
+												<span class="qa-q-view-when">
+													<span class="qa-q-view-when-data"><span class="published"><span class="value-title" title="2017-01-19T03:13:13+0000"></span>Jan 19, 2017</span></span>
+												</span>
+												<span class="qa-q-view-who">
+													<span class="qa-q-view-who-pad">by </span>
+													<span class="qa-q-view-who-data"><span class="vcard author"><a href="../../user/radbiv_kylops" class="qa-user-link url nickname">radbiv_kylops</a></span></span>
+													<span class="qa-q-view-who-title">FEniCS Novice</span>
+													<span class="qa-q-view-who-points">
+														<span class="qa-q-view-who-points-pad">(</span><span class="qa-q-view-who-points-data">680</span><span class="qa-q-view-who-points-pad"> points)</span>
+													</span>
+												</span>
+												<br>
+												<span class="qa-q-view-what">edited</span>
+												<span class="qa-q-view-when">
+													<span class="qa-q-view-when-data"><span class="updated"><span class="value-title" title="2017-01-19T22:17:36+0000"></span>Jan 19, 2017</span></span>
+												</span>
+												<span class="qa-q-view-who">
+													<span class="qa-q-view-who-pad">by </span><span class="qa-q-view-who-data"><a href="../../user/radbiv_kylops" class="qa-user-link url nickname">radbiv_kylops</a></span>
+												</span>
+											</span>
+										</span>
+										<div class="qa-q-view-buttons">
+										</div>
+										
+										<div class="qa-q-view-c-list" id="c12184_list">
+											<div class="qa-c-list-item  hentry comment" id="c12534">
+												<div class="qa-c-item-content">
+													<a name="12534"></a><div class="entry-content"><p>HI, </p>
+
+<p>Do you find a way to solve this problem ?<br>
+Hoping for your recent update!</p>
+
+<p>Best Regards!</p>
+
+<p>Hamilton</p>
+</div>
+												</div>
+												<div class="qa-c-item-footer">
+													<span class="qa-c-item-avatar-meta">
+														<span class="qa-c-item-meta">
+															<a href="../../12184/prescribed-normal-velocity-and-tangential-traction?show=12534#c12534" class="qa-c-item-what">commented</a>
+															<span class="qa-c-item-when">
+																<span class="qa-c-item-when-data"><span class="published"><span class="value-title" title="2017-02-27T13:59:15+0000"></span>Feb 27, 2017</span></span>
+															</span>
+															<span class="qa-c-item-who">
+																<span class="qa-c-item-who-pad">by </span>
+																<span class="qa-c-item-who-data"><span class="vcard author"><a href="../../user/Hamilton" class="qa-user-link url nickname">Hamilton</a></span></span>
+																<span class="qa-c-item-who-title">FEniCS Novice</span>
+																<span class="qa-c-item-who-points">
+																	<span class="qa-c-item-who-points-pad">(</span><span class="qa-c-item-who-points-data">500</span><span class="qa-c-item-who-points-pad"> points)</span>
+																</span>
+															</span>
+														</span>
+													</span>
+													<div class="qa-c-item-buttons">
+													</div>
+												</div>
+												<div class="qa-c-item-clear">
+												</div>
+											</div> <!-- END qa-c-item -->
+										</div> <!-- END qa-c-list -->
+										
+										<input type="hidden" name="code" value="0-1516467811-6eb1b6e9d6083e82d635d7513a20e5b8f8e55cb9">
+										<input type="hidden" name="qa_click" value="">
+									</form>
+									<div class="qa-c-form">
+									</div> <!-- END qa-c-form -->
+									
+								</div> <!-- END qa-q-view-main -->
+								<div class="qa-q-view-clear">
+								</div>
+							</div> <!-- END qa-q-view -->
+							
+						</div>
+						<div class="qa-part-a-list">
+							<h2 id="a_list_title">4 Answers</h2>
+							<div class="qa-a-list" id="a_list">
+								
+								<div class="qa-a-list-item  hentry answer" id="a12185">
+									<form method="post" action="../../12184/prescribed-normal-velocity-and-tangential-traction">
+										<div class="qa-voting qa-voting-net" id="voting_12185">
+											<div class="qa-vote-count qa-vote-count-net">
+												<span class="qa-netvote-count">
+													<span class="qa-netvote-count-data">0<span class="votes-up"><span class="value-title" title="0"></span></span><span class="votes-down"><span class="value-title" title="0"></span></span></span><span class="qa-netvote-count-pad"> votes</span>
+												</span>
+											</div>
+											<div class="qa-vote-clear">
+											</div>
+										</div>
+										<input type="hidden" name="code" value="0-1516467811-95fc3159b4604ec5c5cb1f1782f8606cf58b96dd">
+									</form>
+									<div class="qa-a-item-main">
+										<form method="post" action="../../12184/prescribed-normal-velocity-and-tangential-traction">
+											<div class="qa-a-selection">
+											</div>
+											<div class="qa-a-item-content">
+												<a name="12185"></a><div class="entry-content"><p>May you please post the code until the expression for L?</p>
+</div>
+											</div>
+											<span class="qa-a-item-avatar-meta">
+												<span class="qa-a-item-meta">
+													<a href="../../12184/prescribed-normal-velocity-and-tangential-traction?show=12185#a12185" class="qa-a-item-what">answered</a>
+													<span class="qa-a-item-when">
+														<span class="qa-a-item-when-data"><span class="published"><span class="value-title" title="2017-01-19T04:03:25+0000"></span>Jan 19, 2017</span></span>
+													</span>
+													<span class="qa-a-item-who">
+														<span class="qa-a-item-who-pad">by </span>
+														<span class="qa-a-item-who-data"><span class="vcard author"><a href="../../user/SM" class="qa-user-link url nickname">SM</a></span></span>
+														<span class="qa-a-item-who-title">FEniCS Novice</span>
+														<span class="qa-a-item-who-points">
+															<span class="qa-a-item-who-points-pad">(</span><span class="qa-a-item-who-points-data">630</span><span class="qa-a-item-who-points-pad"> points)</span>
+														</span>
+													</span>
+												</span>
+											</span>
+											<div class="qa-a-item-buttons">
+												</div>
+											
+											<div class="qa-a-item-c-list" id="c12185_list">
+												<div class="qa-c-list-item  hentry comment" id="c12187">
+													<div class="qa-c-item-content">
+														<a name="12187"></a><div class="entry-content"><p>I've edited the original post to include a minimal working code.  It makes no attempt to implement the type of boundary condition that I'd like to implement because, well, I don't know how to do it :)</p>
+</div>
+													</div>
+													<div class="qa-c-item-footer">
+														<span class="qa-c-item-avatar-meta">
+															<span class="qa-c-item-meta">
+																<a href="../../12184/prescribed-normal-velocity-and-tangential-traction?show=12187#c12187" class="qa-c-item-what">commented</a>
+																<span class="qa-c-item-when">
+																	<span class="qa-c-item-when-data"><span class="published"><span class="value-title" title="2017-01-19T04:58:50+0000"></span>Jan 19, 2017</span></span>
+																</span>
+																<span class="qa-c-item-who">
+																	<span class="qa-c-item-who-pad">by </span>
+																	<span class="qa-c-item-who-data"><span class="vcard author"><a href="../../user/radbiv_kylops" class="qa-user-link url nickname">radbiv_kylops</a></span></span>
+																	<span class="qa-c-item-who-title">FEniCS Novice</span>
+																	<span class="qa-c-item-who-points">
+																		<span class="qa-c-item-who-points-pad">(</span><span class="qa-c-item-who-points-data">680</span><span class="qa-c-item-who-points-pad"> points)</span>
+																	</span>
+																</span>
+															</span>
+														</span>
+														<div class="qa-c-item-buttons">
+														</div>
+													</div>
+													<div class="qa-c-item-clear">
+													</div>
+												</div> <!-- END qa-c-item -->
+											</div> <!-- END qa-c-list -->
+											
+											<input type="hidden" name="code" value="0-1516467811-a0605058321e638c4da9a1618f6632eeb1eb116d">
+											<input type="hidden" name="qa_click" value="">
+										</form>
+										<div class="qa-c-form">
+										</div> <!-- END qa-c-form -->
+										
+									</div> <!-- END qa-a-item-main -->
+									<div class="qa-a-item-clear">
+									</div>
+								</div> <!-- END qa-a-list-item -->
+								
+								<div class="qa-a-list-item  hentry answer" id="a12192">
+									<form method="post" action="../../12184/prescribed-normal-velocity-and-tangential-traction">
+										<div class="qa-voting qa-voting-net" id="voting_12192">
+											<div class="qa-vote-count qa-vote-count-net">
+												<span class="qa-netvote-count">
+													<span class="qa-netvote-count-data">+1<span class="votes-up"><span class="value-title" title="1"></span></span><span class="votes-down"><span class="value-title" title="0"></span></span></span><span class="qa-netvote-count-pad"> vote</span>
+												</span>
+											</div>
+											<div class="qa-vote-clear">
+											</div>
+										</div>
+										<input type="hidden" name="code" value="0-1516467811-95fc3159b4604ec5c5cb1f1782f8606cf58b96dd">
+									</form>
+									<div class="qa-a-item-main">
+										<form method="post" action="../../12184/prescribed-normal-velocity-and-tangential-traction">
+											<div class="qa-a-selection">
+											</div>
+											<div class="qa-a-item-content">
+												<a name="12192"></a><div class="entry-content"><p>I thought through the variational form for this boundary condition.  I would just like to ask for the community's help to translate this form into FENICS.  </p>
+
+<p>Performing a standard integration by parts on the momentum balance equations (<a rel="nofollow" href="https://fenicsproject.org/olddocs/dolfin/2016.1.0/python/demo/documented/stokes-taylor-hood/python/documentation.html">as in this demo</a>) results in a vector-valued boundary integral.  I'll focus only on the boundary y=0, x=[0,1].  The individual components of the boundary integral are,<br>
+$$\int_0^1 \phi_1 (\nabla u_1 \cdot n) dx,$$<br>
+$$\int_0^1 \phi_2 (\nabla u_2 \cdot n) dx,$$<br>
+or, expanding the vector notation,<br>
+$$\int_0^1 \phi_1 \left(n_1 \frac{\partial u_1}{\partial x} + n_2 \frac{\partial u_1}{\partial y} \right) dx$$<br>
+$$\int_0^1 \phi_2 \left(n_1 \frac{\partial u_2}{\partial x} + n_2 \frac{\partial u_2}{\partial y} \right) dx$$</p>
+
+<p>I want to enforce $u_2 = 0$  and $ \frac{\partial u_1}{\partial y}  = g$ on this boundary.  Furthermore, the unit normal on this boundary is $n = (0,-1)'$.  Using these two pieces of info gives,</p>
+
+<p>$$\int_0^1 -\phi_1 \frac{\partial u_1}{\partial y} dx = \int_0^1 -\phi_1 g dx$$<br>
+$$\int_0^1 -\phi_2 \frac{\partial u_2}{\partial y} dx = 0$$</p>
+</div>
+											</div>
+											<span class="qa-a-item-avatar-meta">
+												<span class="qa-a-item-meta">
+													<a href="../../12184/prescribed-normal-velocity-and-tangential-traction?show=12192#a12192" class="qa-a-item-what">answered</a>
+													<span class="qa-a-item-when">
+														<span class="qa-a-item-when-data"><span class="published"><span class="value-title" title="2017-01-19T14:25:49+0000"></span>Jan 19, 2017</span></span>
+													</span>
+													<span class="qa-a-item-who">
+														<span class="qa-a-item-who-pad">by </span>
+														<span class="qa-a-item-who-data"><span class="vcard author"><a href="../../user/radbiv_kylops" class="qa-user-link url nickname">radbiv_kylops</a></span></span>
+														<span class="qa-a-item-who-title">FEniCS Novice</span>
+														<span class="qa-a-item-who-points">
+															<span class="qa-a-item-who-points-pad">(</span><span class="qa-a-item-who-points-data">680</span><span class="qa-a-item-who-points-pad"> points)</span>
+														</span>
+													</span>
+												</span>
+											</span>
+											<div class="qa-a-item-buttons">
+												</div>
+											
+											<div class="qa-a-item-c-list" style="display:none;" id="c12192_list">
+											</div> <!-- END qa-c-list -->
+											
+											<input type="hidden" name="code" value="0-1516467811-5521b7b68d0d9d1ae37d09f23e89784c5afaf3c7">
+											<input type="hidden" name="qa_click" value="">
+										</form>
+										<div class="qa-c-form">
+										</div> <!-- END qa-c-form -->
+										
+									</div> <!-- END qa-a-item-main -->
+									<div class="qa-a-item-clear">
+									</div>
+								</div> <!-- END qa-a-list-item -->
+								
+								<div class="qa-a-list-item  hentry answer" id="a12193">
+									<form method="post" action="../../12184/prescribed-normal-velocity-and-tangential-traction">
+										<div class="qa-voting qa-voting-net" id="voting_12193">
+											<div class="qa-vote-count qa-vote-count-net">
+												<span class="qa-netvote-count">
+													<span class="qa-netvote-count-data">0<span class="votes-up"><span class="value-title" title="0"></span></span><span class="votes-down"><span class="value-title" title="0"></span></span></span><span class="qa-netvote-count-pad"> votes</span>
+												</span>
+											</div>
+											<div class="qa-vote-clear">
+											</div>
+										</div>
+										<input type="hidden" name="code" value="0-1516467811-95fc3159b4604ec5c5cb1f1782f8606cf58b96dd">
+									</form>
+									<div class="qa-a-item-main">
+										<form method="post" action="../../12184/prescribed-normal-velocity-and-tangential-traction">
+											<div class="qa-a-selection">
+											</div>
+											<div class="qa-a-item-content">
+												<a name="12193"></a><div class="entry-content"><p>I've updated the code in the main question.  There's no longer an error, but it doesn't seem to implement the boundary condition as intended.</p>
+</div>
+											</div>
+											<span class="qa-a-item-avatar-meta">
+												<span class="qa-a-item-meta">
+													<a href="../../12184/prescribed-normal-velocity-and-tangential-traction?show=12193#a12193" class="qa-a-item-what">answered</a>
+													<span class="qa-a-item-when">
+														<span class="qa-a-item-when-data"><span class="published"><span class="value-title" title="2017-01-19T14:43:41+0000"></span>Jan 19, 2017</span></span>
+													</span>
+													<span class="qa-a-item-who">
+														<span class="qa-a-item-who-pad">by </span>
+														<span class="qa-a-item-who-data"><span class="vcard author"><a href="../../user/radbiv_kylops" class="qa-user-link url nickname">radbiv_kylops</a></span></span>
+														<span class="qa-a-item-who-title">FEniCS Novice</span>
+														<span class="qa-a-item-who-points">
+															<span class="qa-a-item-who-points-pad">(</span><span class="qa-a-item-who-points-data">680</span><span class="qa-a-item-who-points-pad"> points)</span>
+														</span>
+													</span>
+													<br>
+													<span class="qa-a-item-what">edited</span>
+													<span class="qa-a-item-when">
+														<span class="qa-a-item-when-data"><span class="updated"><span class="value-title" title="2017-01-19T22:16:57+0000"></span>Jan 19, 2017</span></span>
+													</span>
+													<span class="qa-a-item-who">
+														<span class="qa-a-item-who-pad">by </span><span class="qa-a-item-who-data"><a href="../../user/radbiv_kylops" class="qa-user-link url nickname">radbiv_kylops</a></span>
+													</span>
+												</span>
+											</span>
+											<div class="qa-a-item-buttons">
+												</div>
+											
+											<div class="qa-a-item-c-list" style="display:none;" id="c12193_list">
+											</div> <!-- END qa-c-list -->
+											
+											<input type="hidden" name="code" value="0-1516467811-ada1ab9e05721a19e0960f6759ad2bf5cd678df9">
+											<input type="hidden" name="qa_click" value="">
+										</form>
+										<div class="qa-c-form">
+										</div> <!-- END qa-c-form -->
+										
+									</div> <!-- END qa-a-item-main -->
+									<div class="qa-a-item-clear">
+									</div>
+								</div> <!-- END qa-a-list-item -->
+								
+								<div class="qa-a-list-item  hentry answer" id="a12625">
+									<form method="post" action="../../12184/prescribed-normal-velocity-and-tangential-traction">
+										<div class="qa-voting qa-voting-net" id="voting_12625">
+											<div class="qa-vote-count qa-vote-count-net">
+												<span class="qa-netvote-count">
+													<span class="qa-netvote-count-data">0<span class="votes-up"><span class="value-title" title="0"></span></span><span class="votes-down"><span class="value-title" title="0"></span></span></span><span class="qa-netvote-count-pad"> votes</span>
+												</span>
+											</div>
+											<div class="qa-vote-clear">
+											</div>
+										</div>
+										<input type="hidden" name="code" value="0-1516467811-95fc3159b4604ec5c5cb1f1782f8606cf58b96dd">
+									</form>
+									<div class="qa-a-item-main">
+										<form method="post" action="../../12184/prescribed-normal-velocity-and-tangential-traction">
+											<div class="qa-a-selection">
+											</div>
+											<div class="qa-a-item-content">
+												<a name="12625"></a><div class="entry-content"><p><em>e: sorry for the edits, made a mistake.</em><br>
+What's the question exactly? And what is <code>g</code> in your code, the stress vector?</p>
+
+<p>In general, you can use: $\vec T = \vec n\cdot \sigma = (\vec T\cdot\vec n)\vec n + (\vec T\cdot \vec t)\vec t$ in the natural boundary integral.<br>
+In your particular case, where the boundaries are aligned with the coordinate<br>
+axis, you simply have at the bottom boundary $n = -e_y$ and $t=e_x$. Because of<br>
+the Dirichlet BC on the normal component, $\vec v\cdot\vec n = v_y = 0$. <br>
+So the boundary integral simplifies to <br>
+$$\int\vec n\cdot\sigma = \int f\vec v\cdot\vec t $$, i.e., <code>f*v[0]*ds(1)</code>.</p>
+</div>
+											</div>
+											<span class="qa-a-item-avatar-meta">
+												<span class="qa-a-item-meta">
+													<a href="../../12184/prescribed-normal-velocity-and-tangential-traction?show=12625#a12625" class="qa-a-item-what">answered</a>
+													<span class="qa-a-item-when">
+														<span class="qa-a-item-when-data"><span class="published"><span class="value-title" title="2017-03-06T16:58:10+0000"></span>Mar 6, 2017</span></span>
+													</span>
+													<span class="qa-a-item-who">
+														<span class="qa-a-item-who-pad">by </span>
+														<span class="qa-a-item-who-data"><span class="vcard author"><a href="../../user/dajuno" class="qa-user-link url nickname">dajuno</a></span></span>
+														<span class="qa-a-item-who-title">FEniCS User</span>
+														<span class="qa-a-item-who-points">
+															<span class="qa-a-item-who-points-pad">(</span><span class="qa-a-item-who-points-data">4,140</span><span class="qa-a-item-who-points-pad"> points)</span>
+														</span>
+													</span>
+													<br>
+													<span class="qa-a-item-what">edited</span>
+													<span class="qa-a-item-when">
+														<span class="qa-a-item-when-data"><span class="updated"><span class="value-title" title="2017-03-06T17:34:20+0000"></span>Mar 6, 2017</span></span>
+													</span>
+													<span class="qa-a-item-who">
+														<span class="qa-a-item-who-pad">by </span><span class="qa-a-item-who-data"><a href="../../user/dajuno" class="qa-user-link url nickname">dajuno</a></span>
+													</span>
+												</span>
+											</span>
+											<div class="qa-a-item-buttons">
+												</div>
+											
+											<div class="qa-a-item-c-list" style="display:none;" id="c12625_list">
+											</div> <!-- END qa-c-list -->
+											
+											<input type="hidden" name="code" value="0-1516467811-6568bffd32f2ac5dea5da9d3e045d8da0602e77e">
+											<input type="hidden" name="qa_click" value="">
+										</form>
+										<div class="qa-c-form">
+										</div> <!-- END qa-c-form -->
+										
+									</div> <!-- END qa-a-item-main -->
+									<div class="qa-a-item-clear">
+									</div>
+								</div> <!-- END qa-a-list-item -->
+								
+							</div> <!-- END qa-a-list -->
+							
+						</div>
+					</div> <!-- END qa-main -->
+					
+				</div> <!-- END main-wrapper -->
+			</div> <!-- END main-shadow -->
+		</div> <!-- END body-wrapper -->
+		<!-- END footer-bottom-group -->
+		
+		<div style="position:absolute; left:-9999px; top:-9999px;">
+			<span id="qa-waiting-template" class="qa-waiting">...</span>
+		</div>
+	
+	
+
+</body><!-- Powered by Question2Answer - http://www.question2answer.org/ --></html>

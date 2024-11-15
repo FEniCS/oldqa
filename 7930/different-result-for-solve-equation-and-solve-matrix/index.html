@@ -1,0 +1,425 @@
+<html><!-- Powered by Question2Answer - http://www.question2answer.org/ --><head>
+		<meta http-equiv="content-type" content="text/html; charset=utf-8">
+		<title>Different result for solve(Equation,...) and solve(matrix,...) - FEniCS Q&amp;A</title>
+		<meta name="description" content="Hi, I have bumped into a problem when trying to solve a linear problem using solve() - well  ...  for now. Thanks ahead for any help or suggestions.">
+		<meta name="keywords" content="linear-solver">
+		<link rel="stylesheet" type="text/css" href="../../qa-theme/Snow/qa-styles.css">
+		<link rel="canonical" href="http://fenicsproject.org/qa/7930/different-result-for-solve-equation-and-solve-matrix">
+		<script type="text/x-mathjax-config">
+  MathJax.Hub.Config({
+    extensions: ["tex2jax.js"],
+    jax: ["input/TeX","output/HTML-CSS"],
+    tex2jax: {inlineMath: [["$","$"],["\\(","\\)"]]},
+    TeX: { extensions: ["AMSmath.js","AMSsymbols.js"]}
+  });
+</script>
+<script type="text/javascript" src="../../mathjax/MathJax.js"></script>
+		<script src="../../jquery-1.7.2.min.js" type="text/javascript"></script>
+		<script src="../../highlight.min.js"></script>
+<script type="text/javascript">
+$(function(){
+	$('.wmd-input').keypress(function(){
+		window.clearTimeout(hljs.Timeout);
+		hljs.Timeout = window.setTimeout(function() {
+			hljs.initHighlighting.called = false;
+			hljs.initHighlighting();
+		}, 500);
+	});
+	window.setTimeout(function() {
+		hljs.initHighlighting.called = false;
+		hljs.initHighlighting();
+	}, 500);
+});
+</script>
+
+
+	</head>
+	<body class="qa-template-question qa-body-js-off">
+		<div class="qa-body-wrapper">
+			
+			<div class="qa-header">
+				<div class="qa-logo">
+					<a href="../../" class="qa-logo-link" title="FEniCS Q&amp;A"><img src="../../qa-theme/fenics_qa.png" border="0" alt="FEniCS Q&amp;A"></a>
+				</div>
+				<div class="qa-header-clear">
+				</div>
+			</div> <!-- END qa-header -->
+			
+			<div class="qa-main-shadow">
+				
+				<div class="qa-main-wrapper">
+					
+					<div class="qa-sidepanel">
+						<div class="qa-sidebar">
+							This is a read only copy of the old FEniCS QA forum. Please visit the <a href="https://www.allanswered.com/community/s/fenics-project/">new QA forum</a> to ask questions
+						</div>
+						
+					</div>
+					
+					<div class="qa-main">
+						<h1>
+							<span class="entry-title">Different result for solve(Equation,...) and solve(matrix,...)</span>
+						</h1>
+						<div class="qa-part-q-view">
+							<div class="qa-q-view  hentry question" id="q7930">
+								<form method="post" action="../../7930/different-result-for-solve-equation-and-solve-matrix">
+									<div class="qa-q-view-stats">
+										<div class="qa-voting qa-voting-net" id="voting_7930">
+											<div class="qa-vote-count qa-vote-count-net">
+												<span class="qa-netvote-count">
+													<span class="qa-netvote-count-data">0<span class="votes-up"><span class="value-title" title="0"></span></span><span class="votes-down"><span class="value-title" title="0"></span></span></span><span class="qa-netvote-count-pad"> votes</span>
+												</span>
+											</div>
+											<div class="qa-vote-clear">
+											</div>
+										</div>
+									</div>
+									<input type="hidden" name="code" value="0-1516468146-ee3b733229c6fe9976ad57f9ea6ae488201311c2">
+								</form>
+								<div class="qa-q-view-main">
+									<form method="post" action="../../7930/different-result-for-solve-equation-and-solve-matrix">
+										<div class="qa-q-view-content">
+											<a name="7930"></a><div class="entry-content"><p>Hi, I have bumped into a problem when trying to solve a linear problem using solve() - well two different solve() routines. Just for the sake of clarity I will present the whole code (so you can run it).</p>
+
+<p>Here I have the UFL formulation of problem (the most important are the last two lines defining the forms "a" and "L")</p>
+
+<pre><code># Define function spaces (P2-P1)
+V = VectorElement('DG',triangle, 2)
+Q = FiniteElement('DG',triangle, 1)
+W = V*Q
+
+# Define trial and test functions
+(u,p) = TrialFunctions(W)
+(v,q) = TestFunctions(W)
+
+# Define coefficients
+dt  = Constant(triangle)
+u1  = Coefficient(V)
+f   = Coefficient(V)
+
+sigma = 10.0
+nu  = 0.01
+
+# Define bilinear and linear forms in variational formulation
+n = FacetNormal(triangle)
+F = 0.5*nu*(grad(u)+grad(u).T)  # Symmetric part of gradient
+
+def a_(u,v):
+    M = inner(F,grad(v))*dx - inner(avg(F)*n('+'),jump(v))*dS
+    return M
+
+def J(u,v):
+    M = sigma*inner(jump(u),jump(v))*dS
+    return M
+
+def b(p,v):
+    M = -p*div(v)*dx  + avg(p)*dot(jump(v),n('+'))*dS
+    return M
+
+def c(u,u_,v):
+    M = -0.5*inner(grad(v)*u,u_)*dx 
+    return M
+
+def _L(v):
+    M = inner(f,v)*dx
+    return M
+
+a  = (1/dt)*inner(u, v)*dx + a_(u,v) + J(u,v) + b(p,v) + b(q,u) + c(u,u1,v)
+L  = (1/dt)*inner(u1, v)*dx + _L(v)
+</code></pre>
+
+<p>From this file I generate the header file (with ffc -l dolfin NavierStokes2d.ufl command). This file is then included into the main.cpp (I present here just the core):</p>
+
+<pre><code>#include "dolfin.h"
+#include "NavierStokes2d.h"
+
+#define RIGHT 5.0
+#define TOP   1.0
+
+using namespace dolfin;
+
+// Define noslip domain
+class NoslipDomain : public SubDomain
+{ ...  };
+
+// Define inflow domain
+class InflowDomain : public SubDomain
+{ ... };
+
+// Define outflow domain
+class OutflowDomain : public SubDomain
+{ ...  };
+
+// Define velocity boundary value at inflow
+class InflowVelocity : public Expression
+{ ...  };
+
+// Define noslip condition for velocity
+class NoSlipCondition : public Expression
+{ ...  };
+
+class InitialVelocity : public Expression
+{ ... };
+
+int main()
+{
+  parameters["ghost_mode"] = "shared_facet";
+
+  RectangleMesh mesh(Point(0.0,0.0),Point(RIGHT,TOP),(int)10*RIGHT,(int)10*TOP,"crossed");
+
+  NavierStokes2d::FunctionSpace W(mesh);
+  SubSpace V = SubSpace(W,0);
+  SubSpace Q = SubSpace(W,1);
+
+  // Set parameter values
+  double dt = 1;
+  double T = 5;
+
+  // Define values for boundary conditions
+  InflowVelocity u_in;
+  NoSlipCondition u_noslip;
+
+  // Define subdomains for boundary conditions
+  NoslipDomain noslip_domain;
+  InflowDomain inflow_domain;
+  OutflowDomain outflow_domain;
+
+  // Define boundary conditions
+  DirichletBC noslip(V, u_noslip, noslip_domain,"pointwise");
+  DirichletBC inflow(V, u_in, inflow_domain,"pointwise");
+  std::vector&lt;const DirichletBC*&gt; bcu = {{&amp;noslip,&amp;inflow}};
+
+  // Create functions
+  Function w(W);
+
+  // Create coefficients
+  Constant k(dt);
+  Constant f(0, 0);
+  InitialVelocity u0;
+
+  // Create forms
+  NavierStokes2d::BilinearForm a(W, W);
+  NavierStokes2d::LinearForm L(W);
+
+  // Set coefficients      
+  a.dt = k; L.dt = k;
+  a.u1 = w[0]; L.u1 = w[0]; L.f = f;
+
+  Matrix A;
+   Vector b;    
+  // Use amg preconditioner if available
+  const std::string prec(has_krylov_solver_preconditioner("amg") ? "amg" : "default");
+
+  double t = dt;
+
+  while (t &lt; T + DOLFIN_EPS)
+  {    
+    // Compute 
+    begin("Computing the solution");    
+if (true) {
+    assemble(b, L);
+    assemble(A, a);
+    for(size_t i=0;i&lt;bcu.size();i++)
+    bcu[i]-&gt;apply(A,b);
+    solve(A, *w.vector(), b, "gmres", prec);
+} else {
+    solve(a == L,w,bcu);
+}
+    end();    
+    t += dt;
+  }
+
+  plot(w[1], "Pressure", "color");
+  plot(w[0], "Velocity", "color");
+  interactive();
+
+  return 0;
+}
+</code></pre>
+
+<p>Again, ignore most of the code - just at the end look at the "Compute part". Here is the procedure of assembling the matrix "A" and rhs vector "b". application of dirichlet boundary conditions and calling of the solve() routine for linear system Ax=b. Just under this is  the alternative solution with different solve() routine. </p>
+
+<p>The problem is that the two results of these two different solve() approaches are different and I cannot see why. <br>
+The "direct linear algebra" approach results in a solution with zero pressure (it looks like the pressure is somehow ignored in the computation).<br>
+The "equation form" approach computes the pressure and even though the results are bullshit they are much closer to reality (the bad results I hope are caused by wrong numerical flux approximation of convective term - I have problem with proper upwinding formulation, but that is a different story).</p>
+
+<p>/////////////////////////////////////////////////////////////////////////////<br>
+/////////////////////////////////////////////////////////////////////////////</p>
+
+<p>Well, if you would like to help me even with additional minor problems you can choose from the following questions of mine:<br>
+q1) Can I use the definition of V and Q in main.cpp? Because I declare mixedFunctionSpace W by the line NavierStokes2d::FunctionSpace W(mesh) but I cannot see how is secured that it gives me the W space and not any of the other two spaces that are created.<br>
+q2) I found all the dolfin header files in usr/include/dolfin. That helps a lot. But I would like to find even the source files .cpp ... I tried the "find" command in command line but it didn't yield a match.<br>
+q3) I defined a subclass "InitialVelocity" of Expression class. I defined u0 as InitialVelocity and found in Function.h that there is an operator "=" to assign Expression to a function. Nevertheless, when I try u = u0 (where Function&amp; u = w[0] where Function w(W)) I get the error </p>
+
+<pre><code>Unable to interpolate function into function space.
+*** Reason:  Wrong size of vector.
+</code></pre>
+
+<p>There might be many more questions but I guess its enough for now. Thanks ahead for any help or suggestions.</p>
+</div>
+										</div>
+										<div class="qa-q-view-tags">
+											<ul class="qa-q-view-tag-list">
+												<li class="qa-q-view-tag-item"><a href="../../tag/linear-solver" rel="tag" class="qa-tag-link">linear-solver</a></li>
+											</ul>
+										</div>
+										<span class="qa-q-view-avatar-meta">
+											<span class="qa-q-view-meta">
+												<a href="../../7930/different-result-for-solve-equation-and-solve-matrix" class="qa-q-view-what">asked</a>
+												<span class="qa-q-view-when">
+													<span class="qa-q-view-when-data"><span class="published"><span class="value-title" title="2015-08-26T17:15:41+0000"></span>Aug 26, 2015</span></span>
+												</span>
+												<span class="qa-q-view-who">
+													<span class="qa-q-view-who-pad">by </span>
+													<span class="qa-q-view-who-data"><span class="vcard author"><a href="../../user/Ianx86" class="qa-user-link url nickname">Ianx86</a></span></span>
+													<span class="qa-q-view-who-title">FEniCS User</span>
+													<span class="qa-q-view-who-points">
+														<span class="qa-q-view-who-points-pad">(</span><span class="qa-q-view-who-points-data">1,050</span><span class="qa-q-view-who-points-pad"> points)</span>
+													</span>
+												</span>
+											</span>
+										</span>
+										<div class="qa-q-view-buttons">
+										</div>
+										
+										<div class="qa-q-view-c-list" style="display:none;" id="c7930_list">
+										</div> <!-- END qa-c-list -->
+										
+										<input type="hidden" name="code" value="0-1516468146-cfbc52ac1c3ea40ee8bec84fe8732157fdac2bd6">
+										<input type="hidden" name="qa_click" value="">
+									</form>
+									<div class="qa-c-form">
+									</div> <!-- END qa-c-form -->
+									
+								</div> <!-- END qa-q-view-main -->
+								<div class="qa-q-view-clear">
+								</div>
+							</div> <!-- END qa-q-view -->
+							
+						</div>
+						<div class="qa-part-a-list">
+							<h2 id="a_list_title">1 Answer</h2>
+							<div class="qa-a-list" id="a_list">
+								
+								<div class="qa-a-list-item  hentry answer answer-selected qa-a-list-item-selected" id="a7934">
+									<form method="post" action="../../7930/different-result-for-solve-equation-and-solve-matrix">
+										<div class="qa-voting qa-voting-net" id="voting_7934">
+											<div class="qa-vote-count qa-vote-count-net">
+												<span class="qa-netvote-count">
+													<span class="qa-netvote-count-data">+1<span class="votes-up"><span class="value-title" title="1"></span></span><span class="votes-down"><span class="value-title" title="0"></span></span></span><span class="qa-netvote-count-pad"> vote</span>
+												</span>
+											</div>
+											<div class="qa-vote-clear">
+											</div>
+										</div>
+										<input type="hidden" name="code" value="0-1516468146-ee3b733229c6fe9976ad57f9ea6ae488201311c2">
+									</form>
+									<div class="qa-a-item-main">
+										<form method="post" action="../../7930/different-result-for-solve-equation-and-solve-matrix">
+											<div class="qa-a-item-selected">
+												<div class="qa-a-selection">
+													<div class="qa-a-selected">&#160;</div>
+													<div class="qa-a-selected-text">Best answer</div>
+												</div>
+												<div class="qa-a-item-content">
+													<a name="7934"></a><div class="entry-content"><p>The first solve uses a Krylov solver. The second solve uses direct solver.</p>
+
+<p>With the line</p>
+
+<pre><code>solve(A, *w.vector(), b, "gmres", prec);
+</code></pre>
+
+<p>you apply a gmres solver with an algebraic multigrid preconditioner built from matrix A. Since A is not suitable for amg, the solver fails to reduce the true residual.</p>
+
+<p>To make the solver work you need to provide a second matrix to build the preconditioner from. See the stokes-iterative demo for an example of this can be done.</p>
+</div>
+												</div>
+												<span class="qa-a-item-avatar-meta">
+													<span class="qa-a-item-meta">
+														<a href="../../7930/different-result-for-solve-equation-and-solve-matrix?show=7934#a7934" class="qa-a-item-what">answered</a>
+														<span class="qa-a-item-when">
+															<span class="qa-a-item-when-data"><span class="published"><span class="value-title" title="2015-08-27T08:03:33+0000"></span>Aug 27, 2015</span></span>
+														</span>
+														<span class="qa-a-item-who">
+															<span class="qa-a-item-who-pad">by </span>
+															<span class="qa-a-item-who-data"><span class="vcard author"><a href="../../user/Magne+Nordaas" class="qa-user-link url nickname">Magne Nordaas</a></span></span>
+															<span class="qa-a-item-who-title">FEniCS Expert</span>
+															<span class="qa-a-item-who-points">
+																<span class="qa-a-item-who-points-pad">(</span><span class="qa-a-item-who-points-data">13,820</span><span class="qa-a-item-who-points-pad"> points)</span>
+															</span>
+														</span>
+														<br>
+														<span class="qa-a-item-what">selected</span>
+														<span class="qa-a-item-when">
+															<span class="qa-a-item-when-data"><span class="updated"><span class="value-title" title="2015-08-27T12:34:46+0000"></span>Aug 27, 2015</span></span>
+														</span>
+														<span class="qa-a-item-who">
+															<span class="qa-a-item-who-pad">by </span><span class="qa-a-item-who-data"><a href="../../user/Ianx86" class="qa-user-link url nickname">Ianx86</a></span>
+														</span>
+													</span>
+												</span>
+											</div>
+											<div class="qa-a-item-buttons">
+												</div>
+											
+											<div class="qa-a-item-c-list" id="c7934_list">
+												<div class="qa-c-list-item  hentry comment" id="c7940">
+													<div class="qa-c-item-content">
+														<a name="7940"></a><div class="entry-content"><p>Oh, thanks a lot. I was looking at everything else and forgot the most important detail :D</p>
+
+<p>Btw can you help me with any of the follow-up questions? </p>
+</div>
+													</div>
+													<div class="qa-c-item-footer">
+														<span class="qa-c-item-avatar-meta">
+															<span class="qa-c-item-meta">
+																<a href="../../7930/different-result-for-solve-equation-and-solve-matrix?show=7940#c7940" class="qa-c-item-what">commented</a>
+																<span class="qa-c-item-when">
+																	<span class="qa-c-item-when-data"><span class="published"><span class="value-title" title="2015-08-27T12:34:32+0000"></span>Aug 27, 2015</span></span>
+																</span>
+																<span class="qa-c-item-who">
+																	<span class="qa-c-item-who-pad">by </span>
+																	<span class="qa-c-item-who-data"><span class="vcard author"><a href="../../user/Ianx86" class="qa-user-link url nickname">Ianx86</a></span></span>
+																	<span class="qa-c-item-who-title">FEniCS User</span>
+																	<span class="qa-c-item-who-points">
+																		<span class="qa-c-item-who-points-pad">(</span><span class="qa-c-item-who-points-data">1,050</span><span class="qa-c-item-who-points-pad"> points)</span>
+																	</span>
+																</span>
+															</span>
+														</span>
+														<div class="qa-c-item-buttons">
+														</div>
+													</div>
+													<div class="qa-c-item-clear">
+													</div>
+												</div> <!-- END qa-c-item -->
+											</div> <!-- END qa-c-list -->
+											
+											<input type="hidden" name="code" value="0-1516468146-de0a74c17e7f503d4ead7818d1b738597afcfada">
+											<input type="hidden" name="qa_click" value="">
+										</form>
+										<div class="qa-c-form">
+										</div> <!-- END qa-c-form -->
+										
+									</div> <!-- END qa-a-item-main -->
+									<div class="qa-a-item-clear">
+									</div>
+								</div> <!-- END qa-a-list-item -->
+								
+							</div> <!-- END qa-a-list -->
+							
+						</div>
+					</div> <!-- END qa-main -->
+					
+				</div> <!-- END main-wrapper -->
+			</div> <!-- END main-shadow -->
+		</div> <!-- END body-wrapper -->
+		<!-- END footer-bottom-group -->
+		
+		<div style="position:absolute; left:-9999px; top:-9999px;">
+			<span id="qa-waiting-template" class="qa-waiting">...</span>
+		</div>
+	
+	
+
+</body><!-- Powered by Question2Answer - http://www.question2answer.org/ --></html>

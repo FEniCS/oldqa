@@ -1,0 +1,337 @@
+<html><!-- Powered by Question2Answer - http://www.question2answer.org/ --><head>
+		<meta http-equiv="content-type" content="text/html; charset=utf-8">
+		<title>Optimal control problem - FEniCS Q&amp;A</title>
+		<meta name="description" content="Hi, I'm new to using FEniCS and would like to use it for solving problems in optimal control. ...  must have the same shape as what they replace.">
+		<meta name="keywords" content="optimal-control,error">
+		<link rel="stylesheet" type="text/css" href="../../qa-theme/Snow/qa-styles.css">
+		<link rel="canonical" href="http://fenicsproject.org/qa/8985/optimal-control-problem">
+		<script type="text/x-mathjax-config">
+  MathJax.Hub.Config({
+    extensions: ["tex2jax.js"],
+    jax: ["input/TeX","output/HTML-CSS"],
+    tex2jax: {inlineMath: [["$","$"],["\\(","\\)"]]},
+    TeX: { extensions: ["AMSmath.js","AMSsymbols.js"]}
+  });
+</script>
+<script type="text/javascript" src="../../mathjax/MathJax.js"></script>
+		<script src="../../jquery-1.7.2.min.js" type="text/javascript"></script>
+		<script src="../../highlight.min.js"></script>
+<script type="text/javascript">
+$(function(){
+	$('.wmd-input').keypress(function(){
+		window.clearTimeout(hljs.Timeout);
+		hljs.Timeout = window.setTimeout(function() {
+			hljs.initHighlighting.called = false;
+			hljs.initHighlighting();
+		}, 500);
+	});
+	window.setTimeout(function() {
+		hljs.initHighlighting.called = false;
+		hljs.initHighlighting();
+	}, 500);
+});
+</script>
+
+
+	</head>
+	<body class="qa-template-question qa-body-js-off">
+		<div class="qa-body-wrapper">
+			
+			<div class="qa-header">
+				<div class="qa-logo">
+					<a href="../../" class="qa-logo-link" title="FEniCS Q&amp;A"><img src="../../qa-theme/fenics_qa.png" border="0" alt="FEniCS Q&amp;A"></a>
+				</div>
+				<div class="qa-header-clear">
+				</div>
+			</div> <!-- END qa-header -->
+			
+			<div class="qa-main-shadow">
+				
+				<div class="qa-main-wrapper">
+					
+					<div class="qa-sidepanel">
+						<div class="qa-sidebar">
+							This is a read only copy of the old FEniCS QA forum. Please visit the <a href="https://www.allanswered.com/community/s/fenics-project/">new QA forum</a> to ask questions
+						</div>
+						
+					</div>
+					
+					<div class="qa-main">
+						<h1>
+							<span class="entry-title">Optimal control problem</span>
+						</h1>
+						<div class="qa-part-q-view">
+							<div class="qa-q-view  hentry question" id="q8985">
+								<form method="post" action="../../8985/optimal-control-problem">
+									<div class="qa-q-view-stats">
+										<div class="qa-voting qa-voting-net" id="voting_8985">
+											<div class="qa-vote-count qa-vote-count-net">
+												<span class="qa-netvote-count">
+													<span class="qa-netvote-count-data">+1<span class="votes-up"><span class="value-title" title="1"></span></span><span class="votes-down"><span class="value-title" title="0"></span></span></span><span class="qa-netvote-count-pad"> vote</span>
+												</span>
+											</div>
+											<div class="qa-vote-clear">
+											</div>
+										</div>
+									</div>
+									<input type="hidden" name="code" value="0-1516468201-9a6aa740f8fb3975e128c217b90ed6653310effd">
+								</form>
+								<div class="qa-q-view-main">
+									<form method="post" action="../../8985/optimal-control-problem">
+										<div class="qa-q-view-content">
+											<a name="8985"></a><div class="entry-content"><p>Hi, I'm new to using FEniCS and would like to use it for solving problems in optimal control.</p>
+
+<p>More specifically I have been trying to implement the following simple heat diffusion problem on the unit square</p>
+
+<pre><code>min J(y,u) = 1/2 * Integral (y-y_d)^2 dx + alpha/2 * Integral u^2 dx
+subj. to     -Laplace(y) = u     in the domain, and 
+                       y = 0     on the boundary
+</code></pre>
+
+<p>where <code>y</code> is our state, <code>u</code> is the control and <code>y_d</code> is the desired state.</p>
+
+<p>(For future reference: is it possible to use LaTeX on this Q&amp;A forum?)</p>
+
+<p>I have attempted to set this up following some of the demos as examples, however, I receive an error, and I can't seem to figure out what exactly the problem is and how I change the code correctly. </p>
+
+<p>Here is my code. I suspect the error somehow resides in the fact that I have both y and u as TrialFunctions, however, I'm not sure how to get around this. I have done quite a bit of searching around, but have not been able to find any good examples for this kind of problem.</p>
+
+<pre><code># File: fenicsLinVarSol.py 
+from dolfin import *
+
+# Create mesh and define space
+mesh = UnitSquareMesh(5, 5, 'crossed')
+V = FunctionSpace(mesh, 'Lagrange', 1) # CG - Continuous Galerkin (same)
+W = V*V
+
+# Define boundary conditions
+y0 = Constant(0)
+
+def boundary(x, on_boundary):
+    return on_boundary
+
+bc = DirichletBC(V, y0, boundary)
+
+# Define variational problem
+(y,u) = TrialFunction(W)
+v = TestFunction(V)
+f = Constant(0)
+
+yd = Expression("2*sin(3.14*x[0])")
+alpha = Constant(0.1)
+
+a = inner(grad(y), grad(v))*dx - u*v*dx
+L = f*v*dx
+
+# Define function for the solution
+w = Function(W)
+
+# Define goal functional
+J = ( ( w[0] - yd )**2 )*dx + alpha*( w[1]**2 )*dx
+
+# Define error tolerance
+tol = 1.e-3
+
+problem = LinearVariationalProblem(a, L, w, bc)
+solver = AdaptiveLinearVariationalSolver(problem, J)
+solver.parameters["error_control"]["dual_variational_solver"]["linear_solver"] = "cg"
+solver.parameters["error_control"]["dual_variational_solver"]["symmetric"] = True
+solver.solve(tol)
+
+solver.summary()
+
+# Plot solution
+plot(u.root_node(), title="Solution on initial mesh")
+plot(u.lead_node(), title="Solution on final mesh")
+interactive()
+</code></pre>
+
+<p>Here is what I receive from python when I run it.</p>
+
+<pre><code>~$ python Documents/python/fenicsLinVarSol.py 
+Generating forms required for error control, this may take some time...
+Replacement expressions must have the same shape as what they replace.
+Traceback (most recent call last):
+  File "Documents/python/fenicsLinVarSol.py", line 45, in &lt;module&gt;
+solver = AdaptiveLinearVariationalSolver(problem, J)
+  File "/usr/lib/python2.7/dist-packages/dolfin/fem/adaptivesolving.py", line 58, in __init__
+ec = generate_error_control(self.problem, goal)
+  File "/usr/lib/python2.7/dist-packages/dolfin/fem/adaptivesolving.py", line 145, in generate_error_control
+(ufl_forms, is_linear) = generate_error_control_forms(problem, goal)
+  File "/usr/lib/python2.7/dist-packages/dolfin/fem/adaptivesolving.py", line 215, in generate_error_control_forms
+forms = generator.generate_all_error_control_forms()
+  File "/usr/lib/python2.7/dist-packages/ffc/errorcontrol/errorcontrolgenerators.py", line 111, in generate_all_error_control_forms
+(a_R_T, L_R_T) = self.cell_residual()
+  File "/usr/lib/python2.7/dist-packages/ffc/errorcontrol/errorcontrolgenerators.py", line 163, in cell_residual
+L_R_T = replace(self.weak_residual, {v_h: v_T})
+  File "/usr/lib/python2.7/dist-packages/ufl/algorithms/replace.py", line 69, in replace
+return map_integrand_dags(Replacer(mapping2), e)
+  File "/usr/lib/python2.7/dist-packages/ufl/algorithms/replace.py", line 39, in __init__
+"Replacement expressions must have the same shape as what they replace.")
+  File "/usr/lib/python2.7/dist-packages/ufl/assertions.py", line 37, in ufl_assert
+if not condition: error(*message)
+  File "/usr/lib/python2.7/dist-packages/ufl/log.py", line 151, in error
+raise self._exception_type(self._format_raw(*message))
+ufl.log.UFLException: Replacement expressions must have the same shape as what they replace.
+</code></pre>
+</div>
+										</div>
+										<div class="qa-q-view-tags">
+											<ul class="qa-q-view-tag-list">
+												<li class="qa-q-view-tag-item"><a href="../../tag/optimal-control" rel="tag" class="qa-tag-link">optimal-control</a></li>
+												<li class="qa-q-view-tag-item"><a href="../../tag/error" rel="tag" class="qa-tag-link">error</a></li>
+											</ul>
+										</div>
+										<span class="qa-q-view-avatar-meta">
+											<span class="qa-q-view-meta">
+												<a href="../../8985/optimal-control-problem" class="qa-q-view-what">asked</a>
+												<span class="qa-q-view-when">
+													<span class="qa-q-view-when-data"><span class="published"><span class="value-title" title="2016-01-06T12:40:36+0000"></span>Jan 6, 2016</span></span>
+												</span>
+												<span class="qa-q-view-who">
+													<span class="qa-q-view-who-pad">by </span>
+													<span class="qa-q-view-who-data"><span class="vcard author"><a href="../../user/bcsj" class="qa-user-link url nickname">bcsj</a></span></span>
+													<span class="qa-q-view-who-title">FEniCS Novice</span>
+													<span class="qa-q-view-who-points">
+														<span class="qa-q-view-who-points-pad">(</span><span class="qa-q-view-who-points-data">280</span><span class="qa-q-view-who-points-pad"> points)</span>
+													</span>
+												</span>
+											</span>
+										</span>
+										<div class="qa-q-view-buttons">
+										</div>
+										
+										<div class="qa-q-view-c-list" style="display:none;" id="c8985_list">
+										</div> <!-- END qa-c-list -->
+										
+										<input type="hidden" name="code" value="0-1516468201-1e5bdca21eb080bc5f971c42f7645b49c9c6c059">
+										<input type="hidden" name="qa_click" value="">
+									</form>
+									<div class="qa-c-form">
+									</div> <!-- END qa-c-form -->
+									
+								</div> <!-- END qa-q-view-main -->
+								<div class="qa-q-view-clear">
+								</div>
+							</div> <!-- END qa-q-view -->
+							
+						</div>
+						<div class="qa-part-a-list">
+							<h2 id="a_list_title">1 Answer</h2>
+							<div class="qa-a-list" id="a_list">
+								
+								<div class="qa-a-list-item  hentry answer" id="a8987">
+									<form method="post" action="../../8985/optimal-control-problem">
+										<div class="qa-voting qa-voting-net" id="voting_8987">
+											<div class="qa-vote-count qa-vote-count-net">
+												<span class="qa-netvote-count">
+													<span class="qa-netvote-count-data">+1<span class="votes-up"><span class="value-title" title="1"></span></span><span class="votes-down"><span class="value-title" title="0"></span></span></span><span class="qa-netvote-count-pad"> vote</span>
+												</span>
+											</div>
+											<div class="qa-vote-clear">
+											</div>
+										</div>
+										<input type="hidden" name="code" value="0-1516468201-9a6aa740f8fb3975e128c217b90ed6653310effd">
+									</form>
+									<div class="qa-a-item-main">
+										<form method="post" action="../../8985/optimal-control-problem">
+											<div class="qa-a-selection">
+											</div>
+											<div class="qa-a-item-content">
+												<a name="8987"></a><div class="entry-content"><p>You have a funny way of setting up the system. I would expect the<br>
+use of the Lagrange multiplier method to set up a 3x3 system<br>
+and consider the optimality condition. You can do this <br>
+(roughly) by multiplying &#180;a&#180;by the test function of the multiplier and add &#180;a&#180; to &#180;J&#180;. <br>
+Then differentiate and get the linear problem. </p>
+
+<p>Have a look eg. at the thesis of Ole Elvetun. He implemented many<br>
+problems similar to yours in FEniCS. See here: <br>
+<a rel="nofollow" href="http://folk.uio.no/kent-and/phdthesis_OLE.pdf">http://folk.uio.no/kent-and/phdthesis_OLE.pdf</a><br>
+He looked at problems related to precondition rather than adaptivity<br>
+but the norm considerations are probably useful. </p>
+</div>
+											</div>
+											<span class="qa-a-item-avatar-meta">
+												<span class="qa-a-item-meta">
+													<a href="../../8985/optimal-control-problem?show=8987#a8987" class="qa-a-item-what">answered</a>
+													<span class="qa-a-item-when">
+														<span class="qa-a-item-when-data"><span class="published"><span class="value-title" title="2016-01-06T17:42:16+0000"></span>Jan 6, 2016</span></span>
+													</span>
+													<span class="qa-a-item-who">
+														<span class="qa-a-item-who-pad">by </span>
+														<span class="qa-a-item-who-data"><span class="vcard author"><a href="../../user/Kent-Andre+Mardal" class="qa-user-link url nickname">Kent-Andre Mardal</a></span></span>
+														<span class="qa-a-item-who-title">FEniCS Expert</span>
+														<span class="qa-a-item-who-points">
+															<span class="qa-a-item-who-points-pad">(</span><span class="qa-a-item-who-points-data">14,380</span><span class="qa-a-item-who-points-pad"> points)</span>
+														</span>
+													</span>
+												</span>
+											</span>
+											<div class="qa-a-item-buttons">
+												</div>
+											
+											<div class="qa-a-item-c-list" id="c8987_list">
+												<div class="qa-c-list-item  hentry comment" id="c8990">
+													<div class="qa-c-item-content">
+														<a name="8990"></a><div class="entry-content"><p>I understand that my code may be way off for what I want to solve. I have for the most part simply followed the demo here: <a rel="nofollow" href="http://fenicsproject.org/documentation/dolfin/dev/python/demo/documented/auto-adaptive-poisson/python/documentation.html">http://fenicsproject.org/documentation/dolfin/dev/python/demo/documented/auto-adaptive-poisson/python/documentation.html</a></p>
+
+<p>This demo was not exactly what I wanted, but it has been the only documentation of use of goal-functionals, as I have with my functional <code>J(y,u)</code>, so I figured I'd try to modify it.</p>
+
+<p>Is there somewhere I can read more about how to use the Lagrange multiplier method that you mention?</p>
+
+<p>Thank you for your reply though, I will take a look at that thesis now! :)</p>
+</div>
+													</div>
+													<div class="qa-c-item-footer">
+														<span class="qa-c-item-avatar-meta">
+															<span class="qa-c-item-meta">
+																<a href="../../8985/optimal-control-problem?show=8990#c8990" class="qa-c-item-what">commented</a>
+																<span class="qa-c-item-when">
+																	<span class="qa-c-item-when-data"><span class="published"><span class="value-title" title="2016-01-07T09:09:33+0000"></span>Jan 7, 2016</span></span>
+																</span>
+																<span class="qa-c-item-who">
+																	<span class="qa-c-item-who-pad">by </span>
+																	<span class="qa-c-item-who-data"><span class="vcard author"><a href="../../user/bcsj" class="qa-user-link url nickname">bcsj</a></span></span>
+																	<span class="qa-c-item-who-title">FEniCS Novice</span>
+																	<span class="qa-c-item-who-points">
+																		<span class="qa-c-item-who-points-pad">(</span><span class="qa-c-item-who-points-data">280</span><span class="qa-c-item-who-points-pad"> points)</span>
+																	</span>
+																</span>
+															</span>
+														</span>
+														<div class="qa-c-item-buttons">
+														</div>
+													</div>
+													<div class="qa-c-item-clear">
+													</div>
+												</div> <!-- END qa-c-item -->
+											</div> <!-- END qa-c-list -->
+											
+											<input type="hidden" name="code" value="0-1516468201-939db2c07827afd3261a368d887ef9b509e6314d">
+											<input type="hidden" name="qa_click" value="">
+										</form>
+										<div class="qa-c-form">
+										</div> <!-- END qa-c-form -->
+										
+									</div> <!-- END qa-a-item-main -->
+									<div class="qa-a-item-clear">
+									</div>
+								</div> <!-- END qa-a-list-item -->
+								
+							</div> <!-- END qa-a-list -->
+							
+						</div>
+					</div> <!-- END qa-main -->
+					
+				</div> <!-- END main-wrapper -->
+			</div> <!-- END main-shadow -->
+		</div> <!-- END body-wrapper -->
+		<!-- END footer-bottom-group -->
+		
+		<div style="position:absolute; left:-9999px; top:-9999px;">
+			<span id="qa-waiting-template" class="qa-waiting">...</span>
+		</div>
+	
+	
+
+</body><!-- Powered by Question2Answer - http://www.question2answer.org/ --></html>

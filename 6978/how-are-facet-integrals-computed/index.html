@@ -1,0 +1,183 @@
+<html><!-- Powered by Question2Answer - http://www.question2answer.org/ --><head>
+		<meta http-equiv="content-type" content="text/html; charset=utf-8">
+		<title>How are facet integrals computed? - FEniCS Q&amp;A</title>
+		<meta name="description" content="Hello. I am wondering how FEniCS comptues interior facet integrals. In this example, I am computing the  ...  [1]: http://i.imgur.com/oRh99O5.png">
+		<meta name="keywords" content="interior-facet-integral">
+		<link rel="stylesheet" type="text/css" href="../../qa-theme/Snow/qa-styles.css">
+		<link rel="canonical" href="http://fenicsproject.org/qa/6978/how-are-facet-integrals-computed">
+		<script type="text/x-mathjax-config">
+  MathJax.Hub.Config({
+    extensions: ["tex2jax.js"],
+    jax: ["input/TeX","output/HTML-CSS"],
+    tex2jax: {inlineMath: [["$","$"],["\\(","\\)"]]},
+    TeX: { extensions: ["AMSmath.js","AMSsymbols.js"]}
+  });
+</script>
+<script type="text/javascript" src="../../mathjax/MathJax.js"></script>
+		<script src="../../jquery-1.7.2.min.js" type="text/javascript"></script>
+		<script src="../../highlight.min.js"></script>
+<script type="text/javascript">
+$(function(){
+	$('.wmd-input').keypress(function(){
+		window.clearTimeout(hljs.Timeout);
+		hljs.Timeout = window.setTimeout(function() {
+			hljs.initHighlighting.called = false;
+			hljs.initHighlighting();
+		}, 500);
+	});
+	window.setTimeout(function() {
+		hljs.initHighlighting.called = false;
+		hljs.initHighlighting();
+	}, 500);
+});
+</script>
+
+
+	</head>
+	<body class="qa-template-question qa-body-js-off">
+		<div class="qa-body-wrapper">
+			
+			<div class="qa-header">
+				<div class="qa-logo">
+					<a href="../../" class="qa-logo-link" title="FEniCS Q&amp;A"><img src="../../qa-theme/fenics_qa.png" border="0" alt="FEniCS Q&amp;A"></a>
+				</div>
+				<div class="qa-header-clear">
+				</div>
+			</div> <!-- END qa-header -->
+			
+			<div class="qa-main-shadow">
+				
+				<div class="qa-main-wrapper">
+					
+					<div class="qa-sidepanel">
+						<div class="qa-sidebar">
+							This is a read only copy of the old FEniCS QA forum. Please visit the <a href="https://www.allanswered.com/community/s/fenics-project/">new QA forum</a> to ask questions
+						</div>
+						
+					</div>
+					
+					<div class="qa-main">
+						<h1>
+							<span class="entry-title">How are facet integrals computed?</span>
+						</h1>
+						<div class="qa-part-q-view">
+							<div class="qa-q-view  hentry question" id="q6978">
+								<form method="post" action="../../6978/how-are-facet-integrals-computed">
+									<div class="qa-q-view-stats">
+										<div class="qa-voting qa-voting-net" id="voting_6978">
+											<div class="qa-vote-count qa-vote-count-net">
+												<span class="qa-netvote-count">
+													<span class="qa-netvote-count-data">+3<span class="votes-up"><span class="value-title" title="3"></span></span><span class="votes-down"><span class="value-title" title="0"></span></span></span><span class="qa-netvote-count-pad"> votes</span>
+												</span>
+											</div>
+											<div class="qa-vote-clear">
+											</div>
+										</div>
+									</div>
+									<input type="hidden" name="code" value="0-1516468097-a845c9a5b5897d3251517064ddeea7245c890b3d">
+								</form>
+								<div class="qa-q-view-main">
+									<form method="post" action="../../6978/how-are-facet-integrals-computed">
+										<div class="qa-q-view-content">
+											<a name="6978"></a><div class="entry-content"><p>Hello. I am wondering how FEniCS comptues interior facet integrals. In this example, I am computing the integral of $f(x,y)=1$ under the interior facets for A, and $f(x,y)=x$ for B.</p>
+
+<pre><code>from dolfin import *
+
+mesh = RectangleMesh(0.0, 0.0, 1.0, 1.0, 2, 2)
+V = FunctionSpace(mesh, "CG", 1)
+
+v = TestFunction(V)
+
+f = project(Expression("x[0]"), V)
+
+A = assemble(avg(v) * dS)
+B = assemble(f * avg(v) * dS)
+
+print A.array()
+print sum(A.array())
+
+print B.array()
+print sum(B.array())
+</code></pre>
+
+<p>This results in the output:</p>
+
+<blockquote>
+  <p>[ 0.          0.60355339  0.60355339  0.35355339  1.70710678  0.35355339<br>
+    0.60355339  0.60355339  0.        ]<br>
+  4.82842712475<br>
+  [ 0.          0.10059223  0.24285113  0.05892557  0.85355339  0.29462783<br>
+    0.36070226  0.50296116  0.        ]<br>
+  2.41421356237</p>
+</blockquote>
+
+<p>When I compute A, it seems like FEniCS computes the integral under each facet (which is just a rectangle in this case) then half of that value is allotted to one vertex connected to that facet and the other half is allotted to the other vertex. For example, the value associated with the bottom left vertex is $ \frac{ \sqrt{ \frac{1}{2} }} {2} $, which is half the area of a rectangle from the bottom left vertex to the center vertex with height 1.</p>
+
+<p><img src="http://i.imgur.com/oRh99O5.png" alt="mesh"></p>
+
+<p>However, I'm not sure what's going on in B when I take the facet integrals under $f(x,y)=x$. The sum of B.array() is what I expect. I assume that the value at each vertex is just a weighted sum of the connected interior facet integrals, but I don't understand how these weights are assigned. </p>
+
+<p>Thanks,<br>
+Jake</p>
+</div>
+										</div>
+										<div class="qa-q-view-tags">
+											<ul class="qa-q-view-tag-list">
+												<li class="qa-q-view-tag-item"><a href="../../tag/interior-facet-integral" rel="tag" class="qa-tag-link">interior-facet-integral</a></li>
+											</ul>
+										</div>
+										<span class="qa-q-view-avatar-meta">
+											<span class="qa-q-view-meta">
+												<a href="../../6978/how-are-facet-integrals-computed" class="qa-q-view-what">asked</a>
+												<span class="qa-q-view-when">
+													<span class="qa-q-view-when-data"><span class="published"><span class="value-title" title="2015-04-20T19:40:32+0000"></span>Apr 20, 2015</span></span>
+												</span>
+												<span class="qa-q-view-who">
+													<span class="qa-q-view-who-pad">by </span>
+													<span class="qa-q-view-who-data"><span class="vcard author"><a href="../../user/downsj" class="qa-user-link url nickname">downsj</a></span></span>
+													<span class="qa-q-view-who-title">FEniCS Novice</span>
+													<span class="qa-q-view-who-points">
+														<span class="qa-q-view-who-points-pad">(</span><span class="qa-q-view-who-points-data">150</span><span class="qa-q-view-who-points-pad"> points)</span>
+													</span>
+												</span>
+											</span>
+										</span>
+										<div class="qa-q-view-buttons">
+										</div>
+										
+										<div class="qa-q-view-c-list" style="display:none;" id="c6978_list">
+										</div> <!-- END qa-c-list -->
+										
+										<input type="hidden" name="code" value="0-1516468097-9961217fa73f296d2920fe2037fc775c21c30d09">
+										<input type="hidden" name="qa_click" value="">
+									</form>
+									<div class="qa-c-form">
+									</div> <!-- END qa-c-form -->
+									
+								</div> <!-- END qa-q-view-main -->
+								<div class="qa-q-view-clear">
+								</div>
+							</div> <!-- END qa-q-view -->
+							
+						</div>
+						<div class="qa-part-a-list">
+							<h2 id="a_list_title" style="display:none;"></h2>
+							<div class="qa-a-list" id="a_list">
+								
+							</div> <!-- END qa-a-list -->
+							
+						</div>
+					</div> <!-- END qa-main -->
+					
+				</div> <!-- END main-wrapper -->
+			</div> <!-- END main-shadow -->
+		</div> <!-- END body-wrapper -->
+		<!-- END footer-bottom-group -->
+		
+		<div style="position:absolute; left:-9999px; top:-9999px;">
+			<span id="qa-waiting-template" class="qa-waiting">...</span>
+		</div>
+	
+	
+
+</body><!-- Powered by Question2Answer - http://www.question2answer.org/ --></html>

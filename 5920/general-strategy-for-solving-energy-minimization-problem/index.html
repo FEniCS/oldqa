@@ -1,0 +1,812 @@
+<html><!-- Powered by Question2Answer - http://www.question2answer.org/ --><head>
+		<meta http-equiv="content-type" content="text/html; charset=utf-8">
+		<title>General strategy for solving 1D energy minimization problem - FEniCS Q&amp;A</title>
+		<meta name="description" content="Let's say I have a non-linear energy functional E[u]. How do I solve for u that minimizes E  ... eval(self, values, x): inside_function = lambda y: y">
+		<link rel="stylesheet" type="text/css" href="../../qa-theme/Snow/qa-styles.css">
+		<link rel="canonical" href="http://fenicsproject.org/qa/5920/general-strategy-for-solving-energy-minimization-problem">
+		<script type="text/x-mathjax-config">
+  MathJax.Hub.Config({
+    extensions: ["tex2jax.js"],
+    jax: ["input/TeX","output/HTML-CSS"],
+    tex2jax: {inlineMath: [["$","$"],["\\(","\\)"]]},
+    TeX: { extensions: ["AMSmath.js","AMSsymbols.js"]}
+  });
+</script>
+<script type="text/javascript" src="../../mathjax/MathJax.js"></script>
+		<script src="../../jquery-1.7.2.min.js" type="text/javascript"></script>
+		<script src="../../highlight.min.js"></script>
+<script type="text/javascript">
+$(function(){
+	$('.wmd-input').keypress(function(){
+		window.clearTimeout(hljs.Timeout);
+		hljs.Timeout = window.setTimeout(function() {
+			hljs.initHighlighting.called = false;
+			hljs.initHighlighting();
+		}, 500);
+	});
+	window.setTimeout(function() {
+		hljs.initHighlighting.called = false;
+		hljs.initHighlighting();
+	}, 500);
+});
+</script>
+
+
+	</head>
+	<body class="qa-template-question qa-body-js-off">
+		<div class="qa-body-wrapper">
+			
+			<div class="qa-header">
+				<div class="qa-logo">
+					<a href="../../" class="qa-logo-link" title="FEniCS Q&amp;A"><img src="../../qa-theme/fenics_qa.png" border="0" alt="FEniCS Q&amp;A"></a>
+				</div>
+				<div class="qa-header-clear">
+				</div>
+			</div> <!-- END qa-header -->
+			
+			<div class="qa-main-shadow">
+				
+				<div class="qa-main-wrapper">
+					
+					<div class="qa-sidepanel">
+						<div class="qa-sidebar">
+							This is a read only copy of the old FEniCS QA forum. Please visit the <a href="https://www.allanswered.com/community/s/fenics-project/">new QA forum</a> to ask questions
+						</div>
+						
+					</div>
+					
+					<div class="qa-main">
+						<h1>
+							<span class="entry-title">General strategy for solving 1D energy minimization problem</span>
+						</h1>
+						<div class="qa-part-q-view">
+							<div class="qa-q-view  hentry question" id="q5920">
+								<form method="post" action="../../5920/general-strategy-for-solving-energy-minimization-problem">
+									<div class="qa-q-view-stats">
+										<div class="qa-voting qa-voting-net" id="voting_5920">
+											<div class="qa-vote-count qa-vote-count-net">
+												<span class="qa-netvote-count">
+													<span class="qa-netvote-count-data">+1<span class="votes-up"><span class="value-title" title="1"></span></span><span class="votes-down"><span class="value-title" title="0"></span></span></span><span class="qa-netvote-count-pad"> vote</span>
+												</span>
+											</div>
+											<div class="qa-vote-clear">
+											</div>
+										</div>
+									</div>
+									<input type="hidden" name="code" value="0-1516468049-b92d1561cf5566c0c996156c37b30960f5653cb6">
+								</form>
+								<div class="qa-q-view-main">
+									<form method="post" action="../../5920/general-strategy-for-solving-energy-minimization-problem">
+										<div class="qa-q-view-content">
+											<a name="5920"></a><div class="entry-content"><p>Let's say I have a non-linear energy functional E[u]. How do I solve for u that minimizes E over the whole mesh? For example</p>
+
+<p>$$ E[u] = 2\int_0^W{E_d(z)u(z)^2dz} + \int_0^W{c(z)\left(f(z)-b(z)\int_0^z{u(v)^2dv}\right)^2dz} $$ </p>
+
+<p>This problem can be solved analytically resulting in a function that is constant below a certain $$ W_c &lt; W $$ and zero above that.</p>
+
+<p>Here is a (not so simple) example in dolfin</p>
+
+<pre><code>import dolfin
+from dolfin import *
+import ufl
+
+
+# Optimization options for the form compiler
+parameters['linear_algebra_backend'] = 'PETSc'
+parameters["form_compiler"]["cpp_optimize"] = True
+parameters["form_compiler"]["quadrature_rule"] = 'auto'
+ffc_options = {"optimize": True, \
+           "eliminate_zeros": False, \
+           "precompute_basis_const": True, \
+           "precompute_ip_const": True
+           }
+
+class Primitive(ufl.Coefficient, dolfin.cpp.Expression):
+    def __init__(self,f,mesh,element,constant= 0.0, **kwargs):
+       dolfin.cpp.Expression.__init__(self)
+       self._f = f
+       self._mesh = mesh
+       self._constant = constant
+       subdomains = CellFunction('size_t',mesh)
+       self._subdomains = subdomains
+       dx = Measure('dx',domain=mesh)[subdomains]
+       self._dx=dx
+       self._F = Form(f*dx(1))
+
+       ufl.Coefficient.__init__(self, element, count=self.id())
+
+     def eval(self, values, x):
+
+        inside_function = lambda y: y&lt;=x[0]
+        domain = AutoSubDomain(inside_function=inside_function)
+        self._subdomains.set_all(0)
+        domain.mark(self._subdomains,1)
+        F = self._F
+        values[0] = assemble(F) + self._constant
+
+    def eval_cell(self, values, x, cell):
+        self.eval(values,x)
+
+    def ufl_evaluate(self,x, component, derivatives):
+        values = np.zeros(1,dtype='d')
+        self.eval(values,x)
+        return values[0]
+
+
+mesh = IntervalMesh(100,0,1e-6)
+V = FunctionSpace(mesh, "CG", 1)
+
+left = CompiledSubDomain("(std::abs(x[0]) &lt; DOLFIN_EPS) &amp;&amp; on_boundary")
+right = CompiledSubDomain("(std::abs(x[0] - 1e-6) &lt; DOLFIN_EPS) &amp;&amp; on_boundary")
+
+class LinearMismatchProfile(Expression):
+
+    def __init__(self, G, W, W_b, f_0,**kwargs):
+        self._W = W
+        self._G = G
+        self._W_b = W_b
+        self._f_0 = f_0
+
+    def eval(self, values, x):
+         W = self._W
+         W_b = self._W_b
+         f_0 = self._f_0
+         G = self._G
+
+        if x[0] &lt;= W-W_b:
+            values[0] = G*x[0] + f_0
+        else:
+            values[0] = G*(W-W_b)
+
+Ed = Constant(8.138931143006406e-09) #energy per unit length of dislocation
+c = Constant(1e8) #Constant(92017082108.12033) #elastic constant for biaxial strain
+b = Constant(2.161453136448972e-10) #part of Burger's vector responsible for relaxation (in-plane component)
+
+W = 1e-6
+W_b = 2.64e-7
+G =  70000
+f_0 = 0.0
+
+f = LinearMismatchProfile(G=G,W=W,W_b=W_b,f_0=f_0,element=V.ufl_element())
+
+u = Function(V) # dislocation density profile
+v  = TestFunction(V) 
+du = TrialFunction(V)
+
+Pu = Primitive(f=u*u,mesh=mesh, constant=0.0, element=V.ufl_element())
+epsilon = f - b*Pu #in-plane strain
+
+E = 2*Ed*u*u*dx + c*(epsilon**2)*dx
+
+F = derivative(E,u,v)
+J = derivative(F,u,du) 
+
+
+F = Form(F, form_compiler_parameters=ffc_options)
+J = Form(J, form_compiler_parameters=ffc_options)
+
+bcl = DirichletBC(V,sqrt(G/float(b)),left) 
+bcr = DirichletBC(V,0.0,right)
+bcs = []
+
+# Set up the non-linear problem
+
+class TersoffModelProblem(NonlinearProblem):
+    def __init__(self, F, J, bcs=None, form_compiler_parameters=None, ident_zeros=False,
+             exterior_facet_domains=None, interior_facet_domains=None):
+        NonlinearProblem.__init__(self)
+        self._F = F
+        self._J = J
+        self._bcs = bcs
+        self._form_compiler_parameters = form_compiler_parameters
+
+
+    def F(self, b, x):
+        assemble(self._F, tensor=b,
+             form_compiler_parameters=self._form_compiler_parameters,
+             keep_diagonal=False)
+
+        #Apply boundary conditions
+        for bc in self._bcs:
+            bc.apply(b, x)
+
+    def J(self, A, x):
+        assemble(self._J, tensor=A,
+             form_compiler_parameters=self._form_compiler_parameters,
+             keep_diagonal=False)
+
+        for bc in self._bcs:
+            bc.apply(A)
+
+        #if self.ident_zeros:
+        #A.ident_zeros()
+
+problem = TersoffModelProblem(F,J,bcs=bcs)
+
+
+class TersoffModelSolver(NewtonSolver):
+
+    def __init__(self, u, Pu, epsilon):
+        NewtonSolver.__init__(self)
+        self._epsilon = epsilon
+        #self._epsilon_ufl = epsilon_ufl
+        self._u = u
+        self._Pu = Pu
+
+
+#     def update_solution(self, x, dx):
+#         NewtonSolver.update_solution(self,x,dx)
+#         plot(self._u)
+#         plot(self._Pu,mesh=mesh)
+
+solver = TersoffModelSolver(u, Pu, epsilon)
+
+
+solver_parameters={'nonlinear_solver': 'snes',
+                      'newton_solver':
+                      {"linear_solver": "lu",
+                       "maximum_iterations": 100,
+                       'relative_tolerance': 1e-30,
+                       'absolute_tolerance': 1e-20,
+                       'relaxation_parameter': 1.0,
+                       },
+                      'snes_solver':
+                      {'sign': 'default',
+                       'method': 'default',
+                       'absolute_tolerance': 1e-12,
+                       'solution_tolerance': 1e-12,
+                       }
+                     }
+
+solver.parameters.update(solver_parameters['newton_solver'])
+
+# Solve the problem
+(iter, converged) = solver.solve(problem,u.vector())
+
+
+# Plot and hold solution
+plot(u, interactive = False)
+</code></pre>
+
+<p>This is similar to the strategy used for hyperelasticity demo. My attempt to use this strategy results in the trivial solution u=0. I'd like to know a general strategy to obtain the correct energy form.</p>
+</div>
+										</div>
+										<span class="qa-q-view-avatar-meta">
+											<span class="qa-q-view-meta">
+												<a href="../../5920/general-strategy-for-solving-energy-minimization-problem" class="qa-q-view-what">asked</a>
+												<span class="qa-q-view-when">
+													<span class="qa-q-view-when-data"><span class="published"><span class="value-title" title="2014-11-06T18:06:07+0000"></span>Nov 6, 2014</span></span>
+												</span>
+												<span class="qa-q-view-who">
+													<span class="qa-q-view-who-pad">by </span>
+													<span class="qa-q-view-who-data"><span class="vcard author"><a href="../../user/chaffra" class="qa-user-link url nickname">chaffra</a></span></span>
+													<span class="qa-q-view-who-title">FEniCS User</span>
+													<span class="qa-q-view-who-points">
+														<span class="qa-q-view-who-points-pad">(</span><span class="qa-q-view-who-points-data">1,830</span><span class="qa-q-view-who-points-pad"> points)</span>
+													</span>
+												</span>
+												<br>
+												<span class="qa-q-view-what">edited</span>
+												<span class="qa-q-view-when">
+													<span class="qa-q-view-when-data"><span class="updated"><span class="value-title" title="2014-11-12T16:38:40+0000"></span>Nov 12, 2014</span></span>
+												</span>
+												<span class="qa-q-view-who">
+													<span class="qa-q-view-who-pad">by </span><span class="qa-q-view-who-data"><a href="../../user/chaffra" class="qa-user-link url nickname">chaffra</a></span>
+												</span>
+											</span>
+										</span>
+										<div class="qa-q-view-buttons">
+										</div>
+										
+										<div class="qa-q-view-c-list" id="c5920_list">
+											<div class="qa-c-list-item  hentry comment" id="c5964">
+												<div class="qa-c-item-content">
+													<a name="5964"></a><div class="entry-content"><p>You need to post a complete (but simple) example.</p>
+</div>
+												</div>
+												<div class="qa-c-item-footer">
+													<span class="qa-c-item-avatar-meta">
+														<span class="qa-c-item-meta">
+															<a href="../../5920/general-strategy-for-solving-energy-minimization-problem?show=5964#c5964" class="qa-c-item-what">commented</a>
+															<span class="qa-c-item-when">
+																<span class="qa-c-item-when-data"><span class="published"><span class="value-title" title="2014-11-11T09:13:03+0000"></span>Nov 11, 2014</span></span>
+															</span>
+															<span class="qa-c-item-who">
+																<span class="qa-c-item-who-pad">by </span>
+																<span class="qa-c-item-who-data"><span class="vcard author"><a href="../../user/Garth+N.+Wells" class="qa-user-link url nickname">Garth N. Wells</a></span></span>
+																<span class="qa-c-item-who-title">FEniCS Expert</span>
+																<span class="qa-c-item-who-points">
+																	<span class="qa-c-item-who-points-pad">(</span><span class="qa-c-item-who-points-data">35,930</span><span class="qa-c-item-who-points-pad"> points)</span>
+																</span>
+															</span>
+														</span>
+													</span>
+													<div class="qa-c-item-buttons">
+													</div>
+												</div>
+												<div class="qa-c-item-clear">
+												</div>
+											</div> <!-- END qa-c-item -->
+											<div class="qa-c-list-item  hentry comment" id="c5976">
+												<div class="qa-c-item-content">
+													<a name="5976"></a><div class="entry-content"><p>I just updated my question with a not so simple example because simple examples seem to converge. Any ideas?</p>
+</div>
+												</div>
+												<div class="qa-c-item-footer">
+													<span class="qa-c-item-avatar-meta">
+														<span class="qa-c-item-meta">
+															<a href="../../5920/general-strategy-for-solving-energy-minimization-problem?show=5976#c5976" class="qa-c-item-what">commented</a>
+															<span class="qa-c-item-when">
+																<span class="qa-c-item-when-data"><span class="published"><span class="value-title" title="2014-11-12T15:11:47+0000"></span>Nov 12, 2014</span></span>
+															</span>
+															<span class="qa-c-item-who">
+																<span class="qa-c-item-who-pad">by </span>
+																<span class="qa-c-item-who-data"><span class="vcard author"><a href="../../user/chaffra" class="qa-user-link url nickname">chaffra</a></span></span>
+																<span class="qa-c-item-who-title">FEniCS User</span>
+																<span class="qa-c-item-who-points">
+																	<span class="qa-c-item-who-points-pad">(</span><span class="qa-c-item-who-points-data">1,830</span><span class="qa-c-item-who-points-pad"> points)</span>
+																</span>
+															</span>
+															<br>
+															<span class="qa-c-item-what">edited</span>
+															<span class="qa-c-item-when">
+																<span class="qa-c-item-when-data"><span class="updated"><span class="value-title" title="2014-11-12T15:32:21+0000"></span>Nov 12, 2014</span></span>
+															</span>
+															<span class="qa-c-item-who">
+																<span class="qa-c-item-who-pad">by </span><span class="qa-c-item-who-data"><a href="../../user/chaffra" class="qa-user-link url nickname">chaffra</a></span>
+															</span>
+														</span>
+													</span>
+													<div class="qa-c-item-buttons">
+													</div>
+												</div>
+												<div class="qa-c-item-clear">
+												</div>
+											</div> <!-- END qa-c-item -->
+										</div> <!-- END qa-c-list -->
+										
+										<input type="hidden" name="code" value="0-1516468049-8c48271a5d43464dfd627001837c117793bcdc01">
+										<input type="hidden" name="qa_click" value="">
+									</form>
+									<div class="qa-c-form">
+									</div> <!-- END qa-c-form -->
+									
+								</div> <!-- END qa-q-view-main -->
+								<div class="qa-q-view-clear">
+								</div>
+							</div> <!-- END qa-q-view -->
+							
+						</div>
+						<div class="qa-part-a-list">
+							<h2 id="a_list_title">1 Answer</h2>
+							<div class="qa-a-list" id="a_list">
+								
+								<div class="qa-a-list-item  hentry answer" id="a6059">
+									<form method="post" action="../../5920/general-strategy-for-solving-energy-minimization-problem">
+										<div class="qa-voting qa-voting-net" id="voting_6059">
+											<div class="qa-vote-count qa-vote-count-net">
+												<span class="qa-netvote-count">
+													<span class="qa-netvote-count-data">0<span class="votes-up"><span class="value-title" title="0"></span></span><span class="votes-down"><span class="value-title" title="0"></span></span></span><span class="qa-netvote-count-pad"> votes</span>
+												</span>
+											</div>
+											<div class="qa-vote-clear">
+											</div>
+										</div>
+										<input type="hidden" name="code" value="0-1516468049-b92d1561cf5566c0c996156c37b30960f5653cb6">
+									</form>
+									<div class="qa-a-item-main">
+										<form method="post" action="../../5920/general-strategy-for-solving-energy-minimization-problem">
+											<div class="qa-a-selection">
+											</div>
+											<div class="qa-a-item-content">
+												<a name="6059"></a><div class="entry-content"><p>For other readers, here's an example I wrote to show how to do global operators, as Chaffra is not the first to ask.</p>
+
+<p><a rel="nofollow" href="https://bitbucket.org/fenics-project/dolfin/issue/413/add-a-demo-of-global-operators-with-semi">https://bitbucket.org/fenics-project/dolfin/issue/413/add-a-demo-of-global-operators-with-semi</a></p>
+
+<p>Although in the code shown on this page there are some potential scaling problems, adding terms scaled by 1e8 and 1e-9 seems like asking for floating point precision trouble...</p>
+</div>
+											</div>
+											<span class="qa-a-item-avatar-meta">
+												<span class="qa-a-item-avatar">
+													<a href="../../user/martinal" class="qa-avatar-link"><img src="https://www.gravatar.com/avatar/24eb33191219cc8eedd6b2a507802368?s=40" width="40" height="40" class="qa-avatar-image" alt=""></a>
+												</span>
+												<span class="qa-a-item-meta">
+													<a href="../../5920/general-strategy-for-solving-energy-minimization-problem?show=6059#a6059" class="qa-a-item-what">answered</a>
+													<span class="qa-a-item-when">
+														<span class="qa-a-item-when-data"><span class="published"><span class="value-title" title="2014-11-21T16:02:08+0000"></span>Nov 21, 2014</span></span>
+													</span>
+													<span class="qa-a-item-who">
+														<span class="qa-a-item-who-pad">by </span>
+														<span class="qa-a-item-who-data"><span class="vcard author"><a href="../../user/martinal" class="qa-user-link url nickname">martinal</a></span></span>
+														<span class="qa-a-item-who-title">FEniCS User</span>
+														<span class="qa-a-item-who-points">
+															<span class="qa-a-item-who-points-pad">(</span><span class="qa-a-item-who-points-data">2,800</span><span class="qa-a-item-who-points-pad"> points)</span>
+														</span>
+													</span>
+												</span>
+											</span>
+											<div class="qa-a-item-buttons">
+												</div>
+											
+											<div class="qa-a-item-c-list" id="c6059_list">
+												<div class="qa-c-list-item  hentry comment" id="c6061">
+													<div class="qa-c-item-content">
+														<a name="6061"></a><div class="entry-content"><p>I tried to adpat your demo but it breaks when compiling the Jacobian. Please see below.</p>
+
+<pre><code>u = Function(V) # dislocation density profile
+v  = TestFunction(V) 
+du = TrialFunction(V)
+
+F_form = u*dx(1) # TRYME
+ # Pu = F(y, u) = \int^y{f(x)*dx(1)} where dx(1) depends on y and is defined by        mark_subdomain
+Pu = FunctionalExpression(element=u.element())
+Pu.init(F_form,update_functional)
+
+# Compute partial derivative of Pu w.r.t. u.
+# (NB! Note the difference between diff(u, u) == 1 and derivative(u, u, v) == v)
+dFdu_form = diff(F_form, u)
+dFdu = FunctionalExpression(element=u.element())
+dFdu.init(dFdu_form, update_functional)
+
+#Define in-plane strain coefficient
+epsilon = f - b*Pu
+
+#Define Energy density functional
+
+ E = (2*Ed*u + c*epsilon**2)*dx
+
+# Apply semi-automatic differentiation, by specifying the
+# partial derivative of Pu w.r.t. u as another function dFdu:
+
+#L1 = derivative(E, u, v, coefficient_derivatives={Pu: dFdu})
+
+
+# Manually derived derivative of E
+F = derivative(2*Ed*u*dx,u,v) + derivative(c*epsilon**2*dx, u, v, 
+                                       coefficient_derivatives={Pu: dFdu})
+
+J = derivative(F,u,du) 
+
+
+F = Form(F, form_compiler_parameters=ffc_options)
+J = Form(J, form_compiler_parameters=ffc_options)
+</code></pre>
+
+<p>Breaks here with </p>
+
+<pre><code> /usr/local/lib/python2.7/dist-packages/ffc/analysis.pyc in _attach_integral_metadata(form_data, parameters)
+259 
+260     if all_equal(quad_schemes):
+--&gt; 261         scheme = quad_schemes[0]
+262     else:
+263         scheme = "canonical"
+
+IndexError: list index out of range
+</code></pre>
+</div>
+													</div>
+													<div class="qa-c-item-footer">
+														<span class="qa-c-item-avatar-meta">
+															<span class="qa-c-item-meta">
+																<a href="../../5920/general-strategy-for-solving-energy-minimization-problem?show=6061#c6061" class="qa-c-item-what">commented</a>
+																<span class="qa-c-item-when">
+																	<span class="qa-c-item-when-data"><span class="published"><span class="value-title" title="2014-11-21T16:48:18+0000"></span>Nov 21, 2014</span></span>
+																</span>
+																<span class="qa-c-item-who">
+																	<span class="qa-c-item-who-pad">by </span>
+																	<span class="qa-c-item-who-data"><span class="vcard author"><a href="../../user/chaffra" class="qa-user-link url nickname">chaffra</a></span></span>
+																	<span class="qa-c-item-who-title">FEniCS User</span>
+																	<span class="qa-c-item-who-points">
+																		<span class="qa-c-item-who-points-pad">(</span><span class="qa-c-item-who-points-data">1,830</span><span class="qa-c-item-who-points-pad"> points)</span>
+																	</span>
+																</span>
+															</span>
+														</span>
+														<div class="qa-c-item-buttons">
+														</div>
+													</div>
+													<div class="qa-c-item-clear">
+													</div>
+												</div> <!-- END qa-c-item -->
+												<div class="qa-c-list-item  hentry comment" id="c6062">
+													<div class="qa-c-item-content">
+														<a name="6062"></a><div class="entry-content"><p>You got a zero form after differentiation. The check was broken some time back, therefore the horrible error message. I can't spot the problem right now. Is it J or F that breaks?</p>
+</div>
+													</div>
+													<div class="qa-c-item-footer">
+														<span class="qa-c-item-avatar-meta">
+															<span class="qa-c-item-avatar">
+																<a href="../../user/martinal" class="qa-avatar-link"><img src="https://www.gravatar.com/avatar/24eb33191219cc8eedd6b2a507802368?s=20" width="20" height="20" class="qa-avatar-image" alt=""></a>
+															</span>
+															<span class="qa-c-item-meta">
+																<a href="../../5920/general-strategy-for-solving-energy-minimization-problem?show=6062#c6062" class="qa-c-item-what">commented</a>
+																<span class="qa-c-item-when">
+																	<span class="qa-c-item-when-data"><span class="published"><span class="value-title" title="2014-11-21T16:56:12+0000"></span>Nov 21, 2014</span></span>
+																</span>
+																<span class="qa-c-item-who">
+																	<span class="qa-c-item-who-pad">by </span>
+																	<span class="qa-c-item-who-data"><span class="vcard author"><a href="../../user/martinal" class="qa-user-link url nickname">martinal</a></span></span>
+																	<span class="qa-c-item-who-title">FEniCS User</span>
+																	<span class="qa-c-item-who-points">
+																		<span class="qa-c-item-who-points-pad">(</span><span class="qa-c-item-who-points-data">2,800</span><span class="qa-c-item-who-points-pad"> points)</span>
+																	</span>
+																</span>
+															</span>
+														</span>
+														<div class="qa-c-item-buttons">
+														</div>
+													</div>
+													<div class="qa-c-item-clear">
+													</div>
+												</div> <!-- END qa-c-item -->
+												<div class="qa-c-list-item  hentry comment" id="c6063">
+													<div class="qa-c-item-content">
+														<a name="6063"></a><div class="entry-content"><p>It's J that breaks.</p>
+</div>
+													</div>
+													<div class="qa-c-item-footer">
+														<span class="qa-c-item-avatar-meta">
+															<span class="qa-c-item-meta">
+																<a href="../../5920/general-strategy-for-solving-energy-minimization-problem?show=6063#c6063" class="qa-c-item-what">commented</a>
+																<span class="qa-c-item-when">
+																	<span class="qa-c-item-when-data"><span class="published"><span class="value-title" title="2014-11-21T16:58:45+0000"></span>Nov 21, 2014</span></span>
+																</span>
+																<span class="qa-c-item-who">
+																	<span class="qa-c-item-who-pad">by </span>
+																	<span class="qa-c-item-who-data"><span class="vcard author"><a href="../../user/chaffra" class="qa-user-link url nickname">chaffra</a></span></span>
+																	<span class="qa-c-item-who-title">FEniCS User</span>
+																	<span class="qa-c-item-who-points">
+																		<span class="qa-c-item-who-points-pad">(</span><span class="qa-c-item-who-points-data">1,830</span><span class="qa-c-item-who-points-pad"> points)</span>
+																	</span>
+																</span>
+															</span>
+														</span>
+														<div class="qa-c-item-buttons">
+														</div>
+													</div>
+													<div class="qa-c-item-clear">
+													</div>
+												</div> <!-- END qa-c-item -->
+												<div class="qa-c-list-item  hentry comment" id="c6064">
+													<div class="qa-c-item-content">
+														<a name="6064"></a><div class="entry-content"><p>Pass the dict to all derivative calls. You may want to add other derivative relations to the dict as well. </p>
+</div>
+													</div>
+													<div class="qa-c-item-footer">
+														<span class="qa-c-item-avatar-meta">
+															<span class="qa-c-item-avatar">
+																<a href="../../user/martinal" class="qa-avatar-link"><img src="https://www.gravatar.com/avatar/24eb33191219cc8eedd6b2a507802368?s=20" width="20" height="20" class="qa-avatar-image" alt=""></a>
+															</span>
+															<span class="qa-c-item-meta">
+																<a href="../../5920/general-strategy-for-solving-energy-minimization-problem?show=6064#c6064" class="qa-c-item-what">commented</a>
+																<span class="qa-c-item-when">
+																	<span class="qa-c-item-when-data"><span class="published"><span class="value-title" title="2014-11-21T17:04:13+0000"></span>Nov 21, 2014</span></span>
+																</span>
+																<span class="qa-c-item-who">
+																	<span class="qa-c-item-who-pad">by </span>
+																	<span class="qa-c-item-who-data"><span class="vcard author"><a href="../../user/martinal" class="qa-user-link url nickname">martinal</a></span></span>
+																	<span class="qa-c-item-who-title">FEniCS User</span>
+																	<span class="qa-c-item-who-points">
+																		<span class="qa-c-item-who-points-pad">(</span><span class="qa-c-item-who-points-data">2,800</span><span class="qa-c-item-who-points-pad"> points)</span>
+																	</span>
+																</span>
+															</span>
+														</span>
+														<div class="qa-c-item-buttons">
+														</div>
+													</div>
+													<div class="qa-c-item-clear">
+													</div>
+												</div> <!-- END qa-c-item -->
+												<div class="qa-c-list-item  hentry comment" id="c6065">
+													<div class="qa-c-item-content">
+														<a name="6065"></a><div class="entry-content"><p>OK that works!</p>
+</div>
+													</div>
+													<div class="qa-c-item-footer">
+														<span class="qa-c-item-avatar-meta">
+															<span class="qa-c-item-meta">
+																<a href="../../5920/general-strategy-for-solving-energy-minimization-problem?show=6065#c6065" class="qa-c-item-what">commented</a>
+																<span class="qa-c-item-when">
+																	<span class="qa-c-item-when-data"><span class="published"><span class="value-title" title="2014-11-21T17:08:37+0000"></span>Nov 21, 2014</span></span>
+																</span>
+																<span class="qa-c-item-who">
+																	<span class="qa-c-item-who-pad">by </span>
+																	<span class="qa-c-item-who-data"><span class="vcard author"><a href="../../user/chaffra" class="qa-user-link url nickname">chaffra</a></span></span>
+																	<span class="qa-c-item-who-title">FEniCS User</span>
+																	<span class="qa-c-item-who-points">
+																		<span class="qa-c-item-who-points-pad">(</span><span class="qa-c-item-who-points-data">1,830</span><span class="qa-c-item-who-points-pad"> points)</span>
+																	</span>
+																</span>
+																<br>
+																<span class="qa-c-item-what">edited</span>
+																<span class="qa-c-item-when">
+																	<span class="qa-c-item-when-data"><span class="updated"><span class="value-title" title="2014-11-21T17:24:31+0000"></span>Nov 21, 2014</span></span>
+																</span>
+																<span class="qa-c-item-who">
+																	<span class="qa-c-item-who-pad">by </span><span class="qa-c-item-who-data"><a href="../../user/chaffra" class="qa-user-link url nickname">chaffra</a></span>
+																</span>
+															</span>
+														</span>
+														<div class="qa-c-item-buttons">
+														</div>
+													</div>
+													<div class="qa-c-item-clear">
+													</div>
+												</div> <!-- END qa-c-item -->
+												<div class="qa-c-list-item  hentry comment" id="c6066">
+													<div class="qa-c-item-content">
+														<a name="6066"></a><div class="entry-content"><p>Now I changed </p>
+
+<pre><code>F_form = u*u*dx(1)
+F = derivative(2*Ed*u*u*dx,u,v) + derivative(c*epsilon**2*dx, u, v, 
+                                   coefficient_derivatives={Pu: dFdu})
+</code></pre>
+
+<p>because the energy should always be positive, but NewtonSolver starts with zero residual so it gives me zero as the solution.</p>
+</div>
+													</div>
+													<div class="qa-c-item-footer">
+														<span class="qa-c-item-avatar-meta">
+															<span class="qa-c-item-meta">
+																<a href="../../5920/general-strategy-for-solving-energy-minimization-problem?show=6066#c6066" class="qa-c-item-what">commented</a>
+																<span class="qa-c-item-when">
+																	<span class="qa-c-item-when-data"><span class="published"><span class="value-title" title="2014-11-21T17:39:39+0000"></span>Nov 21, 2014</span></span>
+																</span>
+																<span class="qa-c-item-who">
+																	<span class="qa-c-item-who-pad">by </span>
+																	<span class="qa-c-item-who-data"><span class="vcard author"><a href="../../user/chaffra" class="qa-user-link url nickname">chaffra</a></span></span>
+																	<span class="qa-c-item-who-title">FEniCS User</span>
+																	<span class="qa-c-item-who-points">
+																		<span class="qa-c-item-who-points-pad">(</span><span class="qa-c-item-who-points-data">1,830</span><span class="qa-c-item-who-points-pad"> points)</span>
+																	</span>
+																</span>
+															</span>
+														</span>
+														<div class="qa-c-item-buttons">
+														</div>
+													</div>
+													<div class="qa-c-item-clear">
+													</div>
+												</div> <!-- END qa-c-item -->
+												<div class="qa-c-list-item  hentry comment" id="c6078">
+													<div class="qa-c-item-content">
+														<a name="6078"></a><div class="entry-content"><p>You say there is an analytical solution, try tracking down which functions and functionals compute the right values where you know what that is.</p>
+</div>
+													</div>
+													<div class="qa-c-item-footer">
+														<span class="qa-c-item-avatar-meta">
+															<span class="qa-c-item-avatar">
+																<a href="../../user/martinal" class="qa-avatar-link"><img src="https://www.gravatar.com/avatar/24eb33191219cc8eedd6b2a507802368?s=20" width="20" height="20" class="qa-avatar-image" alt=""></a>
+															</span>
+															<span class="qa-c-item-meta">
+																<a href="../../5920/general-strategy-for-solving-energy-minimization-problem?show=6078#c6078" class="qa-c-item-what">commented</a>
+																<span class="qa-c-item-when">
+																	<span class="qa-c-item-when-data"><span class="published"><span class="value-title" title="2014-11-24T12:00:14+0000"></span>Nov 24, 2014</span></span>
+																</span>
+																<span class="qa-c-item-who">
+																	<span class="qa-c-item-who-pad">by </span>
+																	<span class="qa-c-item-who-data"><span class="vcard author"><a href="../../user/martinal" class="qa-user-link url nickname">martinal</a></span></span>
+																	<span class="qa-c-item-who-title">FEniCS User</span>
+																	<span class="qa-c-item-who-points">
+																		<span class="qa-c-item-who-points-pad">(</span><span class="qa-c-item-who-points-data">2,800</span><span class="qa-c-item-who-points-pad"> points)</span>
+																	</span>
+																</span>
+															</span>
+														</span>
+														<div class="qa-c-item-buttons">
+														</div>
+													</div>
+													<div class="qa-c-item-clear">
+													</div>
+												</div> <!-- END qa-c-item -->
+												<div class="qa-c-list-item  hentry comment" id="c6084">
+													<div class="qa-c-item-content">
+														<a name="6084"></a><div class="entry-content"><p>Yes I get a non-trivial solution when I use the analytical solution as my starting point. My problem now is that u must always be positive and so I am using the following hack to fullfil that constraints</p>
+
+<pre><code>class TersoffModelSolver(NewtonSolver):
+
+    def __init__(self, u, Pu, epsilon, Pi):
+        NewtonSolver.__init__(self)
+
+        self._epsilon = epsilon
+        self._u = u
+        self._Pu = Pu
+        self._Pi = Pi
+
+
+    def update_solution(self, x, dx):
+
+        i = (x-dx)&lt;0.0
+        dx[i] = 0.0
+
+    NewtonSolver.update_solution(self,x,dx)
+</code></pre>
+
+<p>Although this gives me a solution close to my initial approximation it also lead to some oscillations on the solution probably because the Jacobian is not constrained. Any idea how to implement an inequality constraint in dolfin. I tried SNES but so far it gives me unphysical solutions when using sign='nonnegative'</p>
+</div>
+													</div>
+													<div class="qa-c-item-footer">
+														<span class="qa-c-item-avatar-meta">
+															<span class="qa-c-item-meta">
+																<a href="../../5920/general-strategy-for-solving-energy-minimization-problem?show=6084#c6084" class="qa-c-item-what">commented</a>
+																<span class="qa-c-item-when">
+																	<span class="qa-c-item-when-data"><span class="published"><span class="value-title" title="2014-11-24T16:40:40+0000"></span>Nov 24, 2014</span></span>
+																</span>
+																<span class="qa-c-item-who">
+																	<span class="qa-c-item-who-pad">by </span>
+																	<span class="qa-c-item-who-data"><span class="vcard author"><a href="../../user/chaffra" class="qa-user-link url nickname">chaffra</a></span></span>
+																	<span class="qa-c-item-who-title">FEniCS User</span>
+																	<span class="qa-c-item-who-points">
+																		<span class="qa-c-item-who-points-pad">(</span><span class="qa-c-item-who-points-data">1,830</span><span class="qa-c-item-who-points-pad"> points)</span>
+																	</span>
+																</span>
+															</span>
+														</span>
+														<div class="qa-c-item-buttons">
+														</div>
+													</div>
+													<div class="qa-c-item-clear">
+													</div>
+												</div> <!-- END qa-c-item -->
+												<div class="qa-c-list-item  hentry comment" id="c6087">
+													<div class="qa-c-item-content">
+														<a name="6087"></a><div class="entry-content"><p>I suggest creating a new question about inequality constraints, to attract people with such experience.</p>
+</div>
+													</div>
+													<div class="qa-c-item-footer">
+														<span class="qa-c-item-avatar-meta">
+															<span class="qa-c-item-avatar">
+																<a href="../../user/martinal" class="qa-avatar-link"><img src="https://www.gravatar.com/avatar/24eb33191219cc8eedd6b2a507802368?s=20" width="20" height="20" class="qa-avatar-image" alt=""></a>
+															</span>
+															<span class="qa-c-item-meta">
+																<a href="../../5920/general-strategy-for-solving-energy-minimization-problem?show=6087#c6087" class="qa-c-item-what">commented</a>
+																<span class="qa-c-item-when">
+																	<span class="qa-c-item-when-data"><span class="published"><span class="value-title" title="2014-11-25T08:20:16+0000"></span>Nov 25, 2014</span></span>
+																</span>
+																<span class="qa-c-item-who">
+																	<span class="qa-c-item-who-pad">by </span>
+																	<span class="qa-c-item-who-data"><span class="vcard author"><a href="../../user/martinal" class="qa-user-link url nickname">martinal</a></span></span>
+																	<span class="qa-c-item-who-title">FEniCS User</span>
+																	<span class="qa-c-item-who-points">
+																		<span class="qa-c-item-who-points-pad">(</span><span class="qa-c-item-who-points-data">2,800</span><span class="qa-c-item-who-points-pad"> points)</span>
+																	</span>
+																</span>
+															</span>
+														</span>
+														<div class="qa-c-item-buttons">
+														</div>
+													</div>
+													<div class="qa-c-item-clear">
+													</div>
+												</div> <!-- END qa-c-item -->
+											</div> <!-- END qa-c-list -->
+											
+											<input type="hidden" name="code" value="0-1516468049-69c5b5300e50f5f07eb84683d152ba97b52f14d6">
+											<input type="hidden" name="qa_click" value="">
+										</form>
+										<div class="qa-c-form">
+										</div> <!-- END qa-c-form -->
+										
+									</div> <!-- END qa-a-item-main -->
+									<div class="qa-a-item-clear">
+									</div>
+								</div> <!-- END qa-a-list-item -->
+								
+							</div> <!-- END qa-a-list -->
+							
+						</div>
+					</div> <!-- END qa-main -->
+					
+				</div> <!-- END main-wrapper -->
+			</div> <!-- END main-shadow -->
+		</div> <!-- END body-wrapper -->
+		<!-- END footer-bottom-group -->
+		
+		<div style="position:absolute; left:-9999px; top:-9999px;">
+			<span id="qa-waiting-template" class="qa-waiting">...</span>
+		</div>
+	
+	
+
+</body><!-- Powered by Question2Answer - http://www.question2answer.org/ --></html>

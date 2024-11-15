@@ -1,0 +1,242 @@
+<html><!-- Powered by Question2Answer - http://www.question2answer.org/ --><head>
+		<meta http-equiv="content-type" content="text/html; charset=utf-8">
+		<title>Initial guess for newton in coupled non-linear pde system - FEniCS Q&amp;A</title>
+		<meta name="description" content="Hello, I want to solve a non-linear coupled PDE with a dispersion term (Klausmeier-Model for vegetation ... () solver.solve(problem, u.vector()) file">
+		<meta name="keywords" content="newton-solver,time-dependent,non-linear,initial-guess">
+		<link rel="stylesheet" type="text/css" href="../../qa-theme/Snow/qa-styles.css">
+		<link rel="canonical" href="http://fenicsproject.org/qa/3827/initial-guess-for-newton-in-coupled-non-linear-pde-system">
+		<script type="text/x-mathjax-config">
+  MathJax.Hub.Config({
+    extensions: ["tex2jax.js"],
+    jax: ["input/TeX","output/HTML-CSS"],
+    tex2jax: {inlineMath: [["$","$"],["\\(","\\)"]]},
+    TeX: { extensions: ["AMSmath.js","AMSsymbols.js"]}
+  });
+</script>
+<script type="text/javascript" src="../../mathjax/MathJax.js"></script>
+		<script src="../../jquery-1.7.2.min.js" type="text/javascript"></script>
+		<script src="../../highlight.min.js"></script>
+<script type="text/javascript">
+$(function(){
+	$('.wmd-input').keypress(function(){
+		window.clearTimeout(hljs.Timeout);
+		hljs.Timeout = window.setTimeout(function() {
+			hljs.initHighlighting.called = false;
+			hljs.initHighlighting();
+		}, 500);
+	});
+	window.setTimeout(function() {
+		hljs.initHighlighting.called = false;
+		hljs.initHighlighting();
+	}, 500);
+});
+</script>
+
+
+	</head>
+	<body class="qa-template-question qa-body-js-off">
+		<div class="qa-body-wrapper">
+			
+			<div class="qa-header">
+				<div class="qa-logo">
+					<a href="../../" class="qa-logo-link" title="FEniCS Q&amp;A"><img src="../../qa-theme/fenics_qa.png" border="0" alt="FEniCS Q&amp;A"></a>
+				</div>
+				<div class="qa-header-clear">
+				</div>
+			</div> <!-- END qa-header -->
+			
+			<div class="qa-main-shadow">
+				
+				<div class="qa-main-wrapper">
+					
+					<div class="qa-sidepanel">
+						<div class="qa-sidebar">
+							This is a read only copy of the old FEniCS QA forum. Please visit the <a href="https://www.allanswered.com/community/s/fenics-project/">new QA forum</a> to ask questions
+						</div>
+						
+					</div>
+					
+					<div class="qa-main">
+						<h1>
+							<span class="entry-title">Initial guess for newton in coupled non-linear pde system</span>
+						</h1>
+						<div class="qa-part-q-view">
+							<div class="qa-q-view  hentry question" id="q3827">
+								<form method="post" action="../../3827/initial-guess-for-newton-in-coupled-non-linear-pde-system">
+									<div class="qa-q-view-stats">
+										<div class="qa-voting qa-voting-net" id="voting_3827">
+											<div class="qa-vote-count qa-vote-count-net">
+												<span class="qa-netvote-count">
+													<span class="qa-netvote-count-data">0<span class="votes-up"><span class="value-title" title="0"></span></span><span class="votes-down"><span class="value-title" title="0"></span></span></span><span class="qa-netvote-count-pad"> votes</span>
+												</span>
+											</div>
+											<div class="qa-vote-clear">
+											</div>
+										</div>
+									</div>
+									<input type="hidden" name="code" value="0-1516467987-0750efb76da0dc2dee985558c1f7133303228f44">
+								</form>
+								<div class="qa-q-view-main">
+									<form method="post" action="../../3827/initial-guess-for-newton-in-coupled-non-linear-pde-system">
+										<div class="qa-q-view-content">
+											<a name="3827"></a><div class="entry-content"><p>Hello,</p>
+
+<p>I want to solve a non-linear coupled PDE with a dispersion term (Klausmeier-Model for vegetation patterns). The newton solver does not converge and I want to provide an intial guess for the two fields "w" and "n" in each step (just as in <a rel="nofollow" href="http://fenicsproject.org/qa/3657/providing-initial-guess-for-newton_solver).">http://fenicsproject.org/qa/3657/providing-initial-guess-for-newton_solver).</a></p>
+
+<p><strong>My questions:</strong></p>
+
+<ol>
+<li><p>How to linearize coupled PDEs if "du" is the trailfunction and not "u"? "du" only appears as in <code>a = derivative(L, u, du)</code>. It is already linear in du! Should I instead linearize L?</p></li>
+<li><p>Is there another way to provide a good initial guess (e.g. short grid-searching?)</p></li>
+</ol>
+
+<p>For completeness, I attached the relevant pieces of code below. It is essentially an adapated version of Cahn-Hillard.demo</p>
+
+<h2>Class for interfacing with the Newton solver</h2>
+
+<pre><code>class Klausmeierquation(NonlinearProblem):
+def __init__(self, a, L):
+    NonlinearProblem.__init__(self)
+    self.L = L
+    self.a = a
+    self.reset_sparsity = True
+def F(self, b, x):
+    assemble(self.L, tensor=b)
+def J(self, A, x):
+    assemble(self.a, tensor=A, reset_sparsity=self.reset_sparsity)
+    self.reset_sparsity = False
+
+du    = TrialFunction(ME)
+q, v  = TestFunctions(ME)
+</code></pre>
+
+<h2>Define functions</h2>
+
+<pre><code>u   = Function(ME)  # current solution
+u0  = Function(ME)  # solution from previous converged step
+</code></pre>
+
+<h2>Split mixed functions (water and biomass)</h2>
+
+<pre><code>dw, dn = split(du)
+w,  n  = split(u)
+w0, n0 = split(u0)
+</code></pre>
+
+<h2>Create intial conditions and interpolate</h2>
+
+<pre><code>u_init = InitialConditions()
+u.interpolate(u_init)
+u0.interpolate(u_init)
+</code></pre>
+
+<h2>Create derivative</h2>
+
+<pre><code>udx = project(u.dx(0), ME) # u.dx(1) for y-derivative
+wdx,ndx = split(udx)
+</code></pre>
+
+<h2>mu_(n+theta), theta = 0.5</h2>
+
+<pre><code>w_mid = (1.0-theta)*w0 + theta*w
+n_mid = (1.0-theta)*n0 + theta*n
+</code></pre>
+
+<h2>Weak statement of the equations (Parameters: A = rain, M = mortality, S = water flow)</h2>
+
+<pre><code>L0 = w*v*dx - w0*v*dx - A*v*dt*dx + w0*v*dt*dx + \\
+w0*n_mid*n_mid*v*dt*dx - S*wdx*v*dt*dx
+
+L1 = n*q*dt*dx - n0*q*dt*dx - w_mid*n0*n0*q*dt*dx \\
++ M*n0*q*dt*dx + dot(grad(n0), grad(q))*dt*dx
+
+L = L0 + L1
+</code></pre>
+
+<h2>Compute directional derivative about u in the direction of du (Jacobian)</h2>
+
+<pre><code>a = derivative(L, u, du)
+</code></pre>
+
+<h2>Create nonlinear problem and Newton solver</h2>
+
+<pre><code>problem = Klausmeierquation(a, L)
+solver = NewtonSolver()
+solver.parameters["linear_solver"] = "lu"
+solver.parameters["convergence_criterion"] = "incremental"
+solver.parameters["relative_tolerance"] = 1e-6
+</code></pre>
+
+<h2>Time-Step</h2>
+
+<pre><code>while (t &lt; T):
+    t += dt
+    u0.vector()[:] = u.vector()
+    solver.solve(problem, u.vector())
+    file &lt;&lt; (u.split()[1], t)
+</code></pre>
+</div>
+										</div>
+										<div class="qa-q-view-tags">
+											<ul class="qa-q-view-tag-list">
+												<li class="qa-q-view-tag-item"><a href="../../tag/newton-solver" rel="tag" class="qa-tag-link">newton-solver</a></li>
+												<li class="qa-q-view-tag-item"><a href="../../tag/time-dependent" rel="tag" class="qa-tag-link">time-dependent</a></li>
+												<li class="qa-q-view-tag-item"><a href="../../tag/non-linear" rel="tag" class="qa-tag-link">non-linear</a></li>
+												<li class="qa-q-view-tag-item"><a href="../../tag/initial-guess" rel="tag" class="qa-tag-link">initial-guess</a></li>
+											</ul>
+										</div>
+										<span class="qa-q-view-avatar-meta">
+											<span class="qa-q-view-meta">
+												<a href="../../3827/initial-guess-for-newton-in-coupled-non-linear-pde-system" class="qa-q-view-what">asked</a>
+												<span class="qa-q-view-when">
+													<span class="qa-q-view-when-data"><span class="published"><span class="value-title" title="2014-06-11T15:25:43+0000"></span>Jun 11, 2014</span></span>
+												</span>
+												<span class="qa-q-view-who">
+													<span class="qa-q-view-who-pad">by </span>
+													<span class="qa-q-view-who-data"><span class="vcard author"><a href="../../user/jegmi" class="qa-user-link url nickname">jegmi</a></span></span>
+													<span class="qa-q-view-who-title">FEniCS Novice</span>
+													<span class="qa-q-view-who-points">
+														<span class="qa-q-view-who-points-pad">(</span><span class="qa-q-view-who-points-data">270</span><span class="qa-q-view-who-points-pad"> points)</span>
+													</span>
+												</span>
+											</span>
+										</span>
+										<div class="qa-q-view-buttons">
+										</div>
+										
+										<div class="qa-q-view-c-list" style="display:none;" id="c3827_list">
+										</div> <!-- END qa-c-list -->
+										
+										<input type="hidden" name="code" value="0-1516467987-20471c0668c2edfeb02c26aade6623fcfe434a9f">
+										<input type="hidden" name="qa_click" value="">
+									</form>
+									<div class="qa-c-form">
+									</div> <!-- END qa-c-form -->
+									
+								</div> <!-- END qa-q-view-main -->
+								<div class="qa-q-view-clear">
+								</div>
+							</div> <!-- END qa-q-view -->
+							
+						</div>
+						<div class="qa-part-a-list">
+							<h2 id="a_list_title" style="display:none;"></h2>
+							<div class="qa-a-list" id="a_list">
+								
+							</div> <!-- END qa-a-list -->
+							
+						</div>
+					</div> <!-- END qa-main -->
+					
+				</div> <!-- END main-wrapper -->
+			</div> <!-- END main-shadow -->
+		</div> <!-- END body-wrapper -->
+		<!-- END footer-bottom-group -->
+		
+		<div style="position:absolute; left:-9999px; top:-9999px;">
+			<span id="qa-waiting-template" class="qa-waiting">...</span>
+		</div>
+	
+	
+
+</body><!-- Powered by Question2Answer - http://www.question2answer.org/ --></html>

@@ -1,0 +1,385 @@
+<html><!-- Powered by Question2Answer - http://www.question2answer.org/ --><head>
+		<meta http-equiv="content-type" content="text/html; charset=utf-8">
+		<title>Update expression and time-dependent assembly - FEniCS Q&amp;A</title>
+		<meta name="description" content="Hello, I'm trying to solve the **time-dependent elastic-acousitic equation** rho (lambda+2mu) grad( ... pvd&quot;) vtk_file2 = File(&quot;source.pvd&quot;) while t">
+		<meta name="keywords" content="time-dependent,expression,elastodynamics,source">
+		<link rel="stylesheet" type="text/css" href="../../qa-theme/Snow/qa-styles.css">
+		<link rel="canonical" href="http://fenicsproject.org/qa/13372/update-expression-and-time-dependent-assembly">
+		<script type="text/x-mathjax-config">
+  MathJax.Hub.Config({
+    extensions: ["tex2jax.js"],
+    jax: ["input/TeX","output/HTML-CSS"],
+    tex2jax: {inlineMath: [["$","$"],["\\(","\\)"]]},
+    TeX: { extensions: ["AMSmath.js","AMSsymbols.js"]}
+  });
+</script>
+<script type="text/javascript" src="../../mathjax/MathJax.js"></script>
+		<script src="../../jquery-1.7.2.min.js" type="text/javascript"></script>
+		<script src="../../highlight.min.js"></script>
+<script type="text/javascript">
+$(function(){
+	$('.wmd-input').keypress(function(){
+		window.clearTimeout(hljs.Timeout);
+		hljs.Timeout = window.setTimeout(function() {
+			hljs.initHighlighting.called = false;
+			hljs.initHighlighting();
+		}, 500);
+	});
+	window.setTimeout(function() {
+		hljs.initHighlighting.called = false;
+		hljs.initHighlighting();
+	}, 500);
+});
+</script>
+
+
+	</head>
+	<body class="qa-template-question qa-body-js-off">
+		<div class="qa-body-wrapper">
+			
+			<div class="qa-header">
+				<div class="qa-logo">
+					<a href="../../" class="qa-logo-link" title="FEniCS Q&amp;A"><img src="../../qa-theme/fenics_qa.png" border="0" alt="FEniCS Q&amp;A"></a>
+				</div>
+				<div class="qa-header-clear">
+				</div>
+			</div> <!-- END qa-header -->
+			
+			<div class="qa-main-shadow">
+				
+				<div class="qa-main-wrapper">
+					
+					<div class="qa-sidepanel">
+						<div class="qa-sidebar">
+							This is a read only copy of the old FEniCS QA forum. Please visit the <a href="https://www.allanswered.com/community/s/fenics-project/">new QA forum</a> to ask questions
+						</div>
+						
+					</div>
+					
+					<div class="qa-main">
+						<h1>
+							<span class="entry-title">Update expression and time-dependent assembly</span>
+						</h1>
+						<div class="qa-part-q-view">
+							<div class="qa-q-view  hentry question" id="q13372">
+								<form method="post" action="../../13372/update-expression-and-time-dependent-assembly">
+									<div class="qa-q-view-stats">
+										<div class="qa-voting qa-voting-net" id="voting_13372">
+											<div class="qa-vote-count qa-vote-count-net">
+												<span class="qa-netvote-count">
+													<span class="qa-netvote-count-data">+2<span class="votes-up"><span class="value-title" title="2"></span></span><span class="votes-down"><span class="value-title" title="0"></span></span></span><span class="qa-netvote-count-pad"> votes</span>
+												</span>
+											</div>
+											<div class="qa-vote-clear">
+											</div>
+										</div>
+									</div>
+									<input type="hidden" name="code" value="0-1516467863-cee2d4ad70997587428ca641dad5117af30998a8">
+								</form>
+								<div class="qa-q-view-main">
+									<form method="post" action="../../13372/update-expression-and-time-dependent-assembly">
+										<div class="qa-q-view-content">
+											<a name="13372"></a><div class="entry-content"><p>Hello, I'm trying to solve the <strong>time-dependent elastic-acousitic equation</strong> </p>
+
+<p>rho (lambda+2mu) grad(div(u)) - mu curl(curl(u)) = f </p>
+
+<p>where u is <strong>2D</strong> vector and represents the displacement.</p>
+
+<p>f is the <strong>time-dependent source term</strong> defined as follows:<br>
+f = h(x,y)*g(t), where h(x,y) is a 2D Gaussian centered in (0.5,0.2) and g(t) is a Morlet wavelet (oscillatory behaviour between -1 and 1). Moreover, the two components of the f vector are the same, i.e. f_x = f_y</p>
+
+<p>I'm solving this problem for <strong>zero initial conditions</strong> using the <strong>Newmark method</strong> for time integration.</p>
+
+<p>I've used the incompressible Navier-Stokes as tutorial <a rel="nofollow" href="https://fenicsproject.org/olddocs/dolfin/1.5.0/python/demo/documented/navier-stokes/python/documentation.html,">https://fenicsproject.org/olddocs/dolfin/1.5.0/python/demo/documented/navier-stokes/python/documentation.html,</a> but the solution is monotonically increasing instead of oscillatory (as the source term). </p>
+
+<p>Can anyone spot why is so? It'd be very helpful! Also, is it possible to save the source term in a vtk file? I've tried to update the time, but the way I'm doing it now doesn't seem to work (the saved file is fixed to the first value of the source)</p>
+
+<p>Here is my code: </p>
+
+<pre><code>from dolfin import *
+from mshr import *
+import numpy as np
+
+
+
+# Physics Constants for low alloy steel 
+rho_ = Constant(7.8)            # Mg*m^(-3)
+E = Constant(205)       # GPa
+nu = Constant(0.3)      # constant
+lambda_ = Constant((E*nu)/((1.0+nu)*(1.0-2.0*nu))) #~109.6 Gpa
+mu_ = Constant(E/(2.0*(1.0+nu))) #~73.1 GPa
+
+# Newmark Constants
+beta_ = 0.25
+gamma_ = 0.5
+
+# Time Constants
+dt = 0.0025
+T = 1.
+
+
+# Create mesh &amp; Define Function space
+domain = Rectangle(Point(0., 0.), Point(1., 1.))
+mesh = generate_mesh(domain, 16)
+
+V = VectorFunctionSpace(mesh, 'CG', 1, dim=2)
+u, phi = TrialFunction(V), TestFunction(V)
+
+
+# Define natural boundary conditions: &lt;u,n&gt;=0 on each boundary (also internal)
+
+def horizontal_boundary(x, on_boundary):
+    return on_boundary and  (abs(x[1] - 1.) &lt; DOLFIN_EPS or  abs(x[1] - 0.) &lt; DOLFIN_EPS) 
+
+def vertical_boundary(x, on_boundary):
+    return on_boundary and  (abs(x[0] - 1.) &lt; DOLFIN_EPS or  abs(x[0] - 0.) &lt; DOLFIN_EPS)
+
+ux_0 = Constant(0.0)
+uy_0 = Constant(0.0) 
+
+bcH = DirichletBC(V.sub(1), uy_0, horizontal_boundary)
+bcV = DirichletBC(V.sub(0), ux_0, vertical_boundary)
+
+bcs = [bcH, bcV]
+
+
+
+# Initial conditions - all zero
+
+zeroIC = Constant((0.0,0.0))
+u0 = interpolate(zeroIC, V)
+v0 = interpolate(zeroIC, V)
+a0 = interpolate(zeroIC, V)
+
+u1 = Function(V)
+
+# Define time-dependent source
+fM = 5. # frequency
+s = 6./(2*pi*fM)
+tD = 0.6 # shift in time to start with an approximately zero source
+wavelet =  '(exp(-pow(t-tD,2)/(2.*pow(s,2))) * cos(2.*pi*fM*(t-tD)))'
+gauss = '(1.0/(2.*pi*sigmax*sigmay) * exp(- pow((x[0]-mux),2)/(2.*pow(sigmax,2)) - pow((x[1]-muy),2)/(2.*pow(sigmay,2))))'
+source_expr=Expression((wavelet+'*'+gauss, wavelet+'*'+gauss), mux=0.5, muy=0.2, sigmax=0.3, sigmay=0.3, fM = fM, s=s, tD =tD, t=0.0, degree=1)
+
+source = interpolate(source_expr,V)
+
+
+# Matrices
+s = lambda_*div(u)*div(phi)*dx + mu_*inner( grad(u)+transpose(grad(u)), grad(phi) )*dx 
+
+m = rho_ * inner(u,phi) * dx
+
+
+# Assemble mass matrix and right hand side
+A = assemble(m + beta_*pow(dt,2)*s)
+L = rho_ * inner( (u0 + dt*v0 + (0.5-beta_)*pow(dt,2)*a0) ,phi) * dx + beta_*pow(dt,2)*inner(source,phi)*dx
+
+
+
+# Time loop
+t = 0.0
+vtk_file = File("displacement.pvd")
+
+
+vtk_file2 = File("source.pvd")
+
+while t &lt;= T:
+
+    # Update the source that is time depedent and save it
+    source_expr.t = t
+    if t &lt;= 0.3 : 
+        vtk_file2 &lt;&lt; source # THIS SEEMS NOT TO WORK?
+
+    # Assemble the RHS
+    b = assemble(L)
+
+    # Axpply BCs
+    [bc.apply(A) for bc in bcs] 
+
+    # Solve system for displacement
+    solve(A, u1.vector(), b)
+
+    # Newmark method to compute acceleration and velocity
+    a1 = (u1-u0-dt*v0)/(beta_*pow(dt,2)) - (0.5/beta_-1)*a0
+    v1 = v0 + (1.0-gamma_)*dt*a0 + gamma_*dt*a1
+
+
+    # Save solution to VTK format
+    vtk_file &lt;&lt; u1
+
+    # Update solution, velocity and acceleration:
+    u0.assign(u1)
+    v0.assign(v1)
+    a0.assign(a1)
+
+    # Update time 
+    t += dt
+    print "t="+str(t)
+</code></pre>
+</div>
+										</div>
+										<div class="qa-q-view-tags">
+											<ul class="qa-q-view-tag-list">
+												<li class="qa-q-view-tag-item"><a href="../../tag/time-dependent" rel="tag" class="qa-tag-link">time-dependent</a></li>
+												<li class="qa-q-view-tag-item"><a href="../../tag/expression" rel="tag" class="qa-tag-link">expression</a></li>
+												<li class="qa-q-view-tag-item"><a href="../../tag/elastodynamics" rel="tag" class="qa-tag-link">elastodynamics</a></li>
+												<li class="qa-q-view-tag-item"><a href="../../tag/source" rel="tag" class="qa-tag-link">source</a></li>
+											</ul>
+										</div>
+										<span class="qa-q-view-avatar-meta">
+											<span class="qa-q-view-meta">
+												<a href="../../13372/update-expression-and-time-dependent-assembly" class="qa-q-view-what">asked</a>
+												<span class="qa-q-view-when">
+													<span class="qa-q-view-when-data"><span class="published"><span class="value-title" title="2017-05-08T08:50:46+0000"></span>May 8, 2017</span></span>
+												</span>
+												<span class="qa-q-view-who">
+													<span class="qa-q-view-who-pad">by </span>
+													<span class="qa-q-view-who-data"><span class="vcard author"><a href="../../user/caterinabig" class="qa-user-link url nickname">caterinabig</a></span></span>
+													<span class="qa-q-view-who-title">FEniCS User</span>
+													<span class="qa-q-view-who-points">
+														<span class="qa-q-view-who-points-pad">(</span><span class="qa-q-view-who-points-data">1,460</span><span class="qa-q-view-who-points-pad"> points)</span>
+													</span>
+												</span>
+											</span>
+										</span>
+										<div class="qa-q-view-buttons">
+										</div>
+										
+										<div class="qa-q-view-c-list" style="display:none;" id="c13372_list">
+										</div> <!-- END qa-c-list -->
+										
+										<input type="hidden" name="code" value="0-1516467863-8c441dae9de744adc3afa228272dcfeb5104d36b">
+										<input type="hidden" name="qa_click" value="">
+									</form>
+									<div class="qa-c-form">
+									</div> <!-- END qa-c-form -->
+									
+								</div> <!-- END qa-q-view-main -->
+								<div class="qa-q-view-clear">
+								</div>
+							</div> <!-- END qa-q-view -->
+							
+						</div>
+						<div class="qa-part-a-list">
+							<h2 id="a_list_title">1 Answer</h2>
+							<div class="qa-a-list" id="a_list">
+								
+								<div class="qa-a-list-item  hentry answer answer-selected qa-a-list-item-selected" id="a13374">
+									<form method="post" action="../../13372/update-expression-and-time-dependent-assembly">
+										<div class="qa-voting qa-voting-net" id="voting_13374">
+											<div class="qa-vote-count qa-vote-count-net">
+												<span class="qa-netvote-count">
+													<span class="qa-netvote-count-data">+2<span class="votes-up"><span class="value-title" title="2"></span></span><span class="votes-down"><span class="value-title" title="0"></span></span></span><span class="qa-netvote-count-pad"> votes</span>
+												</span>
+											</div>
+											<div class="qa-vote-clear">
+											</div>
+										</div>
+										<input type="hidden" name="code" value="0-1516467863-cee2d4ad70997587428ca641dad5117af30998a8">
+									</form>
+									<div class="qa-a-item-main">
+										<form method="post" action="../../13372/update-expression-and-time-dependent-assembly">
+											<div class="qa-a-item-selected">
+												<div class="qa-a-selection">
+													<div class="qa-a-selected">&#160;</div>
+													<div class="qa-a-selected-text">Best answer</div>
+												</div>
+												<div class="qa-a-item-content">
+													<a name="13374"></a><div class="entry-content"><p>You have an unnecessary line</p>
+
+<p>source = interpolate(source_expr,V)</p>
+
+<p>This will make a "static" function from source_expr as it is right then, but the source function  will not be updated when you update source_expr (unless you run this line again inside the time loop).</p>
+
+<p>Just use source_expr instead of source and it will probably work, I see you are updating t in source_expression. There is no real need to interpolate source_expr to a function before putting it inside the form</p>
+</div>
+												</div>
+												<span class="qa-a-item-avatar-meta">
+													<span class="qa-a-item-meta">
+														<a href="../../13372/update-expression-and-time-dependent-assembly?show=13374#a13374" class="qa-a-item-what">answered</a>
+														<span class="qa-a-item-when">
+															<span class="qa-a-item-when-data"><span class="published"><span class="value-title" title="2017-05-08T09:29:06+0000"></span>May 8, 2017</span></span>
+														</span>
+														<span class="qa-a-item-who">
+															<span class="qa-a-item-who-pad">by </span>
+															<span class="qa-a-item-who-data"><span class="vcard author"><a href="../../user/Tormod+Landet" class="qa-user-link url nickname">Tormod Landet</a></span></span>
+															<span class="qa-a-item-who-title">FEniCS User</span>
+															<span class="qa-a-item-who-points">
+																<span class="qa-a-item-who-points-pad">(</span><span class="qa-a-item-who-points-data">5,130</span><span class="qa-a-item-who-points-pad"> points)</span>
+															</span>
+														</span>
+														<br>
+														<span class="qa-a-item-what">selected</span>
+														<span class="qa-a-item-when">
+															<span class="qa-a-item-when-data"><span class="updated"><span class="value-title" title="2017-05-08T09:36:54+0000"></span>May 8, 2017</span></span>
+														</span>
+														<span class="qa-a-item-who">
+															<span class="qa-a-item-who-pad">by </span><span class="qa-a-item-who-data"><a href="../../user/caterinabig" class="qa-user-link url nickname">caterinabig</a></span>
+														</span>
+													</span>
+												</span>
+											</div>
+											<div class="qa-a-item-buttons">
+												</div>
+											
+											<div class="qa-a-item-c-list" id="c13374_list">
+												<div class="qa-c-list-item  hentry comment" id="c13375">
+													<div class="qa-c-item-content">
+														<a name="13375"></a><div class="entry-content"><p>Thank a lot! It works :)</p>
+
+<p>I thought I needed the interpolation over V to do the inner product of the source term with the test function. </p>
+</div>
+													</div>
+													<div class="qa-c-item-footer">
+														<span class="qa-c-item-avatar-meta">
+															<span class="qa-c-item-meta">
+																<a href="../../13372/update-expression-and-time-dependent-assembly?show=13375#c13375" class="qa-c-item-what">commented</a>
+																<span class="qa-c-item-when">
+																	<span class="qa-c-item-when-data"><span class="published"><span class="value-title" title="2017-05-08T09:37:39+0000"></span>May 8, 2017</span></span>
+																</span>
+																<span class="qa-c-item-who">
+																	<span class="qa-c-item-who-pad">by </span>
+																	<span class="qa-c-item-who-data"><span class="vcard author"><a href="../../user/caterinabig" class="qa-user-link url nickname">caterinabig</a></span></span>
+																	<span class="qa-c-item-who-title">FEniCS User</span>
+																	<span class="qa-c-item-who-points">
+																		<span class="qa-c-item-who-points-pad">(</span><span class="qa-c-item-who-points-data">1,460</span><span class="qa-c-item-who-points-pad"> points)</span>
+																	</span>
+																</span>
+															</span>
+														</span>
+														<div class="qa-c-item-buttons">
+														</div>
+													</div>
+													<div class="qa-c-item-clear">
+													</div>
+												</div> <!-- END qa-c-item -->
+											</div> <!-- END qa-c-list -->
+											
+											<input type="hidden" name="code" value="0-1516467863-3a7199198ed14b96b620172268b7623ef803b251">
+											<input type="hidden" name="qa_click" value="">
+										</form>
+										<div class="qa-c-form">
+										</div> <!-- END qa-c-form -->
+										
+									</div> <!-- END qa-a-item-main -->
+									<div class="qa-a-item-clear">
+									</div>
+								</div> <!-- END qa-a-list-item -->
+								
+							</div> <!-- END qa-a-list -->
+							
+						</div>
+					</div> <!-- END qa-main -->
+					
+				</div> <!-- END main-wrapper -->
+			</div> <!-- END main-shadow -->
+		</div> <!-- END body-wrapper -->
+		<!-- END footer-bottom-group -->
+		
+		<div style="position:absolute; left:-9999px; top:-9999px;">
+			<span id="qa-waiting-template" class="qa-waiting">...</span>
+		</div>
+	
+	
+
+</body><!-- Powered by Question2Answer - http://www.question2answer.org/ --></html>

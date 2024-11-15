@@ -1,0 +1,348 @@
+<html><!-- Powered by Question2Answer - http://www.question2answer.org/ --><head>
+		<meta http-equiv="content-type" content="text/html; charset=utf-8">
+		<title>integration of time-dependent PDE with higher order schemes - FEniCS Q&amp;A</title>
+		<meta name="description" content="Hello, Following the example of [Cahn-Hilliard][1], I tried to implement for a time- ... .rc2/python/demo/pde/cahn-hilliard/python/documentation.html">
+		<meta name="keywords" content="time-dependent,integration,schemes">
+		<link rel="stylesheet" type="text/css" href="../../qa-theme/Snow/qa-styles.css">
+		<link rel="canonical" href="http://fenicsproject.org/qa/2480/integration-of-time-dependent-pde-with-higher-order-schemes">
+		<script type="text/x-mathjax-config">
+  MathJax.Hub.Config({
+    extensions: ["tex2jax.js"],
+    jax: ["input/TeX","output/HTML-CSS"],
+    tex2jax: {inlineMath: [["$","$"],["\\(","\\)"]]},
+    TeX: { extensions: ["AMSmath.js","AMSsymbols.js"]}
+  });
+</script>
+<script type="text/javascript" src="../../mathjax/MathJax.js"></script>
+		<script src="../../jquery-1.7.2.min.js" type="text/javascript"></script>
+		<script src="../../highlight.min.js"></script>
+<script type="text/javascript">
+$(function(){
+	$('.wmd-input').keypress(function(){
+		window.clearTimeout(hljs.Timeout);
+		hljs.Timeout = window.setTimeout(function() {
+			hljs.initHighlighting.called = false;
+			hljs.initHighlighting();
+		}, 500);
+	});
+	window.setTimeout(function() {
+		hljs.initHighlighting.called = false;
+		hljs.initHighlighting();
+	}, 500);
+});
+</script>
+
+
+	</head>
+	<body class="qa-template-question qa-body-js-off">
+		<div class="qa-body-wrapper">
+			
+			<div class="qa-header">
+				<div class="qa-logo">
+					<a href="../../" class="qa-logo-link" title="FEniCS Q&amp;A"><img src="../../qa-theme/fenics_qa.png" border="0" alt="FEniCS Q&amp;A"></a>
+				</div>
+				<div class="qa-header-clear">
+				</div>
+			</div> <!-- END qa-header -->
+			
+			<div class="qa-main-shadow">
+				
+				<div class="qa-main-wrapper">
+					
+					<div class="qa-sidepanel">
+						<div class="qa-sidebar">
+							This is a read only copy of the old FEniCS QA forum. Please visit the <a href="https://www.allanswered.com/community/s/fenics-project/">new QA forum</a> to ask questions
+						</div>
+						
+					</div>
+					
+					<div class="qa-main">
+						<h1>
+							<span class="entry-title">integration of time-dependent PDE with higher order schemes</span>
+						</h1>
+						<div class="qa-part-q-view">
+							<div class="qa-q-view  hentry question" id="q2480">
+								<form method="post" action="../../2480/integration-of-time-dependent-pde-with-higher-order-schemes">
+									<div class="qa-q-view-stats">
+										<div class="qa-voting qa-voting-net" id="voting_2480">
+											<div class="qa-vote-count qa-vote-count-net">
+												<span class="qa-netvote-count">
+													<span class="qa-netvote-count-data">+2<span class="votes-up"><span class="value-title" title="2"></span></span><span class="votes-down"><span class="value-title" title="0"></span></span></span><span class="qa-netvote-count-pad"> votes</span>
+												</span>
+											</div>
+											<div class="qa-vote-clear">
+											</div>
+										</div>
+									</div>
+									<input type="hidden" name="code" value="0-1516467928-2e89b032cea0325e8c3a2900284e58ba4e21fd98">
+								</form>
+								<div class="qa-q-view-main">
+									<form method="post" action="../../2480/integration-of-time-dependent-pde-with-higher-order-schemes">
+										<div class="qa-q-view-content">
+											<a name="2480"></a><div class="entry-content"><p>Hello,<br>
+Following the example of <a rel="nofollow" href="http://fenicsproject.org/documentation/dolfin/1.0.rc2/python/demo/pde/cahn-hilliard/python/documentation.html">Cahn-Hilliard</a>, I tried to implement for a time-dependent PDE the backward Euler and Trapezoidal rule in time</p>
+
+<pre><code>mesh = IntervalMesh(M, 0, 1)
+V = FunctionSpace(mesh, 'CG', 1)
+...
+# ---------- Euler
+z_old = Function(V)
+z_old = interpolate(u_start,V)
+z = Function(V)
+z = interpolate(u_start,V)
+dz = TrialFunction(V)
+w = TestFunction(V)
+
+F_N = inner(z-z_old,w)*dx + dt*dot(grad(z), grad(w))*dx - inner(dt*rhs(z),w)*dx
+dF_N = derivative(F_N, z, dz)
+
+problem = NonlinearVariationalProblem(F_N, z, bcs, J = dF_N)
+pdesys_newton = NonlinearVariationalSolver(problem)
+
+# ---------- CN
+z2_old = interpolate(u_start,V)
+z2 = Function(V)
+z2 = interpolate(u_start,V)
+dz2 = TrialFunction(V)
+w2 = TestFunction(V)
+
+z2_cn = 1/2*z2 + 1/2*z2_old
+rhs_cn = 1/2*(rhs(z2) + rhs(z2_old))
+
+F_N2 = z2*w2*dx - z2_old*w2*dx  + dt*dot( grad(z2_cn), grad(w2))*dx - (dt*rhs_cn)*w2*dx
+dF_N2 = derivative(F_N2, z2, dz2)
+
+problem_CN = NonlinearVariationalProblem(F_N2, z2, bcs, J = dF_N2)
+pdesys_newton_CN = NonlinearVariationalSolver(problem_CN)
+</code></pre>
+
+<p>but the $L^2$-Error using the Trapezoidal rule is nearly two times the error using the backward Euler in time, and I have no idea why. Could you please give my some suggestions what's going wrong or where to look at? For integration in time I use $\Delta t = \frac{1}{M}$ as step size.</p>
+</div>
+										</div>
+										<div class="qa-q-view-tags">
+											<ul class="qa-q-view-tag-list">
+												<li class="qa-q-view-tag-item"><a href="../../tag/time-dependent" rel="tag" class="qa-tag-link">time-dependent</a></li>
+												<li class="qa-q-view-tag-item"><a href="../../tag/integration" rel="tag" class="qa-tag-link">integration</a></li>
+												<li class="qa-q-view-tag-item"><a href="../../tag/schemes" rel="tag" class="qa-tag-link">schemes</a></li>
+											</ul>
+										</div>
+										<span class="qa-q-view-avatar-meta">
+											<span class="qa-q-view-meta">
+												<a href="../../2480/integration-of-time-dependent-pde-with-higher-order-schemes" class="qa-q-view-what">asked</a>
+												<span class="qa-q-view-when">
+													<span class="qa-q-view-when-data"><span class="published"><span class="value-title" title="2014-01-27T13:00:11+0000"></span>Jan 27, 2014</span></span>
+												</span>
+												<span class="qa-q-view-who">
+													<span class="qa-q-view-who-pad">by </span>
+													<span class="qa-q-view-who-data"><span class="vcard author"><a href="../../user/bobby53" class="qa-user-link url nickname">bobby53</a></span></span>
+													<span class="qa-q-view-who-title">FEniCS User</span>
+													<span class="qa-q-view-who-points">
+														<span class="qa-q-view-who-points-pad">(</span><span class="qa-q-view-who-points-data">1,260</span><span class="qa-q-view-who-points-pad"> points)</span>
+													</span>
+												</span>
+											</span>
+										</span>
+										<div class="qa-q-view-buttons">
+										</div>
+										
+										<div class="qa-q-view-c-list" style="display:none;" id="c2480_list">
+										</div> <!-- END qa-c-list -->
+										
+										<input type="hidden" name="code" value="0-1516467928-90086c18e4e4aed222dc8e510b9fba5da5ccfc82">
+										<input type="hidden" name="qa_click" value="">
+									</form>
+									<div class="qa-c-form">
+									</div> <!-- END qa-c-form -->
+									
+								</div> <!-- END qa-q-view-main -->
+								<div class="qa-q-view-clear">
+								</div>
+							</div> <!-- END qa-q-view -->
+							
+						</div>
+						<div class="qa-part-a-list">
+							<h2 id="a_list_title">2 Answers</h2>
+							<div class="qa-a-list" id="a_list">
+								
+								<div class="qa-a-list-item  hentry answer answer-selected qa-a-list-item-selected" id="a2512">
+									<form method="post" action="../../2480/integration-of-time-dependent-pde-with-higher-order-schemes">
+										<div class="qa-voting qa-voting-net" id="voting_2512">
+											<div class="qa-vote-count qa-vote-count-net">
+												<span class="qa-netvote-count">
+													<span class="qa-netvote-count-data">+3<span class="votes-up"><span class="value-title" title="3"></span></span><span class="votes-down"><span class="value-title" title="0"></span></span></span><span class="qa-netvote-count-pad"> votes</span>
+												</span>
+											</div>
+											<div class="qa-vote-clear">
+											</div>
+										</div>
+										<input type="hidden" name="code" value="0-1516467928-2e89b032cea0325e8c3a2900284e58ba4e21fd98">
+									</form>
+									<div class="qa-a-item-main">
+										<form method="post" action="../../2480/integration-of-time-dependent-pde-with-higher-order-schemes">
+											<div class="qa-a-item-selected">
+												<div class="qa-a-selection">
+													<div class="qa-a-selected">&#160;</div>
+													<div class="qa-a-selected-text">Best answer</div>
+												</div>
+												<div class="qa-a-item-content">
+													<a name="2512"></a><div class="entry-content"><p>the problem consisted of two parts:</p>
+
+<ul>
+<li>my <code>rhs</code> was time dependent, so I had to define <code>rhs_old</code>, for which I updated the time step <code>t</code> accordingly </li>
+<li>I used the wrong norm, <code>error = errornorm(u_exact, z2,'l2',5)</code> is correct, as <code>numpy.linalg.norm</code> is a norm for vectors, and not functions.</li>
+</ul>
+
+<p>My CN - method reads now:</p>
+
+<pre><code># ---------- CN
+z2_old = interpolate(u_start,V)
+z2 = Function(V)
+z2 = interpolate(u_start,V)
+dz2 = TrialFunction(V)
+w2 = TestFunction(V)
+
+z2_cn = 1/2*z2 + 1/2*z2_old
+rhs_cn = 1/2*(rhs(z2) + rhs_old(z2_old))
+
+F_N2 = z2*w2*dx - z2_old*w2*dx  + dt*dot( grad(z2_cn), grad(w2))*dx - (dt*rhs_cn)*w2*dx
+dF_N2 = derivative(F_N2, z2, dz2)
+
+problem_CN = NonlinearVariationalProblem(F_N2, z2, bcs, J = dF_N2)
+pdesys_newton_CN = NonlinearVariationalSolver(problem_CN)
+</code></pre>
+</div>
+												</div>
+												<span class="qa-a-item-avatar-meta">
+													<span class="qa-a-item-meta">
+														<a href="../../2480/integration-of-time-dependent-pde-with-higher-order-schemes?show=2512#a2512" class="qa-a-item-what">answered</a>
+														<span class="qa-a-item-when">
+															<span class="qa-a-item-when-data"><span class="published"><span class="value-title" title="2014-01-28T19:37:52+0000"></span>Jan 28, 2014</span></span>
+														</span>
+														<span class="qa-a-item-who">
+															<span class="qa-a-item-who-pad">by </span>
+															<span class="qa-a-item-who-data"><span class="vcard author"><a href="../../user/bobby53" class="qa-user-link url nickname">bobby53</a></span></span>
+															<span class="qa-a-item-who-title">FEniCS User</span>
+															<span class="qa-a-item-who-points">
+																<span class="qa-a-item-who-points-pad">(</span><span class="qa-a-item-who-points-data">1,260</span><span class="qa-a-item-who-points-pad"> points)</span>
+															</span>
+														</span>
+													</span>
+												</span>
+											</div>
+											<div class="qa-a-item-buttons">
+												</div>
+											
+											<div class="qa-a-item-c-list" style="display:none;" id="c2512_list">
+											</div> <!-- END qa-c-list -->
+											
+											<input type="hidden" name="code" value="0-1516467928-fbdb13f7517b41ce833b58917ca7fe6745dfdff5">
+											<input type="hidden" name="qa_click" value="">
+										</form>
+										<div class="qa-c-form">
+										</div> <!-- END qa-c-form -->
+										
+									</div> <!-- END qa-a-item-main -->
+									<div class="qa-a-item-clear">
+									</div>
+								</div> <!-- END qa-a-list-item -->
+								
+								<div class="qa-a-list-item  hentry answer" id="a2554">
+									<form method="post" action="../../2480/integration-of-time-dependent-pde-with-higher-order-schemes">
+										<div class="qa-voting qa-voting-net" id="voting_2554">
+											<div class="qa-vote-count qa-vote-count-net">
+												<span class="qa-netvote-count">
+													<span class="qa-netvote-count-data">0<span class="votes-up"><span class="value-title" title="0"></span></span><span class="votes-down"><span class="value-title" title="0"></span></span></span><span class="qa-netvote-count-pad"> votes</span>
+												</span>
+											</div>
+											<div class="qa-vote-clear">
+											</div>
+										</div>
+										<input type="hidden" name="code" value="0-1516467928-2e89b032cea0325e8c3a2900284e58ba4e21fd98">
+									</form>
+									<div class="qa-a-item-main">
+										<form method="post" action="../../2480/integration-of-time-dependent-pde-with-higher-order-schemes">
+											<div class="qa-a-selection">
+											</div>
+											<div class="qa-a-item-content">
+												<a name="2554"></a><div class="entry-content"><p>You should take a look on Gryphon project. It provides different higher-order time integration schemes based on Runge-Kutta familly. Error estimation and time step adaptivity are included too.<br>
+<a rel="nofollow" href="https://launchpad.net/gryphonproject">https://launchpad.net/gryphonproject</a></p>
+</div>
+											</div>
+											<span class="qa-a-item-avatar-meta">
+												<span class="qa-a-item-meta">
+													<a href="../../2480/integration-of-time-dependent-pde-with-higher-order-schemes?show=2554#a2554" class="qa-a-item-what">answered</a>
+													<span class="qa-a-item-when">
+														<span class="qa-a-item-when-data"><span class="published"><span class="value-title" title="2014-01-30T15:04:04+0000"></span>Jan 30, 2014</span></span>
+													</span>
+													<span class="qa-a-item-who">
+														<span class="qa-a-item-who-pad">by </span>
+														<span class="qa-a-item-who-data"><span class="vcard author"><a href="../../user/sawickib" class="qa-user-link url nickname">sawickib</a></span></span>
+														<span class="qa-a-item-who-title">FEniCS Novice</span>
+														<span class="qa-a-item-who-points">
+															<span class="qa-a-item-who-points-pad">(</span><span class="qa-a-item-who-points-data">190</span><span class="qa-a-item-who-points-pad"> points)</span>
+														</span>
+													</span>
+												</span>
+											</span>
+											<div class="qa-a-item-buttons">
+												</div>
+											
+											<div class="qa-a-item-c-list" id="c2554_list">
+												<div class="qa-c-list-item  hentry comment" id="c2558">
+													<div class="qa-c-item-content">
+														<a name="2558"></a><div class="entry-content"><p>Yesterday while looking for another possibility I found out about it. But as I'm implementing IMEX-Methods, I have to, at least to a certain extent, implement the methods on my own.</p>
+</div>
+													</div>
+													<div class="qa-c-item-footer">
+														<span class="qa-c-item-avatar-meta">
+															<span class="qa-c-item-meta">
+																<a href="../../2480/integration-of-time-dependent-pde-with-higher-order-schemes?show=2558#c2558" class="qa-c-item-what">commented</a>
+																<span class="qa-c-item-when">
+																	<span class="qa-c-item-when-data"><span class="published"><span class="value-title" title="2014-01-30T16:30:01+0000"></span>Jan 30, 2014</span></span>
+																</span>
+																<span class="qa-c-item-who">
+																	<span class="qa-c-item-who-pad">by </span>
+																	<span class="qa-c-item-who-data"><span class="vcard author"><a href="../../user/bobby53" class="qa-user-link url nickname">bobby53</a></span></span>
+																	<span class="qa-c-item-who-title">FEniCS User</span>
+																	<span class="qa-c-item-who-points">
+																		<span class="qa-c-item-who-points-pad">(</span><span class="qa-c-item-who-points-data">1,260</span><span class="qa-c-item-who-points-pad"> points)</span>
+																	</span>
+																</span>
+															</span>
+														</span>
+														<div class="qa-c-item-buttons">
+														</div>
+													</div>
+													<div class="qa-c-item-clear">
+													</div>
+												</div> <!-- END qa-c-item -->
+											</div> <!-- END qa-c-list -->
+											
+											<input type="hidden" name="code" value="0-1516467928-a51d99f009bfc604237bdcf61bde10d1fd2aa167">
+											<input type="hidden" name="qa_click" value="">
+										</form>
+										<div class="qa-c-form">
+										</div> <!-- END qa-c-form -->
+										
+									</div> <!-- END qa-a-item-main -->
+									<div class="qa-a-item-clear">
+									</div>
+								</div> <!-- END qa-a-list-item -->
+								
+							</div> <!-- END qa-a-list -->
+							
+						</div>
+					</div> <!-- END qa-main -->
+					
+				</div> <!-- END main-wrapper -->
+			</div> <!-- END main-shadow -->
+		</div> <!-- END body-wrapper -->
+		<!-- END footer-bottom-group -->
+		
+		<div style="position:absolute; left:-9999px; top:-9999px;">
+			<span id="qa-waiting-template" class="qa-waiting">...</span>
+		</div>
+	
+	
+
+</body><!-- Powered by Question2Answer - http://www.question2answer.org/ --></html>

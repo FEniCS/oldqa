@@ -1,0 +1,427 @@
+<html><!-- Powered by Question2Answer - http://www.question2answer.org/ --><head>
+		<meta http-equiv="content-type" content="text/html; charset=utf-8">
+		<title>Avoiding assembly with linear elasticity - FEniCS Q&amp;A</title>
+		<meta name="description" content="Hi, I'm trying to avoid assembly in a time loop with linear elasticity. Code demo is below. I have  ... vector(), b) print i plot(u, interactive=True)">
+		<meta name="keywords" content="assembly,vector,linear-solver">
+		<link rel="stylesheet" type="text/css" href="../../qa-theme/Snow/qa-styles.css">
+		<link rel="canonical" href="http://fenicsproject.org/qa/3680/avoiding-assembly-with-linear-elasticity">
+		<script type="text/x-mathjax-config">
+  MathJax.Hub.Config({
+    extensions: ["tex2jax.js"],
+    jax: ["input/TeX","output/HTML-CSS"],
+    tex2jax: {inlineMath: [["$","$"],["\\(","\\)"]]},
+    TeX: { extensions: ["AMSmath.js","AMSsymbols.js"]}
+  });
+</script>
+<script type="text/javascript" src="../../mathjax/MathJax.js"></script>
+		<script src="../../jquery-1.7.2.min.js" type="text/javascript"></script>
+		<script src="../../highlight.min.js"></script>
+<script type="text/javascript">
+$(function(){
+	$('.wmd-input').keypress(function(){
+		window.clearTimeout(hljs.Timeout);
+		hljs.Timeout = window.setTimeout(function() {
+			hljs.initHighlighting.called = false;
+			hljs.initHighlighting();
+		}, 500);
+	});
+	window.setTimeout(function() {
+		hljs.initHighlighting.called = false;
+		hljs.initHighlighting();
+	}, 500);
+});
+</script>
+
+
+	</head>
+	<body class="qa-template-question qa-body-js-off">
+		<div class="qa-body-wrapper">
+			
+			<div class="qa-header">
+				<div class="qa-logo">
+					<a href="../../" class="qa-logo-link" title="FEniCS Q&amp;A"><img src="../../qa-theme/fenics_qa.png" border="0" alt="FEniCS Q&amp;A"></a>
+				</div>
+				<div class="qa-header-clear">
+				</div>
+			</div> <!-- END qa-header -->
+			
+			<div class="qa-main-shadow">
+				
+				<div class="qa-main-wrapper">
+					
+					<div class="qa-sidepanel">
+						<div class="qa-sidebar">
+							This is a read only copy of the old FEniCS QA forum. Please visit the <a href="https://www.allanswered.com/community/s/fenics-project/">new QA forum</a> to ask questions
+						</div>
+						
+					</div>
+					
+					<div class="qa-main">
+						<h1>
+							<span class="entry-title">Avoiding assembly with linear elasticity</span>
+						</h1>
+						<div class="qa-part-q-view">
+							<div class="qa-q-view  hentry question" id="q3680">
+								<form method="post" action="../../3680/avoiding-assembly-with-linear-elasticity">
+									<div class="qa-q-view-stats">
+										<div class="qa-voting qa-voting-net" id="voting_3680">
+											<div class="qa-vote-count qa-vote-count-net">
+												<span class="qa-netvote-count">
+													<span class="qa-netvote-count-data">0<span class="votes-up"><span class="value-title" title="0"></span></span><span class="votes-down"><span class="value-title" title="0"></span></span></span><span class="qa-netvote-count-pad"> votes</span>
+												</span>
+											</div>
+											<div class="qa-vote-clear">
+											</div>
+										</div>
+									</div>
+									<input type="hidden" name="code" value="0-1516467981-6bd2769c9bc335441e7a768502793f23d023e049">
+								</form>
+								<div class="qa-q-view-main">
+									<form method="post" action="../../3680/avoiding-assembly-with-linear-elasticity">
+										<div class="qa-q-view-content">
+											<a name="3680"></a><div class="entry-content"><p>Hi, I'm trying to avoid assembly in a time loop with linear elasticity. Code demo is below. <br>
+I have the displacement function u, and another function c (calculated elsewhere) and define a python function eps=eps(u) which implements voigt notation. Then I want to solve:<br>
+eps(u) = c*eps0<br>
+where eps0 is a constant vector. </p>
+
+<p>Can anyone please point out where I am going wrong? If I don't use the assemble( ) function line, the answer is wrong. </p>
+
+<p>Thanks!</p>
+
+<pre><code>from dolfin import *
+
+def eps(u):
+    return as_vector([u[i].dx(i) for i in range(2)] +
+                     [u[i].dx(j) + u[j].dx(i) for (i,j) in [(0,1)]])
+
+fcn = Expression('x[0]*.01')
+
+mesh = RectangleMesh(0,0,1,1, 100, 100) #, 'crossed')
+V1 = FunctionSpace(mesh, "Lagrange", 1)
+V_vec = VectorFunctionSpace(mesh, "Lagrange", 1)
+
+c = Function(V1)
+
+u = TrialFunction(V_vec)
+test_u = TestFunction(V_vec)
+
+left = CompiledSubDomain("(std::abs(x[0]) &lt; DOLFIN_EPS) &amp;&amp; on_boundary")
+
+bc = DirichletBC(V_vec, [0, 0] , left)
+eps0 = as_vector((1,1,0))
+
+c.interpolate(fcn)
+
+au = inner(eps(u), eps(test_u))*dx 
+Lu = c*inner(eps0, eps(test_u))*dx
+u = Function(V_vec) 
+
+m_el = inner(eps0, eps(test_u))*dx
+M_el = assemble(m_el)
+
+A = assemble(au)
+bc.apply(A)
+
+solver_u = PETScKrylovSolver('cg')
+prm = solver_u.parameters
+prm["absolute_tolerance"] = 1e-4
+prm["relative_tolerance"] = 1e-5
+prm["nonzero_initial_guess"] = True
+
+# begin time loop
+for i in range(10):
+    b = project(as_vector((c,c)),V_vec).vector()*M_el
+    b = assemble(Lu)
+    bc.apply(b)
+    # Other time loop stuff
+    solver_u.solve(A, u.vector(), b)
+    print i
+
+plot(u, interactive=True)
+</code></pre>
+</div>
+										</div>
+										<div class="qa-q-view-tags">
+											<ul class="qa-q-view-tag-list">
+												<li class="qa-q-view-tag-item"><a href="../../tag/assembly" rel="tag" class="qa-tag-link">assembly</a></li>
+												<li class="qa-q-view-tag-item"><a href="../../tag/vector" rel="tag" class="qa-tag-link">vector</a></li>
+												<li class="qa-q-view-tag-item"><a href="../../tag/linear-solver" rel="tag" class="qa-tag-link">linear-solver</a></li>
+											</ul>
+										</div>
+										<span class="qa-q-view-avatar-meta">
+											<span class="qa-q-view-avatar">
+												<a href="../../user/mwelland" class="qa-avatar-link"><img src="https://www.gravatar.com/avatar/af936799ea3fe5bd1cb6abb922ebbe83?s=50" width="50" height="50" class="qa-avatar-image" alt=""></a>
+											</span>
+											<span class="qa-q-view-meta">
+												<a href="../../3680/avoiding-assembly-with-linear-elasticity" class="qa-q-view-what">asked</a>
+												<span class="qa-q-view-when">
+													<span class="qa-q-view-when-data"><span class="published"><span class="value-title" title="2014-05-27T22:25:55+0000"></span>May 28, 2014</span></span>
+												</span>
+												<span class="qa-q-view-who">
+													<span class="qa-q-view-who-pad">by </span>
+													<span class="qa-q-view-who-data"><span class="vcard author"><a href="../../user/mwelland" class="qa-user-link url nickname">mwelland</a></span></span>
+													<span class="qa-q-view-who-title">FEniCS User</span>
+													<span class="qa-q-view-who-points">
+														<span class="qa-q-view-who-points-pad">(</span><span class="qa-q-view-who-points-data">8,410</span><span class="qa-q-view-who-points-pad"> points)</span>
+													</span>
+												</span>
+												<br>
+												<span class="qa-q-view-what">edited</span>
+												<span class="qa-q-view-when">
+													<span class="qa-q-view-when-data"><span class="updated"><span class="value-title" title="2014-05-28T12:55:32+0000"></span>May 28, 2014</span></span>
+												</span>
+												<span class="qa-q-view-who">
+													<span class="qa-q-view-who-pad">by </span><span class="qa-q-view-who-data"><a href="../../user/mwelland" class="qa-user-link url nickname">mwelland</a></span>
+												</span>
+											</span>
+										</span>
+										<div class="qa-q-view-buttons">
+										</div>
+										
+										<div class="qa-q-view-c-list" id="c3680_list">
+											<div class="qa-c-list-item  hentry comment" id="c3682">
+												<div class="qa-c-item-content">
+													<a name="3682"></a><div class="entry-content"><p>Can't you assemble A before entering the time loop? Where is the time loop in your example?</p>
+</div>
+												</div>
+												<div class="qa-c-item-footer">
+													<span class="qa-c-item-avatar-meta">
+														<span class="qa-c-item-meta">
+															<a href="../../3680/avoiding-assembly-with-linear-elasticity?show=3682#c3682" class="qa-c-item-what">commented</a>
+															<span class="qa-c-item-when">
+																<span class="qa-c-item-when-data"><span class="published"><span class="value-title" title="2014-05-28T11:57:56+0000"></span>May 28, 2014</span></span>
+															</span>
+															<span class="qa-c-item-who">
+																<span class="qa-c-item-who-pad">by </span>
+																<span class="qa-c-item-who-data"><span class="vcard author"><a href="../../user/mmorandi" class="qa-user-link url nickname">mmorandi</a></span></span>
+																<span class="qa-c-item-who-title">FEniCS Novice</span>
+																<span class="qa-c-item-who-points">
+																	<span class="qa-c-item-who-points-pad">(</span><span class="qa-c-item-who-points-data">990</span><span class="qa-c-item-who-points-pad"> points)</span>
+																</span>
+															</span>
+														</span>
+													</span>
+													<div class="qa-c-item-buttons">
+													</div>
+												</div>
+												<div class="qa-c-item-clear">
+												</div>
+											</div> <!-- END qa-c-item -->
+											<div class="qa-c-list-item  hentry comment" id="c3684">
+												<div class="qa-c-item-content">
+													<a name="3684"></a><div class="entry-content"><p>Yes, I do assemble A beforehand. I will update the demo code to show the time loop a bit more clearly.</p>
+</div>
+												</div>
+												<div class="qa-c-item-footer">
+													<span class="qa-c-item-avatar-meta">
+														<span class="qa-c-item-avatar">
+															<a href="../../user/mwelland" class="qa-avatar-link"><img src="https://www.gravatar.com/avatar/af936799ea3fe5bd1cb6abb922ebbe83?s=20" width="20" height="20" class="qa-avatar-image" alt=""></a>
+														</span>
+														<span class="qa-c-item-meta">
+															<a href="../../3680/avoiding-assembly-with-linear-elasticity?show=3684#c3684" class="qa-c-item-what">commented</a>
+															<span class="qa-c-item-when">
+																<span class="qa-c-item-when-data"><span class="published"><span class="value-title" title="2014-05-28T12:52:12+0000"></span>May 28, 2014</span></span>
+															</span>
+															<span class="qa-c-item-who">
+																<span class="qa-c-item-who-pad">by </span>
+																<span class="qa-c-item-who-data"><span class="vcard author"><a href="../../user/mwelland" class="qa-user-link url nickname">mwelland</a></span></span>
+																<span class="qa-c-item-who-title">FEniCS User</span>
+																<span class="qa-c-item-who-points">
+																	<span class="qa-c-item-who-points-pad">(</span><span class="qa-c-item-who-points-data">8,410</span><span class="qa-c-item-who-points-pad"> points)</span>
+																</span>
+															</span>
+														</span>
+													</span>
+													<div class="qa-c-item-buttons">
+													</div>
+												</div>
+												<div class="qa-c-item-clear">
+												</div>
+											</div> <!-- END qa-c-item -->
+											<div class="qa-c-list-item  hentry comment" id="c3689">
+												<div class="qa-c-item-content">
+													<a name="3689"></a><div class="entry-content"><p>Are you looking for a matrix-free solver?</p>
+</div>
+												</div>
+												<div class="qa-c-item-footer">
+													<span class="qa-c-item-avatar-meta">
+														<span class="qa-c-item-meta">
+															<a href="../../3680/avoiding-assembly-with-linear-elasticity?show=3689#c3689" class="qa-c-item-what">commented</a>
+															<span class="qa-c-item-when">
+																<span class="qa-c-item-when-data"><span class="published"><span class="value-title" title="2014-05-28T16:50:54+0000"></span>May 28, 2014</span></span>
+															</span>
+															<span class="qa-c-item-who">
+																<span class="qa-c-item-who-pad">by </span>
+																<span class="qa-c-item-who-data"><span class="vcard author"><a href="../../user/mmorandi" class="qa-user-link url nickname">mmorandi</a></span></span>
+																<span class="qa-c-item-who-title">FEniCS Novice</span>
+																<span class="qa-c-item-who-points">
+																	<span class="qa-c-item-who-points-pad">(</span><span class="qa-c-item-who-points-data">990</span><span class="qa-c-item-who-points-pad"> points)</span>
+																</span>
+															</span>
+														</span>
+													</span>
+													<div class="qa-c-item-buttons">
+													</div>
+												</div>
+												<div class="qa-c-item-clear">
+												</div>
+											</div> <!-- END qa-c-item -->
+											<div class="qa-c-list-item  hentry comment" id="c3690">
+												<div class="qa-c-item-content">
+													<a name="3690"></a><div class="entry-content"><p>Not necessarily no, just to save a bit of time on assembly.</p>
+</div>
+												</div>
+												<div class="qa-c-item-footer">
+													<span class="qa-c-item-avatar-meta">
+														<span class="qa-c-item-avatar">
+															<a href="../../user/mwelland" class="qa-avatar-link"><img src="https://www.gravatar.com/avatar/af936799ea3fe5bd1cb6abb922ebbe83?s=20" width="20" height="20" class="qa-avatar-image" alt=""></a>
+														</span>
+														<span class="qa-c-item-meta">
+															<a href="../../3680/avoiding-assembly-with-linear-elasticity?show=3690#c3690" class="qa-c-item-what">commented</a>
+															<span class="qa-c-item-when">
+																<span class="qa-c-item-when-data"><span class="published"><span class="value-title" title="2014-05-28T16:54:50+0000"></span>May 28, 2014</span></span>
+															</span>
+															<span class="qa-c-item-who">
+																<span class="qa-c-item-who-pad">by </span>
+																<span class="qa-c-item-who-data"><span class="vcard author"><a href="../../user/mwelland" class="qa-user-link url nickname">mwelland</a></span></span>
+																<span class="qa-c-item-who-title">FEniCS User</span>
+																<span class="qa-c-item-who-points">
+																	<span class="qa-c-item-who-points-pad">(</span><span class="qa-c-item-who-points-data">8,410</span><span class="qa-c-item-who-points-pad"> points)</span>
+																</span>
+															</span>
+														</span>
+													</span>
+													<div class="qa-c-item-buttons">
+													</div>
+												</div>
+												<div class="qa-c-item-clear">
+												</div>
+											</div> <!-- END qa-c-item -->
+											<div class="qa-c-list-item  hentry comment" id="c3697">
+												<div class="qa-c-item-content">
+													<a name="3697"></a><div class="entry-content"><p>At this point I'm lost. You want to solve a linear system of equations, right? If yes then you either assemble the matrix or use a matrix-free iterative solver. In the last case you'll likely have to assemble a preconditioner. What am I missing?</p>
+</div>
+												</div>
+												<div class="qa-c-item-footer">
+													<span class="qa-c-item-avatar-meta">
+														<span class="qa-c-item-meta">
+															<a href="../../3680/avoiding-assembly-with-linear-elasticity?show=3697#c3697" class="qa-c-item-what">commented</a>
+															<span class="qa-c-item-when">
+																<span class="qa-c-item-when-data"><span class="published"><span class="value-title" title="2014-05-29T07:50:34+0000"></span>May 29, 2014</span></span>
+															</span>
+															<span class="qa-c-item-who">
+																<span class="qa-c-item-who-pad">by </span>
+																<span class="qa-c-item-who-data"><span class="vcard author"><a href="../../user/mmorandi" class="qa-user-link url nickname">mmorandi</a></span></span>
+																<span class="qa-c-item-who-title">FEniCS Novice</span>
+																<span class="qa-c-item-who-points">
+																	<span class="qa-c-item-who-points-pad">(</span><span class="qa-c-item-who-points-data">990</span><span class="qa-c-item-who-points-pad"> points)</span>
+																</span>
+															</span>
+														</span>
+													</span>
+													<div class="qa-c-item-buttons">
+													</div>
+												</div>
+												<div class="qa-c-item-clear">
+												</div>
+											</div> <!-- END qa-c-item -->
+											<div class="qa-c-list-item  hentry comment" id="c3704">
+												<div class="qa-c-item-content">
+													<a name="3704"></a><div class="entry-content"><p>Assembling the matrix/ vector can be a costly procedure, and can be avoided by breaking the matrix/vector into operations of other vectors (for example), some of which don't change from iteration to iteration. Take a look here:<br>
+<a rel="nofollow" href="http://fenicsproject.org/documentation/tutorial/timedep.html#avoiding-assembly">http://fenicsproject.org/documentation/tutorial/timedep.html#avoiding-assembly</a> </p>
+</div>
+												</div>
+												<div class="qa-c-item-footer">
+													<span class="qa-c-item-avatar-meta">
+														<span class="qa-c-item-avatar">
+															<a href="../../user/mwelland" class="qa-avatar-link"><img src="https://www.gravatar.com/avatar/af936799ea3fe5bd1cb6abb922ebbe83?s=20" width="20" height="20" class="qa-avatar-image" alt=""></a>
+														</span>
+														<span class="qa-c-item-meta">
+															<a href="../../3680/avoiding-assembly-with-linear-elasticity?show=3704#c3704" class="qa-c-item-what">commented</a>
+															<span class="qa-c-item-when">
+																<span class="qa-c-item-when-data"><span class="published"><span class="value-title" title="2014-05-29T12:01:48+0000"></span>May 29, 2014</span></span>
+															</span>
+															<span class="qa-c-item-who">
+																<span class="qa-c-item-who-pad">by </span>
+																<span class="qa-c-item-who-data"><span class="vcard author"><a href="../../user/mwelland" class="qa-user-link url nickname">mwelland</a></span></span>
+																<span class="qa-c-item-who-title">FEniCS User</span>
+																<span class="qa-c-item-who-points">
+																	<span class="qa-c-item-who-points-pad">(</span><span class="qa-c-item-who-points-data">8,410</span><span class="qa-c-item-who-points-pad"> points)</span>
+																</span>
+															</span>
+														</span>
+													</span>
+													<div class="qa-c-item-buttons">
+													</div>
+												</div>
+												<div class="qa-c-item-clear">
+												</div>
+											</div> <!-- END qa-c-item -->
+											<div class="qa-c-list-item  hentry comment" id="c3744">
+												<div class="qa-c-item-content">
+													<a name="3744"></a><div class="entry-content"><p>In</p>
+
+<pre><code>b = project(as_vector((c,c)),V_vec).vector()*M_el
+</code></pre>
+
+<p>you are performing an elementwise product between two vectors. At least, bot M_el and project.vector() are vectors. To get what you want (the right answer for a fcn that varies in space) shouldn't it be a matrix-vector product? Right now you get the right result with a constant fcn, but I'm not sure that it should give you the correct answer for an fcn that varies in space.</p>
+</div>
+												</div>
+												<div class="qa-c-item-footer">
+													<span class="qa-c-item-avatar-meta">
+														<span class="qa-c-item-meta">
+															<a href="../../3680/avoiding-assembly-with-linear-elasticity?show=3744#c3744" class="qa-c-item-what">commented</a>
+															<span class="qa-c-item-when">
+																<span class="qa-c-item-when-data"><span class="published"><span class="value-title" title="2014-06-04T11:34:53+0000"></span>Jun 4, 2014</span></span>
+															</span>
+															<span class="qa-c-item-who">
+																<span class="qa-c-item-who-pad">by </span>
+																<span class="qa-c-item-who-data"><span class="vcard author"><a href="../../user/mmorandi" class="qa-user-link url nickname">mmorandi</a></span></span>
+																<span class="qa-c-item-who-title">FEniCS Novice</span>
+																<span class="qa-c-item-who-points">
+																	<span class="qa-c-item-who-points-pad">(</span><span class="qa-c-item-who-points-data">990</span><span class="qa-c-item-who-points-pad"> points)</span>
+																</span>
+															</span>
+														</span>
+													</span>
+													<div class="qa-c-item-buttons">
+													</div>
+												</div>
+												<div class="qa-c-item-clear">
+												</div>
+											</div> <!-- END qa-c-item -->
+										</div> <!-- END qa-c-list -->
+										
+										<input type="hidden" name="code" value="0-1516467981-3c285243d5bcce8451f1b2a4e1c02bb8816090b4">
+										<input type="hidden" name="qa_click" value="">
+									</form>
+									<div class="qa-c-form">
+									</div> <!-- END qa-c-form -->
+									
+								</div> <!-- END qa-q-view-main -->
+								<div class="qa-q-view-clear">
+								</div>
+							</div> <!-- END qa-q-view -->
+							
+						</div>
+						<div class="qa-part-a-list">
+							<h2 id="a_list_title" style="display:none;"></h2>
+							<div class="qa-a-list" id="a_list">
+								
+							</div> <!-- END qa-a-list -->
+							
+						</div>
+					</div> <!-- END qa-main -->
+					
+				</div> <!-- END main-wrapper -->
+			</div> <!-- END main-shadow -->
+		</div> <!-- END body-wrapper -->
+		<!-- END footer-bottom-group -->
+		
+		<div style="position:absolute; left:-9999px; top:-9999px;">
+			<span id="qa-waiting-template" class="qa-waiting">...</span>
+		</div>
+	
+	
+
+</body><!-- Powered by Question2Answer - http://www.question2answer.org/ --></html>

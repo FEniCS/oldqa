@@ -1,0 +1,495 @@
+<html><!-- Powered by Question2Answer - http://www.question2answer.org/ --><head>
+		<meta http-equiv="content-type" content="text/html; charset=utf-8">
+		<title>time evolution of the scalar wave equation - FEniCS Q&amp;A</title>
+		<meta name="description" content="I'm trying to solve the scalar wave equation with homogenous Dirichlet boundary conditions and an ... .rename(&quot;WaveFunction&quot;, wave.name()) output_file">
+		<meta name="keywords" content="time-dependent,mixed-formulation,wave-equation">
+		<link rel="stylesheet" type="text/css" href="../../qa-theme/Snow/qa-styles.css">
+		<link rel="canonical" href="http://fenicsproject.org/qa/3441/time-evolution-of-the-scalar-wave-equation">
+		<script type="text/x-mathjax-config">
+  MathJax.Hub.Config({
+    extensions: ["tex2jax.js"],
+    jax: ["input/TeX","output/HTML-CSS"],
+    tex2jax: {inlineMath: [["$","$"],["\\(","\\)"]]},
+    TeX: { extensions: ["AMSmath.js","AMSsymbols.js"]}
+  });
+</script>
+<script type="text/javascript" src="../../mathjax/MathJax.js"></script>
+		<script src="../../jquery-1.7.2.min.js" type="text/javascript"></script>
+		<script src="../../highlight.min.js"></script>
+<script type="text/javascript">
+$(function(){
+	$('.wmd-input').keypress(function(){
+		window.clearTimeout(hljs.Timeout);
+		hljs.Timeout = window.setTimeout(function() {
+			hljs.initHighlighting.called = false;
+			hljs.initHighlighting();
+		}, 500);
+	});
+	window.setTimeout(function() {
+		hljs.initHighlighting.called = false;
+		hljs.initHighlighting();
+	}, 500);
+});
+</script>
+
+
+	</head>
+	<body class="qa-template-question qa-body-js-off">
+		<div class="qa-body-wrapper">
+			
+			<div class="qa-header">
+				<div class="qa-logo">
+					<a href="../../" class="qa-logo-link" title="FEniCS Q&amp;A"><img src="../../qa-theme/fenics_qa.png" border="0" alt="FEniCS Q&amp;A"></a>
+				</div>
+				<div class="qa-header-clear">
+				</div>
+			</div> <!-- END qa-header -->
+			
+			<div class="qa-main-shadow">
+				
+				<div class="qa-main-wrapper">
+					
+					<div class="qa-sidepanel">
+						<div class="qa-sidebar">
+							This is a read only copy of the old FEniCS QA forum. Please visit the <a href="https://www.allanswered.com/community/s/fenics-project/">new QA forum</a> to ask questions
+						</div>
+						
+					</div>
+					
+					<div class="qa-main">
+						<h1>
+							<span class="entry-title">time evolution of the scalar wave equation</span>
+						</h1>
+						<div class="qa-part-q-view">
+							<div class="qa-q-view  hentry question" id="q3441">
+								<form method="post" action="../../3441/time-evolution-of-the-scalar-wave-equation">
+									<div class="qa-q-view-stats">
+										<div class="qa-voting qa-voting-net" id="voting_3441">
+											<div class="qa-vote-count qa-vote-count-net">
+												<span class="qa-netvote-count">
+													<span class="qa-netvote-count-data">+1<span class="votes-up"><span class="value-title" title="1"></span></span><span class="votes-down"><span class="value-title" title="0"></span></span></span><span class="qa-netvote-count-pad"> vote</span>
+												</span>
+											</div>
+											<div class="qa-vote-clear">
+											</div>
+										</div>
+									</div>
+									<input type="hidden" name="code" value="0-1516467971-35ca044feb8a6c17061a1ff0593231cf19f9ef3e">
+								</form>
+								<div class="qa-q-view-main">
+									<form method="post" action="../../3441/time-evolution-of-the-scalar-wave-equation">
+										<div class="qa-q-view-content">
+											<a name="3441"></a><div class="entry-content"><p>I'm trying to solve the scalar wave equation with homogenous Dirichlet boundary conditions and an initial state at time zero:</p>
+
+<p>$$\frac{\partial^2 u}{\partial t^2} = \nabla^2 u,$$</p>
+
+<p>by turning it into two, coupled, first-order equations - and solve them using the Crank-Nicolson method:</p>
+
+<p>$$\frac{u^k - u^{k -1}}{\delta t} = (w^k + w^{k -1})/2$$<br>
+$$\frac{w^k - w^{k - 1}}{\delta t} = (\nabla^2 u^k + \nabla^2 u^{k-1})/2$$</p>
+
+<p>The code below does show that the volume initial condition is applied, but I've done something that causes the solution to never change &#8230; :(</p>
+
+<pre><code>from dolfin import *
+
+CRANK_NICOLSON       = 0.5
+theta = Constant(CRANK_NICOLSON)
+
+mesh = UnitCubeMesh(10, 10, 10)
+Va = FunctionSpace(mesh, "Lagrange", 1)
+Vb = FunctionSpace(mesh, "Lagrange", 1)
+V  = Va*Vb
+
+t  = 0.
+dt = 0.60*mesh.hmin()
+
+def boundary(x, on_boundary):
+  return on_boundary
+
+dbc = DirichletBC(V, Constant(("0.", "0.")), boundary)
+
+class VolumeInitialCondition(Expression):
+  def eval(self, value, x):
+    r = sqrt((x[0] - 0.5)**2 + (x[1] - 0.5)**2 + (x[2] - 0.5)**2)
+    value[0] = exp(-(r/0.2)**2)
+    value[1] = -2/0.2*r*exp(-(r/0.2)**2)
+
+  def value_shape(self):
+    return (2,)
+
+(du, u)           = TrialFunctions(V)
+(test_du, test_u) = TestFunctions(V)
+
+w_prev = interpolate(VolumeInitialCondition(), V)
+du_prev, u_prev = w_prev.split()
+
+Dt = Constant(dt/2.)
+lhs1 = test_u*(u - Dt*du)*dx
+rhs1 = test_u*(u_prev + Dt*du_prev)*dx
+lhs2 = test_du*du*dx + Dt*inner(grad(u), grad(test_du))*dx
+rhs2 = test_du*du_prev*dx - Dt*inner(grad(test_du), grad(u_prev))*dx
+
+A = assemble(lhs1 + lhs2)
+b = assemble(rhs1 + rhs2)
+dbc.apply(A)
+dbc.apply(b)
+
+w = Function(V)
+solve(A, w.vector(), b)
+output_file = File("scalar_results.pvd", "compressed")
+wave = w.split()[1]
+wave.rename("WaveFunction", wave.name())
+output_file &lt;&lt; (wave, t)
+
+for step in range(20):
+  # store previous values, increment time step
+  t += dt
+  w_prev.assign(w)
+  du_prev, u_prev = w_prev.split()
+
+  # assemble forms and solve
+  A = assemble(lhs1 + lhs2)
+  b = assemble(rhs1 + rhs2)
+  dbc.apply(A)
+  dbc.apply(b)
+  solve(A, w.vector(), b)
+
+  # save information
+  wave = w.split()[1]
+  wave.rename("WaveFunction", wave.name())
+  output_file &lt;&lt; (wave, t)
+</code></pre>
+</div>
+										</div>
+										<div class="qa-q-view-tags">
+											<ul class="qa-q-view-tag-list">
+												<li class="qa-q-view-tag-item"><a href="../../tag/time-dependent" rel="tag" class="qa-tag-link">time-dependent</a></li>
+												<li class="qa-q-view-tag-item"><a href="../../tag/mixed-formulation" rel="tag" class="qa-tag-link">mixed-formulation</a></li>
+												<li class="qa-q-view-tag-item"><a href="../../tag/wave-equation" rel="tag" class="qa-tag-link">wave-equation</a></li>
+											</ul>
+										</div>
+										<span class="qa-q-view-avatar-meta">
+											<span class="qa-q-view-meta">
+												<a href="../../3441/time-evolution-of-the-scalar-wave-equation" class="qa-q-view-what">asked</a>
+												<span class="qa-q-view-when">
+													<span class="qa-q-view-when-data"><span class="published"><span class="value-title" title="2014-05-01T22:34:14+0000"></span>May 2, 2014</span></span>
+												</span>
+												<span class="qa-q-view-who">
+													<span class="qa-q-view-who-pad">by </span>
+													<span class="qa-q-view-who-data"><span class="vcard author"><a href="../../user/timm" class="qa-user-link url nickname">timm</a></span></span>
+													<span class="qa-q-view-who-title">FEniCS User</span>
+													<span class="qa-q-view-who-points">
+														<span class="qa-q-view-who-points-pad">(</span><span class="qa-q-view-who-points-data">2,100</span><span class="qa-q-view-who-points-pad"> points)</span>
+													</span>
+												</span>
+												<br>
+												<span class="qa-q-view-what">edited</span>
+												<span class="qa-q-view-when">
+													<span class="qa-q-view-when-data"><span class="updated"><span class="value-title" title="2014-05-01T23:10:18+0000"></span>May 2, 2014</span></span>
+												</span>
+												<span class="qa-q-view-who">
+													<span class="qa-q-view-who-pad">by </span><span class="qa-q-view-who-data"><a href="../../user/timm" class="qa-user-link url nickname">timm</a></span>
+												</span>
+											</span>
+										</span>
+										<div class="qa-q-view-buttons">
+										</div>
+										
+										<div class="qa-q-view-c-list" id="c3441_list">
+											<div class="qa-c-list-item  hentry comment" id="c3451">
+												<div class="qa-c-item-content">
+													<a name="3451"></a><div class="entry-content"><p>Hi, </p>
+
+<p>I'm a bit confused by your code, since I'm used to handling wave equations a bit differently:</p>
+
+<p>1) When splitting the second order wave equation up into two first order equations, I usually do this as follows: <br>
+$$ <br>
+\dot{u} = \nabla \cdot v <br>
+$$<br>
+$$ <br>
+\dot{v} = \nabla v <br>
+$$<br>
+That way the system is also first order with respect to the spatial derivatives. <br>
+2) You're working on a 3D mesh, but your unknown fields are scalars. This usually means you assume two of the three components of the unknown vector fields are zero, so you can compute only the non-zero component. In that case also the grad should be reduced to a single derivative, e.g., .dx(0) for the x-direction<br>
+3) Don't apply Dirichlet boundary conditions to both unknowns.</p>
+
+<p>That being said, I'm not sure what's actually wrong with your code yet...<br>
+I'll try to write my own code for this simple example...</p>
+</div>
+												</div>
+												<div class="qa-c-item-footer">
+													<span class="qa-c-item-avatar-meta">
+														<span class="qa-c-item-meta">
+															<a href="../../3441/time-evolution-of-the-scalar-wave-equation?show=3451#c3451" class="qa-c-item-what">commented</a>
+															<span class="qa-c-item-when">
+																<span class="qa-c-item-when-data"><span class="published"><span class="value-title" title="2014-05-02T12:04:14+0000"></span>May 2, 2014</span></span>
+															</span>
+															<span class="qa-c-item-who">
+																<span class="qa-c-item-who-pad">by </span>
+																<span class="qa-c-item-who-data"><span class="vcard author"><a href="../../user/stevenvdk" class="qa-user-link url nickname">stevenvdk</a></span></span>
+																<span class="qa-c-item-who-title">FEniCS User</span>
+																<span class="qa-c-item-who-points">
+																	<span class="qa-c-item-who-points-pad">(</span><span class="qa-c-item-who-points-data">1,590</span><span class="qa-c-item-who-points-pad"> points)</span>
+																</span>
+															</span>
+															<br>
+															<span class="qa-c-item-what">edited</span>
+															<span class="qa-c-item-when">
+																<span class="qa-c-item-when-data"><span class="updated"><span class="value-title" title="2014-05-02T12:17:27+0000"></span>May 2, 2014</span></span>
+															</span>
+															<span class="qa-c-item-who">
+																<span class="qa-c-item-who-pad">by </span><span class="qa-c-item-who-data"><a href="../../user/stevenvdk" class="qa-user-link url nickname">stevenvdk</a></span>
+															</span>
+														</span>
+													</span>
+													<div class="qa-c-item-buttons">
+													</div>
+												</div>
+												<div class="qa-c-item-clear">
+												</div>
+											</div> <!-- END qa-c-item -->
+											<div class="qa-c-list-item  hentry comment" id="c3458">
+												<div class="qa-c-item-content">
+													<a name="3458"></a><div class="entry-content"><p>Thanks for the reply - my laptop is an ancient Windows machine, so I'll have to wait till Monday to try your idea out. :(</p>
+
+<p>I really wanted to solve a vector wave equation, but figured that the scalar wave equation would be "easier" to start out with. Is there a reference that describes your divergence trick?</p>
+</div>
+												</div>
+												<div class="qa-c-item-footer">
+													<span class="qa-c-item-avatar-meta">
+														<span class="qa-c-item-meta">
+															<a href="../../3441/time-evolution-of-the-scalar-wave-equation?show=3458#c3458" class="qa-c-item-what">commented</a>
+															<span class="qa-c-item-when">
+																<span class="qa-c-item-when-data"><span class="published"><span class="value-title" title="2014-05-03T00:48:40+0000"></span>May 3, 2014</span></span>
+															</span>
+															<span class="qa-c-item-who">
+																<span class="qa-c-item-who-pad">by </span>
+																<span class="qa-c-item-who-data"><span class="vcard author"><a href="../../user/timm" class="qa-user-link url nickname">timm</a></span></span>
+																<span class="qa-c-item-who-title">FEniCS User</span>
+																<span class="qa-c-item-who-points">
+																	<span class="qa-c-item-who-points-pad">(</span><span class="qa-c-item-who-points-data">2,100</span><span class="qa-c-item-who-points-pad"> points)</span>
+																</span>
+															</span>
+															<br>
+															<span class="qa-c-item-what">edited</span>
+															<span class="qa-c-item-when">
+																<span class="qa-c-item-when-data"><span class="updated"><span class="value-title" title="2014-05-03T00:55:01+0000"></span>May 3, 2014</span></span>
+															</span>
+															<span class="qa-c-item-who">
+																<span class="qa-c-item-who-pad">by </span><span class="qa-c-item-who-data"><a href="../../user/timm" class="qa-user-link url nickname">timm</a></span>
+															</span>
+														</span>
+													</span>
+													<div class="qa-c-item-buttons">
+													</div>
+												</div>
+												<div class="qa-c-item-clear">
+												</div>
+											</div> <!-- END qa-c-item -->
+											<div class="qa-c-list-item  hentry comment" id="c8355">
+												<div class="qa-c-item-content">
+													<a name="8355"></a><div class="entry-content"><p>Hello stevenvdk and timm, I am also trying to model the seismic wave equation on a 2D mesh. You seem to have excellent previous experience with wave modelling. Can you guys pls. help me with my question below? I' ll be really grateful for your help and guidance!</p>
+
+<p><a rel="nofollow" href="http://fenicsproject.org/qa/8352/best-method-for-discretization-of-wave-equation">http://fenicsproject.org/qa/8352/best-method-for-discretization-of-wave-equation</a></p>
+</div>
+												</div>
+												<div class="qa-c-item-footer">
+													<span class="qa-c-item-avatar-meta">
+														<span class="qa-c-item-avatar">
+															<a href="../../user/Chaitanya_Raj_Goyal" class="qa-avatar-link"><img src="../../?qa=image&amp;qa_blobid=5557427273671820211&amp;qa_size=20" width="20" height="12" class="qa-avatar-image" alt=""></a>
+														</span>
+														<span class="qa-c-item-meta">
+															<a href="../../3441/time-evolution-of-the-scalar-wave-equation?show=8355#c8355" class="qa-c-item-what">commented</a>
+															<span class="qa-c-item-when">
+																<span class="qa-c-item-when-data"><span class="published"><span class="value-title" title="2015-10-16T16:43:42+0000"></span>Oct 16, 2015</span></span>
+															</span>
+															<span class="qa-c-item-who">
+																<span class="qa-c-item-who-pad">by </span>
+																<span class="qa-c-item-who-data"><span class="vcard author"><a href="../../user/Chaitanya_Raj_Goyal" class="qa-user-link url nickname">Chaitanya_Raj_Goyal</a></span></span>
+																<span class="qa-c-item-who-title">FEniCS User</span>
+																<span class="qa-c-item-who-points">
+																	<span class="qa-c-item-who-points-pad">(</span><span class="qa-c-item-who-points-data">4,150</span><span class="qa-c-item-who-points-pad"> points)</span>
+																</span>
+															</span>
+														</span>
+													</span>
+													<div class="qa-c-item-buttons">
+													</div>
+												</div>
+												<div class="qa-c-item-clear">
+												</div>
+											</div> <!-- END qa-c-item -->
+										</div> <!-- END qa-c-list -->
+										
+										<input type="hidden" name="code" value="0-1516467971-675267a9eab6fb3a9eeb6f2d1bdd3c208961ec25">
+										<input type="hidden" name="qa_click" value="">
+									</form>
+									<div class="qa-c-form">
+									</div> <!-- END qa-c-form -->
+									
+								</div> <!-- END qa-q-view-main -->
+								<div class="qa-q-view-clear">
+								</div>
+							</div> <!-- END qa-q-view -->
+							
+						</div>
+						<div class="qa-part-a-list">
+							<h2 id="a_list_title">1 Answer</h2>
+							<div class="qa-a-list" id="a_list">
+								
+								<div class="qa-a-list-item  hentry answer answer-selected qa-a-list-item-selected" id="a3453">
+									<form method="post" action="../../3441/time-evolution-of-the-scalar-wave-equation">
+										<div class="qa-voting qa-voting-net" id="voting_3453">
+											<div class="qa-vote-count qa-vote-count-net">
+												<span class="qa-netvote-count">
+													<span class="qa-netvote-count-data">0<span class="votes-up"><span class="value-title" title="0"></span></span><span class="votes-down"><span class="value-title" title="0"></span></span></span><span class="qa-netvote-count-pad"> votes</span>
+												</span>
+											</div>
+											<div class="qa-vote-clear">
+											</div>
+										</div>
+										<input type="hidden" name="code" value="0-1516467971-35ca044feb8a6c17061a1ff0593231cf19f9ef3e">
+									</form>
+									<div class="qa-a-item-main">
+										<form method="post" action="../../3441/time-evolution-of-the-scalar-wave-equation">
+											<div class="qa-a-item-selected">
+												<div class="qa-a-selection">
+													<div class="qa-a-selected">&#160;</div>
+													<div class="qa-a-selected-text">Best answer</div>
+												</div>
+												<div class="qa-a-item-content">
+													<a name="3453"></a><div class="entry-content"><p>Hi, </p>
+
+<p>you can try to replace </p>
+
+<pre><code>w_prev.assign(w)
+du_prev, u_prev = w_prev.split()
+</code></pre>
+
+<p>by </p>
+
+<pre><code>dut, ut = w.split(deepcopy = True)
+du_prev.assign(dut)
+u_prev.assign(ut)
+</code></pre>
+
+<p>That will make your results "propagate". However, since the rest of your code needs some work (see my comments), the result is not yet correct...</p>
+
+<p>Regards</p>
+</div>
+												</div>
+												<span class="qa-a-item-avatar-meta">
+													<span class="qa-a-item-meta">
+														<a href="../../3441/time-evolution-of-the-scalar-wave-equation?show=3453#a3453" class="qa-a-item-what">answered</a>
+														<span class="qa-a-item-when">
+															<span class="qa-a-item-when-data"><span class="published"><span class="value-title" title="2014-05-02T13:25:47+0000"></span>May 2, 2014</span></span>
+														</span>
+														<span class="qa-a-item-who">
+															<span class="qa-a-item-who-pad">by </span>
+															<span class="qa-a-item-who-data"><span class="vcard author"><a href="../../user/stevenvdk" class="qa-user-link url nickname">stevenvdk</a></span></span>
+															<span class="qa-a-item-who-title">FEniCS User</span>
+															<span class="qa-a-item-who-points">
+																<span class="qa-a-item-who-points-pad">(</span><span class="qa-a-item-who-points-data">1,590</span><span class="qa-a-item-who-points-pad"> points)</span>
+															</span>
+														</span>
+														<br>
+														<span class="qa-a-item-what">selected</span>
+														<span class="qa-a-item-when">
+															<span class="qa-a-item-when-data"><span class="updated"><span class="value-title" title="2014-05-05T14:21:17+0000"></span>May 5, 2014</span></span>
+														</span>
+														<span class="qa-a-item-who">
+															<span class="qa-a-item-who-pad">by </span><span class="qa-a-item-who-data"><a href="../../user/timm" class="qa-user-link url nickname">timm</a></span>
+														</span>
+													</span>
+												</span>
+											</div>
+											<div class="qa-a-item-buttons">
+												</div>
+											
+											<div class="qa-a-item-c-list" id="c3453_list">
+												<div class="qa-c-list-item  hentry comment" id="c3459">
+													<div class="qa-c-item-content">
+														<a name="3459"></a><div class="entry-content"><p>Thanks - sometimes the Python script makes everything a bit mysterious because I probably really need to understand what is going on with the data structures in the background. Would I be better off coding this in C++?</p>
+</div>
+													</div>
+													<div class="qa-c-item-footer">
+														<span class="qa-c-item-avatar-meta">
+															<span class="qa-c-item-meta">
+																<a href="../../3441/time-evolution-of-the-scalar-wave-equation?show=3459#c3459" class="qa-c-item-what">commented</a>
+																<span class="qa-c-item-when">
+																	<span class="qa-c-item-when-data"><span class="published"><span class="value-title" title="2014-05-03T00:52:07+0000"></span>May 3, 2014</span></span>
+																</span>
+																<span class="qa-c-item-who">
+																	<span class="qa-c-item-who-pad">by </span>
+																	<span class="qa-c-item-who-data"><span class="vcard author"><a href="../../user/timm" class="qa-user-link url nickname">timm</a></span></span>
+																	<span class="qa-c-item-who-title">FEniCS User</span>
+																	<span class="qa-c-item-who-points">
+																		<span class="qa-c-item-who-points-pad">(</span><span class="qa-c-item-who-points-data">2,100</span><span class="qa-c-item-who-points-pad"> points)</span>
+																	</span>
+																</span>
+															</span>
+														</span>
+														<div class="qa-c-item-buttons">
+														</div>
+													</div>
+													<div class="qa-c-item-clear">
+													</div>
+												</div> <!-- END qa-c-item -->
+												<div class="qa-c-list-item  hentry comment" id="c3470">
+													<div class="qa-c-item-content">
+														<a name="3470"></a><div class="entry-content"><p>Hey! that got it to propagate the results &#8230; thanks for the advice on the change.</p>
+</div>
+													</div>
+													<div class="qa-c-item-footer">
+														<span class="qa-c-item-avatar-meta">
+															<span class="qa-c-item-meta">
+																<a href="../../3441/time-evolution-of-the-scalar-wave-equation?show=3470#c3470" class="qa-c-item-what">commented</a>
+																<span class="qa-c-item-when">
+																	<span class="qa-c-item-when-data"><span class="published"><span class="value-title" title="2014-05-05T14:23:12+0000"></span>May 5, 2014</span></span>
+																</span>
+																<span class="qa-c-item-who">
+																	<span class="qa-c-item-who-pad">by </span>
+																	<span class="qa-c-item-who-data"><span class="vcard author"><a href="../../user/timm" class="qa-user-link url nickname">timm</a></span></span>
+																	<span class="qa-c-item-who-title">FEniCS User</span>
+																	<span class="qa-c-item-who-points">
+																		<span class="qa-c-item-who-points-pad">(</span><span class="qa-c-item-who-points-data">2,100</span><span class="qa-c-item-who-points-pad"> points)</span>
+																	</span>
+																</span>
+															</span>
+														</span>
+														<div class="qa-c-item-buttons">
+														</div>
+													</div>
+													<div class="qa-c-item-clear">
+													</div>
+												</div> <!-- END qa-c-item -->
+											</div> <!-- END qa-c-list -->
+											
+											<input type="hidden" name="code" value="0-1516467971-c3dce51a22b90c29f0201a7d70fe3c8701686301">
+											<input type="hidden" name="qa_click" value="">
+										</form>
+										<div class="qa-c-form">
+										</div> <!-- END qa-c-form -->
+										
+									</div> <!-- END qa-a-item-main -->
+									<div class="qa-a-item-clear">
+									</div>
+								</div> <!-- END qa-a-list-item -->
+								
+							</div> <!-- END qa-a-list -->
+							
+						</div>
+					</div> <!-- END qa-main -->
+					
+				</div> <!-- END main-wrapper -->
+			</div> <!-- END main-shadow -->
+		</div> <!-- END body-wrapper -->
+		<!-- END footer-bottom-group -->
+		
+		<div style="position:absolute; left:-9999px; top:-9999px;">
+			<span id="qa-waiting-template" class="qa-waiting">...</span>
+		</div>
+	
+	
+
+</body><!-- Powered by Question2Answer - http://www.question2answer.org/ --></html>

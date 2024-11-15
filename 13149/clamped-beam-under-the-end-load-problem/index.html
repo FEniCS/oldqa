@@ -1,0 +1,483 @@
+<html><!-- Powered by Question2Answer - http://www.question2answer.org/ --><head>
+		<meta http-equiv="content-type" content="text/html; charset=utf-8">
+		<title>Clamped Beam under the End Load Problem - FEniCS Q&amp;A</title>
+		<meta name="description" content="Hello I have solved a linear elasticity problem : A clamped beam under the end load. The left side is  ... .jpg [2]: http://i.imgur.com/boqkEso.jpg">
+		<meta name="keywords" content="beam,cantilever,point-load,linear-elasticity,paraview">
+		<link rel="stylesheet" type="text/css" href="../../qa-theme/Snow/qa-styles.css">
+		<link rel="canonical" href="http://fenicsproject.org/qa/13149/clamped-beam-under-the-end-load-problem">
+		<script type="text/x-mathjax-config">
+  MathJax.Hub.Config({
+    extensions: ["tex2jax.js"],
+    jax: ["input/TeX","output/HTML-CSS"],
+    tex2jax: {inlineMath: [["$","$"],["\\(","\\)"]]},
+    TeX: { extensions: ["AMSmath.js","AMSsymbols.js"]}
+  });
+</script>
+<script type="text/javascript" src="../../mathjax/MathJax.js"></script>
+		<script src="../../jquery-1.7.2.min.js" type="text/javascript"></script>
+		<script src="../../highlight.min.js"></script>
+<script type="text/javascript">
+$(function(){
+	$('.wmd-input').keypress(function(){
+		window.clearTimeout(hljs.Timeout);
+		hljs.Timeout = window.setTimeout(function() {
+			hljs.initHighlighting.called = false;
+			hljs.initHighlighting();
+		}, 500);
+	});
+	window.setTimeout(function() {
+		hljs.initHighlighting.called = false;
+		hljs.initHighlighting();
+	}, 500);
+});
+</script>
+
+
+	</head>
+	<body class="qa-template-question qa-body-js-off">
+		<div class="qa-body-wrapper">
+			
+			<div class="qa-header">
+				<div class="qa-logo">
+					<a href="../../" class="qa-logo-link" title="FEniCS Q&amp;A"><img src="../../qa-theme/fenics_qa.png" border="0" alt="FEniCS Q&amp;A"></a>
+				</div>
+				<div class="qa-header-clear">
+				</div>
+			</div> <!-- END qa-header -->
+			
+			<div class="qa-main-shadow">
+				
+				<div class="qa-main-wrapper">
+					
+					<div class="qa-sidepanel">
+						<div class="qa-sidebar">
+							This is a read only copy of the old FEniCS QA forum. Please visit the <a href="https://www.allanswered.com/community/s/fenics-project/">new QA forum</a> to ask questions
+						</div>
+						
+					</div>
+					
+					<div class="qa-main">
+						<h1>
+							<span class="entry-title">Clamped Beam under the End Load Problem</span>
+						</h1>
+						<div class="qa-part-q-view">
+							<div class="qa-q-view  hentry question" id="q13149">
+								<form method="post" action="../../13149/clamped-beam-under-the-end-load-problem">
+									<div class="qa-q-view-stats">
+										<div class="qa-voting qa-voting-net" id="voting_13149">
+											<div class="qa-vote-count qa-vote-count-net">
+												<span class="qa-netvote-count">
+													<span class="qa-netvote-count-data">+1<span class="votes-up"><span class="value-title" title="1"></span></span><span class="votes-down"><span class="value-title" title="0"></span></span></span><span class="qa-netvote-count-pad"> vote</span>
+												</span>
+											</div>
+											<div class="qa-vote-clear">
+											</div>
+										</div>
+									</div>
+									<input type="hidden" name="code" value="0-1516467855-eeb9e47d21313aada10cff1a0dc6ded301b2cf48">
+								</form>
+								<div class="qa-q-view-main">
+									<form method="post" action="../../13149/clamped-beam-under-the-end-load-problem">
+										<div class="qa-q-view-content">
+											<a name="13149"></a><div class="entry-content"><p>Hello<br>
+I have solved a linear elasticity problem : A clamped beam under the end load. The left side is clamped and I want to apply a vertical end load on the right edge. A part of my code:</p>
+
+<pre><code># Create mesh and define function space
+mesh = RectangleMesh(Point(0, 0), Point(L, W), 10, 3)
+V = VectorFunctionSpace(mesh, 'P', 1)
+
+class LeftEdge(SubDomain):
+    def inside(self, x, on_boundary):
+        tol = 1e-6
+        return on_boundary and abs(x[0]) &lt; tol
+
+class RightEdge(SubDomain):
+    def inside(self, x, on_boundary):
+        tol = 1e-6
+       return on_boundary and abs(x[0] - L) &lt; tol
+
+left_edge = LeftEdge()
+right_edge = RightEdge()
+sub_domains = FacetFunction("size_t", mesh, mesh.topology().dim() - 1)
+sub_domains.set_all(0)
+right_edge.mark(sub_domains, 1)
+left_edge.mark(sub_domains, 2)
+ds = Measure("ds")[sub_domains]
+
+#Zero Dirichlet B.C on the left side
+bc = DirichletBC(V, Constant((0, 0)), left_edge)
+
+# Define variational problem
+u = TrialFunction(V)
+v = TestFunction(V)
+
+#End Load
+T = Constant((0, -10))
+
+#Solve
+a = inner(sigma(u), eps(v))*dx
+L =dot(T, v)*ds(1)
+
+# Compute solution
+u = Function(V)
+solve(a == L, u, bc)
+</code></pre>
+
+<p>The question is, when I plot the end load:</p>
+
+<pre><code>p=interpolate(T,V)
+plot(p, title='Load')                          
+</code></pre>
+
+<p>This is what comes up:<br>
+<img src="http://i.imgur.com/I8bMMUN.jpg" alt="enter image description here"></p>
+
+<p>As you can see this is not a load applied on only one edge. I mean this is like a distributed load started from the one end to the other end. In addition when I import my results to the Paraview I get the below pattern for the end load:</p>
+
+<p><img src="http://i.imgur.com/boqkEso.jpg" alt="enter image description here"></p>
+
+<p>Again, as you can see it looks like a distributed load (some arrows started from the beginning to the end of the beam), while I just expect one arrow on the right edge. <br>
+Could you please tell me why it looks like this?</p>
+</div>
+										</div>
+										<div class="qa-q-view-tags">
+											<ul class="qa-q-view-tag-list">
+												<li class="qa-q-view-tag-item"><a href="../../tag/beam" rel="tag" class="qa-tag-link">beam</a></li>
+												<li class="qa-q-view-tag-item"><a href="../../tag/cantilever" rel="tag" class="qa-tag-link">cantilever</a></li>
+												<li class="qa-q-view-tag-item"><a href="../../tag/point-load" rel="tag" class="qa-tag-link">point-load</a></li>
+												<li class="qa-q-view-tag-item"><a href="../../tag/linear-elasticity" rel="tag" class="qa-tag-link">linear-elasticity</a></li>
+												<li class="qa-q-view-tag-item"><a href="../../tag/paraview" rel="tag" class="qa-tag-link">paraview</a></li>
+											</ul>
+										</div>
+										<span class="qa-q-view-avatar-meta">
+											<span class="qa-q-view-meta">
+												<a href="../../13149/clamped-beam-under-the-end-load-problem" class="qa-q-view-what">asked</a>
+												<span class="qa-q-view-when">
+													<span class="qa-q-view-when-data"><span class="published"><span class="value-title" title="2017-04-20T22:15:32+0000"></span>Apr 21, 2017</span></span>
+												</span>
+												<span class="qa-q-view-who">
+													<span class="qa-q-view-who-pad">by </span>
+													<span class="qa-q-view-who-data"><span class="vcard author"><a href="../../user/Leo" class="qa-user-link url nickname">Leo</a></span></span>
+													<span class="qa-q-view-who-title">FEniCS Novice</span>
+													<span class="qa-q-view-who-points">
+														<span class="qa-q-view-who-points-pad">(</span><span class="qa-q-view-who-points-data">840</span><span class="qa-q-view-who-points-pad"> points)</span>
+													</span>
+												</span>
+											</span>
+										</span>
+										<div class="qa-q-view-buttons">
+										</div>
+										
+										<div class="qa-q-view-c-list" style="display:none;" id="c13149_list">
+										</div> <!-- END qa-c-list -->
+										
+										<input type="hidden" name="code" value="0-1516467855-d8a0f63f50cef997e6a5e6471489c4ed42083541">
+										<input type="hidden" name="qa_click" value="">
+									</form>
+									<div class="qa-c-form">
+									</div> <!-- END qa-c-form -->
+									
+								</div> <!-- END qa-q-view-main -->
+								<div class="qa-q-view-clear">
+								</div>
+							</div> <!-- END qa-q-view -->
+							
+						</div>
+						<div class="qa-part-a-list">
+							<h2 id="a_list_title">1 Answer</h2>
+							<div class="qa-a-list" id="a_list">
+								
+								<div class="qa-a-list-item  hentry answer answer-selected qa-a-list-item-selected" id="a13152">
+									<form method="post" action="../../13149/clamped-beam-under-the-end-load-problem">
+										<div class="qa-voting qa-voting-net" id="voting_13152">
+											<div class="qa-vote-count qa-vote-count-net">
+												<span class="qa-netvote-count">
+													<span class="qa-netvote-count-data">+2<span class="votes-up"><span class="value-title" title="2"></span></span><span class="votes-down"><span class="value-title" title="0"></span></span></span><span class="qa-netvote-count-pad"> votes</span>
+												</span>
+											</div>
+											<div class="qa-vote-clear">
+											</div>
+										</div>
+										<input type="hidden" name="code" value="0-1516467855-eeb9e47d21313aada10cff1a0dc6ded301b2cf48">
+									</form>
+									<div class="qa-a-item-main">
+										<form method="post" action="../../13149/clamped-beam-under-the-end-load-problem">
+											<div class="qa-a-item-selected">
+												<div class="qa-a-selection">
+													<div class="qa-a-selected">&#160;</div>
+													<div class="qa-a-selected-text">Best answer</div>
+												</div>
+												<div class="qa-a-item-content">
+													<a name="13152"></a><div class="entry-content"><p>You've interpolated the constant T over the space V, which results in a <code>Function</code> defined over all of V, which you are then plotting over the whole mesh. Your solution should be ok (at least wrt. how the load is applied) since you are integrating this boundary condition properly with <code>ds(1)</code>.</p>
+
+<p>If you want your <code>p</code> to truly be a point load, you could:</p>
+
+<ol>
+<li><p>Create a zero constant over V, then edit its value for the dofs at the vertex you are interested in (see e.g. <a rel="nofollow" href="https://fenicsproject.org/qa/12578/simply-assign-value-function-unique-vertex-with-coordinate?show=12578#q12578">this question</a>)</p></li>
+<li><p>(Better) Subclass <code>Expression</code>:</p>
+
+<pre><code>class PointLoad(Expression):
+    def __init__(self, **kwargs):
+        self.point = kwargs['point']
+        self.value = kwargs['value']
+    def eval(self, value, x):
+        if near (x[0], self.point[0]) and near(x[1], self.point[1]):
+            value[0] = self.value[0]
+            value[1] = self.value[1]
+        else:  # Reset the input variable because it's likely to be reused
+            values[0] = 0
+            values[1] = 0
+    def value_shape(self):
+        return (2,)
+</code></pre>
+
+<p>Then use this with</p>
+
+<pre><code> T = PointLoad(point=(1.0,.2), value=(0,-10), degree=0)
+</code></pre></li>
+<li><p>Or use <a rel="nofollow" href="https://fenicsproject.org/olddocs/dolfin/2016.2.0/python/programmers-reference/cpp/fem/PointSource.html"><code>dolfin.PointSource()</code></a>. Note that you can apply it to one component of a vector:</p>
+
+<pre><code>u = Function(V)
+ps = PointSource(V.sub(1), L)
+ps.apply(u.vector()) 
+</code></pre></li>
+</ol>
+</div>
+												</div>
+												<span class="qa-a-item-avatar-meta">
+													<span class="qa-a-item-avatar">
+														<a href="../../user/mdbenito" class="qa-avatar-link"><img src="https://www.gravatar.com/avatar/6545a7c3ba26a36c62facacf39cb4b51?s=40" width="40" height="40" class="qa-avatar-image" alt=""></a>
+													</span>
+													<span class="qa-a-item-meta">
+														<a href="../../13149/clamped-beam-under-the-end-load-problem?show=13152#a13152" class="qa-a-item-what">answered</a>
+														<span class="qa-a-item-when">
+															<span class="qa-a-item-when-data"><span class="published"><span class="value-title" title="2017-04-21T07:17:35+0000"></span>Apr 21, 2017</span></span>
+														</span>
+														<span class="qa-a-item-who">
+															<span class="qa-a-item-who-pad">by </span>
+															<span class="qa-a-item-who-data"><span class="vcard author"><a href="../../user/mdbenito" class="qa-user-link url nickname">mdbenito</a></span></span>
+															<span class="qa-a-item-who-title">FEniCS User</span>
+															<span class="qa-a-item-who-points">
+																<span class="qa-a-item-who-points-pad">(</span><span class="qa-a-item-who-points-data">4,530</span><span class="qa-a-item-who-points-pad"> points)</span>
+															</span>
+														</span>
+														<br>
+														<span class="qa-a-item-what">selected</span>
+														<span class="qa-a-item-when">
+															<span class="qa-a-item-when-data"><span class="updated"><span class="value-title" title="2017-04-27T16:29:16+0000"></span>Apr 27, 2017</span></span>
+														</span>
+														<span class="qa-a-item-who">
+															<span class="qa-a-item-who-pad">by </span><span class="qa-a-item-who-data"><a href="../../user/Leo" class="qa-user-link url nickname">Leo</a></span>
+														</span>
+													</span>
+												</span>
+											</div>
+											<div class="qa-a-item-buttons">
+												</div>
+											
+											<div class="qa-a-item-c-list" id="c13152_list">
+												<div class="qa-c-list-item ">
+													<a href="?state=showcomments-13152&amp;show=13152#a13152" onclick="return qa_show_comments(13149, 13152, this);" class="qa-c-item-expand">Show 8 previous comments</a>
+													<div class="qa-c-item-footer">
+														<span class="qa-c-item-avatar-meta">
+															<span class="qa-c-item-meta">
+															</span>
+														</span>
+													</div>
+													<div class="qa-c-item-clear">
+													</div>
+												</div> <!-- END qa-c-item -->
+												<div class="qa-c-list-item  hentry comment" id="c13238">
+													<div class="qa-c-item-content">
+														<a name="13238"></a><div class="entry-content"><p>But of course! (slap myself in the forehead) We are overwriting value with self.value, when we should be assigning to its components! As it was the code was just discarding the input variable. I'm fixing my answer. I should've run this before posting, sorry</p>
+</div>
+													</div>
+													<div class="qa-c-item-footer">
+														<span class="qa-c-item-avatar-meta">
+															<span class="qa-c-item-avatar">
+																<a href="../../user/mdbenito" class="qa-avatar-link"><img src="https://www.gravatar.com/avatar/6545a7c3ba26a36c62facacf39cb4b51?s=20" width="20" height="20" class="qa-avatar-image" alt=""></a>
+															</span>
+															<span class="qa-c-item-meta">
+																<a href="../../13149/clamped-beam-under-the-end-load-problem?show=13238#c13238" class="qa-c-item-what">commented</a>
+																<span class="qa-c-item-when">
+																	<span class="qa-c-item-when-data"><span class="published"><span class="value-title" title="2017-04-26T16:58:09+0000"></span>Apr 26, 2017</span></span>
+																</span>
+																<span class="qa-c-item-who">
+																	<span class="qa-c-item-who-pad">by </span>
+																	<span class="qa-c-item-who-data"><span class="vcard author"><a href="../../user/mdbenito" class="qa-user-link url nickname">mdbenito</a></span></span>
+																	<span class="qa-c-item-who-title">FEniCS User</span>
+																	<span class="qa-c-item-who-points">
+																		<span class="qa-c-item-who-points-pad">(</span><span class="qa-c-item-who-points-data">4,530</span><span class="qa-c-item-who-points-pad"> points)</span>
+																	</span>
+																</span>
+															</span>
+														</span>
+														<div class="qa-c-item-buttons">
+														</div>
+													</div>
+													<div class="qa-c-item-clear">
+													</div>
+												</div> <!-- END qa-c-item -->
+												<div class="qa-c-list-item  hentry comment" id="c13239">
+													<div class="qa-c-item-content">
+														<a name="13239"></a><div class="entry-content"><p>Plot T with</p>
+
+<pre><code>plot(T, mesh=V.mesh())
+</code></pre>
+</div>
+													</div>
+													<div class="qa-c-item-footer">
+														<span class="qa-c-item-avatar-meta">
+															<span class="qa-c-item-avatar">
+																<a href="../../user/mdbenito" class="qa-avatar-link"><img src="https://www.gravatar.com/avatar/6545a7c3ba26a36c62facacf39cb4b51?s=20" width="20" height="20" class="qa-avatar-image" alt=""></a>
+															</span>
+															<span class="qa-c-item-meta">
+																<a href="../../13149/clamped-beam-under-the-end-load-problem?show=13239#c13239" class="qa-c-item-what">commented</a>
+																<span class="qa-c-item-when">
+																	<span class="qa-c-item-when-data"><span class="published"><span class="value-title" title="2017-04-26T17:01:54+0000"></span>Apr 26, 2017</span></span>
+																</span>
+																<span class="qa-c-item-who">
+																	<span class="qa-c-item-who-pad">by </span>
+																	<span class="qa-c-item-who-data"><span class="vcard author"><a href="../../user/mdbenito" class="qa-user-link url nickname">mdbenito</a></span></span>
+																	<span class="qa-c-item-who-title">FEniCS User</span>
+																	<span class="qa-c-item-who-points">
+																		<span class="qa-c-item-who-points-pad">(</span><span class="qa-c-item-who-points-data">4,530</span><span class="qa-c-item-who-points-pad"> points)</span>
+																	</span>
+																</span>
+															</span>
+														</span>
+														<div class="qa-c-item-buttons">
+														</div>
+													</div>
+													<div class="qa-c-item-clear">
+													</div>
+												</div> <!-- END qa-c-item -->
+												<div class="qa-c-list-item  hentry comment" id="c13244">
+													<div class="qa-c-item-content">
+														<a name="13244"></a><div class="entry-content"><p>Ok, that one was subtle: for efficiency reasons the parameter <code>values</code> is owned by the caller to <code>eval()</code>, so that one needs not allocate memory on each call. But then it is most likely going to be reused! After <code>PointLoad.eval()</code> sets it to some value, <em>it will keep it</em>, so we need to reset it:</p>
+
+<pre><code>if near...:
+    # stuff
+else:
+    values[0] = 0
+    values[1] = 0
+</code></pre>
+
+<p>This is pretty wasteful, but I see no other workaround. </p>
+</div>
+													</div>
+													<div class="qa-c-item-footer">
+														<span class="qa-c-item-avatar-meta">
+															<span class="qa-c-item-avatar">
+																<a href="../../user/mdbenito" class="qa-avatar-link"><img src="https://www.gravatar.com/avatar/6545a7c3ba26a36c62facacf39cb4b51?s=20" width="20" height="20" class="qa-avatar-image" alt=""></a>
+															</span>
+															<span class="qa-c-item-meta">
+																<a href="../../13149/clamped-beam-under-the-end-load-problem?show=13244#c13244" class="qa-c-item-what">commented</a>
+																<span class="qa-c-item-when">
+																	<span class="qa-c-item-when-data"><span class="published"><span class="value-title" title="2017-04-27T07:24:40+0000"></span>Apr 27, 2017</span></span>
+																</span>
+																<span class="qa-c-item-who">
+																	<span class="qa-c-item-who-pad">by </span>
+																	<span class="qa-c-item-who-data"><span class="vcard author"><a href="../../user/mdbenito" class="qa-user-link url nickname">mdbenito</a></span></span>
+																	<span class="qa-c-item-who-title">FEniCS User</span>
+																	<span class="qa-c-item-who-points">
+																		<span class="qa-c-item-who-points-pad">(</span><span class="qa-c-item-who-points-data">4,530</span><span class="qa-c-item-who-points-pad"> points)</span>
+																	</span>
+																</span>
+															</span>
+														</span>
+														<div class="qa-c-item-buttons">
+														</div>
+													</div>
+													<div class="qa-c-item-clear">
+													</div>
+												</div> <!-- END qa-c-item -->
+												<div class="qa-c-list-item  hentry comment" id="c13255">
+													<div class="qa-c-item-content">
+														<a name="13255"></a><div class="entry-content"><p>Thank you so much for your help. It really works this time! It was not as easy as I thought it would be! </p>
+</div>
+													</div>
+													<div class="qa-c-item-footer">
+														<span class="qa-c-item-avatar-meta">
+															<span class="qa-c-item-meta">
+																<a href="../../13149/clamped-beam-under-the-end-load-problem?show=13255#c13255" class="qa-c-item-what">commented</a>
+																<span class="qa-c-item-when">
+																	<span class="qa-c-item-when-data"><span class="published"><span class="value-title" title="2017-04-27T16:29:04+0000"></span>Apr 27, 2017</span></span>
+																</span>
+																<span class="qa-c-item-who">
+																	<span class="qa-c-item-who-pad">by </span>
+																	<span class="qa-c-item-who-data"><span class="vcard author"><a href="../../user/Leo" class="qa-user-link url nickname">Leo</a></span></span>
+																	<span class="qa-c-item-who-title">FEniCS Novice</span>
+																	<span class="qa-c-item-who-points">
+																		<span class="qa-c-item-who-points-pad">(</span><span class="qa-c-item-who-points-data">840</span><span class="qa-c-item-who-points-pad"> points)</span>
+																	</span>
+																</span>
+															</span>
+														</span>
+														<div class="qa-c-item-buttons">
+														</div>
+													</div>
+													<div class="qa-c-item-clear">
+													</div>
+												</div> <!-- END qa-c-item -->
+												<div class="qa-c-list-item  hentry comment" id="c13256">
+													<div class="qa-c-item-content">
+														<a name="13256"></a><div class="entry-content"><p>Glad it helped! I did learn stuff too :)</p>
+</div>
+													</div>
+													<div class="qa-c-item-footer">
+														<span class="qa-c-item-avatar-meta">
+															<span class="qa-c-item-avatar">
+																<a href="../../user/mdbenito" class="qa-avatar-link"><img src="https://www.gravatar.com/avatar/6545a7c3ba26a36c62facacf39cb4b51?s=20" width="20" height="20" class="qa-avatar-image" alt=""></a>
+															</span>
+															<span class="qa-c-item-meta">
+																<a href="../../13149/clamped-beam-under-the-end-load-problem?show=13256#c13256" class="qa-c-item-what">commented</a>
+																<span class="qa-c-item-when">
+																	<span class="qa-c-item-when-data"><span class="published"><span class="value-title" title="2017-04-27T16:33:13+0000"></span>Apr 27, 2017</span></span>
+																</span>
+																<span class="qa-c-item-who">
+																	<span class="qa-c-item-who-pad">by </span>
+																	<span class="qa-c-item-who-data"><span class="vcard author"><a href="../../user/mdbenito" class="qa-user-link url nickname">mdbenito</a></span></span>
+																	<span class="qa-c-item-who-title">FEniCS User</span>
+																	<span class="qa-c-item-who-points">
+																		<span class="qa-c-item-who-points-pad">(</span><span class="qa-c-item-who-points-data">4,530</span><span class="qa-c-item-who-points-pad"> points)</span>
+																	</span>
+																</span>
+															</span>
+														</span>
+														<div class="qa-c-item-buttons">
+														</div>
+													</div>
+													<div class="qa-c-item-clear">
+													</div>
+												</div> <!-- END qa-c-item -->
+											</div> <!-- END qa-c-list -->
+											
+											<input type="hidden" name="code" value="0-1516467855-6e64b1001aa2abaf11675e08ced4657e99a5c6dc">
+											<input type="hidden" name="qa_click" value="">
+										</form>
+										<div class="qa-c-form">
+										</div> <!-- END qa-c-form -->
+										
+									</div> <!-- END qa-a-item-main -->
+									<div class="qa-a-item-clear">
+									</div>
+								</div> <!-- END qa-a-list-item -->
+								
+							</div> <!-- END qa-a-list -->
+							
+						</div>
+					</div> <!-- END qa-main -->
+					
+				</div> <!-- END main-wrapper -->
+			</div> <!-- END main-shadow -->
+		</div> <!-- END body-wrapper -->
+		<!-- END footer-bottom-group -->
+		
+		<div style="position:absolute; left:-9999px; top:-9999px;">
+			<span id="qa-waiting-template" class="qa-waiting">...</span>
+		</div>
+	
+	
+
+</body><!-- Powered by Question2Answer - http://www.question2answer.org/ --></html>

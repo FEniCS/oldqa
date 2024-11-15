@@ -1,0 +1,673 @@
+<html><!-- Powered by Question2Answer - http://www.question2answer.org/ --><head>
+		<meta http-equiv="content-type" content="text/html; charset=utf-8">
+		<title>Assigning expansion coefficients to function does not work in parallel - FEniCS Q&amp;A</title>
+		<meta name="description" content="I have problem trying to assign material coefficients on the base of subdomains. The  ... for marking cells with different material properties)?">
+		<meta name="keywords" content="mpi,function,meshfunction">
+		<link rel="stylesheet" type="text/css" href="../../qa-theme/Snow/qa-styles.css">
+		<link rel="canonical" href="http://fenicsproject.org/qa/78/assigning-expansion-coefficients-function-does-parallel">
+		<script type="text/x-mathjax-config">
+  MathJax.Hub.Config({
+    extensions: ["tex2jax.js"],
+    jax: ["input/TeX","output/HTML-CSS"],
+    tex2jax: {inlineMath: [["$","$"],["\\(","\\)"]]},
+    TeX: { extensions: ["AMSmath.js","AMSsymbols.js"]}
+  });
+</script>
+<script type="text/javascript" src="../../mathjax/MathJax.js"></script>
+		<script src="../../jquery-1.7.2.min.js" type="text/javascript"></script>
+		<script src="../../highlight.min.js"></script>
+<script type="text/javascript">
+$(function(){
+	$('.wmd-input').keypress(function(){
+		window.clearTimeout(hljs.Timeout);
+		hljs.Timeout = window.setTimeout(function() {
+			hljs.initHighlighting.called = false;
+			hljs.initHighlighting();
+		}, 500);
+	});
+	window.setTimeout(function() {
+		hljs.initHighlighting.called = false;
+		hljs.initHighlighting();
+	}, 500);
+});
+</script>
+
+
+	</head>
+	<body class="qa-template-question qa-body-js-off">
+		<div class="qa-body-wrapper">
+			
+			<div class="qa-header">
+				<div class="qa-logo">
+					<a href="../../" class="qa-logo-link" title="FEniCS Q&amp;A"><img src="../../qa-theme/fenics_qa.png" border="0" alt="FEniCS Q&amp;A"></a>
+				</div>
+				<div class="qa-header-clear">
+				</div>
+			</div> <!-- END qa-header -->
+			
+			<div class="qa-main-shadow">
+				
+				<div class="qa-main-wrapper">
+					
+					<div class="qa-sidepanel">
+						<div class="qa-sidebar">
+							This is a read only copy of the old FEniCS QA forum. Please visit the <a href="https://www.allanswered.com/community/s/fenics-project/">new QA forum</a> to ask questions
+						</div>
+						
+					</div>
+					
+					<div class="qa-main">
+						<h1>
+							<span class="entry-title">Assigning expansion coefficients to function does not work in parallel</span>
+						</h1>
+						<div class="qa-part-q-view">
+							<div class="qa-q-view  hentry question" id="q78">
+								<form method="post" action="../../78/assigning-expansion-coefficients-function-does-parallel">
+									<div class="qa-q-view-stats">
+										<div class="qa-voting qa-voting-net" id="voting_78">
+											<div class="qa-vote-count qa-vote-count-net">
+												<span class="qa-netvote-count">
+													<span class="qa-netvote-count-data">+4<span class="votes-up"><span class="value-title" title="4"></span></span><span class="votes-down"><span class="value-title" title="0"></span></span></span><span class="qa-netvote-count-pad"> votes</span>
+												</span>
+											</div>
+											<div class="qa-vote-clear">
+											</div>
+										</div>
+									</div>
+									<input type="hidden" name="code" value="0-1516468138-b8f4f4e43887acfbf61fd67709fb3b485d97d0e3">
+								</form>
+								<div class="qa-q-view-main">
+									<form method="post" action="../../78/assigning-expansion-coefficients-function-does-parallel">
+										<div class="qa-q-view-content">
+											<a name="78"></a><div class="entry-content"><h3>I have problem trying to assign material coefficients on the base of subdomains. The problem may be ilustrated by a slightly modified part of the Fenics Manual example form chapter 1.5 (Handling domains with different materials). The code reads:</h3>
+
+<pre><code>from dolfin import *
+import sys, math, numpy
+
+rank= MPI.process_number()
+
+nx = 4; ny = 6
+mesh = UnitSquareMesh(nx, ny)
+
+# Define a MeshFunction over two subdomains
+subdomains = MeshFunction('size_t', mesh, 2)
+
+class Omega0(SubDomain):
+    def inside(self, x, on_boundary):
+        return True if x[1] &lt;= 0.5 else False
+
+class Omega1(SubDomain):
+    def inside(self, x, on_boundary):
+        return True if x[1] &gt;= 0.5 else False
+
+# Mark subdomains with numbers 0 and 1
+subdomain0 = Omega0()
+subdomain0.mark(subdomains, 0)
+subdomain1 = Omega1()
+subdomain1.mark(subdomains, 1)
+
+V0 = FunctionSpace(mesh, 'DG', 0)
+k = Function(V0)
+
+print 'p{}: mesh:'.format(rank), mesh
+print 'p{}: subdomains:'.format(rank), subdomains
+print 'p{}: k:'.format(rank), k
+
+# Loop over all cell numbers, find corresponding
+# subdomain number and fill cell value in k
+k_values = [1.5, 50] # values of k in the two subdomains
+for cell_no in range(len(subdomains.array())):
+    subdomain_no = subdomains.array()[cell_no]
+    k.vector()[cell_no] = k_values[subdomain_no]
+
+print 'p{}:'.format(rank), k.vector().array()
+
+# Much more efficient vectorized code
+help = numpy.asarray(subdomains.array(), dtype=numpy.int32)
+k.vector()[:] = numpy.choose(help, k_values)
+
+print 'p{}:'.format(rank), k.vector().array()
+</code></pre>
+
+<p>Ran classically the code prints as expected</p>
+
+<pre><code>p0: mesh: &lt;Mesh of topological dimension 2 (triangles) with 35 vertices and 48 cells, ordered&gt;
+p0: subdomains: &lt;MeshFunction of topological dimension 2 containing 48 values&gt;
+p0: k: w_0
+p0: [ 1.5 1.5 1.5 1.5 1.5 1.5 1.5 1.5 1.5 1.5 1.5 1.5
+   1.5 1.5 1.5 1.5 1.5 1.5 1.5 1.5 1.5 1.5 1.5 1.5
+  50. 50. 50. 50. 50. 50. 50. 50. 50. 50. 50. 50.
+  50. 50. 50. 50. 50. 50. 50. 50. 50. 50. 50. 50. ]
+p0: [ 1.5 1.5 1.5 1.5 1.5 1.5 1.5 1.5 1.5 1.5 1.5 1.5
+   1.5 1.5 1.5 1.5 1.5 1.5 1.5 1.5 1.5 1.5 1.5 1.5
+  50. 50. 50. 50. 50. 50. 50. 50. 50. 50. 50. 50.
+  50. 50. 50. 50. 50. 50. 50. 50. 50. 50. 50. 50. ]
+</code></pre>
+
+<p>Ran with mpirun -np 2 the result is</p>
+
+<pre><code>Process 0: Number of global vertices: 35
+Process 0: Number of global cells: 48
+p1: mesh: &lt;Mesh of topological dimension 2 (triangles) with 20 vertices and 24 cells, ordered&gt;
+p1: subdomains: &lt;MeshFunction of topological dimension 2 containing 24 values&gt;
+p0: mesh: &lt;Mesh of topological dimension 2 (triangles) with 22 vertices and 24 cells, ordered&gt;
+p0: subdomains: &lt;MeshFunction of topological dimension 2 containing 24 values&gt;
+p1: k: w_0
+p0: k: w_0
+p1: [ 0. 0. 0. 0. 0. 0. 0. 0. 0. 0. 0. 0. 0. 0. 0. 0. 0. 0.
+  0. 0. 0. 0. 0. 0.]
+p0: [ 1.5 1.5 1.5 50. 50. 50. 50. 50. 50. 50. 50. 50.
+  50. 50. 50. 50. 50. 50. 50. 50. 50. 50. 50. 50. ]
+Traceback (most recent call last):
+  File "err.py", line 51, in &lt;module&gt;
+Traceback (most recent call last):
+  File "err.py", line 51, in &lt;module&gt;
+    k.vector()[:] = numpy.choose(help, k_values)
+  File "/usr/lib/python2.7/dist-packages/dolfin/cpp/la.py", line 1183, in __setslice__
+    k.vector()[:] = numpy.choose(help, k_values)
+    self.__setitem__(slice(i, j, 1), values)
+  File "/usr/lib/python2.7/dist-packages/dolfin/cpp/la.py", line 1214, in __setitem__
+      File "/usr/lib/python2.7/dist-packages/dolfin/cpp/la.py", line 1183, in __setslice__
+_set_vector_items_array_of_float(self, indices, values)
+RuntimeError: non matching dimensions on input
+    self.__setitem__(slice(i, j, 1), values)
+  File "/usr/lib/python2.7/dist-packages/dolfin/cpp/la.py", line 1214, in __setitem__
+    _set_vector_items_array_of_float(self, indices, values)
+RuntimeError: non matching dimensions on input
+</code></pre>
+
+<p>I understand that the vectorized version:</p>
+
+<pre><code>k.vector()[:] = numpy.choose(help, k_values)
+</code></pre>
+
+<p>fails because the k function expects 48 values for all mesh cells, but subdomains and thus help contains only 24 values for a sub-mesh in given process.<br>
+I understand that the naive implementation with loop over cells works fine in process 0, which has info on global indices of mesh entities and fails in process 1 whic does not have this information.</p>
+
+<p>Is that right?<br>
+How to make this example working with mpi (still using the MeshFunction for marking cells with different material properties)?</p>
+</div>
+										</div>
+										<div class="qa-q-view-tags">
+											<ul class="qa-q-view-tag-list">
+												<li class="qa-q-view-tag-item"><a href="../../tag/mpi" rel="tag" class="qa-tag-link">mpi</a></li>
+												<li class="qa-q-view-tag-item"><a href="../../tag/function" rel="tag" class="qa-tag-link">function</a></li>
+												<li class="qa-q-view-tag-item"><a href="../../tag/meshfunction" rel="tag" class="qa-tag-link">meshfunction</a></li>
+											</ul>
+										</div>
+										<span class="qa-q-view-avatar-meta">
+											<span class="qa-q-view-meta">
+												<a href="../../78/assigning-expansion-coefficients-function-does-parallel" class="qa-q-view-what">asked</a>
+												<span class="qa-q-view-when">
+													<span class="qa-q-view-when-data"><span class="published"><span class="value-title" title="2013-06-07T10:07:04+0000"></span>Jun 7, 2013</span></span>
+												</span>
+												<span class="qa-q-view-who">
+													<span class="qa-q-view-who-pad">by </span>
+													<span class="qa-q-view-who-data"><span class="vcard author"><a href="../../user/jstar" class="qa-user-link url nickname">jstar</a></span></span>
+													<span class="qa-q-view-who-title">FEniCS Novice</span>
+													<span class="qa-q-view-who-points">
+														<span class="qa-q-view-who-points-pad">(</span><span class="qa-q-view-who-points-data">280</span><span class="qa-q-view-who-points-pad"> points)</span>
+													</span>
+												</span>
+											</span>
+										</span>
+										<div class="qa-q-view-buttons">
+										</div>
+										
+										<div class="qa-q-view-c-list" style="display:none;" id="c78_list">
+										</div> <!-- END qa-c-list -->
+										
+										<input type="hidden" name="code" value="0-1516468138-f4e23a54d1e2e641460e91e12c8b87a2d5ef3d9e">
+										<input type="hidden" name="qa_click" value="">
+									</form>
+									<div class="qa-c-form">
+									</div> <!-- END qa-c-form -->
+									
+								</div> <!-- END qa-q-view-main -->
+								<div class="qa-q-view-clear">
+								</div>
+							</div> <!-- END qa-q-view -->
+							
+						</div>
+						<div class="qa-part-a-list">
+							<h2 id="a_list_title">2 Answers</h2>
+							<div class="qa-a-list" id="a_list">
+								
+								<div class="qa-a-list-item  hentry answer answer-selected qa-a-list-item-selected" id="a82">
+									<form method="post" action="../../78/assigning-expansion-coefficients-function-does-parallel">
+										<div class="qa-voting qa-voting-net" id="voting_82">
+											<div class="qa-vote-count qa-vote-count-net">
+												<span class="qa-netvote-count">
+													<span class="qa-netvote-count-data">+4<span class="votes-up"><span class="value-title" title="4"></span></span><span class="votes-down"><span class="value-title" title="0"></span></span></span><span class="qa-netvote-count-pad"> votes</span>
+												</span>
+											</div>
+											<div class="qa-vote-clear">
+											</div>
+										</div>
+										<input type="hidden" name="code" value="0-1516468138-b8f4f4e43887acfbf61fd67709fb3b485d97d0e3">
+									</form>
+									<div class="qa-a-item-main">
+										<form method="post" action="../../78/assigning-expansion-coefficients-function-does-parallel">
+											<div class="qa-a-item-selected">
+												<div class="qa-a-selection">
+													<div class="qa-a-selected">&#160;</div>
+													<div class="qa-a-selected-text">Best answer</div>
+												</div>
+												<div class="qa-a-item-content">
+													<a name="82"></a><div class="entry-content"><p>Or, if you want to set from a MeshFunction, try this:</p>
+
+<pre><code>class MyExpr2D(Expression):
+    def __init__(self, cell_fun):
+        assert(cell_fun.dim()==2)
+        self.cell_fun = cell_fun
+    def eval_cell(self, values, x, cell):
+        values[0] = self.cell_fun[cell.index]
+
+M = UnitSquareMesh(50,50)
+MF = CellFunction("double", M)
+E = MyExpr2D(MF)
+Q = FunctionSpace(M,"DG",0)
+
+K = Function(Q)
+K.interpolate(E)
+</code></pre>
+</div>
+												</div>
+												<span class="qa-a-item-avatar-meta">
+													<span class="qa-a-item-avatar">
+														<a href="../../user/chris_richardson" class="qa-avatar-link"><img src="https://www.gravatar.com/avatar/d779daeb727bcec8f6b2c505810042db?s=40" width="40" height="40" class="qa-avatar-image" alt=""></a>
+													</span>
+													<span class="qa-a-item-meta">
+														<a href="../../78/assigning-expansion-coefficients-function-does-parallel?show=82#a82" class="qa-a-item-what">answered</a>
+														<span class="qa-a-item-when">
+															<span class="qa-a-item-when-data"><span class="published"><span class="value-title" title="2013-06-07T11:42:20+0000"></span>Jun 7, 2013</span></span>
+														</span>
+														<span class="qa-a-item-who">
+															<span class="qa-a-item-who-pad">by </span>
+															<span class="qa-a-item-who-data"><span class="vcard author"><a href="../../user/chris_richardson" class="qa-user-link url nickname">chris_richardson</a></span></span>
+															<span class="qa-a-item-who-title">FEniCS Expert</span>
+															<span class="qa-a-item-who-points">
+																<span class="qa-a-item-who-points-pad">(</span><span class="qa-a-item-who-points-data">31,740</span><span class="qa-a-item-who-points-pad"> points)</span>
+															</span>
+														</span>
+														<br>
+														<span class="qa-a-item-what">selected</span>
+														<span class="qa-a-item-when">
+															<span class="qa-a-item-when-data"><span class="updated"><span class="value-title" title="2013-06-11T14:02:09+0000"></span>Jun 11, 2013</span></span>
+														</span>
+														<span class="qa-a-item-who">
+															<span class="qa-a-item-who-pad">by </span><span class="qa-a-item-who-data"><a href="../../user/Jan+Blechta" class="qa-user-link url nickname">Jan Blechta</a></span>
+														</span>
+													</span>
+												</span>
+											</div>
+											<div class="qa-a-item-buttons">
+												</div>
+											
+											<div class="qa-a-item-c-list" id="c82_list">
+												<div class="qa-c-list-item  hentry comment" id="c84">
+													<div class="qa-c-item-content">
+														<a name="84"></a><div class="entry-content">Thanks! &#160;&#160;This seems to be a good solution for me. I do not feel comfortable with it, but it should work ;-)</div>
+													</div>
+													<div class="qa-c-item-footer">
+														<span class="qa-c-item-avatar-meta">
+															<span class="qa-c-item-meta">
+																<a href="../../78/assigning-expansion-coefficients-function-does-parallel?show=84#c84" class="qa-c-item-what">commented</a>
+																<span class="qa-c-item-when">
+																	<span class="qa-c-item-when-data"><span class="published"><span class="value-title" title="2013-06-07T12:25:59+0000"></span>Jun 7, 2013</span></span>
+																</span>
+																<span class="qa-c-item-who">
+																	<span class="qa-c-item-who-pad">by </span>
+																	<span class="qa-c-item-who-data"><span class="vcard author"><a href="../../user/jstar" class="qa-user-link url nickname">jstar</a></span></span>
+																	<span class="qa-c-item-who-title">FEniCS Novice</span>
+																	<span class="qa-c-item-who-points">
+																		<span class="qa-c-item-who-points-pad">(</span><span class="qa-c-item-who-points-data">280</span><span class="qa-c-item-who-points-pad"> points)</span>
+																	</span>
+																</span>
+															</span>
+														</span>
+														<div class="qa-c-item-buttons">
+														</div>
+													</div>
+													<div class="qa-c-item-clear">
+													</div>
+												</div> <!-- END qa-c-item -->
+												<div class="qa-c-list-item  hentry comment" id="c85">
+													<div class="qa-c-item-content">
+														<a name="85"></a><div class="entry-content">Please reply if it works for you. Strange things can happen in parallel.<br>
+You might also be interested in looking at the HDF5 and XDMF file formats which allow you to read and write MeshFunctions in parallel.</div>
+													</div>
+													<div class="qa-c-item-footer">
+														<span class="qa-c-item-avatar-meta">
+															<span class="qa-c-item-avatar">
+																<a href="../../user/chris_richardson" class="qa-avatar-link"><img src="https://www.gravatar.com/avatar/d779daeb727bcec8f6b2c505810042db?s=20" width="20" height="20" class="qa-avatar-image" alt=""></a>
+															</span>
+															<span class="qa-c-item-meta">
+																<a href="../../78/assigning-expansion-coefficients-function-does-parallel?show=85#c85" class="qa-c-item-what">commented</a>
+																<span class="qa-c-item-when">
+																	<span class="qa-c-item-when-data"><span class="published"><span class="value-title" title="2013-06-07T12:32:36+0000"></span>Jun 7, 2013</span></span>
+																</span>
+																<span class="qa-c-item-who">
+																	<span class="qa-c-item-who-pad">by </span>
+																	<span class="qa-c-item-who-data"><span class="vcard author"><a href="../../user/chris_richardson" class="qa-user-link url nickname">chris_richardson</a></span></span>
+																	<span class="qa-c-item-who-title">FEniCS Expert</span>
+																	<span class="qa-c-item-who-points">
+																		<span class="qa-c-item-who-points-pad">(</span><span class="qa-c-item-who-points-data">31,740</span><span class="qa-c-item-who-points-pad"> points)</span>
+																	</span>
+																</span>
+															</span>
+														</span>
+														<div class="qa-c-item-buttons">
+														</div>
+													</div>
+													<div class="qa-c-item-clear">
+													</div>
+												</div> <!-- END qa-c-item -->
+												<div class="qa-c-list-item  hentry comment" id="c87">
+													<div class="qa-c-item-content">
+														<a name="87"></a><div class="entry-content">VTK suppports MeshFunctions in parallel also.</div>
+													</div>
+													<div class="qa-c-item-footer">
+														<span class="qa-c-item-avatar-meta">
+															<span class="qa-c-item-avatar">
+																<a href="../../user/Jan+Blechta" class="qa-avatar-link"><img src="https://www.gravatar.com/avatar/dc6f8dce77e4a0bd5adc7ff31ab83741?s=20" width="20" height="20" class="qa-avatar-image" alt=""></a>
+															</span>
+															<span class="qa-c-item-meta">
+																<a href="../../78/assigning-expansion-coefficients-function-does-parallel?show=87#c87" class="qa-c-item-what">commented</a>
+																<span class="qa-c-item-when">
+																	<span class="qa-c-item-when-data"><span class="published"><span class="value-title" title="2013-06-07T12:38:52+0000"></span>Jun 7, 2013</span></span>
+																</span>
+																<span class="qa-c-item-who">
+																	<span class="qa-c-item-who-pad">by </span>
+																	<span class="qa-c-item-who-data"><span class="vcard author"><a href="../../user/Jan+Blechta" class="qa-user-link url nickname">Jan Blechta</a></span></span>
+																	<span class="qa-c-item-who-title">FEniCS Expert</span>
+																	<span class="qa-c-item-who-points">
+																		<span class="qa-c-item-who-points-pad">(</span><span class="qa-c-item-who-points-data">51,420</span><span class="qa-c-item-who-points-pad"> points)</span>
+																	</span>
+																</span>
+															</span>
+														</span>
+														<div class="qa-c-item-buttons">
+														</div>
+													</div>
+													<div class="qa-c-item-clear">
+													</div>
+												</div> <!-- END qa-c-item -->
+												<div class="qa-c-list-item  hentry comment" id="c88">
+													<div class="qa-c-item-content">
+														<a name="88"></a><div class="entry-content"><p>The test code:</p>
+
+<pre><code>from dolfin import *
+import sys, math, numpy
+
+rank= MPI.process_number()
+
+nx = 4;  ny = 6
+mesh = UnitSquareMesh(nx, ny)
+
+subdomains = CellFunction('size_t', mesh)
+
+class Omega0(SubDomain):
+    def inside(self, x, on_boundary):
+        return True if x[1] &lt;= 0.5 else False
+
+class Omega1(SubDomain):
+    def inside(self, x, on_boundary):
+        return True if x[1] &gt;= 0.5 else False
+
+# Mark subdomains with numbers 0 and 1
+subdomain0 = Omega0()
+subdomain0.mark(subdomains, 0)
+subdomain1 = Omega1()
+subdomain1.mark(subdomains, 1)
+
+V0 = FunctionSpace(mesh, 'DG', 0)
+k = Function(V0)
+
+print 'p{}: mesh:'.format(rank), mesh
+print 'p{}: subdomains:'.format(rank), subdomains
+print 'p{}: k:'.format(rank), k
+
+class Mi(Expression):
+    def __init__(self,cell_fun):
+            self.cell_fun = cell_fun
+            self.values = [1.5,50]
+    def eval_cell(self,values,x,cell):
+            values[0]= self.values[ self.cell_fun[cell.index] ]
+
+mi = Mi(subdomains)
+k.interpolate(mi)
+
+print 'p{}:'.format(rank), k.vector().array()
+</code></pre>
+
+<p>works  as expected:<br>
+    oer:~/pliki/fenics_jstar/simulators/msp&gt; mpirun -np 2 python sol.py<br>
+    Process 0: Number of global vertices: 35<br>
+    Process 0: Number of global cells: 48<br>
+    p1: mesh: <br>
+    p0: mesh: <br>
+    p0: subdomains: <br>
+    p0: k: w_0<br>
+    p1: subdomains: <br>
+    p1: k: w_0<br>
+    p0: [  1.5   1.5   1.5   1.5   1.5   1.5   1.5   1.5   1.5   1.5   1.5   1.5<br>
+       1.5   1.5   1.5   1.5   1.5   1.5   1.5   1.5   1.5  50.   50.   50. ]<br>
+    p1: [  1.5   1.5   1.5  50.   50.   50.   50.   50.   50.   50.   50.   50.<br>
+      50.   50.   50.   50.   50.   50.   50.   50.   50.   50.   50.   50. ]</p>
+
+<p>It will take some minutes to test it in my simulator, but I don't expect problems ;-)</p>
+</div>
+													</div>
+													<div class="qa-c-item-footer">
+														<span class="qa-c-item-avatar-meta">
+															<span class="qa-c-item-meta">
+																<a href="../../78/assigning-expansion-coefficients-function-does-parallel?show=88#c88" class="qa-c-item-what">commented</a>
+																<span class="qa-c-item-when">
+																	<span class="qa-c-item-when-data"><span class="published"><span class="value-title" title="2013-06-07T12:40:17+0000"></span>Jun 7, 2013</span></span>
+																</span>
+																<span class="qa-c-item-who">
+																	<span class="qa-c-item-who-pad">by </span>
+																	<span class="qa-c-item-who-data"><span class="vcard author"><a href="../../user/jstar" class="qa-user-link url nickname">jstar</a></span></span>
+																	<span class="qa-c-item-who-title">FEniCS Novice</span>
+																	<span class="qa-c-item-who-points">
+																		<span class="qa-c-item-who-points-pad">(</span><span class="qa-c-item-who-points-data">280</span><span class="qa-c-item-who-points-pad"> points)</span>
+																	</span>
+																</span>
+																<br>
+																<span class="qa-c-item-what">edited</span>
+																<span class="qa-c-item-when">
+																	<span class="qa-c-item-when-data"><span class="updated"><span class="value-title" title="2013-06-07T19:06:26+0000"></span>Jun 7, 2013</span></span>
+																</span>
+																<span class="qa-c-item-who">
+																	<span class="qa-c-item-who-pad">by </span><span class="qa-c-item-who-data"><a href="../../user/Garth+N.+Wells" class="qa-user-link url nickname">Garth N. Wells</a></span>
+																</span>
+															</span>
+														</span>
+														<div class="qa-c-item-buttons">
+														</div>
+													</div>
+													<div class="qa-c-item-clear">
+													</div>
+												</div> <!-- END qa-c-item -->
+												<div class="qa-c-list-item  hentry comment" id="c89">
+													<div class="qa-c-item-content">
+														<a name="89"></a><div class="entry-content">VTK only supports visualisation output, not input.</div>
+													</div>
+													<div class="qa-c-item-footer">
+														<span class="qa-c-item-avatar-meta">
+															<span class="qa-c-item-avatar">
+																<a href="../../user/chris_richardson" class="qa-avatar-link"><img src="https://www.gravatar.com/avatar/d779daeb727bcec8f6b2c505810042db?s=20" width="20" height="20" class="qa-avatar-image" alt=""></a>
+															</span>
+															<span class="qa-c-item-meta">
+																<a href="../../78/assigning-expansion-coefficients-function-does-parallel?show=89#c89" class="qa-c-item-what">commented</a>
+																<span class="qa-c-item-when">
+																	<span class="qa-c-item-when-data"><span class="published"><span class="value-title" title="2013-06-07T12:53:50+0000"></span>Jun 7, 2013</span></span>
+																</span>
+																<span class="qa-c-item-who">
+																	<span class="qa-c-item-who-pad">by </span>
+																	<span class="qa-c-item-who-data"><span class="vcard author"><a href="../../user/chris_richardson" class="qa-user-link url nickname">chris_richardson</a></span></span>
+																	<span class="qa-c-item-who-title">FEniCS Expert</span>
+																	<span class="qa-c-item-who-points">
+																		<span class="qa-c-item-who-points-pad">(</span><span class="qa-c-item-who-points-data">31,740</span><span class="qa-c-item-who-points-pad"> points)</span>
+																	</span>
+																</span>
+															</span>
+														</span>
+														<div class="qa-c-item-buttons">
+														</div>
+													</div>
+													<div class="qa-c-item-clear">
+													</div>
+												</div> <!-- END qa-c-item -->
+												<div class="qa-c-list-item  hentry comment" id="c90">
+													<div class="qa-c-item-content">
+														<a name="90"></a><div class="entry-content">You're right. I didn't know that XDMF supports input of Mesh and MeshFunction.</div>
+													</div>
+													<div class="qa-c-item-footer">
+														<span class="qa-c-item-avatar-meta">
+															<span class="qa-c-item-avatar">
+																<a href="../../user/Jan+Blechta" class="qa-avatar-link"><img src="https://www.gravatar.com/avatar/dc6f8dce77e4a0bd5adc7ff31ab83741?s=20" width="20" height="20" class="qa-avatar-image" alt=""></a>
+															</span>
+															<span class="qa-c-item-meta">
+																<a href="../../78/assigning-expansion-coefficients-function-does-parallel?show=90#c90" class="qa-c-item-what">commented</a>
+																<span class="qa-c-item-when">
+																	<span class="qa-c-item-when-data"><span class="published"><span class="value-title" title="2013-06-07T13:01:41+0000"></span>Jun 7, 2013</span></span>
+																</span>
+																<span class="qa-c-item-who">
+																	<span class="qa-c-item-who-pad">by </span>
+																	<span class="qa-c-item-who-data"><span class="vcard author"><a href="../../user/Jan+Blechta" class="qa-user-link url nickname">Jan Blechta</a></span></span>
+																	<span class="qa-c-item-who-title">FEniCS Expert</span>
+																	<span class="qa-c-item-who-points">
+																		<span class="qa-c-item-who-points-pad">(</span><span class="qa-c-item-who-points-data">51,420</span><span class="qa-c-item-who-points-pad"> points)</span>
+																	</span>
+																</span>
+															</span>
+														</span>
+														<div class="qa-c-item-buttons">
+														</div>
+													</div>
+													<div class="qa-c-item-clear">
+													</div>
+												</div> <!-- END qa-c-item -->
+											</div> <!-- END qa-c-list -->
+											
+											<input type="hidden" name="code" value="0-1516468138-b4239e446b93cc935820cd7c63b25604948b13ec">
+											<input type="hidden" name="qa_click" value="">
+										</form>
+										<div class="qa-c-form">
+										</div> <!-- END qa-c-form -->
+										
+									</div> <!-- END qa-a-item-main -->
+									<div class="qa-a-item-clear">
+									</div>
+								</div> <!-- END qa-a-list-item -->
+								
+								<div class="qa-a-list-item  hentry answer" id="a81">
+									<form method="post" action="../../78/assigning-expansion-coefficients-function-does-parallel">
+										<div class="qa-voting qa-voting-net" id="voting_81">
+											<div class="qa-vote-count qa-vote-count-net">
+												<span class="qa-netvote-count">
+													<span class="qa-netvote-count-data">0<span class="votes-up"><span class="value-title" title="0"></span></span><span class="votes-down"><span class="value-title" title="0"></span></span></span><span class="qa-netvote-count-pad"> votes</span>
+												</span>
+											</div>
+											<div class="qa-vote-clear">
+											</div>
+										</div>
+										<input type="hidden" name="code" value="0-1516468138-b8f4f4e43887acfbf61fd67709fb3b485d97d0e3">
+									</form>
+									<div class="qa-a-item-main">
+										<form method="post" action="../../78/assigning-expansion-coefficients-function-does-parallel">
+											<div class="qa-a-selection">
+											</div>
+											<div class="qa-a-item-content">
+												<a name="81"></a><div class="entry-content"><p>How about using Expression:</p>
+
+<pre><code>M = UnitSquareMesh(50,50)                                                       
+Q = FunctionSpace(M,"DG",0)                                                     
+kexpr = Expression("(x[0]&gt;=0.5)*(Kmax-Kmin) + Kmin", Kmax=50.0, Kmin=1.5)       
+K = Function(Q)                                                                 
+K.interpolate(kexpr)
+</code></pre>
+</div>
+											</div>
+											<span class="qa-a-item-avatar-meta">
+												<span class="qa-a-item-avatar">
+													<a href="../../user/chris_richardson" class="qa-avatar-link"><img src="https://www.gravatar.com/avatar/d779daeb727bcec8f6b2c505810042db?s=40" width="40" height="40" class="qa-avatar-image" alt=""></a>
+												</span>
+												<span class="qa-a-item-meta">
+													<a href="../../78/assigning-expansion-coefficients-function-does-parallel?show=81#a81" class="qa-a-item-what">answered</a>
+													<span class="qa-a-item-when">
+														<span class="qa-a-item-when-data"><span class="published"><span class="value-title" title="2013-06-07T11:24:47+0000"></span>Jun 7, 2013</span></span>
+													</span>
+													<span class="qa-a-item-who">
+														<span class="qa-a-item-who-pad">by </span>
+														<span class="qa-a-item-who-data"><span class="vcard author"><a href="../../user/chris_richardson" class="qa-user-link url nickname">chris_richardson</a></span></span>
+														<span class="qa-a-item-who-title">FEniCS Expert</span>
+														<span class="qa-a-item-who-points">
+															<span class="qa-a-item-who-points-pad">(</span><span class="qa-a-item-who-points-data">31,740</span><span class="qa-a-item-who-points-pad"> points)</span>
+														</span>
+													</span>
+												</span>
+											</span>
+											<div class="qa-a-item-buttons">
+												</div>
+											
+											<div class="qa-a-item-c-list" id="c81_list">
+												<div class="qa-c-list-item  hentry comment" id="c83">
+													<div class="qa-c-item-content">
+														<a name="83"></a><div class="entry-content">Honestly speaking I want to use data prepared by a mesh generator which can classify cells to sub-domains (materials). I want to read this information and set values of K on this basis.</div>
+													</div>
+													<div class="qa-c-item-footer">
+														<span class="qa-c-item-avatar-meta">
+															<span class="qa-c-item-meta">
+																<a href="../../78/assigning-expansion-coefficients-function-does-parallel?show=83#c83" class="qa-c-item-what">commented</a>
+																<span class="qa-c-item-when">
+																	<span class="qa-c-item-when-data"><span class="published"><span class="value-title" title="2013-06-07T12:12:17+0000"></span>Jun 7, 2013</span></span>
+																</span>
+																<span class="qa-c-item-who">
+																	<span class="qa-c-item-who-pad">by </span>
+																	<span class="qa-c-item-who-data"><span class="vcard author"><a href="../../user/jstar" class="qa-user-link url nickname">jstar</a></span></span>
+																	<span class="qa-c-item-who-title">FEniCS Novice</span>
+																	<span class="qa-c-item-who-points">
+																		<span class="qa-c-item-who-points-pad">(</span><span class="qa-c-item-who-points-data">280</span><span class="qa-c-item-who-points-pad"> points)</span>
+																	</span>
+																</span>
+															</span>
+														</span>
+														<div class="qa-c-item-buttons">
+														</div>
+													</div>
+													<div class="qa-c-item-clear">
+													</div>
+												</div> <!-- END qa-c-item -->
+											</div> <!-- END qa-c-list -->
+											
+											<input type="hidden" name="code" value="0-1516468138-3c12f859557f95aa6df00fd521cc9ec05e203e6d">
+											<input type="hidden" name="qa_click" value="">
+										</form>
+										<div class="qa-c-form">
+										</div> <!-- END qa-c-form -->
+										
+									</div> <!-- END qa-a-item-main -->
+									<div class="qa-a-item-clear">
+									</div>
+								</div> <!-- END qa-a-list-item -->
+								
+							</div> <!-- END qa-a-list -->
+							
+						</div>
+					</div> <!-- END qa-main -->
+					
+				</div> <!-- END main-wrapper -->
+			</div> <!-- END main-shadow -->
+		</div> <!-- END body-wrapper -->
+		<!-- END footer-bottom-group -->
+		
+		<div style="position:absolute; left:-9999px; top:-9999px;">
+			<span id="qa-waiting-template" class="qa-waiting">...</span>
+		</div>
+	
+	
+
+</body><!-- Powered by Question2Answer - http://www.question2answer.org/ --></html>

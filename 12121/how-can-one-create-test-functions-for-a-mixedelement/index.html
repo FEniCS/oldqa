@@ -1,0 +1,423 @@
+<html><!-- Powered by Question2Answer - http://www.question2answer.org/ --><head>
+		<meta http-equiv="content-type" content="text/html; charset=utf-8">
+		<title>How Can One Create Test Functions for a MixedElement? - FEniCS Q&amp;A</title>
+		<meta name="description" content="I am trying to create a fully-implicit solver for a system of two PDEs. I am using a mixed element ... If yes, what could be the problem in this case?">
+		<meta name="keywords" content="test-function,vector">
+		<link rel="stylesheet" type="text/css" href="../../qa-theme/Snow/qa-styles.css">
+		<link rel="canonical" href="http://fenicsproject.org/qa/12121/how-can-one-create-test-functions-for-a-mixedelement">
+		<script type="text/x-mathjax-config">
+  MathJax.Hub.Config({
+    extensions: ["tex2jax.js"],
+    jax: ["input/TeX","output/HTML-CSS"],
+    tex2jax: {inlineMath: [["$","$"],["\\(","\\)"]]},
+    TeX: { extensions: ["AMSmath.js","AMSsymbols.js"]}
+  });
+</script>
+<script type="text/javascript" src="../../mathjax/MathJax.js"></script>
+		<script src="../../jquery-1.7.2.min.js" type="text/javascript"></script>
+		<script src="../../highlight.min.js"></script>
+<script type="text/javascript">
+$(function(){
+	$('.wmd-input').keypress(function(){
+		window.clearTimeout(hljs.Timeout);
+		hljs.Timeout = window.setTimeout(function() {
+			hljs.initHighlighting.called = false;
+			hljs.initHighlighting();
+		}, 500);
+	});
+	window.setTimeout(function() {
+		hljs.initHighlighting.called = false;
+		hljs.initHighlighting();
+	}, 500);
+});
+</script>
+
+
+	</head>
+	<body class="qa-template-question qa-body-js-off">
+		<div class="qa-body-wrapper">
+			
+			<div class="qa-header">
+				<div class="qa-logo">
+					<a href="../../" class="qa-logo-link" title="FEniCS Q&amp;A"><img src="../../qa-theme/fenics_qa.png" border="0" alt="FEniCS Q&amp;A"></a>
+				</div>
+				<div class="qa-header-clear">
+				</div>
+			</div> <!-- END qa-header -->
+			
+			<div class="qa-main-shadow">
+				
+				<div class="qa-main-wrapper">
+					
+					<div class="qa-sidepanel">
+						<div class="qa-sidebar">
+							This is a read only copy of the old FEniCS QA forum. Please visit the <a href="https://www.allanswered.com/community/s/fenics-project/">new QA forum</a> to ask questions
+						</div>
+						
+					</div>
+					
+					<div class="qa-main">
+						<h1>
+							<span class="entry-title">How Can One Create Test Functions for a MixedElement?</span>
+						</h1>
+						<div class="qa-part-q-view">
+							<div class="qa-q-view  hentry question" id="q12121">
+								<form method="post" action="../../12121/how-can-one-create-test-functions-for-a-mixedelement">
+									<div class="qa-q-view-stats">
+										<div class="qa-voting qa-voting-net" id="voting_12121">
+											<div class="qa-vote-count qa-vote-count-net">
+												<span class="qa-netvote-count">
+													<span class="qa-netvote-count-data">+1<span class="votes-up"><span class="value-title" title="1"></span></span><span class="votes-down"><span class="value-title" title="0"></span></span></span><span class="qa-netvote-count-pad"> vote</span>
+												</span>
+											</div>
+											<div class="qa-vote-clear">
+											</div>
+										</div>
+									</div>
+									<input type="hidden" name="code" value="0-1516467808-35d5611f9b3280dbb4b1ec1baef498443d66f70a">
+								</form>
+								<div class="qa-q-view-main">
+									<form method="post" action="../../12121/how-can-one-create-test-functions-for-a-mixedelement">
+										<div class="qa-q-view-content">
+											<a name="12121"></a><div class="entry-content"><p>I am trying to create a fully-implicit solver for a system of two PDEs. I am using a mixed element consisting of a vector element for displacement and a scalar-valued element for pressure. I have been looking at the examples in the FEniCS tutorial (the Navier-Stokes example and the advection-reaction diffusion equations), but when I run my code, I get the following error:</p>
+
+<blockquote>
+  <p>Can only integrate scalar expressions. The integrand is a tensor<br>
+  expression with value shape (2,) and free indices with labels ().</p>
+</blockquote>
+
+<p>The relevant code:</p>
+
+<pre><code>from fenics import *
+import numpy as np
+
+# Parameters
+c = 1.25
+l = 5.0 
+P_surf = 0.0 
+sigma_0 = 3.0 
+gamma = 0.65 
+P0 = sigma_0*gamma 
+Kv = 10.0 
+cm = 5.0 
+# Derivative of pressure at the bottom surface.
+der_p_bottom = 0.0
+# Derivative of displacement at the top surface.
+der_w_top = cm*gamma*sigma_0
+
+# The initial time.
+t = 0.0
+# The final time
+T = 2.0
+# The number of time steps to take.
+num_steps = 40
+# The step size
+dt = (T-t)/num_steps
+# Width
+width = 3.0
+# Thickness
+thickness = 2.0
+
+# Create mesh and define function space.
+# Mesh for the 2-D case.
+mesh = RectangleMesh(Point(0.0,0.0),Point(l,width),100,10)
+# Use a vector-valued element for displacement.
+P1 = VectorElement('P', triangle, 1)
+# Use a scalar-valued element for pressure.
+P2 = FiniteElement('P', triangle, 1)
+# Create a mixed element to solve the system using the fully-implicit method.
+element = MixedElement([P1, P2])
+# Create the function space corresponding to this mixed element.
+V = FunctionSpace(mesh,element)
+# Create the test functions.
+v_1, v_2 = TestFunctions(V)
+# Create the trial functions.
+ans = Function(V)
+w_, p_ = split(ans)
+
+# Define boundary conditions for pressure.
+upper_boundary = 'on_boundary &amp;&amp; near(x[0],0)'
+
+# An expression for the derivative of P at the bottom surface.
+der_p_D = Expression(('near(x[0],l) ? der_p_bottom : 0.0','0.0'),degree = 1, \
+    der_p_bottom=der_p_bottom, l=l)
+
+# Set the pressure at the porous medium's top to 0 (second subsystem of V).
+bc_p = DirichletBC(V.sub(1),Constant(P_surf),upper_boundary)
+
+# Define boundary conditions for displacements.
+bottom_boundary = 'on_boundary &amp;&amp; near(x[0],%s)'%(l)
+
+der_w_D = Expression(('near(x[0],0.0) ? der_w_top : 0.0','0.0'),degree=0, \
+    der_w_top=der_w_top)
+
+# Set the displacement at the porous medium's bottom to 0 (first dimension of
+# the first subsystem of the FunctionSpace V).
+bc_w = DirichletBC(V.sub(0).sub(0),Constant(0.0),bottom_boundary)
+
+# Define functions for solutions at previous and current time steps.
+# Previous time step.
+# Define the initial conditions.
+init_cond = Constant(P0)
+p_n = interpolate(init_cond,V.sub(1).collapse())           
+
+# Define the variational problem.
+# Equation 1
+Eq1 = p_*v_1*dx - p_n*v_1*dx \
+    +c*dt*inner(grad(p_),grad(v_1))*dx \
+    -c*dt*der_p_D*v_1*ds 
+
+# Equation 2
+Eq2 = inner(grad(w_),grad(v_2))*dx \
+    -der_w_D*v_2*ds \
+    +cm*p_.dx*v_2*dx
+
+# Add the equations to make a monolithic scheme.
+F = Eq1 + Eq2
+
+# Create the progress bar.
+progress = Progress('Time-stepping')
+set_log_level(PROGRESS)
+
+# Form and solve the linear system.
+for n in range(num_steps):
+
+    # Update current time.
+    t += dt
+
+    # Solve the variational problem.
+    solve(F == 0, ans, bc)
+
+    # Check on the solution.
+    w_,p_ = ans.split()
+    p_comp = p_.compute_vertex_values(mesh)
+    w_comp = w_.compute_vertex_values(mesh)
+
+    # Update the previous solution.
+    p_n.assign(p_)
+
+    # Update the progress bar.
+    progress.update(t/T)
+</code></pre>
+
+<p>The error occurs at the line "-c<em>dt</em>der_p_D<em>v_1</em>ds" in defining Eq1. Have the test functions been made properly? If yes, what could be the problem in this case?</p>
+</div>
+										</div>
+										<div class="qa-q-view-tags">
+											<ul class="qa-q-view-tag-list">
+												<li class="qa-q-view-tag-item"><a href="../../tag/test-function" rel="tag" class="qa-tag-link">test-function</a></li>
+												<li class="qa-q-view-tag-item"><a href="../../tag/vector" rel="tag" class="qa-tag-link">vector</a></li>
+											</ul>
+										</div>
+										<span class="qa-q-view-avatar-meta">
+											<span class="qa-q-view-meta">
+												<a href="../../12121/how-can-one-create-test-functions-for-a-mixedelement" class="qa-q-view-what">asked</a>
+												<span class="qa-q-view-when">
+													<span class="qa-q-view-when-data"><span class="published"><span class="value-title" title="2017-01-11T23:14:59+0000"></span>Jan 12, 2017</span></span>
+												</span>
+												<span class="qa-q-view-who">
+													<span class="qa-q-view-who-pad">by </span>
+													<span class="qa-q-view-who-data"><span class="vcard author"><a href="../../user/SM" class="qa-user-link url nickname">SM</a></span></span>
+													<span class="qa-q-view-who-title">FEniCS Novice</span>
+													<span class="qa-q-view-who-points">
+														<span class="qa-q-view-who-points-pad">(</span><span class="qa-q-view-who-points-data">630</span><span class="qa-q-view-who-points-pad"> points)</span>
+													</span>
+												</span>
+											</span>
+										</span>
+										<div class="qa-q-view-buttons">
+										</div>
+										
+										<div class="qa-q-view-c-list" style="display:none;" id="c12121_list">
+										</div> <!-- END qa-c-list -->
+										
+										<input type="hidden" name="code" value="0-1516467808-cfadb675f5f5c992163d60f0772a345ebec90d03">
+										<input type="hidden" name="qa_click" value="">
+									</form>
+									<div class="qa-c-form">
+									</div> <!-- END qa-c-form -->
+									
+								</div> <!-- END qa-q-view-main -->
+								<div class="qa-q-view-clear">
+								</div>
+							</div> <!-- END qa-q-view -->
+							
+						</div>
+						<div class="qa-part-a-list">
+							<h2 id="a_list_title">2 Answers</h2>
+							<div class="qa-a-list" id="a_list">
+								
+								<div class="qa-a-list-item  hentry answer" id="a12124">
+									<form method="post" action="../../12121/how-can-one-create-test-functions-for-a-mixedelement">
+										<div class="qa-voting qa-voting-net" id="voting_12124">
+											<div class="qa-vote-count qa-vote-count-net">
+												<span class="qa-netvote-count">
+													<span class="qa-netvote-count-data">+2<span class="votes-up"><span class="value-title" title="2"></span></span><span class="votes-down"><span class="value-title" title="0"></span></span></span><span class="qa-netvote-count-pad"> votes</span>
+												</span>
+											</div>
+											<div class="qa-vote-clear">
+											</div>
+										</div>
+										<input type="hidden" name="code" value="0-1516467808-35d5611f9b3280dbb4b1ec1baef498443d66f70a">
+									</form>
+									<div class="qa-a-item-main">
+										<form method="post" action="../../12121/how-can-one-create-test-functions-for-a-mixedelement">
+											<div class="qa-a-selection">
+											</div>
+											<div class="qa-a-item-content">
+												<a name="12124"></a><div class="entry-content"><p>v_1 is a vector test function, so you do not get a scalar.</p>
+
+<p>Maybe you need the normal vector on the boundary? You can get it using</p>
+
+<pre><code> n = FacetNormal(mesh)
+</code></pre>
+</div>
+											</div>
+											<span class="qa-a-item-avatar-meta">
+												<span class="qa-a-item-avatar">
+													<a href="../../user/KristianE" class="qa-avatar-link"><img src="https://www.gravatar.com/avatar/8e8c30d82e263e44bd8fe50055a60421?s=40" width="40" height="40" class="qa-avatar-image" alt=""></a>
+												</span>
+												<span class="qa-a-item-meta">
+													<a href="../../12121/how-can-one-create-test-functions-for-a-mixedelement?show=12124#a12124" class="qa-a-item-what">answered</a>
+													<span class="qa-a-item-when">
+														<span class="qa-a-item-when-data"><span class="published"><span class="value-title" title="2017-01-12T10:22:20+0000"></span>Jan 12, 2017</span></span>
+													</span>
+													<span class="qa-a-item-who">
+														<span class="qa-a-item-who-pad">by </span>
+														<span class="qa-a-item-who-data"><span class="vcard author"><a href="../../user/KristianE" class="qa-user-link url nickname">KristianE</a></span></span>
+														<span class="qa-a-item-who-title">FEniCS Expert</span>
+														<span class="qa-a-item-who-points">
+															<span class="qa-a-item-who-points-pad">(</span><span class="qa-a-item-who-points-data">12,900</span><span class="qa-a-item-who-points-pad"> points)</span>
+														</span>
+													</span>
+												</span>
+											</span>
+											<div class="qa-a-item-buttons">
+												</div>
+											
+											<div class="qa-a-item-c-list" id="c12124_list">
+												<div class="qa-c-list-item  hentry comment" id="c12149">
+													<div class="qa-c-item-content">
+														<a name="12149"></a><div class="entry-content"><p>Thank you for your answer. No, I did not need the normal vector: I just needed to specify the derivative at that point.</p>
+
+<p>I found out that the problem was that der_p_D and der_w_D yielded vectors when multiplied by the problem's variations (v_1, v_2). I changed the dimensions of der_p_D and der_w_D . When this was done (along with the use of the dot() function instead of * in some places), the issue was resolved.</p>
+</div>
+													</div>
+													<div class="qa-c-item-footer">
+														<span class="qa-c-item-avatar-meta">
+															<span class="qa-c-item-meta">
+																<a href="../../12121/how-can-one-create-test-functions-for-a-mixedelement?show=12149#c12149" class="qa-c-item-what">commented</a>
+																<span class="qa-c-item-when">
+																	<span class="qa-c-item-when-data"><span class="published"><span class="value-title" title="2017-01-14T08:43:25+0000"></span>Jan 14, 2017</span></span>
+																</span>
+																<span class="qa-c-item-who">
+																	<span class="qa-c-item-who-pad">by </span>
+																	<span class="qa-c-item-who-data"><span class="vcard author"><a href="../../user/SM" class="qa-user-link url nickname">SM</a></span></span>
+																	<span class="qa-c-item-who-title">FEniCS Novice</span>
+																	<span class="qa-c-item-who-points">
+																		<span class="qa-c-item-who-points-pad">(</span><span class="qa-c-item-who-points-data">630</span><span class="qa-c-item-who-points-pad"> points)</span>
+																	</span>
+																</span>
+															</span>
+														</span>
+														<div class="qa-c-item-buttons">
+														</div>
+													</div>
+													<div class="qa-c-item-clear">
+													</div>
+												</div> <!-- END qa-c-item -->
+											</div> <!-- END qa-c-list -->
+											
+											<input type="hidden" name="code" value="0-1516467808-9630477dc5b956f6fe792419a23726b66c63a150">
+											<input type="hidden" name="qa_click" value="">
+										</form>
+										<div class="qa-c-form">
+										</div> <!-- END qa-c-form -->
+										
+									</div> <!-- END qa-a-item-main -->
+									<div class="qa-a-item-clear">
+									</div>
+								</div> <!-- END qa-a-list-item -->
+								
+								<div class="qa-a-list-item  hentry answer" id="a12158">
+									<form method="post" action="../../12121/how-can-one-create-test-functions-for-a-mixedelement">
+										<div class="qa-voting qa-voting-net" id="voting_12158">
+											<div class="qa-vote-count qa-vote-count-net">
+												<span class="qa-netvote-count">
+													<span class="qa-netvote-count-data">0<span class="votes-up"><span class="value-title" title="0"></span></span><span class="votes-down"><span class="value-title" title="0"></span></span></span><span class="qa-netvote-count-pad"> votes</span>
+												</span>
+											</div>
+											<div class="qa-vote-clear">
+											</div>
+										</div>
+										<input type="hidden" name="code" value="0-1516467808-35d5611f9b3280dbb4b1ec1baef498443d66f70a">
+									</form>
+									<div class="qa-a-item-main">
+										<form method="post" action="../../12121/how-can-one-create-test-functions-for-a-mixedelement">
+											<div class="qa-a-selection">
+											</div>
+											<div class="qa-a-item-content">
+												<a name="12158"></a><div class="entry-content"><p>Maybe you need inner products instead of dot products in your form.<br>
+e.g. instead of </p>
+
+<blockquote>
+  <p>p_<em>v_1</em>dx</p>
+</blockquote>
+
+<p>use:</p>
+
+<blockquote>
+  <p>inner(p_,v_1)*dx</p>
+</blockquote>
+</div>
+											</div>
+											<span class="qa-a-item-avatar-meta">
+												<span class="qa-a-item-meta">
+													<a href="../../12121/how-can-one-create-test-functions-for-a-mixedelement?show=12158#a12158" class="qa-a-item-what">answered</a>
+													<span class="qa-a-item-when">
+														<span class="qa-a-item-when-data"><span class="published"><span class="value-title" title="2017-01-16T18:33:02+0000"></span>Jan 16, 2017</span></span>
+													</span>
+													<span class="qa-a-item-who">
+														<span class="qa-a-item-who-pad">by </span>
+														<span class="qa-a-item-who-data"><span class="vcard author"><a href="../../user/str" class="qa-user-link url nickname">str</a></span></span>
+														<span class="qa-a-item-who-title">FEniCS User</span>
+														<span class="qa-a-item-who-points">
+															<span class="qa-a-item-who-points-pad">(</span><span class="qa-a-item-who-points-data">1,600</span><span class="qa-a-item-who-points-pad"> points)</span>
+														</span>
+													</span>
+												</span>
+											</span>
+											<div class="qa-a-item-buttons">
+												</div>
+											
+											<div class="qa-a-item-c-list" style="display:none;" id="c12158_list">
+											</div> <!-- END qa-c-list -->
+											
+											<input type="hidden" name="code" value="0-1516467808-f31e909286d76aeb4c5b4948a2d9baf48a5c738c">
+											<input type="hidden" name="qa_click" value="">
+										</form>
+										<div class="qa-c-form">
+										</div> <!-- END qa-c-form -->
+										
+									</div> <!-- END qa-a-item-main -->
+									<div class="qa-a-item-clear">
+									</div>
+								</div> <!-- END qa-a-list-item -->
+								
+							</div> <!-- END qa-a-list -->
+							
+						</div>
+					</div> <!-- END qa-main -->
+					
+				</div> <!-- END main-wrapper -->
+			</div> <!-- END main-shadow -->
+		</div> <!-- END body-wrapper -->
+		<!-- END footer-bottom-group -->
+		
+		<div style="position:absolute; left:-9999px; top:-9999px;">
+			<span id="qa-waiting-template" class="qa-waiting">...</span>
+		</div>
+	
+	
+
+</body><!-- Powered by Question2Answer - http://www.question2answer.org/ --></html>

@@ -1,0 +1,290 @@
+<html><!-- Powered by Question2Answer - http://www.question2answer.org/ --><head>
+		<meta http-equiv="content-type" content="text/html; charset=utf-8">
+		<title>Solving for power dissipation where k*grad(u)**2.0 How to solve for this? - FEniCS Q&amp;A</title>
+		<meta name="description" content="Hello All. I am new to Fenics and have been having some issues. I am trying to solve for power  ... Lagrange',1)) file = File(&quot;disipation.pvd&quot;) file">
+		<link rel="stylesheet" type="text/css" href="../../qa-theme/Snow/qa-styles.css">
+		<link rel="canonical" href="http://fenicsproject.org/qa/9954/solving-for-power-dissipation-where-grad-how-solve-for-this">
+		<script type="text/x-mathjax-config">
+  MathJax.Hub.Config({
+    extensions: ["tex2jax.js"],
+    jax: ["input/TeX","output/HTML-CSS"],
+    tex2jax: {inlineMath: [["$","$"],["\\(","\\)"]]},
+    TeX: { extensions: ["AMSmath.js","AMSsymbols.js"]}
+  });
+</script>
+<script type="text/javascript" src="../../mathjax/MathJax.js"></script>
+		<script src="../../jquery-1.7.2.min.js" type="text/javascript"></script>
+		<script src="../../highlight.min.js"></script>
+<script type="text/javascript">
+$(function(){
+	$('.wmd-input').keypress(function(){
+		window.clearTimeout(hljs.Timeout);
+		hljs.Timeout = window.setTimeout(function() {
+			hljs.initHighlighting.called = false;
+			hljs.initHighlighting();
+		}, 500);
+	});
+	window.setTimeout(function() {
+		hljs.initHighlighting.called = false;
+		hljs.initHighlighting();
+	}, 500);
+});
+</script>
+
+
+	</head>
+	<body class="qa-template-question qa-body-js-off">
+		<div class="qa-body-wrapper">
+			
+			<div class="qa-header">
+				<div class="qa-logo">
+					<a href="../" class="qa-logo-link" title="FEniCS Q&amp;A"><img src="../../qa-theme/fenics_qa.png" border="0" alt="FEniCS Q&amp;A"></a>
+				</div>
+				<div class="qa-header-clear">
+				</div>
+			</div> <!-- END qa-header -->
+			
+			<div class="qa-main-shadow">
+				
+				<div class="qa-main-wrapper">
+					
+					<div class="qa-sidepanel">
+						<div class="qa-sidebar">
+							This is a read only copy of the old FEniCS QA forum. Please visit the <a href="https://www.allanswered.com/community/s/fenics-project/">new QA forum</a> to ask questions
+						</div>
+						
+					</div>
+					
+					<div class="qa-main">
+						<h1>
+							<span class="entry-title">Solving for power dissipation where k*grad(u)**2.0 How to solve for this?</span>
+						</h1>
+						<div class="qa-part-q-view">
+							<div class="qa-q-view qa-q-closed hentry question" id="q9954">
+								<form method="post" action="../9954">
+									<div class="qa-q-view-stats">
+										<div class="qa-voting qa-voting-net" id="voting_9954">
+											<div class="qa-vote-count qa-vote-count-net">
+												<span class="qa-netvote-count">
+													<span class="qa-netvote-count-data">0<span class="votes-up"><span class="value-title" title="0"></span></span><span class="votes-down"><span class="value-title" title="0"></span></span></span><span class="qa-netvote-count-pad"> votes</span>
+												</span>
+											</div>
+											<div class="qa-vote-clear">
+											</div>
+										</div>
+									</div>
+									<input type="hidden" name="code" value="0-1516478048-eed4594a0f1ab5e018031beeee2b206eda0538e2">
+								</form>
+								<div class="qa-q-view-main">
+									<form method="post" action="../9954">
+										<div class="qa-q-view-content">
+											<a name="9954"></a><div class="entry-content"><p>Hello All. I am new to Fenics and have been having some issues. I am trying to solve for power dissipation that occurs due to joule heating. I start by solving standard poisson problem with 2 different materials, and then attempt to solve for k*grad(u)**2.0 after I solve for u. However this leads to some odd results where my power dissipation can becomes negative at the material boundary change. This is physically impossible ( and should not happen in the solution either as the grad(u) term is squared. Where am I going wrong here? </p>
+
+<p>I attached an example of the code `</p>
+
+<pre><code>from dolfin import *
+</code></pre>
+
+<p>import sys, math, numpy</p>
+
+<p>nx = 32;  ny = 32<br>
+mesh = UnitSquareMesh(nx, ny)</p>
+
+<p>subdomains = MeshFunction('uint', mesh, 2)</p>
+
+<p>class Omega0(SubDomain):<br>
+    def inside(self, x, on_boundary):<br>
+        return True if x[1] &lt;= 0.5 else False</p>
+
+<p>class Omega1(SubDomain):<br>
+    def inside(self, x, on_boundary):<br>
+        return True if x[1] &gt;= 0.5 else False</p>
+
+<p>subdomain0 = Omega0()<br>
+subdomain0.mark(subdomains, 0)<br>
+subdomain1 = Omega1()<br>
+subdomain1.mark(subdomains, 1)</p>
+
+<p>V0 = FunctionSpace(mesh, 'DG', 0)<br>
+k = Function(V0)</p>
+
+<p>print 'mesh:', mesh<br>
+print 'subdomains:', subdomains<br>
+print 'k:', k</p>
+
+<p>k_values = [1.5, 50]  # values of k in the two subdomains<br>
+for cell_no in range(len(subdomains.array())):<br>
+    subdomain_no = subdomains.array()[cell_no]<br>
+    k.vector()[cell_no] = k_values[subdomain_no]</p>
+
+<p>help = numpy.asarray(subdomains.array(), dtype=numpy.int32)<br>
+k.vector()[:] = numpy.choose(help, k_values)</p>
+
+<p>print 'k degree of freedoms:', k.vector().array()</p>
+
+<p>V = FunctionSpace(mesh, 'Lagrange', 1)</p>
+
+<p>tol = 1E-14   # tolerance for coordinate comparisons<br>
+class BottomBoundary(SubDomain):<br>
+    def inside(self, x, on_boundary):<br>
+        return on_boundary and abs(x[1]) &lt; tol</p>
+
+<p>Gamma_0 = DirichletBC(V, Constant(0), BottomBoundary())</p>
+
+<p>class TopBoundary(SubDomain):<br>
+    def inside(self, x, on_boundary):<br>
+        return on_boundary and abs(x[1] - 1) &lt; tol</p>
+
+<p>Gamma_1 = DirichletBC(V, Constant(1), TopBoundary())</p>
+
+<p>bcs = [Gamma_0, Gamma_1]</p>
+
+<p>u = TrialFunction(V)<br>
+v = TestFunction(V)<br>
+f = Constant(0)<br>
+a = k<em>inner(nabla_grad(u), nabla_grad(v))</em>dx<br>
+L = f<em>v</em>dx<br>
+u = Function(V)<br>
+solve(a == L, u, bcs)</p>
+
+<p>disipation=project(k*grad(u)**2.0,FunctionSpace(mesh,'Lagrange',1))</p>
+
+<p>file = File("disipation.pvd")<br>
+file &lt;&lt; disipation</p>
+</div>
+										</div>
+										<div class="qa-q-view-closed">
+											closed with the note:
+											<span class="qa-q-view-closed-content">
+												The question was answered by Christian Waluga, use DG0 space instead to get proper result.
+											</span>
+										</div>
+										<span class="qa-q-view-avatar-meta">
+											<span class="qa-q-view-meta">
+												<a href="../9954/solving-for-power-dissipation-where-grad-how-solve-for-this" class="qa-q-view-what">asked</a>
+												<span class="qa-q-view-when">
+													<span class="qa-q-view-when-data"><span class="published"><span class="value-title" title="2016-04-25T22:27:37+0000"></span>Apr 26, 2016</span></span>
+												</span>
+												<span class="qa-q-view-who">
+													<span class="qa-q-view-who-pad">by </span>
+													<span class="qa-q-view-who-data"><span class="vcard author"><a href="../../user/soviet911" class="qa-user-link url nickname">soviet911</a></span></span>
+													<span class="qa-q-view-who-title">FEniCS Novice</span>
+													<span class="qa-q-view-who-points">
+														<span class="qa-q-view-who-points-pad">(</span><span class="qa-q-view-who-points-data">180</span><span class="qa-q-view-who-points-pad"> points)</span>
+													</span>
+												</span>
+												<br>
+												<span class="qa-q-view-what">closed</span>
+												<span class="qa-q-view-when">
+													<span class="qa-q-view-when-data"><span class="updated"><span class="value-title" title="2016-04-27T19:46:39+0000"></span>Apr 27, 2016</span></span>
+												</span>
+												<span class="qa-q-view-who">
+													<span class="qa-q-view-who-pad">by </span><span class="qa-q-view-who-data"><a href="../../user/soviet911" class="qa-user-link url nickname">soviet911</a></span>
+												</span>
+											</span>
+										</span>
+										<div class="qa-q-view-buttons">
+										</div>
+										
+										<div class="qa-q-view-c-list" id="c9954_list">
+											<div class="qa-c-list-item  hentry comment" id="c9966">
+												<div class="qa-c-item-content">
+													<a name="9966"></a><div class="entry-content"><p>I did not run your code, but I guess you observe some artifacts, which may be largest at the material jump, right? Did you try to project your result to DG0 instead? This is actually the space where k*grad(u)**2 makes sense. Projecting piecewise constants to H1 functions can lead to weird effects.</p>
+</div>
+												</div>
+												<div class="qa-c-item-footer">
+													<span class="qa-c-item-avatar-meta">
+														<span class="qa-c-item-meta">
+															<a href="../9954/solving-for-power-dissipation-where-grad-how-solve-for-this?show=9966#c9966" class="qa-c-item-what">commented</a>
+															<span class="qa-c-item-when">
+																<span class="qa-c-item-when-data"><span class="published"><span class="value-title" title="2016-04-27T19:37:23+0000"></span>Apr 27, 2016</span></span>
+															</span>
+															<span class="qa-c-item-who">
+																<span class="qa-c-item-who-pad">by </span>
+																<span class="qa-c-item-who-data"><span class="vcard author"><a href="../../user/Christian+Waluga" class="qa-user-link url nickname">Christian Waluga</a></span></span>
+																<span class="qa-c-item-who-title">FEniCS Expert</span>
+																<span class="qa-c-item-who-points">
+																	<span class="qa-c-item-who-points-pad">(</span><span class="qa-c-item-who-points-data">12,310</span><span class="qa-c-item-who-points-pad"> points)</span>
+																</span>
+															</span>
+															<br>
+															<span class="qa-c-item-what">edited</span>
+															<span class="qa-c-item-when">
+																<span class="qa-c-item-when-data"><span class="updated"><span class="value-title" title="2016-04-27T19:43:21+0000"></span>Apr 27, 2016</span></span>
+															</span>
+															<span class="qa-c-item-who">
+																<span class="qa-c-item-who-pad">by </span><span class="qa-c-item-who-data"><a href="../../user/Christian+Waluga" class="qa-user-link url nickname">Christian Waluga</a></span>
+															</span>
+														</span>
+													</span>
+													<div class="qa-c-item-buttons">
+													</div>
+												</div>
+												<div class="qa-c-item-clear">
+												</div>
+											</div> <!-- END qa-c-item -->
+											<div class="qa-c-list-item  hentry comment" id="c9967">
+												<div class="qa-c-item-content">
+													<a name="9967"></a><div class="entry-content"><p>Thank you. That does fix the problem. Switching to second order lagrange function also removed the negative power dissipation issue, but results in a smooth transition between the two materials which is expected but is accurate on low resolution mesh. I need to read up on the spaces in Fenics and how they work. </p>
+
+<p>Thank you again!</p>
+</div>
+												</div>
+												<div class="qa-c-item-footer">
+													<span class="qa-c-item-avatar-meta">
+														<span class="qa-c-item-meta">
+															<a href="../9954/solving-for-power-dissipation-where-grad-how-solve-for-this?show=9967#c9967" class="qa-c-item-what">commented</a>
+															<span class="qa-c-item-when">
+																<span class="qa-c-item-when-data"><span class="published"><span class="value-title" title="2016-04-27T19:45:46+0000"></span>Apr 27, 2016</span></span>
+															</span>
+															<span class="qa-c-item-who">
+																<span class="qa-c-item-who-pad">by </span>
+																<span class="qa-c-item-who-data"><span class="vcard author"><a href="../../user/soviet911" class="qa-user-link url nickname">soviet911</a></span></span>
+																<span class="qa-c-item-who-title">FEniCS Novice</span>
+																<span class="qa-c-item-who-points">
+																	<span class="qa-c-item-who-points-pad">(</span><span class="qa-c-item-who-points-data">180</span><span class="qa-c-item-who-points-pad"> points)</span>
+																</span>
+															</span>
+														</span>
+													</span>
+													<div class="qa-c-item-buttons">
+													</div>
+												</div>
+												<div class="qa-c-item-clear">
+												</div>
+											</div> <!-- END qa-c-item -->
+										</div> <!-- END qa-c-list -->
+										
+										<input type="hidden" name="code" value="0-1516478048-3a89666e83f315117bf342ae765cd78a97173ff5">
+										<input type="hidden" name="qa_click" value="">
+									</form>
+									<div class="qa-c-form">
+									</div> <!-- END qa-c-form -->
+									
+								</div> <!-- END qa-q-view-main -->
+								<div class="qa-q-view-clear">
+								</div>
+							</div> <!-- END qa-q-view -->
+							
+						</div>
+						<div class="qa-part-a-list">
+							<h2 id="a_list_title" style="display:none;"></h2>
+							<div class="qa-a-list" id="a_list">
+								
+							</div> <!-- END qa-a-list -->
+							
+						</div>
+					</div> <!-- END qa-main -->
+					
+				</div> <!-- END main-wrapper -->
+			</div> <!-- END main-shadow -->
+		</div> <!-- END body-wrapper -->
+		<!-- END footer-bottom-group -->
+		
+		<div style="position:absolute; left:-9999px; top:-9999px;">
+			<span id="qa-waiting-template" class="qa-waiting">...</span>
+		</div>
+	
+	
+
+</body><!-- Powered by Question2Answer - http://www.question2answer.org/ --></html>

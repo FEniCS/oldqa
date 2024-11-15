@@ -1,0 +1,318 @@
+<html><!-- Powered by Question2Answer - http://www.question2answer.org/ --><head>
+		<meta http-equiv="content-type" content="text/html; charset=utf-8">
+		<title>linear elasticity equation with DG Method - FEniCS Q&amp;A</title>
+		<meta name="description" content="I am completely new to FEniCS and I am trying to solve linear elasticity equation using DG method:  ... inside(self,x,on_boundary): return abs(x[0])">
+		<link rel="stylesheet" type="text/css" href="../../qa-theme/Snow/qa-styles.css">
+		<link rel="canonical" href="http://fenicsproject.org/qa/12198/linear-elasticity-equation-with-dg-method">
+		<script type="text/x-mathjax-config">
+  MathJax.Hub.Config({
+    extensions: ["tex2jax.js"],
+    jax: ["input/TeX","output/HTML-CSS"],
+    tex2jax: {inlineMath: [["$","$"],["\\(","\\)"]]},
+    TeX: { extensions: ["AMSmath.js","AMSsymbols.js"]}
+  });
+</script>
+<script type="text/javascript" src="../../mathjax/MathJax.js"></script>
+		<script src="../../jquery-1.7.2.min.js" type="text/javascript"></script>
+		<script src="../../highlight.min.js"></script>
+<script type="text/javascript">
+$(function(){
+	$('.wmd-input').keypress(function(){
+		window.clearTimeout(hljs.Timeout);
+		hljs.Timeout = window.setTimeout(function() {
+			hljs.initHighlighting.called = false;
+			hljs.initHighlighting();
+		}, 500);
+	});
+	window.setTimeout(function() {
+		hljs.initHighlighting.called = false;
+		hljs.initHighlighting();
+	}, 500);
+});
+</script>
+
+
+	</head>
+	<body class="qa-template-question qa-body-js-off">
+		<div class="qa-body-wrapper">
+			
+			<div class="qa-header">
+				<div class="qa-logo">
+					<a href="../../" class="qa-logo-link" title="FEniCS Q&amp;A"><img src="../../qa-theme/fenics_qa.png" border="0" alt="FEniCS Q&amp;A"></a>
+				</div>
+				<div class="qa-header-clear">
+				</div>
+			</div> <!-- END qa-header -->
+			
+			<div class="qa-main-shadow">
+				
+				<div class="qa-main-wrapper">
+					
+					<div class="qa-sidepanel">
+						<div class="qa-sidebar">
+							This is a read only copy of the old FEniCS QA forum. Please visit the <a href="https://www.allanswered.com/community/s/fenics-project/">new QA forum</a> to ask questions
+						</div>
+						
+					</div>
+					
+					<div class="qa-main">
+						<h1>
+							<span class="entry-title">linear elasticity equation with DG Method</span>
+						</h1>
+						<div class="qa-part-q-view">
+							<div class="qa-q-view  hentry question" id="q12198">
+								<form method="post" action="../../12198/linear-elasticity-equation-with-dg-method">
+									<div class="qa-q-view-stats">
+										<div class="qa-voting qa-voting-net" id="voting_12198">
+											<div class="qa-vote-count qa-vote-count-net">
+												<span class="qa-netvote-count">
+													<span class="qa-netvote-count-data">0<span class="votes-up"><span class="value-title" title="0"></span></span><span class="votes-down"><span class="value-title" title="0"></span></span></span><span class="qa-netvote-count-pad"> votes</span>
+												</span>
+											</div>
+											<div class="qa-vote-clear">
+											</div>
+										</div>
+									</div>
+									<input type="hidden" name="code" value="0-1516467811-f85961ca8a8b6377f126b86c7335406cf2cfd0a2">
+								</form>
+								<div class="qa-q-view-main">
+									<form method="post" action="../../12198/linear-elasticity-equation-with-dg-method">
+										<div class="qa-q-view-content">
+											<a name="12198"></a><div class="entry-content"><p>I am completely new to FEniCS and I am trying to solve linear elasticity equation using DG method:<br>
+                               &#8722;div &#963; = b on  a square plate of which one side is fixed and other is pulled with force. But I'm not getting the proper solution. Any help is appreciated. program is as:</p>
+
+<p>from dolfin import *<br>
+from mshr import *<br>
+import numpy<br>
+import math</p>
+
+<pre><code>    #====================== generate mesh and function space
+</code></pre>
+
+<p>mesh = UnitSquareMesh(10, 10)<br>
+V = VectorFunctionSpace(mesh ,"DG",2)   #function space generation</p>
+
+<pre><code>    #====================== define material property
+</code></pre>
+
+<p>E = 200e9               #young's modulas<br>
+nu = 0.3            #poisson ratio</p>
+
+<p>lmbda = E<em>nu /((1.0 + nu)</em>(1.0-2*nu)) #plain strain constant<br>
+mu = E / (2 * (1 + nu))     #plain strain constant</p>
+
+<pre><code>    #====================== defination of stress and strain
+</code></pre>
+
+<p>def  epsilon(v):<br>
+    D=nabla_grad(v)<br>
+    return  0.5 * (D+D.T)<br>
+def  sigma(v):<br>
+    return 2.0 * mu * epsilon(v) + lmbda * tr(epsilon(v)) * Identity (2)</p>
+
+<pre><code>    #===================== defining boundary condition
+</code></pre>
+
+<p>tol=1E-14<br>
+class left(SubDomain):<br>
+    def inside(self,x,on_boundary):<br>
+        return abs(x[0])&lt;=tol and on_boundary</p>
+
+<p>class right(SubDomain):<br>
+    def inside(self,x,on_boundary):<br>
+        return abs(x[0]-1)&lt;=tol and on_boundary<br>
+left=left()<br>
+right=right()<br>
+boundaries=FacetFunction("size_t",mesh)<br>
+boundaries.set_all(0)<br>
+left.mark(boundaries,1)<br>
+right.mark(boundaries,2)</p>
+
+<h2>Define normal vector and mesh size</h2>
+
+<p>n = FacetNormal(mesh)<br>
+h = CellSize(mesh)<br>
+h_avg = (h('+') + h('-'))/2</p>
+
+<p>u0 = Constant(("0.0", "0.0"))<br>
+bc1=DirichletBC(V,u0,boundaries,1)<br>
+ds=Measure("ds")[boundaries]<br>
+bc=[bc1]</p>
+
+<pre><code>    #======================== define variational problem
+</code></pre>
+
+<p>u = TrialFunction(V)<br>
+v = TestFunction(V)<br>
+f=Constant(("0.0","0.0"))   # body force<br>
+g=Expression(("100e8","0.0"))   # traction </p>
+
+<p>a = inner(nabla_grad(v), sigma(u))<em>dx \<br>
+- inner(avg(sigma(v)</em>n), jump(u))<em>dS \<br>
+- inner(jump(v), avg(sigma(u)</em>n))<em>dS \<br>
+- inner(avg(sigma(v)</em>n), jump(u))<em>ds(1) \<br>
+- inner(jump(v), avg(sigma(u)</em>n))*ds(1)</p>
+
+<p>L= inner(v,f)<em>dx + inner(v,g)</em>ds(2) </p>
+
+<pre><code>    #======================== compute solutions
+</code></pre>
+
+<p>u = Function(V)<br>
+solve(a==L, u)</p>
+
+<p>plot(u,mode="displacement",axes=True)<br>
+plot(mesh)<br>
+interactive()</p>
+</div>
+										</div>
+										<span class="qa-q-view-avatar-meta">
+											<span class="qa-q-view-meta">
+												<a href="../../12198/linear-elasticity-equation-with-dg-method" class="qa-q-view-what">asked</a>
+												<span class="qa-q-view-when">
+													<span class="qa-q-view-when-data"><span class="published"><span class="value-title" title="2017-01-20T09:34:47+0000"></span>Jan 20, 2017</span></span>
+												</span>
+												<span class="qa-q-view-who">
+													<span class="qa-q-view-who-pad">by </span>
+													<span class="qa-q-view-who-data"><span class="vcard author"><a href="../../user/shr" class="qa-user-link url nickname">shr</a></span></span>
+													<span class="qa-q-view-who-title">FEniCS Novice</span>
+													<span class="qa-q-view-who-points">
+														<span class="qa-q-view-who-points-pad">(</span><span class="qa-q-view-who-points-data">160</span><span class="qa-q-view-who-points-pad"> points)</span>
+													</span>
+												</span>
+												<br>
+												<span class="qa-q-view-what">edited</span>
+												<span class="qa-q-view-when">
+													<span class="qa-q-view-when-data"><span class="updated"><span class="value-title" title="2017-02-07T19:02:07+0000"></span>Feb 7, 2017</span></span>
+												</span>
+												<span class="qa-q-view-who">
+													<span class="qa-q-view-who-pad">by </span><span class="qa-q-view-who-data"><a href="../../user/shr" class="qa-user-link url nickname">shr</a></span>
+												</span>
+											</span>
+										</span>
+										<div class="qa-q-view-buttons">
+										</div>
+										
+										<div class="qa-q-view-c-list" style="display:none;" id="c12198_list">
+										</div> <!-- END qa-c-list -->
+										
+										<input type="hidden" name="code" value="0-1516467811-853e2a100a8bd2a9a6670fb6a54f7c677ca8e1fc">
+										<input type="hidden" name="qa_click" value="">
+									</form>
+									<div class="qa-c-form">
+									</div> <!-- END qa-c-form -->
+									
+								</div> <!-- END qa-q-view-main -->
+								<div class="qa-q-view-clear">
+								</div>
+							</div> <!-- END qa-q-view -->
+							
+						</div>
+						<div class="qa-part-a-list">
+							<h2 id="a_list_title">1 Answer</h2>
+							<div class="qa-a-list" id="a_list">
+								
+								<div class="qa-a-list-item  hentry answer" id="a12200">
+									<form method="post" action="../../12198/linear-elasticity-equation-with-dg-method">
+										<div class="qa-voting qa-voting-net" id="voting_12200">
+											<div class="qa-vote-count qa-vote-count-net">
+												<span class="qa-netvote-count">
+													<span class="qa-netvote-count-data">+1<span class="votes-up"><span class="value-title" title="1"></span></span><span class="votes-down"><span class="value-title" title="0"></span></span></span><span class="qa-netvote-count-pad"> vote</span>
+												</span>
+											</div>
+											<div class="qa-vote-clear">
+											</div>
+										</div>
+										<input type="hidden" name="code" value="0-1516467811-f85961ca8a8b6377f126b86c7335406cf2cfd0a2">
+									</form>
+									<div class="qa-a-item-main">
+										<form method="post" action="../../12198/linear-elasticity-equation-with-dg-method">
+											<div class="qa-a-selection">
+											</div>
+											<div class="qa-a-item-content">
+												<a name="12200"></a><div class="entry-content"><p>Your 'a' doesn't seem to be right. Check demo/undocumented/dg-poisson.</p>
+</div>
+											</div>
+											<span class="qa-a-item-avatar-meta">
+												<span class="qa-a-item-meta">
+													<a href="../../12198/linear-elasticity-equation-with-dg-method?show=12200#a12200" class="qa-a-item-what">answered</a>
+													<span class="qa-a-item-when">
+														<span class="qa-a-item-when-data"><span class="published"><span class="value-title" title="2017-01-20T11:02:28+0000"></span>Jan 20, 2017</span></span>
+													</span>
+													<span class="qa-a-item-who">
+														<span class="qa-a-item-who-pad">by </span>
+														<span class="qa-a-item-who-data"><span class="vcard author"><a href="../../user/str" class="qa-user-link url nickname">str</a></span></span>
+														<span class="qa-a-item-who-title">FEniCS User</span>
+														<span class="qa-a-item-who-points">
+															<span class="qa-a-item-who-points-pad">(</span><span class="qa-a-item-who-points-data">1,600</span><span class="qa-a-item-who-points-pad"> points)</span>
+														</span>
+													</span>
+												</span>
+											</span>
+											<div class="qa-a-item-buttons">
+												</div>
+											
+											<div class="qa-a-item-c-list" id="c12200_list">
+												<div class="qa-c-list-item  hentry comment" id="c12372">
+													<div class="qa-c-item-content">
+														<a name="12372"></a><div class="entry-content"><p>Thank you sir.<br>
+ I got the 'a' from equation no 2.6 of</p>
+
+<p><a rel="nofollow" href="https://fenicsproject.org/pub/femcenter/pub/preprints/pdf/phiprint-2000-09.pdf">https://fenicsproject.org/pub/femcenter/pub/preprints/pdf/phiprint-2000-09.pdf</a></p>
+
+<p>but I don't know how to implement last two terms. </p>
+</div>
+													</div>
+													<div class="qa-c-item-footer">
+														<span class="qa-c-item-avatar-meta">
+															<span class="qa-c-item-meta">
+																<a href="../../12198/linear-elasticity-equation-with-dg-method?show=12372#c12372" class="qa-c-item-what">commented</a>
+																<span class="qa-c-item-when">
+																	<span class="qa-c-item-when-data"><span class="published"><span class="value-title" title="2017-02-07T19:04:30+0000"></span>Feb 7, 2017</span></span>
+																</span>
+																<span class="qa-c-item-who">
+																	<span class="qa-c-item-who-pad">by </span>
+																	<span class="qa-c-item-who-data"><span class="vcard author"><a href="../../user/shr" class="qa-user-link url nickname">shr</a></span></span>
+																	<span class="qa-c-item-who-title">FEniCS Novice</span>
+																	<span class="qa-c-item-who-points">
+																		<span class="qa-c-item-who-points-pad">(</span><span class="qa-c-item-who-points-data">160</span><span class="qa-c-item-who-points-pad"> points)</span>
+																	</span>
+																</span>
+															</span>
+														</span>
+														<div class="qa-c-item-buttons">
+														</div>
+													</div>
+													<div class="qa-c-item-clear">
+													</div>
+												</div> <!-- END qa-c-item -->
+											</div> <!-- END qa-c-list -->
+											
+											<input type="hidden" name="code" value="0-1516467811-1298cad21bd614b131959fc4db6d6b934af0cea8">
+											<input type="hidden" name="qa_click" value="">
+										</form>
+										<div class="qa-c-form">
+										</div> <!-- END qa-c-form -->
+										
+									</div> <!-- END qa-a-item-main -->
+									<div class="qa-a-item-clear">
+									</div>
+								</div> <!-- END qa-a-list-item -->
+								
+							</div> <!-- END qa-a-list -->
+							
+						</div>
+					</div> <!-- END qa-main -->
+					
+				</div> <!-- END main-wrapper -->
+			</div> <!-- END main-shadow -->
+		</div> <!-- END body-wrapper -->
+		<!-- END footer-bottom-group -->
+		
+		<div style="position:absolute; left:-9999px; top:-9999px;">
+			<span id="qa-waiting-template" class="qa-waiting">...</span>
+		</div>
+	
+	
+
+</body><!-- Powered by Question2Answer - http://www.question2answer.org/ --></html>

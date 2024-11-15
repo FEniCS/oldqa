@@ -1,0 +1,435 @@
+<html><!-- Powered by Question2Answer - http://www.question2answer.org/ --><head>
+		<meta http-equiv="content-type" content="text/html; charset=utf-8">
+		<title>Set values to an assembled matrix - FEniCS Q&amp;A</title>
+		<meta name="description" content="Hello, I have a very basic question. After the assembly of a linear system with matrix A and  ... with the same error. Thanks for your help! Diego">
+		<meta name="keywords" content="algebra,matrix">
+		<link rel="stylesheet" type="text/css" href="../../qa-theme/Snow/qa-styles.css">
+		<link rel="canonical" href="http://fenicsproject.org/qa/812/set-values-to-an-assembled-matrix">
+		<script type="text/x-mathjax-config">
+  MathJax.Hub.Config({
+    extensions: ["tex2jax.js"],
+    jax: ["input/TeX","output/HTML-CSS"],
+    tex2jax: {inlineMath: [["$","$"],["\\(","\\)"]]},
+    TeX: { extensions: ["AMSmath.js","AMSsymbols.js"]}
+  });
+</script>
+<script type="text/javascript" src="../../mathjax/MathJax.js"></script>
+		<script src="../../jquery-1.7.2.min.js" type="text/javascript"></script>
+		<script src="../../highlight.min.js"></script>
+<script type="text/javascript">
+$(function(){
+	$('.wmd-input').keypress(function(){
+		window.clearTimeout(hljs.Timeout);
+		hljs.Timeout = window.setTimeout(function() {
+			hljs.initHighlighting.called = false;
+			hljs.initHighlighting();
+		}, 500);
+	});
+	window.setTimeout(function() {
+		hljs.initHighlighting.called = false;
+		hljs.initHighlighting();
+	}, 500);
+});
+</script>
+
+
+	</head>
+	<body class="qa-template-question qa-body-js-off">
+		<div class="qa-body-wrapper">
+			
+			<div class="qa-header">
+				<div class="qa-logo">
+					<a href="../../" class="qa-logo-link" title="FEniCS Q&amp;A"><img src="../../qa-theme/fenics_qa.png" border="0" alt="FEniCS Q&amp;A"></a>
+				</div>
+				<div class="qa-header-clear">
+				</div>
+			</div> <!-- END qa-header -->
+			
+			<div class="qa-main-shadow">
+				
+				<div class="qa-main-wrapper">
+					
+					<div class="qa-sidepanel">
+						<div class="qa-sidebar">
+							This is a read only copy of the old FEniCS QA forum. Please visit the <a href="https://www.allanswered.com/community/s/fenics-project/">new QA forum</a> to ask questions
+						</div>
+						
+					</div>
+					
+					<div class="qa-main">
+						<h1>
+							<span class="entry-title">Set values to an assembled matrix</span>
+						</h1>
+						<div class="qa-part-q-view">
+							<div class="qa-q-view  hentry question" id="q812">
+								<form method="post" action="../../812/set-values-to-an-assembled-matrix">
+									<div class="qa-q-view-stats">
+										<div class="qa-voting qa-voting-net" id="voting_812">
+											<div class="qa-vote-count qa-vote-count-net">
+												<span class="qa-netvote-count">
+													<span class="qa-netvote-count-data">+4<span class="votes-up"><span class="value-title" title="4"></span></span><span class="votes-down"><span class="value-title" title="0"></span></span></span><span class="qa-netvote-count-pad"> votes</span>
+												</span>
+											</div>
+											<div class="qa-vote-clear">
+											</div>
+										</div>
+									</div>
+									<input type="hidden" name="code" value="0-1516468158-be132c73df7306b1e6ab19d5756ef4911e1fc4b7">
+								</form>
+								<div class="qa-q-view-main">
+									<form method="post" action="../../812/set-values-to-an-assembled-matrix">
+										<div class="qa-q-view-content">
+											<a name="812"></a><div class="entry-content"><p>Hello,</p>
+
+<p>I have a very basic question.</p>
+
+<p>After the assembly of a linear system with matrix A and right hand side vector b, I want to insert changes in the matrix A.</p>
+
+<p>To test the functions and methods I wrote this example, based on suggestions I found in this forum:  <a rel="nofollow" href="https://answers.launchpad.net/dolfin/+question/190367">https://answers.launchpad.net/dolfin/+question/190367</a></p>
+
+<pre><code>from dolfin import *
+import numpy
+set_log_level(ERROR)
+parameters["linear_algebra_backend"] = 'PETSc'
+
+# Create mesh and define function space
+mesh = UnitSquareMesh(2,2)
+V = FunctionSpace(mesh, 'Lagrange', 1)
+
+# Define boundary conditions for initial guess
+tol = 1E-14
+def left_boundary(x, on_boundary):
+    return on_boundary and abs(x[0]) &lt; tol
+
+def right_boundary(x, on_boundary):
+    return on_boundary and abs(x[0]-1) &lt; tol
+
+Gamma_0 = DirichletBC(V, Constant(0.0), left_boundary)
+Gamma_1 = DirichletBC(V, Constant(1.0), right_boundary)
+bcs = [Gamma_0, Gamma_1]
+
+# Define variational problem ans solve
+u = TrialFunction(V)
+v = TestFunction(V)
+a = inner(nabla_grad(u), nabla_grad(v))*dx
+f = Constant(0.0)
+L = f*v*dx
+A, b = assemble_system(a, L, bcs)
+u_k = Function(V)
+solve(A, u_k.vector(), b, 'lu')
+
+print A
+block = numpy.ones(2,dtype=numpy.float_)
+print block
+rows = numpy.array([0],dtype=numpy.uintc)
+print rows
+cols = numpy.array([1,2],dtype=numpy.uintc)
+print cols
+A.set(block,rows,cols)
+</code></pre>
+
+<p>When executed, I have the following error:</p>
+
+<pre><code>&lt;Matrix wrapper of &lt;PETScMatrix of size 9 x 9&gt;&gt;
+
+[ 1.  1.]
+[0]
+[1 2]
+
+Traceback (most recent call last):
+  File "set_matrix_ex.py", line 39, in &lt;module&gt;
+    A.set(block,rows,cols)
+TypeError: contiguous numpy array of 'dolfin_index' expected. Make sure that the numpy array is contiguous, with 1 dimension, and uses dtype=intc.
+</code></pre>
+
+<p>Apparently there is a problem with the data type. I read all documentation I found and I cannot understand what I am doing wrong.</p>
+
+<p>By the way, the matrix is of type "PETScMatrix" but I also try the "uBLAS" backend with the same error.</p>
+
+<p>Thanks for your help!<br>
+Diego</p>
+</div>
+										</div>
+										<div class="qa-q-view-tags">
+											<ul class="qa-q-view-tag-list">
+												<li class="qa-q-view-tag-item"><a href="../../tag/algebra" rel="tag" class="qa-tag-link">algebra</a></li>
+												<li class="qa-q-view-tag-item"><a href="../../tag/matrix" rel="tag" class="qa-tag-link">matrix</a></li>
+											</ul>
+										</div>
+										<span class="qa-q-view-avatar-meta">
+											<span class="qa-q-view-meta">
+												<a href="../../812/set-values-to-an-assembled-matrix" class="qa-q-view-what">asked</a>
+												<span class="qa-q-view-when">
+													<span class="qa-q-view-when-data"><span class="published"><span class="value-title" title="2013-08-04T19:18:21+0000"></span>Aug 4, 2013</span></span>
+												</span>
+												<span class="qa-q-view-who">
+													<span class="qa-q-view-who-pad">by </span>
+													<span class="qa-q-view-who-data"><span class="vcard author"><a href="../../user/DiegoM" class="qa-user-link url nickname">DiegoM</a></span></span>
+													<span class="qa-q-view-who-title">FEniCS Novice</span>
+													<span class="qa-q-view-who-points">
+														<span class="qa-q-view-who-points-pad">(</span><span class="qa-q-view-who-points-data">330</span><span class="qa-q-view-who-points-pad"> points)</span>
+													</span>
+												</span>
+											</span>
+										</span>
+										<div class="qa-q-view-buttons">
+										</div>
+										
+										<div class="qa-q-view-c-list" style="display:none;" id="c812_list">
+										</div> <!-- END qa-c-list -->
+										
+										<input type="hidden" name="code" value="0-1516468158-ffb2e03f4cf475ed679eb5aa57444fe7f1218c91">
+										<input type="hidden" name="qa_click" value="">
+									</form>
+									<div class="qa-c-form">
+									</div> <!-- END qa-c-form -->
+									
+								</div> <!-- END qa-q-view-main -->
+								<div class="qa-q-view-clear">
+								</div>
+							</div> <!-- END qa-q-view -->
+							
+						</div>
+						<div class="qa-part-a-list">
+							<h2 id="a_list_title">1 Answer</h2>
+							<div class="qa-a-list" id="a_list">
+								
+								<div class="qa-a-list-item  hentry answer answer-selected qa-a-list-item-selected" id="a813">
+									<form method="post" action="../../812/set-values-to-an-assembled-matrix">
+										<div class="qa-voting qa-voting-net" id="voting_813">
+											<div class="qa-vote-count qa-vote-count-net">
+												<span class="qa-netvote-count">
+													<span class="qa-netvote-count-data">+4<span class="votes-up"><span class="value-title" title="4"></span></span><span class="votes-down"><span class="value-title" title="0"></span></span></span><span class="qa-netvote-count-pad"> votes</span>
+												</span>
+											</div>
+											<div class="qa-vote-clear">
+											</div>
+										</div>
+										<input type="hidden" name="code" value="0-1516468158-be132c73df7306b1e6ab19d5756ef4911e1fc4b7">
+									</form>
+									<div class="qa-a-item-main">
+										<form method="post" action="../../812/set-values-to-an-assembled-matrix">
+											<div class="qa-a-item-selected">
+												<div class="qa-a-selection">
+													<div class="qa-a-selected">&#160;</div>
+													<div class="qa-a-selected-text">Best answer</div>
+												</div>
+												<div class="qa-a-item-content">
+													<a name="813"></a><div class="entry-content"><p>First and most important: you should not manipulate the values of an assembled matrix. It will almost always be very slow.</p>
+
+<p>Second, to get your example running, just change from <code>uintc</code> to <code>intc</code> as suggested in the error message.</p>
+
+<p>You should also instantiate an Assembler object and set the parameter <code>finalize_tensor</code> to <code>False</code> (<code>assembler.finalize_tensor = False</code>), then assemble (<code>assembler.assemble(...)</code>) and finally call <code>A.apply()</code>.</p>
+</div>
+												</div>
+												<span class="qa-a-item-avatar-meta">
+													<span class="qa-a-item-avatar">
+														<a href="../../user/logg" class="qa-avatar-link"><img src="https://www.gravatar.com/avatar/d2401a1635e91a5d9bf0db871a22abee?s=40" width="40" height="40" class="qa-avatar-image" alt=""></a>
+													</span>
+													<span class="qa-a-item-meta">
+														<a href="../../812/set-values-to-an-assembled-matrix?show=813#a813" class="qa-a-item-what">answered</a>
+														<span class="qa-a-item-when">
+															<span class="qa-a-item-when-data"><span class="published"><span class="value-title" title="2013-08-04T21:00:57+0000"></span>Aug 4, 2013</span></span>
+														</span>
+														<span class="qa-a-item-who">
+															<span class="qa-a-item-who-pad">by </span>
+															<span class="qa-a-item-who-data"><span class="vcard author"><a href="../../user/logg" class="qa-user-link url nickname">logg</a></span></span>
+															<span class="qa-a-item-who-title">FEniCS Expert</span>
+															<span class="qa-a-item-who-points">
+																<span class="qa-a-item-who-points-pad">(</span><span class="qa-a-item-who-points-data">11,790</span><span class="qa-a-item-who-points-pad"> points)</span>
+															</span>
+														</span>
+														<br>
+														<span class="qa-a-item-what">selected</span>
+														<span class="qa-a-item-when">
+															<span class="qa-a-item-when-data"><span class="updated"><span class="value-title" title="2013-08-08T16:22:11+0000"></span>Aug 8, 2013</span></span>
+														</span>
+														<span class="qa-a-item-who">
+															<span class="qa-a-item-who-pad">by </span><span class="qa-a-item-who-data"><a href="../../user/Jan+Blechta" class="qa-user-link url nickname">Jan Blechta</a></span>
+														</span>
+													</span>
+												</span>
+											</div>
+											<div class="qa-a-item-buttons">
+												</div>
+											
+											<div class="qa-a-item-c-list" id="c813_list">
+												<div class="qa-c-list-item  hentry comment" id="c814">
+													<div class="qa-c-item-content">
+														<a name="814"></a><div class="entry-content"><p>Thanks for your answer. That solved my question!<br>
+Regarding the computational time, I understand your point.</p>
+
+<p>By  assuming that I will not change the sparsity pattern of the matrix when setting the new values, it would be the process still very slow?</p>
+
+<p>Another option I am considering is to copy the values of the assembled matrix to a new PETScMatrix, but considering the appropriate modifications. Do you think this could significate in some time improvement?</p>
+
+<p>Thanks again!</p>
+</div>
+													</div>
+													<div class="qa-c-item-footer">
+														<span class="qa-c-item-avatar-meta">
+															<span class="qa-c-item-meta">
+																<a href="../../812/set-values-to-an-assembled-matrix?show=814#c814" class="qa-c-item-what">commented</a>
+																<span class="qa-c-item-when">
+																	<span class="qa-c-item-when-data"><span class="published"><span class="value-title" title="2013-08-05T11:56:32+0000"></span>Aug 5, 2013</span></span>
+																</span>
+																<span class="qa-c-item-who">
+																	<span class="qa-c-item-who-pad">by </span>
+																	<span class="qa-c-item-who-data"><span class="vcard author"><a href="../../user/DiegoM" class="qa-user-link url nickname">DiegoM</a></span></span>
+																	<span class="qa-c-item-who-title">FEniCS Novice</span>
+																	<span class="qa-c-item-who-points">
+																		<span class="qa-c-item-who-points-pad">(</span><span class="qa-c-item-who-points-data">330</span><span class="qa-c-item-who-points-pad"> points)</span>
+																	</span>
+																</span>
+															</span>
+														</span>
+														<div class="qa-c-item-buttons">
+														</div>
+													</div>
+													<div class="qa-c-item-clear">
+													</div>
+												</div> <!-- END qa-c-item -->
+												<div class="qa-c-list-item  hentry comment" id="c815">
+													<div class="qa-c-item-content">
+														<a name="815"></a><div class="entry-content"><p>If you don't change the sparsity pattern and you appropriately use finalize_tensor = False in combination with A.apply(), there shouldn't be any performance penalty (except for the overhead of Python function calls).</p>
+</div>
+													</div>
+													<div class="qa-c-item-footer">
+														<span class="qa-c-item-avatar-meta">
+															<span class="qa-c-item-avatar">
+																<a href="../../user/logg" class="qa-avatar-link"><img src="https://www.gravatar.com/avatar/d2401a1635e91a5d9bf0db871a22abee?s=20" width="20" height="20" class="qa-avatar-image" alt=""></a>
+															</span>
+															<span class="qa-c-item-meta">
+																<a href="../../812/set-values-to-an-assembled-matrix?show=815#c815" class="qa-c-item-what">commented</a>
+																<span class="qa-c-item-when">
+																	<span class="qa-c-item-when-data"><span class="published"><span class="value-title" title="2013-08-05T12:14:01+0000"></span>Aug 5, 2013</span></span>
+																</span>
+																<span class="qa-c-item-who">
+																	<span class="qa-c-item-who-pad">by </span>
+																	<span class="qa-c-item-who-data"><span class="vcard author"><a href="../../user/logg" class="qa-user-link url nickname">logg</a></span></span>
+																	<span class="qa-c-item-who-title">FEniCS Expert</span>
+																	<span class="qa-c-item-who-points">
+																		<span class="qa-c-item-who-points-pad">(</span><span class="qa-c-item-who-points-data">11,790</span><span class="qa-c-item-who-points-pad"> points)</span>
+																	</span>
+																</span>
+															</span>
+														</span>
+														<div class="qa-c-item-buttons">
+														</div>
+													</div>
+													<div class="qa-c-item-clear">
+													</div>
+												</div> <!-- END qa-c-item -->
+												<div class="qa-c-list-item  hentry comment" id="c816">
+													<div class="qa-c-item-content">
+														<a name="816"></a><div class="entry-content"><p>Thanks! <br>
+That solved my question....again.</p>
+</div>
+													</div>
+													<div class="qa-c-item-footer">
+														<span class="qa-c-item-avatar-meta">
+															<span class="qa-c-item-meta">
+																<a href="../../812/set-values-to-an-assembled-matrix?show=816#c816" class="qa-c-item-what">commented</a>
+																<span class="qa-c-item-when">
+																	<span class="qa-c-item-when-data"><span class="published"><span class="value-title" title="2013-08-05T13:37:46+0000"></span>Aug 5, 2013</span></span>
+																</span>
+																<span class="qa-c-item-who">
+																	<span class="qa-c-item-who-pad">by </span>
+																	<span class="qa-c-item-who-data"><span class="vcard author"><a href="../../user/DiegoM" class="qa-user-link url nickname">DiegoM</a></span></span>
+																	<span class="qa-c-item-who-title">FEniCS Novice</span>
+																	<span class="qa-c-item-who-points">
+																		<span class="qa-c-item-who-points-pad">(</span><span class="qa-c-item-who-points-data">330</span><span class="qa-c-item-who-points-pad"> points)</span>
+																	</span>
+																</span>
+															</span>
+														</span>
+														<div class="qa-c-item-buttons">
+														</div>
+													</div>
+													<div class="qa-c-item-clear">
+													</div>
+												</div> <!-- END qa-c-item -->
+												<div class="qa-c-list-item  hentry comment" id="c7101">
+													<div class="qa-c-item-content">
+														<a name="7101"></a><div class="entry-content"><p>If I want to change only some values of the petsc matrix? <br>
+For example</p>
+
+<pre><code>a21_lump = c*w*dx 
+mass_matrix21 = assemble(a21_lump)
+mass_matrix21.zero()
+mass_form21= action(a21_lump, const)
+vec=assemble(mass_form21)
+print vec
+N = len(vec.array())
+for i in range(1, N-1): 
+     mass_matrix21.array()[i][i-1]= vec.array()[i]
+</code></pre>
+
+<p>If I print, no changes occurred. <br>
+What should I do? </p>
+</div>
+													</div>
+													<div class="qa-c-item-footer">
+														<span class="qa-c-item-avatar-meta">
+															<span class="qa-c-item-avatar">
+																<a href="../../user/MCri" class="qa-avatar-link"><img src="https://www.gravatar.com/avatar/2a697871ca1cb2527005c00061a05988?s=20" width="20" height="20" class="qa-avatar-image" alt=""></a>
+															</span>
+															<span class="qa-c-item-meta">
+																<a href="../../812/set-values-to-an-assembled-matrix?show=7101#c7101" class="qa-c-item-what">commented</a>
+																<span class="qa-c-item-when">
+																	<span class="qa-c-item-when-data"><span class="published"><span class="value-title" title="2015-05-11T16:03:37+0000"></span>May 11, 2015</span></span>
+																</span>
+																<span class="qa-c-item-who">
+																	<span class="qa-c-item-who-pad">by </span>
+																	<span class="qa-c-item-who-data"><span class="vcard author"><a href="../../user/MCri" class="qa-user-link url nickname">MCri</a></span></span>
+																	<span class="qa-c-item-who-title">FEniCS User</span>
+																	<span class="qa-c-item-who-points">
+																		<span class="qa-c-item-who-points-pad">(</span><span class="qa-c-item-who-points-data">1,120</span><span class="qa-c-item-who-points-pad"> points)</span>
+																	</span>
+																</span>
+																<br>
+																<span class="qa-c-item-what">edited</span>
+																<span class="qa-c-item-when">
+																	<span class="qa-c-item-when-data"><span class="updated"><span class="value-title" title="2015-05-11T16:17:18+0000"></span>May 11, 2015</span></span>
+																</span>
+																<span class="qa-c-item-who">
+																	<span class="qa-c-item-who-pad">by </span><span class="qa-c-item-who-data"><a href="../../user/MCri" class="qa-user-link url nickname">MCri</a></span>
+																</span>
+															</span>
+														</span>
+														<div class="qa-c-item-buttons">
+														</div>
+													</div>
+													<div class="qa-c-item-clear">
+													</div>
+												</div> <!-- END qa-c-item -->
+											</div> <!-- END qa-c-list -->
+											
+											<input type="hidden" name="code" value="0-1516468158-0766a25262a0b342b2ed21cc32291b6f16425744">
+											<input type="hidden" name="qa_click" value="">
+										</form>
+										<div class="qa-c-form">
+										</div> <!-- END qa-c-form -->
+										
+									</div> <!-- END qa-a-item-main -->
+									<div class="qa-a-item-clear">
+									</div>
+								</div> <!-- END qa-a-list-item -->
+								
+							</div> <!-- END qa-a-list -->
+							
+						</div>
+					</div> <!-- END qa-main -->
+					
+				</div> <!-- END main-wrapper -->
+			</div> <!-- END main-shadow -->
+		</div> <!-- END body-wrapper -->
+		<!-- END footer-bottom-group -->
+		
+		<div style="position:absolute; left:-9999px; top:-9999px;">
+			<span id="qa-waiting-template" class="qa-waiting">...</span>
+		</div>
+	
+	
+
+</body><!-- Powered by Question2Answer - http://www.question2answer.org/ --></html>

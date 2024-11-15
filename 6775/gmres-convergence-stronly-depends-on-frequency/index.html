@@ -1,0 +1,423 @@
+<html><!-- Powered by Question2Answer - http://www.question2answer.org/ --><head>
+		<meta http-equiv="content-type" content="text/html; charset=utf-8">
+		<title>gmres convergence stronly depends on frequency - FEniCS Q&amp;A</title>
+		<meta name="description" content="Hello everybody I try to solve a simple acoustic test case consisting of an air filled box with a point ...  inside(self, x, on_boundary): return x[0]">
+		<meta name="keywords" content="gmres,convergence,acoustic,helmholtz">
+		<link rel="stylesheet" type="text/css" href="../../qa-theme/Snow/qa-styles.css">
+		<link rel="canonical" href="http://fenicsproject.org/qa/6775/gmres-convergence-stronly-depends-on-frequency">
+		<script type="text/x-mathjax-config">
+  MathJax.Hub.Config({
+    extensions: ["tex2jax.js"],
+    jax: ["input/TeX","output/HTML-CSS"],
+    tex2jax: {inlineMath: [["$","$"],["\\(","\\)"]]},
+    TeX: { extensions: ["AMSmath.js","AMSsymbols.js"]}
+  });
+</script>
+<script type="text/javascript" src="../../mathjax/MathJax.js"></script>
+		<script src="../../jquery-1.7.2.min.js" type="text/javascript"></script>
+		<script src="../../highlight.min.js"></script>
+<script type="text/javascript">
+$(function(){
+	$('.wmd-input').keypress(function(){
+		window.clearTimeout(hljs.Timeout);
+		hljs.Timeout = window.setTimeout(function() {
+			hljs.initHighlighting.called = false;
+			hljs.initHighlighting();
+		}, 500);
+	});
+	window.setTimeout(function() {
+		hljs.initHighlighting.called = false;
+		hljs.initHighlighting();
+	}, 500);
+});
+</script>
+
+
+	</head>
+	<body class="qa-template-question qa-body-js-off">
+		<div class="qa-body-wrapper">
+			
+			<div class="qa-header">
+				<div class="qa-logo">
+					<a href="../../" class="qa-logo-link" title="FEniCS Q&amp;A"><img src="../../qa-theme/fenics_qa.png" border="0" alt="FEniCS Q&amp;A"></a>
+				</div>
+				<div class="qa-header-clear">
+				</div>
+			</div> <!-- END qa-header -->
+			
+			<div class="qa-main-shadow">
+				
+				<div class="qa-main-wrapper">
+					
+					<div class="qa-sidepanel">
+						<div class="qa-sidebar">
+							This is a read only copy of the old FEniCS QA forum. Please visit the <a href="https://www.allanswered.com/community/s/fenics-project/">new QA forum</a> to ask questions
+						</div>
+						
+					</div>
+					
+					<div class="qa-main">
+						<h1>
+							<span class="entry-title">gmres convergence stronly depends on frequency</span>
+						</h1>
+						<div class="qa-part-q-view">
+							<div class="qa-q-view  hentry question" id="q6775">
+								<form method="post" action="../../6775/gmres-convergence-stronly-depends-on-frequency">
+									<div class="qa-q-view-stats">
+										<div class="qa-voting qa-voting-net" id="voting_6775">
+											<div class="qa-vote-count qa-vote-count-net">
+												<span class="qa-netvote-count">
+													<span class="qa-netvote-count-data">+1<span class="votes-up"><span class="value-title" title="1"></span></span><span class="votes-down"><span class="value-title" title="0"></span></span></span><span class="qa-netvote-count-pad"> vote</span>
+												</span>
+											</div>
+											<div class="qa-vote-clear">
+											</div>
+										</div>
+									</div>
+									<input type="hidden" name="code" value="0-1516468087-8e0540f8f516ed04c35b4e5cf0798cafa07b32ec">
+								</form>
+								<div class="qa-q-view-main">
+									<form method="post" action="../../6775/gmres-convergence-stronly-depends-on-frequency">
+										<div class="qa-q-view-content">
+											<a name="6775"></a><div class="entry-content"><p>Hello everybody</p>
+
+<p>I try to solve a simple acoustic test case consisting of an air filled box with a point source inside. On one surface is a thin layer of porous absorbing material.</p>
+
+<p>The problem is, that gmres does not converge for certain frequencies.<br>
+For example for 300, 290, 280, 270Hz the solver converges and the solution process takes about 10min each on my machine. For 230Hz the solution process takes about 2:40 for 220Hz about 1:30 and for 190Hz gmres does not converge at all.</p>
+
+<p>This is counterintuitive because the solution oscillates less for lower frequencies, so I would expect that lower frequencies would converge faster.</p>
+
+<p>Where can I begin to search for the problem?<br>
+Any hint would be very much appreciated.</p>
+
+<p>This is the code of the problem:</p>
+
+<pre><code>#!/usr/bin/env python
+# encoding: utf-8
+# 2015-03-04 10:58
+
+import math as m
+import numpy as np
+from dolfin import *
+
+thickness = 0.1
+
+L = 3.2
+Lx = L
+Ly = L
+Lz = L
+Nx = 32
+Ny = 32
+Nz = 32
+mesh = BoxMesh(0., 0., 0., Lx, Ly, Lz, Nx, Ny, Nz)
+
+W = FunctionSpace(mesh, 'Lagrange', 2)
+W2 = W * W
+
+########################################
+# add subdomains
+class Air(SubDomain):
+    def inside(self, x, on_boundary):
+        return x[0] &gt;= thickness
+
+class Absorber(SubDomain):
+    def inside(self, x, on_boundary):
+        return x[0] &lt;= thickness
+
+class AA_interface(SubDomain):
+    def inside(self, x, on_boundary):
+        return near(x[0], thickness)
+
+air = Air()
+absorber = Absorber()
+aai = AA_interface()
+
+# Initialize mesh function for interior domains
+domains = CellFunction("size_t", mesh)
+domains.set_all(0)
+absorber.mark(domains, 1)
+air.mark(domains, 2)
+
+# Initialize mesh function for internal boundary domains
+internal_boundaries = FacetFunction("size_t", mesh)
+internal_boundaries.set_all(0)
+aai.mark(internal_boundaries, 1)
+
+dx = Measure("dx")[domains]
+dS = Measure("dS")[internal_boundaries]
+########################################
+frequency = 300
+print frequency
+
+# acoustic parameters
+c = 343.4
+rho = 1.204
+omega = 2.*m.pi*frequency
+agemo = Constant(1./omega)
+k = omega/c
+ksquared = Constant(k**2.)
+k = Constant(k)
+
+# Absorber Parameters
+xi = 10000.
+kappa = 1.3
+sigma = 0.99
+zr = Constant(kappa)
+zi = Constant(-xi*sigma / (rho))
+ks = Constant(kappa/sigma)
+xr = Constant(xi/rho)
+
+########################################
+# define functions
+(pr, pi) = TrialFunction(W2)
+(w1, w2) = TestFunction(W2)
+
+# air domain
+a_air = (pr*w1*ksquared + pi*w2*ksquared -
+         inner(nabla_grad(pr), nabla_grad(w1)) - 
+         inner(nabla_grad(pi), nabla_grad(w2)))*dx(2)
+
+# absorber domain
+a_absorber = (pr*zr*w1*ksquared - zi*agemo*pi*w1*ksquared + 
+              zi*agemo*pr*w2*ksquared + zr*pi*w2*ksquared -
+              inner(nabla_grad(pr), nabla_grad(w1)) - 
+              inner(nabla_grad(pi), nabla_grad(w2)))*dx(1)
+
+a = a_air + a_absorber
+
+# right hand side
+L = Constant('0.')*(w1 - w2)*dx(1)
+
+# interface
+n = FacetNormal(mesh)
+
+denominator = Constant(1./(kappa*kappa/(sigma*sigma) +
+                       xi*xi/(rho*rho*omega*omega)))
+
+# (w1*dot(grad(pr)('-'), n('-')) + w2*dot(grad(pi)('-'), n('-')))*dS(1) =
+a_abs_interface = (- ks*      w1('-')*dot(grad(pr('-')), n('-'))
+                   - xr*agemo*w1('-')*dot(grad(pi('-')), n('-'))
+                   - ks*      w2('-')*dot(grad(pi('-')), n('-'))
+                   + xr*agemo*w2('-')*dot(grad(pr('-')), n('-'))
+                   )*dS(1)
+
+
+# (w1*dot(grad(pr)('+'), n('+')) + w2*dot(grad(pi)('+'), n('+')))*dS(1) =
+a_air_interface = (- denominator*ks*      w1('+')*dot(grad(pr('+')), n('+'))
+                   + denominator*xr*agemo*w1('+')*dot(grad(pi('+')), n('+'))
+                   - denominator*ks*      w2('+')*dot(grad(pi('+')), n('+'))
+                   - denominator*xr*agemo*w2('+')*dot(grad(pr('+')), n('+'))
+                   )*dS(1)
+
+
+a_interface = a_abs_interface + a_air_interface
+a += a_interface
+
+A = assemble(a)
+b = assemble(L)
+
+ps0 = PointSource(W2.sub(0), Point(thickness + 1.5, Ly/2., Lz/2.), 1.)
+ps1 = PointSource(W2.sub(1), Point(thickness + 1.5, Ly/2., Lz/2.), 1.)
+ps0.apply(b)
+ps1.apply(b)
+
+p = Function(W2)
+P = p.vector()
+
+solver = KrylovSolver("gmres", "amg")
+info(solver.default_parameters(), True)
+solver.parameters['monitor_convergence'] = True
+solver.parameters['absolute_tolerance'] = 1.0e-6
+solver.parameters['gmres']['restart'] = 10000
+solver.solve(A, P, b)
+
+pr, pi = p.split()
+
+plot(pr, title='pr')
+plot(pi, title='pi')
+interactive()
+</code></pre>
+</div>
+										</div>
+										<div class="qa-q-view-tags">
+											<ul class="qa-q-view-tag-list">
+												<li class="qa-q-view-tag-item"><a href="../../tag/gmres" rel="tag" class="qa-tag-link">gmres</a></li>
+												<li class="qa-q-view-tag-item"><a href="../../tag/convergence" rel="tag" class="qa-tag-link">convergence</a></li>
+												<li class="qa-q-view-tag-item"><a href="../../tag/acoustic" rel="tag" class="qa-tag-link">acoustic</a></li>
+												<li class="qa-q-view-tag-item"><a href="../../tag/helmholtz" rel="tag" class="qa-tag-link">helmholtz</a></li>
+											</ul>
+										</div>
+										<span class="qa-q-view-avatar-meta">
+											<span class="qa-q-view-meta">
+												<a href="../../6775/gmres-convergence-stronly-depends-on-frequency" class="qa-q-view-what">asked</a>
+												<span class="qa-q-view-when">
+													<span class="qa-q-view-when-data"><span class="published"><span class="value-title" title="2015-03-16T16:23:10+0000"></span>Mar 16, 2015</span></span>
+												</span>
+												<span class="qa-q-view-who">
+													<span class="qa-q-view-who-pad">by </span>
+													<span class="qa-q-view-who-data"><span class="vcard author"><a href="../../user/PaulR" class="qa-user-link url nickname">PaulR</a></span></span>
+													<span class="qa-q-view-who-title">FEniCS Novice</span>
+													<span class="qa-q-view-who-points">
+														<span class="qa-q-view-who-points-pad">(</span><span class="qa-q-view-who-points-data">420</span><span class="qa-q-view-who-points-pad"> points)</span>
+													</span>
+												</span>
+											</span>
+										</span>
+										<div class="qa-q-view-buttons">
+										</div>
+										
+										<div class="qa-q-view-c-list" id="c6775_list">
+											<div class="qa-c-list-item  hentry comment" id="c6865">
+												<div class="qa-c-item-content">
+													<a name="6865"></a><div class="entry-content"><p>If the solution has internal resonance, then as you approach the resonant frequency, the matrix will become increasingly ill-conditioned, and it becomes more like an eigenvalue problem. This might explain why it takes longer to converge for decreasing frequencies.</p>
+</div>
+												</div>
+												<div class="qa-c-item-footer">
+													<span class="qa-c-item-avatar-meta">
+														<span class="qa-c-item-meta">
+															<a href="../../6775/gmres-convergence-stronly-depends-on-frequency?show=6865#c6865" class="qa-c-item-what">commented</a>
+															<span class="qa-c-item-when">
+																<span class="qa-c-item-when-data"><span class="published"><span class="value-title" title="2015-03-25T20:10:14+0000"></span>Mar 25, 2015</span></span>
+															</span>
+															<span class="qa-c-item-who">
+																<span class="qa-c-item-who-pad">by </span>
+																<span class="qa-c-item-who-data"><span class="vcard author"><a href="../../user/Nick+Alger" class="qa-user-link url nickname">Nick Alger</a></span></span>
+																<span class="qa-c-item-who-title">FEniCS User</span>
+																<span class="qa-c-item-who-points">
+																	<span class="qa-c-item-who-points-pad">(</span><span class="qa-c-item-who-points-data">1,490</span><span class="qa-c-item-who-points-pad"> points)</span>
+																</span>
+															</span>
+														</span>
+													</span>
+													<div class="qa-c-item-buttons">
+													</div>
+												</div>
+												<div class="qa-c-item-clear">
+												</div>
+											</div> <!-- END qa-c-item -->
+										</div> <!-- END qa-c-list -->
+										
+										<input type="hidden" name="code" value="0-1516468087-0262f79fc5d5bf2bfad5038e490df138cf9e45a1">
+										<input type="hidden" name="qa_click" value="">
+									</form>
+									<div class="qa-c-form">
+									</div> <!-- END qa-c-form -->
+									
+								</div> <!-- END qa-q-view-main -->
+								<div class="qa-q-view-clear">
+								</div>
+							</div> <!-- END qa-q-view -->
+							
+						</div>
+						<div class="qa-part-a-list">
+							<h2 id="a_list_title">1 Answer</h2>
+							<div class="qa-a-list" id="a_list">
+								
+								<div class="qa-a-list-item  hentry answer" id="a6784">
+									<form method="post" action="../../6775/gmres-convergence-stronly-depends-on-frequency">
+										<div class="qa-voting qa-voting-net" id="voting_6784">
+											<div class="qa-vote-count qa-vote-count-net">
+												<span class="qa-netvote-count">
+													<span class="qa-netvote-count-data">0<span class="votes-up"><span class="value-title" title="0"></span></span><span class="votes-down"><span class="value-title" title="0"></span></span></span><span class="qa-netvote-count-pad"> votes</span>
+												</span>
+											</div>
+											<div class="qa-vote-clear">
+											</div>
+										</div>
+										<input type="hidden" name="code" value="0-1516468087-8e0540f8f516ed04c35b4e5cf0798cafa07b32ec">
+									</form>
+									<div class="qa-a-item-main">
+										<form method="post" action="../../6775/gmres-convergence-stronly-depends-on-frequency">
+											<div class="qa-a-selection">
+											</div>
+											<div class="qa-a-item-content">
+												<a name="6784"></a><div class="entry-content"><p>Hi,</p>
+
+<p>I once had a similar problem (with a completely different example). The problem then was that I was trying to use the 'amg' preconditioner for an hyperbolic problem. The solver then stopped to converge for high CFL numbers.</p>
+
+<p>Can you try to change your preconditioner?</p>
+</div>
+											</div>
+											<span class="qa-a-item-avatar-meta">
+												<span class="qa-a-item-meta">
+													<a href="../../6775/gmres-convergence-stronly-depends-on-frequency?show=6784#a6784" class="qa-a-item-what">answered</a>
+													<span class="qa-a-item-when">
+														<span class="qa-a-item-when-data"><span class="published"><span class="value-title" title="2015-03-17T17:51:50+0000"></span>Mar 17, 2015</span></span>
+													</span>
+													<span class="qa-a-item-who">
+														<span class="qa-a-item-who-pad">by </span>
+														<span class="qa-a-item-who-data"><span class="vcard author"><a href="../../user/V_L" class="qa-user-link url nickname">V_L</a></span></span>
+														<span class="qa-a-item-who-title">FEniCS User</span>
+														<span class="qa-a-item-who-points">
+															<span class="qa-a-item-who-points-pad">(</span><span class="qa-a-item-who-points-data">4,440</span><span class="qa-a-item-who-points-pad"> points)</span>
+														</span>
+													</span>
+												</span>
+											</span>
+											<div class="qa-a-item-buttons">
+												</div>
+											
+											<div class="qa-a-item-c-list" id="c6784_list">
+												<div class="qa-c-list-item  hentry comment" id="c6792">
+													<div class="qa-c-item-content">
+														<a name="6792"></a><div class="entry-content"><p>Thanks for your answer.</p>
+
+<p>To be honest I wasn't sure which preconditioner I could use for my problem, because of the special interface conditions I have to use. So I tried the preconditioners listed <a rel="nofollow" href="http://fenicsproject.org/documentation/tutorial/misc.html">here</a> and the amg preconditioner was the only one which caused the solver to converge.</p>
+
+<p>For the problem sizes I want to simulate, I need an interative solver. So I'm not sure what I could try now.</p>
+</div>
+													</div>
+													<div class="qa-c-item-footer">
+														<span class="qa-c-item-avatar-meta">
+															<span class="qa-c-item-meta">
+																<a href="../../6775/gmres-convergence-stronly-depends-on-frequency?show=6792#c6792" class="qa-c-item-what">commented</a>
+																<span class="qa-c-item-when">
+																	<span class="qa-c-item-when-data"><span class="published"><span class="value-title" title="2015-03-18T09:57:26+0000"></span>Mar 18, 2015</span></span>
+																</span>
+																<span class="qa-c-item-who">
+																	<span class="qa-c-item-who-pad">by </span>
+																	<span class="qa-c-item-who-data"><span class="vcard author"><a href="../../user/PaulR" class="qa-user-link url nickname">PaulR</a></span></span>
+																	<span class="qa-c-item-who-title">FEniCS Novice</span>
+																	<span class="qa-c-item-who-points">
+																		<span class="qa-c-item-who-points-pad">(</span><span class="qa-c-item-who-points-data">420</span><span class="qa-c-item-who-points-pad"> points)</span>
+																	</span>
+																</span>
+															</span>
+														</span>
+														<div class="qa-c-item-buttons">
+														</div>
+													</div>
+													<div class="qa-c-item-clear">
+													</div>
+												</div> <!-- END qa-c-item -->
+											</div> <!-- END qa-c-list -->
+											
+											<input type="hidden" name="code" value="0-1516468087-4a38c9509dd81722af643ff35048e0d10fce63f7">
+											<input type="hidden" name="qa_click" value="">
+										</form>
+										<div class="qa-c-form">
+										</div> <!-- END qa-c-form -->
+										
+									</div> <!-- END qa-a-item-main -->
+									<div class="qa-a-item-clear">
+									</div>
+								</div> <!-- END qa-a-list-item -->
+								
+							</div> <!-- END qa-a-list -->
+							
+						</div>
+					</div> <!-- END qa-main -->
+					
+				</div> <!-- END main-wrapper -->
+			</div> <!-- END main-shadow -->
+		</div> <!-- END body-wrapper -->
+		<!-- END footer-bottom-group -->
+		
+		<div style="position:absolute; left:-9999px; top:-9999px;">
+			<span id="qa-waiting-template" class="qa-waiting">...</span>
+		</div>
+	
+	
+
+</body><!-- Powered by Question2Answer - http://www.question2answer.org/ --></html>

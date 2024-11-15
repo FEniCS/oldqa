@@ -1,0 +1,484 @@
+<html><!-- Powered by Question2Answer - http://www.question2answer.org/ --><head>
+		<meta http-equiv="content-type" content="text/html; charset=utf-8">
+		<title>Problem with moving mesh (ALE.move) - FEniCS Q&amp;A</title>
+		<meta name="description" content="Hello I have a rectangular domain with a rectangular hole inside. I want to move the nodes located on the  ... jpg [2]: http://i.imgur.com/kAuIG99.jpg">
+		<meta name="keywords" content="move-mesh,boundarymesh,boundary-markers,ale">
+		<link rel="stylesheet" type="text/css" href="../../qa-theme/Snow/qa-styles.css">
+		<link rel="canonical" href="http://fenicsproject.org/qa/13874/problem-with-moving-mesh-ale-move">
+		<script type="text/x-mathjax-config">
+  MathJax.Hub.Config({
+    extensions: ["tex2jax.js"],
+    jax: ["input/TeX","output/HTML-CSS"],
+    tex2jax: {inlineMath: [["$","$"],["\\(","\\)"]]},
+    TeX: { extensions: ["AMSmath.js","AMSsymbols.js"]}
+  });
+</script>
+<script type="text/javascript" src="../../mathjax/MathJax.js"></script>
+		<script src="../../jquery-1.7.2.min.js" type="text/javascript"></script>
+		<script src="../../highlight.min.js"></script>
+<script type="text/javascript">
+$(function(){
+	$('.wmd-input').keypress(function(){
+		window.clearTimeout(hljs.Timeout);
+		hljs.Timeout = window.setTimeout(function() {
+			hljs.initHighlighting.called = false;
+			hljs.initHighlighting();
+		}, 500);
+	});
+	window.setTimeout(function() {
+		hljs.initHighlighting.called = false;
+		hljs.initHighlighting();
+	}, 500);
+});
+</script>
+
+
+	</head>
+	<body class="qa-template-question qa-body-js-off">
+		<div class="qa-body-wrapper">
+			
+			<div class="qa-header">
+				<div class="qa-logo">
+					<a href="../../" class="qa-logo-link" title="FEniCS Q&amp;A"><img src="../../qa-theme/fenics_qa.png" border="0" alt="FEniCS Q&amp;A"></a>
+				</div>
+				<div class="qa-header-clear">
+				</div>
+			</div> <!-- END qa-header -->
+			
+			<div class="qa-main-shadow">
+				
+				<div class="qa-main-wrapper">
+					
+					<div class="qa-sidepanel">
+						<div class="qa-sidebar">
+							This is a read only copy of the old FEniCS QA forum. Please visit the <a href="https://www.allanswered.com/community/s/fenics-project/">new QA forum</a> to ask questions
+						</div>
+						
+					</div>
+					
+					<div class="qa-main">
+						<h1>
+							<span class="entry-title">Problem with moving mesh (ALE.move)</span>
+						</h1>
+						<div class="qa-part-q-view">
+							<div class="qa-q-view  hentry question" id="q13874">
+								<form method="post" action="../../13874/problem-with-moving-mesh-ale-move">
+									<div class="qa-q-view-stats">
+										<div class="qa-voting qa-voting-net" id="voting_13874">
+											<div class="qa-vote-count qa-vote-count-net">
+												<span class="qa-netvote-count">
+													<span class="qa-netvote-count-data">0<span class="votes-up"><span class="value-title" title="0"></span></span><span class="votes-down"><span class="value-title" title="0"></span></span></span><span class="qa-netvote-count-pad"> votes</span>
+												</span>
+											</div>
+											<div class="qa-vote-clear">
+											</div>
+										</div>
+									</div>
+									<input type="hidden" name="code" value="0-1516466498-9e6de0f4359ccde7a1424cda1db1c19fc7619659">
+								</form>
+								<div class="qa-q-view-main">
+									<form method="post" action="../../13874/problem-with-moving-mesh-ale-move">
+										<div class="qa-q-view-content">
+											<a name="13874"></a><div class="entry-content"><p>Hello<br>
+I have a rectangular domain with a rectangular hole inside. I want to move the nodes located on the boundaries of the rectangular hole in the y-direction at every time step and subsequently I expect the boundaries of the hole to move in the y-direction.<br>
+I have followed the example provided in this topic:<br>
+<a rel="nofollow" href="https://fenicsproject.org/qa/11852/moving-dirichlet-bc-ale">https://fenicsproject.org/qa/11852/moving-dirichlet-bc-ale</a></p>
+
+<p>Here is the geometry and mesh:</p>
+
+<p><img src="http://i.imgur.com/HoToYoK.jpg" alt="enter image description here"><br>
+And this is my implementation:</p>
+
+<pre><code>from dolfin import *
+import mshr
+
+# Domain
+domain = mshr.Rectangle(Point(0,0), Point(4,4))\
+          - mshr.Rectangle(Point(1,1), Point(3,3))
+
+# Mesh
+mesh = mshr.generate_mesh(domain, 20)
+
+class lower_edge(SubDomain):
+  def inside(self, x, on_boundary):
+    return True if x[0]&lt;= 3.0 and x[0]&gt;= 1.0 and x[1] == 1.0 else False
+
+class top_edge(SubDomain):
+  def inside(self, x, on_boundary):
+    return True if x[0]&lt;= 3.0 and x[0]&gt;= 1.0 and x[1] == 3.0 else False
+
+class left_edge(SubDomain):
+  def inside(self, x, on_boundary):
+    return True if x[0]==1.0 and x[1]&lt;= 3.0 and x[1]&gt;= 1.0 else False
+
+class right_edge(SubDomain):
+  def inside(self, x, on_boundary):
+    return True if x[0]==3.0 and x[1]&lt;= 3.0 and x[1]&gt;= 1.0 else False
+
+lower_edge = lower_edge()
+top_edge = top_edge()
+left_edge = left_edge()
+right_edge = right_edge()
+
+# Subdomain marker
+mf = MeshFunction("size_t", mesh, 2)
+mf.set_all(0)
+lower_edge.mark(mf, 1)
+top_edge.mark(mf, 2)
+left_edge.mark(mf, 3)
+right_edge.mark(mf, 4)
+
+# Define facet function over the new mesh
+ff = FacetFunction("size_t", mesh)
+ff.set_all(0)
+lower_edge.mark(ff, 1)
+top_edge.mark(ff, 2)
+left_edge.mark(ff, 3)
+right_edge.mark(ff, 4)
+plot(ff, interactive=True)
+
+# Extract boundary mesh
+bmesh = BoundaryMesh(mesh, "exterior", True)
+#plot(bmesh, interactive=True)
+
+t = 0.0
+for i in range(10):
+  t += 0.1
+  for x in bmesh.coordinates():
+
+    if lower_edge.inside(x, True):
+      x[0] += 0.0
+      x[1] += 0.05
+
+    if top_edge.inside(x, True):
+      x[0] += 0.0
+      x[1] += 0.05
+
+    if left_edge.inside(x, True):
+      x[0] += 0.0
+      x[1] += 0.05
+
+    if right_edge.inside(x, True):
+      x[0] += 0.0
+      x[1] += 0.05
+
+  ALE.move(mesh, bmesh)
+  plot(ff, interactive=True)
+</code></pre>
+
+<p>As mentioned in the code, I have added displacement (equal to 0.05) only in the y-direction to the nodes located at the boundaries of the hole at every time-step <strong>but</strong> this is what I get at the last time step:<br>
+<img src="http://i.imgur.com/kAuIG99.jpg" alt="enter image description here"><br>
+It seems like the bottom and top boundaries of the internal hole, do not even move!! As I said <strong>I expect all 4 boundaries to move upward during the time</strong> as the nodes attached to these boundaries are moving upward. <br>
+Could you please help me fix this issue? <br>
+Best</p>
+</div>
+										</div>
+										<div class="qa-q-view-tags">
+											<ul class="qa-q-view-tag-list">
+												<li class="qa-q-view-tag-item"><a href="../../tag/move-mesh" rel="tag" class="qa-tag-link">move-mesh</a></li>
+												<li class="qa-q-view-tag-item"><a href="../../tag/boundarymesh" rel="tag" class="qa-tag-link">boundarymesh</a></li>
+												<li class="qa-q-view-tag-item"><a href="../../tag/boundary-markers" rel="tag" class="qa-tag-link">boundary-markers</a></li>
+												<li class="qa-q-view-tag-item"><a href="../../tag/ale" rel="tag" class="qa-tag-link">ale</a></li>
+											</ul>
+										</div>
+										<span class="qa-q-view-avatar-meta">
+											<span class="qa-q-view-meta">
+												<a href="../../13874/problem-with-moving-mesh-ale-move" class="qa-q-view-what">asked</a>
+												<span class="qa-q-view-when">
+													<span class="qa-q-view-when-data"><span class="published"><span class="value-title" title="2017-06-08T06:04:01+0000"></span>Jun 8, 2017</span></span>
+												</span>
+												<span class="qa-q-view-who">
+													<span class="qa-q-view-who-pad">by </span>
+													<span class="qa-q-view-who-data"><span class="vcard author"><a href="../../user/Leo" class="qa-user-link url nickname">Leo</a></span></span>
+													<span class="qa-q-view-who-title">FEniCS Novice</span>
+													<span class="qa-q-view-who-points">
+														<span class="qa-q-view-who-points-pad">(</span><span class="qa-q-view-who-points-data">840</span><span class="qa-q-view-who-points-pad"> points)</span>
+													</span>
+												</span>
+											</span>
+										</span>
+										<div class="qa-q-view-buttons">
+										</div>
+										
+										<div class="qa-q-view-c-list" style="display:none;" id="c13874_list">
+										</div> <!-- END qa-c-list -->
+										
+										<input type="hidden" name="code" value="0-1516466498-b9e8513fc5f0aa1abce8aea3fdbd3013b49e4068">
+										<input type="hidden" name="qa_click" value="">
+									</form>
+									<div class="qa-c-form">
+									</div> <!-- END qa-c-form -->
+									
+								</div> <!-- END qa-q-view-main -->
+								<div class="qa-q-view-clear">
+								</div>
+							</div> <!-- END qa-q-view -->
+							
+						</div>
+						<div class="qa-part-a-list">
+							<h2 id="a_list_title">1 Answer</h2>
+							<div class="qa-a-list" id="a_list">
+								
+								<div class="qa-a-list-item  hentry answer" id="a13889">
+									<form method="post" action="../../13874/problem-with-moving-mesh-ale-move">
+										<div class="qa-voting qa-voting-net" id="voting_13889">
+											<div class="qa-vote-count qa-vote-count-net">
+												<span class="qa-netvote-count">
+													<span class="qa-netvote-count-data">+1<span class="votes-up"><span class="value-title" title="1"></span></span><span class="votes-down"><span class="value-title" title="0"></span></span></span><span class="qa-netvote-count-pad"> vote</span>
+												</span>
+											</div>
+											<div class="qa-vote-clear">
+											</div>
+										</div>
+										<input type="hidden" name="code" value="0-1516466498-9e6de0f4359ccde7a1424cda1db1c19fc7619659">
+									</form>
+									<div class="qa-a-item-main">
+										<form method="post" action="../../13874/problem-with-moving-mesh-ale-move">
+											<div class="qa-a-selection">
+											</div>
+											<div class="qa-a-item-content">
+												<a name="13889"></a><div class="entry-content"><p>The issue might be that you're using a statement like:</p>
+
+<pre><code>x[1] == k
+</code></pre>
+
+<p>instead of :</p>
+
+<pre><code>near(x[1], k)
+</code></pre>
+
+<p>which is:</p>
+
+<pre><code>abs(x[1] - k) &lt; DOLFIN_EPS
+</code></pre>
+
+<p>The top statement might not always work due to floating point accuracy</p>
+</div>
+											</div>
+											<span class="qa-a-item-avatar-meta">
+												<span class="qa-a-item-meta">
+													<a href="../../13874/problem-with-moving-mesh-ale-move?show=13889#a13889" class="qa-a-item-what">answered</a>
+													<span class="qa-a-item-when">
+														<span class="qa-a-item-when-data"><span class="published"><span class="value-title" title="2017-06-09T20:47:54+0000"></span>Jun 9, 2017</span></span>
+													</span>
+													<span class="qa-a-item-who">
+														<span class="qa-a-item-who-pad">by </span>
+														<span class="qa-a-item-who-data"><span class="vcard author"><a href="../../user/alexmm" class="qa-user-link url nickname">alexmm</a></span></span>
+														<span class="qa-a-item-who-title">FEniCS User</span>
+														<span class="qa-a-item-who-points">
+															<span class="qa-a-item-who-points-pad">(</span><span class="qa-a-item-who-points-data">4,240</span><span class="qa-a-item-who-points-pad"> points)</span>
+														</span>
+													</span>
+													<br>
+													<span class="qa-a-item-what">edited</span>
+													<span class="qa-a-item-when">
+														<span class="qa-a-item-when-data"><span class="updated"><span class="value-title" title="2017-06-12T14:38:46+0000"></span>Jun 12, 2017</span></span>
+													</span>
+													<span class="qa-a-item-who">
+														<span class="qa-a-item-who-pad">by </span><span class="qa-a-item-who-data"><a href="../../user/alexmm" class="qa-user-link url nickname">alexmm</a></span>
+													</span>
+												</span>
+											</span>
+											<div class="qa-a-item-buttons">
+												</div>
+											
+											<div class="qa-a-item-c-list" id="c13889_list">
+												<div class="qa-c-list-item  hentry comment" id="c13890">
+													<div class="qa-c-item-content">
+														<a name="13890"></a><div class="entry-content"><p>Hi<br>
+I changed this part of code according to your suggestion:</p>
+
+<pre><code>class lower_edge(SubDomain):
+  def inside(self, x, on_boundary):
+    return True if x[0]&lt;= 3.0 and x[0]&gt;= 1.0 \
+and abs(x[1] - 1.0) &lt; DOLFIN_EPS else False
+
+class top_edge(SubDomain):
+  def inside(self, x, on_boundary):
+    return True if x[0]&lt;= 3.0 and x[0]&gt;= 1.0 \
+and abs(x[1] - 3.0) &lt; DOLFIN_EPS else False
+
+class left_edge(SubDomain):
+  def inside(self, x, on_boundary):
+    return True if abs(x[0] - 1.0) &lt; DOLFIN_EPS \
+and x[1]&lt;= 3.0 and x[1]&gt;= 1.0 else False
+
+class right_edge(SubDomain):
+  def inside(self, x, on_boundary):
+    return True if abs(x[0] - 3.0) &lt; DOLFIN_EPS \
+and x[1]&lt;= 3.0 and x[1]&gt;= 1.0 else False
+</code></pre>
+
+<p>Unfortunately it was not helpful! The same problem still exists.</p>
+</div>
+													</div>
+													<div class="qa-c-item-footer">
+														<span class="qa-c-item-avatar-meta">
+															<span class="qa-c-item-meta">
+																<a href="../../13874/problem-with-moving-mesh-ale-move?show=13890#c13890" class="qa-c-item-what">commented</a>
+																<span class="qa-c-item-when">
+																	<span class="qa-c-item-when-data"><span class="published"><span class="value-title" title="2017-06-09T21:02:30+0000"></span>Jun 9, 2017</span></span>
+																</span>
+																<span class="qa-c-item-who">
+																	<span class="qa-c-item-who-pad">by </span>
+																	<span class="qa-c-item-who-data"><span class="vcard author"><a href="../../user/Leo" class="qa-user-link url nickname">Leo</a></span></span>
+																	<span class="qa-c-item-who-title">FEniCS Novice</span>
+																	<span class="qa-c-item-who-points">
+																		<span class="qa-c-item-who-points-pad">(</span><span class="qa-c-item-who-points-data">840</span><span class="qa-c-item-who-points-pad"> points)</span>
+																	</span>
+																</span>
+															</span>
+														</span>
+														<div class="qa-c-item-buttons">
+														</div>
+													</div>
+													<div class="qa-c-item-clear">
+													</div>
+												</div> <!-- END qa-c-item -->
+												<div class="qa-c-list-item  hentry comment" id="c13891">
+													<div class="qa-c-item-content">
+														<a name="13891"></a><div class="entry-content"><p>Are you changing your definition of the inside edges every time you move them?</p>
+</div>
+													</div>
+													<div class="qa-c-item-footer">
+														<span class="qa-c-item-avatar-meta">
+															<span class="qa-c-item-meta">
+																<a href="../../13874/problem-with-moving-mesh-ale-move?show=13891#c13891" class="qa-c-item-what">commented</a>
+																<span class="qa-c-item-when">
+																	<span class="qa-c-item-when-data"><span class="published"><span class="value-title" title="2017-06-09T21:07:42+0000"></span>Jun 9, 2017</span></span>
+																</span>
+																<span class="qa-c-item-who">
+																	<span class="qa-c-item-who-pad">by </span>
+																	<span class="qa-c-item-who-data"><span class="vcard author"><a href="../../user/alexmm" class="qa-user-link url nickname">alexmm</a></span></span>
+																	<span class="qa-c-item-who-title">FEniCS User</span>
+																	<span class="qa-c-item-who-points">
+																		<span class="qa-c-item-who-points-pad">(</span><span class="qa-c-item-who-points-data">4,240</span><span class="qa-c-item-who-points-pad"> points)</span>
+																	</span>
+																</span>
+															</span>
+														</span>
+														<div class="qa-c-item-buttons">
+														</div>
+													</div>
+													<div class="qa-c-item-clear">
+													</div>
+												</div> <!-- END qa-c-item -->
+												<div class="qa-c-list-item  hentry comment" id="c13892">
+													<div class="qa-c-item-content">
+														<a name="13892"></a><div class="entry-content"><p>No I did not. I just changed the part of the original code that I provided in the beginning of my question. How can I change my definition of the inside edges every time ?<br>
+Thanks. </p>
+</div>
+													</div>
+													<div class="qa-c-item-footer">
+														<span class="qa-c-item-avatar-meta">
+															<span class="qa-c-item-meta">
+																<a href="../../13874/problem-with-moving-mesh-ale-move?show=13892#c13892" class="qa-c-item-what">commented</a>
+																<span class="qa-c-item-when">
+																	<span class="qa-c-item-when-data"><span class="published"><span class="value-title" title="2017-06-09T21:20:04+0000"></span>Jun 9, 2017</span></span>
+																</span>
+																<span class="qa-c-item-who">
+																	<span class="qa-c-item-who-pad">by </span>
+																	<span class="qa-c-item-who-data"><span class="vcard author"><a href="../../user/Leo" class="qa-user-link url nickname">Leo</a></span></span>
+																	<span class="qa-c-item-who-title">FEniCS Novice</span>
+																	<span class="qa-c-item-who-points">
+																		<span class="qa-c-item-who-points-pad">(</span><span class="qa-c-item-who-points-data">840</span><span class="qa-c-item-who-points-pad"> points)</span>
+																	</span>
+																</span>
+															</span>
+														</span>
+														<div class="qa-c-item-buttons">
+														</div>
+													</div>
+													<div class="qa-c-item-clear">
+													</div>
+												</div> <!-- END qa-c-item -->
+												<div class="qa-c-list-item  hentry comment" id="c13893">
+													<div class="qa-c-item-content">
+														<a name="13893"></a><div class="entry-content"><p>To check if this is the problem you can run it for one iteration and see if the boundaries move correctly.</p>
+
+<p>What you can do is have array of numbers with the extents of the inside square, change this numbers at every iteration, and then pass them to the inside edge classes, so you will be checking against the new moved inside extent and not the initial one </p>
+</div>
+													</div>
+													<div class="qa-c-item-footer">
+														<span class="qa-c-item-avatar-meta">
+															<span class="qa-c-item-meta">
+																<a href="../../13874/problem-with-moving-mesh-ale-move?show=13893#c13893" class="qa-c-item-what">commented</a>
+																<span class="qa-c-item-when">
+																	<span class="qa-c-item-when-data"><span class="published"><span class="value-title" title="2017-06-09T22:03:22+0000"></span>Jun 10, 2017</span></span>
+																</span>
+																<span class="qa-c-item-who">
+																	<span class="qa-c-item-who-pad">by </span>
+																	<span class="qa-c-item-who-data"><span class="vcard author"><a href="../../user/alexmm" class="qa-user-link url nickname">alexmm</a></span></span>
+																	<span class="qa-c-item-who-title">FEniCS User</span>
+																	<span class="qa-c-item-who-points">
+																		<span class="qa-c-item-who-points-pad">(</span><span class="qa-c-item-who-points-data">4,240</span><span class="qa-c-item-who-points-pad"> points)</span>
+																	</span>
+																</span>
+															</span>
+														</span>
+														<div class="qa-c-item-buttons">
+														</div>
+													</div>
+													<div class="qa-c-item-clear">
+													</div>
+												</div> <!-- END qa-c-item -->
+												<div class="qa-c-list-item  hentry comment" id="c13894">
+													<div class="qa-c-item-content">
+														<a name="13894"></a><div class="entry-content"><p>As I have shown in my figures, the meshes on the left and the right boundaries of the internal square move at every time step but the nodes on the top and the bottom boundaries are completely fixed!<br>
+Regarding to what you suggested, it looks a bit confusing to me. I was hoping if you could provide a working example to resolve the issue I am having in this code. <br>
+Thanks again.</p>
+</div>
+													</div>
+													<div class="qa-c-item-footer">
+														<span class="qa-c-item-avatar-meta">
+															<span class="qa-c-item-meta">
+																<a href="../../13874/problem-with-moving-mesh-ale-move?show=13894#c13894" class="qa-c-item-what">commented</a>
+																<span class="qa-c-item-when">
+																	<span class="qa-c-item-when-data"><span class="published"><span class="value-title" title="2017-06-09T22:19:01+0000"></span>Jun 10, 2017</span></span>
+																</span>
+																<span class="qa-c-item-who">
+																	<span class="qa-c-item-who-pad">by </span>
+																	<span class="qa-c-item-who-data"><span class="vcard author"><a href="../../user/Leo" class="qa-user-link url nickname">Leo</a></span></span>
+																	<span class="qa-c-item-who-title">FEniCS Novice</span>
+																	<span class="qa-c-item-who-points">
+																		<span class="qa-c-item-who-points-pad">(</span><span class="qa-c-item-who-points-data">840</span><span class="qa-c-item-who-points-pad"> points)</span>
+																	</span>
+																</span>
+															</span>
+														</span>
+														<div class="qa-c-item-buttons">
+														</div>
+													</div>
+													<div class="qa-c-item-clear">
+													</div>
+												</div> <!-- END qa-c-item -->
+											</div> <!-- END qa-c-list -->
+											
+											<input type="hidden" name="code" value="0-1516466498-3eba50f81bb3c2ad4a6369edba20c25403ea1ed6">
+											<input type="hidden" name="qa_click" value="">
+										</form>
+										<div class="qa-c-form">
+										</div> <!-- END qa-c-form -->
+										
+									</div> <!-- END qa-a-item-main -->
+									<div class="qa-a-item-clear">
+									</div>
+								</div> <!-- END qa-a-list-item -->
+								
+							</div> <!-- END qa-a-list -->
+							
+						</div>
+					</div> <!-- END qa-main -->
+					
+				</div> <!-- END main-wrapper -->
+			</div> <!-- END main-shadow -->
+		</div> <!-- END body-wrapper -->
+		<!-- END footer-bottom-group -->
+		
+		<div style="position:absolute; left:-9999px; top:-9999px;">
+			<span id="qa-waiting-template" class="qa-waiting">...</span>
+		</div>
+	
+	
+
+</body><!-- Powered by Question2Answer - http://www.question2answer.org/ --></html>

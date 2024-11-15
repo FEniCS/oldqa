@@ -1,0 +1,301 @@
+<html><!-- Powered by Question2Answer - http://www.question2answer.org/ --><head>
+		<meta http-equiv="content-type" content="text/html; charset=utf-8">
+		<title>Element's Jacobi - FEniCS Q&amp;A</title>
+		<meta name="description" content="Hi everybody. I am writing a stabilized Navier Stokes Solver, and as stabilizing parameter tau I chose  ... expert at all. Thank you in advance, R.">
+		<link rel="stylesheet" type="text/css" href="../../qa-theme/Snow/qa-styles.css">
+		<link rel="canonical" href="http://fenicsproject.org/qa/2964/elements-jacobi">
+		<script type="text/x-mathjax-config">
+  MathJax.Hub.Config({
+    extensions: ["tex2jax.js"],
+    jax: ["input/TeX","output/HTML-CSS"],
+    tex2jax: {inlineMath: [["$","$"],["\\(","\\)"]]},
+    TeX: { extensions: ["AMSmath.js","AMSsymbols.js"]}
+  });
+</script>
+<script type="text/javascript" src="../../mathjax/MathJax.js"></script>
+		<script src="../../jquery-1.7.2.min.js" type="text/javascript"></script>
+		<script src="../../highlight.min.js"></script>
+<script type="text/javascript">
+$(function(){
+	$('.wmd-input').keypress(function(){
+		window.clearTimeout(hljs.Timeout);
+		hljs.Timeout = window.setTimeout(function() {
+			hljs.initHighlighting.called = false;
+			hljs.initHighlighting();
+		}, 500);
+	});
+	window.setTimeout(function() {
+		hljs.initHighlighting.called = false;
+		hljs.initHighlighting();
+	}, 500);
+});
+</script>
+
+
+	</head>
+	<body class="qa-template-question qa-body-js-off">
+		<div class="qa-body-wrapper">
+			
+			<div class="qa-header">
+				<div class="qa-logo">
+					<a href="../../" class="qa-logo-link" title="FEniCS Q&amp;A"><img src="../../qa-theme/fenics_qa.png" border="0" alt="FEniCS Q&amp;A"></a>
+				</div>
+				<div class="qa-header-clear">
+				</div>
+			</div> <!-- END qa-header -->
+			
+			<div class="qa-main-shadow">
+				
+				<div class="qa-main-wrapper">
+					
+					<div class="qa-sidepanel">
+						<div class="qa-sidebar">
+							This is a read only copy of the old FEniCS QA forum. Please visit the <a href="https://www.allanswered.com/community/s/fenics-project/">new QA forum</a> to ask questions
+						</div>
+						
+					</div>
+					
+					<div class="qa-main">
+						<h1>
+							<span class="entry-title">Element's Jacobi</span>
+						</h1>
+						<div class="qa-part-q-view">
+							<div class="qa-q-view  hentry question" id="q2964">
+								<form method="post" action="../../2964/elements-jacobi">
+									<div class="qa-q-view-stats">
+										<div class="qa-voting qa-voting-net" id="voting_2964">
+											<div class="qa-vote-count qa-vote-count-net">
+												<span class="qa-netvote-count">
+													<span class="qa-netvote-count-data">+5<span class="votes-up"><span class="value-title" title="5"></span></span><span class="votes-down"><span class="value-title" title="0"></span></span></span><span class="qa-netvote-count-pad"> votes</span>
+												</span>
+											</div>
+											<div class="qa-vote-clear">
+											</div>
+										</div>
+									</div>
+									<input type="hidden" name="code" value="0-1516467951-a9f9f65bccb050811b6ddd2a982fcd90cf682ea5">
+								</form>
+								<div class="qa-q-view-main">
+									<form method="post" action="../../2964/elements-jacobi">
+										<div class="qa-q-view-content">
+											<a name="2964"></a><div class="entry-content"><p>Hi everybody.</p>
+
+<p>I am writing a stabilized Navier Stokes Solver, and as stabilizing parameter tau I chose this element dependent function:</p>
+
+<p>tau =  (  v* (G* v)   +  c * ni**2 * ( G:G)  ) ** -0.5</p>
+
+<p>where:<br>
+v          is the velocity<br>
+c,ni      constants (not element-dependent)<br>
+G        is the metric tensor, defined as:</p>
+
+<p>G = J^T * J<br>
+being J the Jacobi Matrix of the element.</p>
+
+<p>I implemented this part </p>
+
+<pre><code># Stabilizing parameter
+c = 9.0;
+ELEM_cell = mesh.ufl_cell()
+Elem_Jac = Elem_cell.J
+Elem_Metric = dot( transpose(Elem_Jac) , Elem_Jac)
+tau = (ni**2 * c  * inner(Elem_Metric,Elem_Metric) )**(-0.5)
+</code></pre>
+
+<p>When defining the form, tau is multiplying  some terms </p>
+
+<pre><code>RESIDUAL =   tau*dot(grad(p), grad(q))*dx +    [OMITTED]
+</code></pre>
+
+<p>After that, define a system Jacobian matrix (not to be confused with the Element's Jacobi), and the nonlinear variational problem.</p>
+
+<pre><code>JAC  = derivative(RESIDUAL,vp , dvp)
+NLproblem = NonlinearVariationalProblem(RESIDUAL,vp, bcs, JAC)
+NLsolver = NonlinearVariationalSolver(NLproblem)
+</code></pre>
+
+<p>However i get:</p>
+
+<pre><code>Visiting GeometricQuantity: GeometryJacobi(Cell('triangle', 2))
+This type of GeometricQuantity is not supported (yet).
+Traceback (most recent call last):
+  File "Leaky_Cavity_NS_Steady.py", line 221, in &lt;module&gt;
+    NLproblem = NonlinearVariationalProblem(RES,vp, bcs, JAC)
+  File "/usr/lib/python2.7/dist-packages/dolfin/fem/solving.py", line 116, in __init__
+    F = Form(F, form_compiler_parameters=form_compiler_parameters)
+  File "/usr/lib/python2.7/dist-packages/dolfin/fem/form.py", line 56, in __init__
+    common_cell)
+  File "/usr/lib/python2.7/dist-packages/dolfin/compilemodules/jit.py", line 60, in mpi_jit
+    return local_jit(*args, **kwargs)
+  File "/usr/lib/python2.7/dist-packages/dolfin/compilemodules/jit.py", line 122, in jit
+    return jit_compile(form, parameters=p, common_cell=common_cell)
+  File "/usr/lib/python2.7/dist-packages/ffc/jitcompiler.py", line 78, in jit
+    return jit_form(ufl_object, parameters, common_cell)
+  File "/usr/lib/python2.7/dist-packages/ffc/jitcompiler.py", line 208, in jit_form
+    parameters=parameters)
+  File "/usr/lib/python2.7/dist-packages/ffc/compiler.py", line 156, in compile_form
+    ir = compute_ir(analysis, parameters)
+  File "/usr/lib/python2.7/dist-packages/ffc/representation.py", line 96, in compute_ir
+    for (i, fd) in enumerate(form_datas)]
+  File "/usr/lib/python2.7/dist-packages/ffc/representation.py", line 216, in _compute_integral_ir
+    parameters)
+  File "/usr/lib/python2.7/dist-packages/ffc/quadrature/quadraturerepresentation.py", line 87, in compute_integral_ir
+    itg_data.domain_type, form_data.cell)
+  File "/usr/lib/python2.7/dist-packages/ffc/quadrature/quadraturerepresentation.py", line 145, in _transform_integrals_by_type
+    terms = _transform_integrals(transformer, integrals_dict, domain_type)
+  File "/usr/lib/python2.7/dist-packages/ffc/quadrature/quadraturerepresentation.py", line 442, in _transform_integrals
+    terms = transformer.generate_terms(integral.integrand(), domain_type)
+  File "/usr/lib/python2.7/dist-packages/ffc/quadrature/quadraturetransformerbase.py", line 774, in generate_terms
+    terms = self.visit(integrand)
+  File "/usr/lib/python2.7/dist-packages/ufl/algorithms/transformer.py", line 101, in visit
+    r = h(o, *map(self.visit, o.operands()))
+  File "/usr/lib/python2.7/dist-packages/ufl/algorithms/transformer.py", line 101, in visit
+    r = h(o, *map(self.visit, o.operands()))
+  File "/usr/lib/python2.7/dist-packages/ufl/algorithms/transformer.py", line 101, in visit
+    r = h(o, *map(self.visit, o.operands()))
+  File "/usr/lib/python2.7/dist-packages/ufl/algorithms/transformer.py", line 101, in visit
+    r = h(o, *map(self.visit, o.operands()))
+  File "/usr/lib/python2.7/dist-packages/ufl/algorithms/transformer.py", line 105, in visit
+    r = h(o)
+  File "/usr/lib/python2.7/dist-packages/ffc/quadrature/quadraturetransformer.py", line 251, in power
+    base_code = self.visit(base)
+  File "/usr/lib/python2.7/dist-packages/ufl/algorithms/transformer.py", line 101, in visit
+    r = h(o, *map(self.visit, o.operands()))
+  File "/usr/lib/python2.7/dist-packages/ufl/algorithms/transformer.py", line 105, in visit
+    r = h(o)
+  File "/usr/lib/python2.7/dist-packages/ffc/quadrature/quadraturetransformerbase.py", line 552, in index_sum
+    ops.append(self.visit(summand))
+  File "/usr/lib/python2.7/dist-packages/ufl/algorithms/transformer.py", line 105, in visit
+    r = h(o)
+  File "/usr/lib/python2.7/dist-packages/ffc/quadrature/quadraturetransformerbase.py", line 552, in index_sum
+    ops.append(self.visit(summand))
+  File "/usr/lib/python2.7/dist-packages/ufl/algorithms/transformer.py", line 101, in visit
+    r = h(o, *map(self.visit, o.operands()))
+  File "/usr/lib/python2.7/dist-packages/ufl/algorithms/transformer.py", line 105, in visit
+    r = h(o)
+  File "/usr/lib/python2.7/dist-packages/ffc/quadrature/quadraturetransformerbase.py", line 515, in indexed
+    code = self.visit(indexed_expr)
+  File "/usr/lib/python2.7/dist-packages/ufl/algorithms/transformer.py", line 105, in visit
+    r = h(o)
+  File "/usr/lib/python2.7/dist-packages/ffc/quadrature/quadraturetransformerbase.py", line 728, in component_tensor
+    code = self.visit(component_expr)
+  File "/usr/lib/python2.7/dist-packages/ufl/algorithms/transformer.py", line 105, in visit
+    r = h(o)
+  File "/usr/lib/python2.7/dist-packages/ffc/quadrature/quadraturetransformerbase.py", line 552, in index_sum
+    ops.append(self.visit(summand))
+  File "/usr/lib/python2.7/dist-packages/ufl/algorithms/transformer.py", line 101, in visit
+    r = h(o, *map(self.visit, o.operands()))
+  File "/usr/lib/python2.7/dist-packages/ufl/algorithms/transformer.py", line 105, in visit
+    r = h(o)
+  File "/usr/lib/python2.7/dist-packages/ffc/quadrature/quadraturetransformerbase.py", line 515, in indexed
+    code = self.visit(indexed_expr)
+  File "/usr/lib/python2.7/dist-packages/ufl/algorithms/transformer.py", line 105, in visit
+    r = h(o)
+  File "/usr/lib/python2.7/dist-packages/ffc/quadrature/quadraturetransformerbase.py", line 728, in component_tensor
+    code = self.visit(component_expr)
+  File "/usr/lib/python2.7/dist-packages/ufl/algorithms/transformer.py", line 105, in visit
+    r = h(o)
+  File "/usr/lib/python2.7/dist-packages/ffc/quadrature/quadraturetransformerbase.py", line 515, in indexed
+    code = self.visit(indexed_expr)
+  File "/usr/lib/python2.7/dist-packages/ufl/algorithms/transformer.py", line 105, in visit
+    r = h(o)
+  File "/usr/lib/python2.7/dist-packages/ffc/quadrature/quadraturetransformerbase.py", line 223, in geometric_quantity
+    error("This type of GeometricQuantity is not supported (yet).")
+  File "&lt;string&gt;", line 1, in &lt;lambda&gt;
+  File "/usr/lib/python2.7/dist-packages/ufl/log.py", line 154, in error
+    raise self._exception_type(self._format_raw(*message))
+Exception: This type of GeometricQuantity is not supported (yet).
+</code></pre>
+
+<p>It seems then that this feature is not yet implemented.<br>
+Is there any other way to be able to "extract" the element Jacobi? For example, I saw a  "get_vertex_coordinates()" in the  class "dolfin.cpp.mesh.Cell", which is an ingredient (as long as the derivatives of the basis functions in respect to the isoparametric coordinates) to build the element's Jacobi.<br>
+I ask here because I am not an expert at all.<br>
+Thank you in advance,<br>
+R.</p>
+</div>
+										</div>
+										<span class="qa-q-view-avatar-meta">
+											<span class="qa-q-view-meta">
+												<a href="../../2964/elements-jacobi" class="qa-q-view-what">asked</a>
+												<span class="qa-q-view-when">
+													<span class="qa-q-view-when-data"><span class="published"><span class="value-title" title="2014-03-13T00:24:00+0000"></span>Mar 13, 2014</span></span>
+												</span>
+												<span class="qa-q-view-who">
+													<span class="qa-q-view-who-pad">by </span>
+													<span class="qa-q-view-who-data"><span class="vcard author"><a href="../../user/rauno78" class="qa-user-link url nickname">rauno78</a></span></span>
+													<span class="qa-q-view-who-title">FEniCS Novice</span>
+													<span class="qa-q-view-who-points">
+														<span class="qa-q-view-who-points-pad">(</span><span class="qa-q-view-who-points-data">340</span><span class="qa-q-view-who-points-pad"> points)</span>
+													</span>
+												</span>
+											</span>
+										</span>
+										<div class="qa-q-view-buttons">
+										</div>
+										
+										<div class="qa-q-view-c-list" id="c2964_list">
+											<div class="qa-c-list-item  hentry comment" id="c3010">
+												<div class="qa-c-item-content">
+													<a name="3010"></a><div class="entry-content"><p>Anybody with any suggestions about just where to look for a solution?<br>
+Thanks,<br>
+R.</p>
+</div>
+												</div>
+												<div class="qa-c-item-footer">
+													<span class="qa-c-item-avatar-meta">
+														<span class="qa-c-item-meta">
+															<a href="../../2964/elements-jacobi?show=3010#c3010" class="qa-c-item-what">commented</a>
+															<span class="qa-c-item-when">
+																<span class="qa-c-item-when-data"><span class="published"><span class="value-title" title="2014-03-19T19:45:59+0000"></span>Mar 19, 2014</span></span>
+															</span>
+															<span class="qa-c-item-who">
+																<span class="qa-c-item-who-pad">by </span>
+																<span class="qa-c-item-who-data"><span class="vcard author"><a href="../../user/rauno78" class="qa-user-link url nickname">rauno78</a></span></span>
+																<span class="qa-c-item-who-title">FEniCS Novice</span>
+																<span class="qa-c-item-who-points">
+																	<span class="qa-c-item-who-points-pad">(</span><span class="qa-c-item-who-points-data">340</span><span class="qa-c-item-who-points-pad"> points)</span>
+																</span>
+															</span>
+														</span>
+													</span>
+													<div class="qa-c-item-buttons">
+													</div>
+												</div>
+												<div class="qa-c-item-clear">
+												</div>
+											</div> <!-- END qa-c-item -->
+										</div> <!-- END qa-c-list -->
+										
+										<input type="hidden" name="code" value="0-1516467951-9ea06510c12edcfec68444ddf4fef97ce433e617">
+										<input type="hidden" name="qa_click" value="">
+									</form>
+									<div class="qa-c-form">
+									</div> <!-- END qa-c-form -->
+									
+								</div> <!-- END qa-q-view-main -->
+								<div class="qa-q-view-clear">
+								</div>
+							</div> <!-- END qa-q-view -->
+							
+						</div>
+						<div class="qa-part-a-list">
+							<h2 id="a_list_title" style="display:none;"></h2>
+							<div class="qa-a-list" id="a_list">
+								
+							</div> <!-- END qa-a-list -->
+							
+						</div>
+					</div> <!-- END qa-main -->
+					
+				</div> <!-- END main-wrapper -->
+			</div> <!-- END main-shadow -->
+		</div> <!-- END body-wrapper -->
+		<!-- END footer-bottom-group -->
+		
+		<div style="position:absolute; left:-9999px; top:-9999px;">
+			<span id="qa-waiting-template" class="qa-waiting">...</span>
+		</div>
+	
+	
+
+</body><!-- Powered by Question2Answer - http://www.question2answer.org/ --></html>

@@ -1,0 +1,321 @@
+<html><!-- Powered by Question2Answer - http://www.question2answer.org/ --><head>
+		<meta http-equiv="content-type" content="text/html; charset=utf-8">
+		<title>Shape mismatch in numerical flux DG - FEniCS Q&amp;A</title>
+		<meta name="description" content="I am trying to implement a DG solver for the linear scalar wave equation from the book of Warburton and Hesthaven ... ) u0.assign(u) t += dt plot(u0)">
+		<meta name="keywords" content="dg,wave-equation,numerical-flux">
+		<link rel="stylesheet" type="text/css" href="../../qa-theme/Snow/qa-styles.css">
+		<link rel="canonical" href="http://fenicsproject.org/qa/1894/shape-mismatch-in-numerical-flux-dg">
+		<script type="text/x-mathjax-config">
+  MathJax.Hub.Config({
+    extensions: ["tex2jax.js"],
+    jax: ["input/TeX","output/HTML-CSS"],
+    tex2jax: {inlineMath: [["$","$"],["\\(","\\)"]]},
+    TeX: { extensions: ["AMSmath.js","AMSsymbols.js"]}
+  });
+</script>
+<script type="text/javascript" src="../../mathjax/MathJax.js"></script>
+		<script src="../../jquery-1.7.2.min.js" type="text/javascript"></script>
+		<script src="../../highlight.min.js"></script>
+<script type="text/javascript">
+$(function(){
+	$('.wmd-input').keypress(function(){
+		window.clearTimeout(hljs.Timeout);
+		hljs.Timeout = window.setTimeout(function() {
+			hljs.initHighlighting.called = false;
+			hljs.initHighlighting();
+		}, 500);
+	});
+	window.setTimeout(function() {
+		hljs.initHighlighting.called = false;
+		hljs.initHighlighting();
+	}, 500);
+});
+</script>
+
+
+	</head>
+	<body class="qa-template-question qa-body-js-off">
+		<div class="qa-body-wrapper">
+			
+			<div class="qa-header">
+				<div class="qa-logo">
+					<a href="../../" class="qa-logo-link" title="FEniCS Q&amp;A"><img src="../../qa-theme/fenics_qa.png" border="0" alt="FEniCS Q&amp;A"></a>
+				</div>
+				<div class="qa-header-clear">
+				</div>
+			</div> <!-- END qa-header -->
+			
+			<div class="qa-main-shadow">
+				
+				<div class="qa-main-wrapper">
+					
+					<div class="qa-sidepanel">
+						<div class="qa-sidebar">
+							This is a read only copy of the old FEniCS QA forum. Please visit the <a href="https://www.allanswered.com/community/s/fenics-project/">new QA forum</a> to ask questions
+						</div>
+						
+					</div>
+					
+					<div class="qa-main">
+						<h1>
+							<span class="entry-title">Shape mismatch in numerical flux DG</span>
+						</h1>
+						<div class="qa-part-q-view">
+							<div class="qa-q-view  hentry question" id="q1894">
+								<form method="post" action="../../1894/shape-mismatch-in-numerical-flux-dg">
+									<div class="qa-q-view-stats">
+										<div class="qa-voting qa-voting-net" id="voting_1894">
+											<div class="qa-vote-count qa-vote-count-net">
+												<span class="qa-netvote-count">
+													<span class="qa-netvote-count-data">0<span class="votes-up"><span class="value-title" title="0"></span></span><span class="votes-down"><span class="value-title" title="0"></span></span></span><span class="qa-netvote-count-pad"> votes</span>
+												</span>
+											</div>
+											<div class="qa-vote-clear">
+											</div>
+										</div>
+									</div>
+									<input type="hidden" name="code" value="0-1516467904-a24c6a009ba65436f8538f1450c5868a3b3cafe4">
+								</form>
+								<div class="qa-q-view-main">
+									<form method="post" action="../../1894/shape-mismatch-in-numerical-flux-dg">
+										<div class="qa-q-view-content">
+											<a name="1894"></a><div class="entry-content"><p>I am trying to implement a DG solver for the linear scalar wave equation from the book of Warburton and Hesthaven (Nodal Discontinuous Galerkin Methods, p20). </p>
+
+<p>So the 1D equation is<br>
+$$<br>
+\frac{\partial u}{\partial t} + a \frac{\partial u}{\partial x} = 0<br>
+$$</p>
+
+<p>The proposed numerical flux is<br>
+$$<br>
+\left(au\right)^* = \left\{\left\{au\right\}\right\} + \left|a\right|\frac{1-\alpha}{2}\left[u\right], \qquad 0 \leq \alpha \leq 1<br>
+$$</p>
+
+<p>But when I try to implement this, I get a shape mismatch in my numerical flux. </p>
+
+<pre><code># Define fluxes on interior and exterior facets
+uhat = avg(uold) + a*(1.-alpha)/2.0*jump(uold, n)
+uhatbnd = uold + a*(1.-alpha)/2.0*uold*n
+</code></pre>
+
+<p>Does anyone know what's wrong and how to fix it?</p>
+
+<p>My code: </p>
+
+<pre><code>from dolfin import *
+
+# constants
+a     = 2.0*DOLFIN_PI
+lmbda = 0.5*a
+l     = a/lmbda
+omega = -a*a/lmbda
+
+# prepare a mesh
+mesh = IntervalMesh(50, 0.0, a)
+
+# Define function spaces
+DGorder = 1
+V = FunctionSpace(mesh, "DG", DGorder)
+U = FunctionSpace(mesh, "DG", DGorder)
+
+# Set initial values
+uinit = Expression("0")
+u0 = interpolate(uinit, U)
+
+#Set boundary conditions
+ubdr = Expression("sin(l*x[0]-omega*t)", l=l, omega=omega, t=0.0)
+Port = CompiledSubDomain("x[0] == 0.0")
+End  = CompiledSubDomain("x[0] == a", a = a)
+
+bdr = [DirichletBC(V, ubdr, Port)]#, DirichletBC(V, uinit, End)]
+
+# Define test and trial functions
+v = TestFunction(V)
+u = TrialFunction(U)
+
+# Set time stepping parameters
+t  = 0
+dt = 0.01
+T  = DOLFIN_PI
+
+# Define normals
+n = FacetNormal(mesh)
+
+# Set penalty parameter
+alpha = 1.
+
+# Central differences for time and spatial discretisation
+udot = (u-u0)/dt
+uold = (u+u0)*0.5
+
+# Define fluxes on interior and exterior facets
+uhat = avg(uold) + a*(1.-alpha)/2.0*jump(uold, n)
+uhatbnd = uold + a*(1.-alpha)/2.0*uold*n
+
+# Define variational formulation
+F = (udot*v - a*(uold*v.dx(0)))*dx \
+    - a*inner(uhat, jump(v,n))*dS \
+    - a*inner(uhatbnd, v*n)*ds
+
+a, L = lhs(F), rhs(F)
+
+# Prepare solution
+u = Function(U)
+plot(u0)
+
+# the acutal timestepping
+while t &lt; T:
+    solve(a == L, u, bdr)
+    u0.assign(u)
+    t += dt
+    plot(u0)
+</code></pre>
+</div>
+										</div>
+										<div class="qa-q-view-tags">
+											<ul class="qa-q-view-tag-list">
+												<li class="qa-q-view-tag-item"><a href="../../tag/dg" rel="tag" class="qa-tag-link">dg</a></li>
+												<li class="qa-q-view-tag-item"><a href="../../tag/wave-equation" rel="tag" class="qa-tag-link">wave-equation</a></li>
+												<li class="qa-q-view-tag-item"><a href="../../tag/numerical-flux" rel="tag" class="qa-tag-link">numerical-flux</a></li>
+											</ul>
+										</div>
+										<span class="qa-q-view-avatar-meta">
+											<span class="qa-q-view-meta">
+												<a href="../../1894/shape-mismatch-in-numerical-flux-dg" class="qa-q-view-what">asked</a>
+												<span class="qa-q-view-when">
+													<span class="qa-q-view-when-data"><span class="published"><span class="value-title" title="2013-12-05T09:23:35+0000"></span>Dec 5, 2013</span></span>
+												</span>
+												<span class="qa-q-view-who">
+													<span class="qa-q-view-who-pad">by </span>
+													<span class="qa-q-view-who-data"><span class="vcard author"><a href="../../user/stevenvdk" class="qa-user-link url nickname">stevenvdk</a></span></span>
+													<span class="qa-q-view-who-title">FEniCS User</span>
+													<span class="qa-q-view-who-points">
+														<span class="qa-q-view-who-points-pad">(</span><span class="qa-q-view-who-points-data">1,590</span><span class="qa-q-view-who-points-pad"> points)</span>
+													</span>
+												</span>
+												<br>
+												<span class="qa-q-view-what">edited</span>
+												<span class="qa-q-view-when">
+													<span class="qa-q-view-when-data"><span class="updated"><span class="value-title" title="2013-12-05T10:15:09+0000"></span>Dec 5, 2013</span></span>
+												</span>
+												<span class="qa-q-view-who">
+													<span class="qa-q-view-who-pad">by </span><span class="qa-q-view-who-data"><a href="../../user/stevenvdk" class="qa-user-link url nickname">stevenvdk</a></span>
+												</span>
+											</span>
+										</span>
+										<div class="qa-q-view-buttons">
+										</div>
+										
+										<div class="qa-q-view-c-list" style="display:none;" id="c1894_list">
+										</div> <!-- END qa-c-list -->
+										
+										<input type="hidden" name="code" value="0-1516467904-cb5630c9b7780563475d9c44f3fb8ce942366e26">
+										<input type="hidden" name="qa_click" value="">
+									</form>
+									<div class="qa-c-form">
+									</div> <!-- END qa-c-form -->
+									
+								</div> <!-- END qa-q-view-main -->
+								<div class="qa-q-view-clear">
+								</div>
+							</div> <!-- END qa-q-view -->
+							
+						</div>
+						<div class="qa-part-a-list">
+							<h2 id="a_list_title">1 Answer</h2>
+							<div class="qa-a-list" id="a_list">
+								
+								<div class="qa-a-list-item  hentry answer answer-selected qa-a-list-item-selected" id="a1896">
+									<form method="post" action="../../1894/shape-mismatch-in-numerical-flux-dg">
+										<div class="qa-voting qa-voting-net" id="voting_1896">
+											<div class="qa-vote-count qa-vote-count-net">
+												<span class="qa-netvote-count">
+													<span class="qa-netvote-count-data">+2<span class="votes-up"><span class="value-title" title="2"></span></span><span class="votes-down"><span class="value-title" title="0"></span></span></span><span class="qa-netvote-count-pad"> votes</span>
+												</span>
+											</div>
+											<div class="qa-vote-clear">
+											</div>
+										</div>
+										<input type="hidden" name="code" value="0-1516467904-a24c6a009ba65436f8538f1450c5868a3b3cafe4">
+									</form>
+									<div class="qa-a-item-main">
+										<form method="post" action="../../1894/shape-mismatch-in-numerical-flux-dg">
+											<div class="qa-a-item-selected">
+												<div class="qa-a-selection">
+													<div class="qa-a-selected">&#160;</div>
+													<div class="qa-a-selected-text">Best answer</div>
+												</div>
+												<div class="qa-a-item-content">
+													<a name="1896"></a><div class="entry-content"><p>Hi, you get the shape mismatch error because in many places you are trying to add vectors and scalars. In this line</p>
+
+<pre><code>uhatbnd = uold + a*(1.-alpha)/2.0*uold*n
+</code></pre>
+
+<p><strong>uold</strong> is a scalar but the other term is a vector due to <strong>uold*n</strong>. In the expression for <strong>uhat</strong>, there is again a scalar <strong>avg(uold)</strong> and a vector <strong>jump(uold, n)</strong>. Also, the two expressions in <strong>F</strong> that include inner are vectors whereas the first term is scalar. If you need scalar valued jump use</p>
+
+<pre><code>jump(uold)
+</code></pre>
+</div>
+												</div>
+												<span class="qa-a-item-avatar-meta">
+													<span class="qa-a-item-avatar">
+														<a href="../../user/MiroK" class="qa-avatar-link"><img src="https://www.gravatar.com/avatar/f566be3274ec73e3a6dda27bca11631c?s=40" width="40" height="40" class="qa-avatar-image" alt=""></a>
+													</span>
+													<span class="qa-a-item-meta">
+														<a href="../../1894/shape-mismatch-in-numerical-flux-dg?show=1896#a1896" class="qa-a-item-what">answered</a>
+														<span class="qa-a-item-when">
+															<span class="qa-a-item-when-data"><span class="published"><span class="value-title" title="2013-12-05T10:28:15+0000"></span>Dec 5, 2013</span></span>
+														</span>
+														<span class="qa-a-item-who">
+															<span class="qa-a-item-who-pad">by </span>
+															<span class="qa-a-item-who-data"><span class="vcard author"><a href="../../user/MiroK" class="qa-user-link url nickname">MiroK</a></span></span>
+															<span class="qa-a-item-who-title">FEniCS Expert</span>
+															<span class="qa-a-item-who-points">
+																<span class="qa-a-item-who-points-pad">(</span><span class="qa-a-item-who-points-data">80,920</span><span class="qa-a-item-who-points-pad"> points)</span>
+															</span>
+														</span>
+														<br>
+														<span class="qa-a-item-what">selected</span>
+														<span class="qa-a-item-when">
+															<span class="qa-a-item-when-data"><span class="updated"><span class="value-title" title="2013-12-06T07:05:58+0000"></span>Dec 6, 2013</span></span>
+														</span>
+														<span class="qa-a-item-who">
+															<span class="qa-a-item-who-pad">by </span><span class="qa-a-item-who-data"><a href="../../user/stevenvdk" class="qa-user-link url nickname">stevenvdk</a></span>
+														</span>
+													</span>
+												</span>
+											</div>
+											<div class="qa-a-item-buttons">
+												</div>
+											
+											<div class="qa-a-item-c-list" style="display:none;" id="c1896_list">
+											</div> <!-- END qa-c-list -->
+											
+											<input type="hidden" name="code" value="0-1516467904-72d30f78bcb74731999181f6608aecb88fc54f07">
+											<input type="hidden" name="qa_click" value="">
+										</form>
+										<div class="qa-c-form">
+										</div> <!-- END qa-c-form -->
+										
+									</div> <!-- END qa-a-item-main -->
+									<div class="qa-a-item-clear">
+									</div>
+								</div> <!-- END qa-a-list-item -->
+								
+							</div> <!-- END qa-a-list -->
+							
+						</div>
+					</div> <!-- END qa-main -->
+					
+				</div> <!-- END main-wrapper -->
+			</div> <!-- END main-shadow -->
+		</div> <!-- END body-wrapper -->
+		<!-- END footer-bottom-group -->
+		
+		<div style="position:absolute; left:-9999px; top:-9999px;">
+			<span id="qa-waiting-template" class="qa-waiting">...</span>
+		</div>
+	
+	
+
+</body><!-- Powered by Question2Answer - http://www.question2answer.org/ --></html>

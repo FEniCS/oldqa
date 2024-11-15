@@ -1,0 +1,317 @@
+<html><!-- Powered by Question2Answer - http://www.question2answer.org/ --><head>
+		<meta http-equiv="content-type" content="text/html; charset=utf-8">
+		<title>Compilation fails after installing FEniCS on Anaconda - FEniCS Q&amp;A</title>
+		<meta name="description" content="Hi All, I want to use FEniCS on my Mac (MacOS Sierra Version 10.12.4). I installed Anaconda (Python ... ) # write out file_u = File('beam.pvd') file_u">
+		<link rel="stylesheet" type="text/css" href="../../qa-theme/Snow/qa-styles.css">
+		<link rel="canonical" href="http://fenicsproject.org/qa/13339/compilation-fails-after-installing-fenics-on-anaconda">
+		<script type="text/x-mathjax-config">
+  MathJax.Hub.Config({
+    extensions: ["tex2jax.js"],
+    jax: ["input/TeX","output/HTML-CSS"],
+    tex2jax: {inlineMath: [["$","$"],["\\(","\\)"]]},
+    TeX: { extensions: ["AMSmath.js","AMSsymbols.js"]}
+  });
+</script>
+<script type="text/javascript" src="../../mathjax/MathJax.js"></script>
+		<script src="../../jquery-1.7.2.min.js" type="text/javascript"></script>
+		<script src="../../highlight.min.js"></script>
+<script type="text/javascript">
+$(function(){
+	$('.wmd-input').keypress(function(){
+		window.clearTimeout(hljs.Timeout);
+		hljs.Timeout = window.setTimeout(function() {
+			hljs.initHighlighting.called = false;
+			hljs.initHighlighting();
+		}, 500);
+	});
+	window.setTimeout(function() {
+		hljs.initHighlighting.called = false;
+		hljs.initHighlighting();
+	}, 500);
+});
+</script>
+
+
+	</head>
+	<body class="qa-template-question qa-body-js-off">
+		<div class="qa-body-wrapper">
+			
+			<div class="qa-header">
+				<div class="qa-logo">
+					<a href="../../" class="qa-logo-link" title="FEniCS Q&amp;A"><img src="../../qa-theme/fenics_qa.png" border="0" alt="FEniCS Q&amp;A"></a>
+				</div>
+				<div class="qa-header-clear">
+				</div>
+			</div> <!-- END qa-header -->
+			
+			<div class="qa-main-shadow">
+				
+				<div class="qa-main-wrapper">
+					
+					<div class="qa-sidepanel">
+						<div class="qa-sidebar">
+							This is a read only copy of the old FEniCS QA forum. Please visit the <a href="https://www.allanswered.com/community/s/fenics-project/">new QA forum</a> to ask questions
+						</div>
+						
+					</div>
+					
+					<div class="qa-main">
+						<h1>
+							<span class="entry-title">Compilation fails after installing FEniCS on Anaconda</span>
+						</h1>
+						<div class="qa-part-q-view">
+							<div class="qa-q-view  hentry question" id="q13339">
+								<form method="post" action="../../13339/compilation-fails-after-installing-fenics-on-anaconda">
+									<div class="qa-q-view-stats">
+										<div class="qa-voting qa-voting-net" id="voting_13339">
+											<div class="qa-vote-count qa-vote-count-net">
+												<span class="qa-netvote-count">
+													<span class="qa-netvote-count-data">0<span class="votes-up"><span class="value-title" title="0"></span></span><span class="votes-down"><span class="value-title" title="0"></span></span></span><span class="qa-netvote-count-pad"> votes</span>
+												</span>
+											</div>
+											<div class="qa-vote-clear">
+											</div>
+										</div>
+									</div>
+									<input type="hidden" name="code" value="0-1516467862-3154d194713fa82160df70572b833a049486ee7e">
+								</form>
+								<div class="qa-q-view-main">
+									<form method="post" action="../../13339/compilation-fails-after-installing-fenics-on-anaconda">
+										<div class="qa-q-view-content">
+											<a name="13339"></a><div class="entry-content"><p>Hi All,</p>
+
+<p>I want to use FEniCS on my Mac (MacOS Sierra Version 10.12.4).</p>
+
+<p>I installed Anaconda (Python 2.7) and then used </p>
+
+<pre><code>conda create -n fenicsproject -c conda-forge fenics
+</code></pre>
+
+<p>to install fenics as suggested on <a rel="nofollow" href="https://fenicsproject.org/download/">https://fenicsproject.org/download/</a></p>
+
+<p>I then tried a the follwing code as a test:</p>
+
+<pre><code>from dolfin import *
+# geometry
+xlength=500.0 #[mm]
+ylength=100.0 #[mm]
+zlength=100.0 #[mm]
+mesh=BoxMesh(Point(0.0, 0.0, 0.0),Point(xlength, ylength, zlength), 50, 10, 10)
+# vector space with polynomial degree 1
+V = VectorFunctionSpace(mesh,'P',1)
+# element surfaces
+cells = CellFunction('size_t',mesh)
+facets = FacetFunction('size_t',mesh)
+dA = Measure('ds', domain=mesh, subdomain_data=facets)
+dV = Measure('dx', domain=mesh, subdomain_data=cells)
+# surface for bc
+left = CompiledSubDomain('near(x[0],0) &amp;&amp; on_boundary')
+right = CompiledSubDomain('near(x[0],length) &amp;&amp; on_boundary',length=xlength)
+# marking the parts of the surface
+facets.set_all(0)
+# integrating over dA(1) shall mean a surface integral over the domain 'right'
+right.mark(facets,1)
+# traction vector
+tr = Expression(('A+B*x[1]+C*x[2]','0','0'), A=2.0, B=0.5, C=0.5)# in Mpa
+null = Constant((0.0,0.0,0.0))
+# boundary conditions
+bc = [DirichletBC(V,null,left)]
+# definitions for the variational formulation
+u = TrialFunction(V)
+del_u = TestFunction(V)
+# material parameters
+nu = 0.3
+E = 210000.0 # MPa
+G = E/(2.0*(1.0+nu))
+# lame parameters
+l = 2.0*G*nu / (1.0 - 2.0* nu)
+mu = G
+# kronecker delta in 3D
+delta = Identity(3)
+# indices
+i,j,k=indices(3)
+# strain tensor
+eps = as_tensor(1.0/2.0*(u[i].dx(j)+u[j].dx(i)),(i,j))
+# Cauchy stress tensor
+sigma = as_tensor(l*eps[k,k]*delta[i,j]+2.0*mu*eps[i,j],(i,j))
+# variational form
+a = sigma[j,i]*del_u[i].dx(j)*dV
+L = tr[i]*del_u[i]*dA(1)
+disp = Function(V)
+solve(a==L, disp, bcs=bc)
+# write out
+file_u = File('beam.pvd')
+file_u &lt;&lt; disp
+</code></pre>
+
+<p>The problem is that the Compilation fails. I get the following information.</p>
+
+<pre><code>*** Error:   Unable to perform just-in-time compilation of form.
+*** Reason:  ffc.jit failed with message:
+Traceback (most recent call last):
+  File "/Users/philippdiercks/anaconda2/envs/fenicsproject/lib/python2.7/site-packages/dolfin/compilemodules/jit.py", line 128, in jit
+    result = ffc.jit(ufl_object, parameters=p)
+  File "/Users/philippdiercks/anaconda2/envs/fenicsproject/lib/python2.7/site-packages/ffc/jitcompiler.py", line 198, in jit
+    module = jit_build(ufl_object, module_name, parameters)
+  File "/Users/philippdiercks/anaconda2/envs/fenicsproject/lib/python2.7/site-packages/ffc/jitcompiler.py", line 120, in jit_build
+    generate=jit_generate)
+  File "/Users/philippdiercks/anaconda2/envs/fenicsproject/lib/python2.7/site-packages/dijitso/jit.py", line 160, in jit
+    header, source, dependencies = generate(jitable, name, signature, params["generator"])
+  File "/Users/philippdiercks/anaconda2/envs/fenicsproject/lib/python2.7/site-packages/ffc/jitcompiler.py", line 76, in jit_generate
+    dep_module_name = jit(dep, parameters, indirect=True)
+  File "/Users/philippdiercks/anaconda2/envs/fenicsproject/lib/python2.7/site-packages/ffc/jitcompiler.py", line 204, in jit
+    raise FFCJitError("A directory with files to reproduce the jit build failure has been created.")
+FFCJitError: A directory with files to reproduce the jit build failure has been created.
+.
+*** Where:   This error was encountered inside jit.py.
+*** Process: 0
+*** 
+*** DOLFIN version: 2016.2.0
+*** Git changeset:  
+*** -------------------------------------------------------------------------
+
+Abort trap: 6
+</code></pre>
+
+<p>Apparently the jitcompiler in the FFC fails. As I think the FFC is automatically installed with FEniCS and I don't see why there should be a problem, since I just followed the instructions and didn't change anything...</p>
+
+<p>It also said that</p>
+
+<pre><code>FFCJitError: A directory with files to reproduce the jit build failure has been created.
+</code></pre>
+
+<p>but I don't know what to do with that...(sorry)</p>
+
+<p>Thanks in advance,<br>
+Philipp</p>
+</div>
+										</div>
+										<span class="qa-q-view-avatar-meta">
+											<span class="qa-q-view-meta">
+												<a href="../../13339/compilation-fails-after-installing-fenics-on-anaconda" class="qa-q-view-what">asked</a>
+												<span class="qa-q-view-when">
+													<span class="qa-q-view-when-data"><span class="published"><span class="value-title" title="2017-05-05T15:21:24+0000"></span>May 5, 2017</span></span>
+												</span>
+												<span class="qa-q-view-who">
+													<span class="qa-q-view-who-pad">by </span>
+													<span class="qa-q-view-who-data"><span class="vcard author"><a href="../../user/philippdiercks" class="qa-user-link url nickname">philippdiercks</a></span></span>
+													<span class="qa-q-view-who-title">FEniCS Novice</span>
+													<span class="qa-q-view-who-points">
+														<span class="qa-q-view-who-points-pad">(</span><span class="qa-q-view-who-points-data">230</span><span class="qa-q-view-who-points-pad"> points)</span>
+													</span>
+												</span>
+											</span>
+										</span>
+										<div class="qa-q-view-buttons">
+										</div>
+										
+										<div class="qa-q-view-c-list" style="display:none;" id="c13339_list">
+										</div> <!-- END qa-c-list -->
+										
+										<input type="hidden" name="code" value="0-1516467862-86ce2cea3954677ba441bcac21cccbca2d41d193">
+										<input type="hidden" name="qa_click" value="">
+									</form>
+									<div class="qa-c-form">
+									</div> <!-- END qa-c-form -->
+									
+								</div> <!-- END qa-q-view-main -->
+								<div class="qa-q-view-clear">
+								</div>
+							</div> <!-- END qa-q-view -->
+							
+						</div>
+						<div class="qa-part-a-list">
+							<h2 id="a_list_title">1 Answer</h2>
+							<div class="qa-a-list" id="a_list">
+								
+								<div class="qa-a-list-item  hentry answer" id="a13351">
+									<form method="post" action="../../13339/compilation-fails-after-installing-fenics-on-anaconda">
+										<div class="qa-voting qa-voting-net" id="voting_13351">
+											<div class="qa-vote-count qa-vote-count-net">
+												<span class="qa-netvote-count">
+													<span class="qa-netvote-count-data">0<span class="votes-up"><span class="value-title" title="0"></span></span><span class="votes-down"><span class="value-title" title="0"></span></span></span><span class="qa-netvote-count-pad"> votes</span>
+												</span>
+											</div>
+											<div class="qa-vote-clear">
+											</div>
+										</div>
+										<input type="hidden" name="code" value="0-1516467862-3154d194713fa82160df70572b833a049486ee7e">
+									</form>
+									<div class="qa-a-item-main">
+										<form method="post" action="../../13339/compilation-fails-after-installing-fenics-on-anaconda">
+											<div class="qa-a-selection">
+											</div>
+											<div class="qa-a-item-content">
+												<a name="13351"></a><div class="entry-content"><p>Hi I solved the problem. There may be people having the same issue, so here is the solution:</p>
+
+<p>In the directory with files to reproduce the jit build failure was an error.log saying:</p>
+
+<pre><code>xcrun: error: invalid active developer path (/Library/Developer/CommandLineTools), missing 
+xcrun at: /Library/Developer/CommandLineTools/usr/bin/xcrun
+</code></pre>
+
+<p>Apparently this was a problem caused by a previous update to MacOSX "El Capitan".<br>
+see<br>
+<a rel="nofollow" href="https://www.sebastian-widmann.de/blog/invalid-active-developer-path-beheben/">https://www.sebastian-widmann.de/blog/invalid-active-developer-path-beheben/</a></p>
+
+<p>just type</p>
+
+<pre><code>xcode-select --install
+</code></pre>
+
+<p>in the terminal</p>
+
+<p>Cheers,<br>
+Philipp</p>
+</div>
+											</div>
+											<span class="qa-a-item-avatar-meta">
+												<span class="qa-a-item-meta">
+													<a href="../../13339/compilation-fails-after-installing-fenics-on-anaconda?show=13351#a13351" class="qa-a-item-what">answered</a>
+													<span class="qa-a-item-when">
+														<span class="qa-a-item-when-data"><span class="published"><span class="value-title" title="2017-05-06T15:31:15+0000"></span>May 6, 2017</span></span>
+													</span>
+													<span class="qa-a-item-who">
+														<span class="qa-a-item-who-pad">by </span>
+														<span class="qa-a-item-who-data"><span class="vcard author"><a href="../../user/philippdiercks" class="qa-user-link url nickname">philippdiercks</a></span></span>
+														<span class="qa-a-item-who-title">FEniCS Novice</span>
+														<span class="qa-a-item-who-points">
+															<span class="qa-a-item-who-points-pad">(</span><span class="qa-a-item-who-points-data">230</span><span class="qa-a-item-who-points-pad"> points)</span>
+														</span>
+													</span>
+												</span>
+											</span>
+											<div class="qa-a-item-buttons">
+												</div>
+											
+											<div class="qa-a-item-c-list" style="display:none;" id="c13351_list">
+											</div> <!-- END qa-c-list -->
+											
+											<input type="hidden" name="code" value="0-1516467862-c2598b433b340e400248374fccdb7ce5981f873f">
+											<input type="hidden" name="qa_click" value="">
+										</form>
+										<div class="qa-c-form">
+										</div> <!-- END qa-c-form -->
+										
+									</div> <!-- END qa-a-item-main -->
+									<div class="qa-a-item-clear">
+									</div>
+								</div> <!-- END qa-a-list-item -->
+								
+							</div> <!-- END qa-a-list -->
+							
+						</div>
+					</div> <!-- END qa-main -->
+					
+				</div> <!-- END main-wrapper -->
+			</div> <!-- END main-shadow -->
+		</div> <!-- END body-wrapper -->
+		<!-- END footer-bottom-group -->
+		
+		<div style="position:absolute; left:-9999px; top:-9999px;">
+			<span id="qa-waiting-template" class="qa-waiting">...</span>
+		</div>
+	
+	
+
+</body><!-- Powered by Question2Answer - http://www.question2answer.org/ --></html>

@@ -1,0 +1,467 @@
+<html><!-- Powered by Question2Answer - http://www.question2answer.org/ --><head>
+		<meta http-equiv="content-type" content="text/html; charset=utf-8">
+		<title>Wrong DirichletBC dimension in 3D - FEniCS Q&amp;A</title>
+		<meta name="description" content="I am implementing a 3D mixed poission equation using RT0 elements. Everything is done using the C++ version of  ... x[2], 30.0, DOLFIN_EPS) &amp;&amp; (x[0]">
+		<meta name="keywords" content="3d,dirichlet,boundary-conditions,cpp">
+		<link rel="stylesheet" type="text/css" href="../../qa-theme/Snow/qa-styles.css">
+		<link rel="canonical" href="http://fenicsproject.org/qa/6662/wrong-dirichletbc-dimension-in-3d">
+		<script type="text/x-mathjax-config">
+  MathJax.Hub.Config({
+    extensions: ["tex2jax.js"],
+    jax: ["input/TeX","output/HTML-CSS"],
+    tex2jax: {inlineMath: [["$","$"],["\\(","\\)"]]},
+    TeX: { extensions: ["AMSmath.js","AMSsymbols.js"]}
+  });
+</script>
+<script type="text/javascript" src="../../mathjax/MathJax.js"></script>
+		<script src="../../jquery-1.7.2.min.js" type="text/javascript"></script>
+		<script src="../../highlight.min.js"></script>
+<script type="text/javascript">
+$(function(){
+	$('.wmd-input').keypress(function(){
+		window.clearTimeout(hljs.Timeout);
+		hljs.Timeout = window.setTimeout(function() {
+			hljs.initHighlighting.called = false;
+			hljs.initHighlighting();
+		}, 500);
+	});
+	window.setTimeout(function() {
+		hljs.initHighlighting.called = false;
+		hljs.initHighlighting();
+	}, 500);
+});
+</script>
+
+
+	</head>
+	<body class="qa-template-question qa-body-js-off">
+		<div class="qa-body-wrapper">
+			
+			<div class="qa-header">
+				<div class="qa-logo">
+					<a href="../../" class="qa-logo-link" title="FEniCS Q&amp;A"><img src="../../qa-theme/fenics_qa.png" border="0" alt="FEniCS Q&amp;A"></a>
+				</div>
+				<div class="qa-header-clear">
+				</div>
+			</div> <!-- END qa-header -->
+			
+			<div class="qa-main-shadow">
+				
+				<div class="qa-main-wrapper">
+					
+					<div class="qa-sidepanel">
+						<div class="qa-sidebar">
+							This is a read only copy of the old FEniCS QA forum. Please visit the <a href="https://www.allanswered.com/community/s/fenics-project/">new QA forum</a> to ask questions
+						</div>
+						
+					</div>
+					
+					<div class="qa-main">
+						<h1>
+							<span class="entry-title">Wrong DirichletBC dimension in 3D</span>
+						</h1>
+						<div class="qa-part-q-view">
+							<div class="qa-q-view  hentry question" id="q6662">
+								<form method="post" action="../../6662/wrong-dirichletbc-dimension-in-3d">
+									<div class="qa-q-view-stats">
+										<div class="qa-voting qa-voting-net" id="voting_6662">
+											<div class="qa-vote-count qa-vote-count-net">
+												<span class="qa-netvote-count">
+													<span class="qa-netvote-count-data">0<span class="votes-up"><span class="value-title" title="0"></span></span><span class="votes-down"><span class="value-title" title="0"></span></span></span><span class="qa-netvote-count-pad"> votes</span>
+												</span>
+											</div>
+											<div class="qa-vote-clear">
+											</div>
+										</div>
+									</div>
+									<input type="hidden" name="code" value="0-1516468081-496b8d42c5f1bd1859e84d5a0976d980a6196326">
+								</form>
+								<div class="qa-q-view-main">
+									<form method="post" action="../../6662/wrong-dirichletbc-dimension-in-3d">
+										<div class="qa-q-view-content">
+											<a name="6662"></a><div class="entry-content"><p>I am implementing a 3D mixed poission equation using RT0 elements. Everything is done using the C++ version of FEniCS.</p>
+
+<p>I am getting this error regarding my Dirichlet boundary conditions, the error message is below:</p>
+
+<pre><code>*** -------------------------------------------------------------------------
+*** Error:   Unable to create Dirichlet boundary condition.
+*** Reason:  Illegal value dimension (3), expecting (2).
+*** Where:   This error was encountered inside DirichletBC.cpp.
+*** Process: unknown
+*** 
+*** DOLFIN version: 1.5.0
+*** Git changeset:  f467b66dcfd821ec20e9f9070c7cef5a991dbc42
+*** -------------------------------------------------------------------------
+</code></pre>
+
+<p>Here's my ufl file:</p>
+
+<pre><code>V = FiniteElement("RT", triangle, 1)
+P  = FiniteElement("DG", triangle, 0)
+W = V * P
+
+# Trial and test functions
+(v,p) = TrialFunctions(W)
+(w,q) = TestFunctions(W)
+
+# Define coefficients
+n = FacetNormal(triangle)
+alpha = Constant(triangle)
+rhob = Coefficient(V)
+p_Production = Constant(triangle)
+p_Injection = Constant(triangle)
+
+a = dot(alpha*v,w)*dx - p*div(w)*dx - div(v)*q*dx
+L = dot(rhob,w)*dx - dot(w,n)*p_Production*ds(9) - dot(w,n)*p_Injection*ds(7) - dot(w,n)*p_Injection*ds(8)
+</code></pre>
+
+<p>And the main.cpp:</p>
+
+<pre><code>#include &lt;dolfin.h&gt;
+#include "RT0.h"
+//#include "papi.h"
+
+using namespace dolfin;
+
+// Boundaries
+class SE : public SubDomain
+{
+  bool inside(const Array&lt;double&gt;&amp; x, bool on_boundary) const
+  { return near(x[1],0.0,DOLFIN_EPS) &amp;&amp; x[0] &gt;= 1;}
+};
+
+class SW : public SubDomain
+{
+  bool inside(const Array&lt;double&gt;&amp; x, bool on_boundary) const
+  { return near(x[0],0.0,DOLFIN_EPS) &amp;&amp; x[1] &gt;= 1;}
+};
+
+class NW : public SubDomain
+{
+  bool inside(const Array&lt;double&gt;&amp; x, bool on_boundary) const
+  { return near(x[1],100.0,DOLFIN_EPS);}
+};
+
+class NE : public SubDomain
+{
+  bool inside(const Array&lt;double&gt;&amp; x, bool on_boundary) const
+  { return near(x[2],100.0,DOLFIN_EPS);}
+};
+
+class Top : public SubDomain
+{
+  bool inside(const Array&lt;double&gt;&amp; x, bool on_boundary) const
+  { return near(x[2], 30.0, DOLFIN_EPS) &amp;&amp; (x[0] &lt;= 99 || x[1] &lt;= 99);}
+};
+
+class Bottom: public SubDomain
+{
+  bool inside(const Array&lt;double&gt;&amp; x, bool on_boundary) const
+  { return near(x[2], 0.0, DOLFIN_EPS);}
+};
+
+class SEpressure : public SubDomain
+{
+  bool inside(const Array&lt;double&gt;&amp; x, bool on_boundary) const
+  { return near(x[1],0.0,DOLFIN_EPS) &amp;&amp; x[0] &lt;= 1;}
+};
+
+class SWpressure : public SubDomain
+{
+  bool inside(const Array&lt;double&gt;&amp; x, bool on_boundary) const
+  { return near(x[0],0.0,DOLFIN_EPS) &amp;&amp; x[1] &lt;= 1;}
+};
+
+class Toppressure : public SubDomain
+{
+  bool inside(const Array&lt;double&gt;&amp; x, bool on_boundary) const
+  { return near(x[2], 30.0, DOLFIN_EPS) &amp;&amp; (x[0] &gt;= 99 &amp;&amp; x[1] &gt;= 99);}
+};
+
+// Boundary source for flux boundary condition
+class BoundarySource : public Expression
+{
+  public:
+
+    BoundarySource(const Mesh&amp; mesh) : Expression(3), mesh(mesh) {}
+
+    void eval(Array&lt;double&gt;&amp; values, const Array&lt;double&gt;&amp; x,
+              const ufc::cell&amp; ufc_cell) const
+    {
+      dolfin_assert(ufc_cell.local_facet &gt;= 0);
+
+      Cell cell(mesh, ufc_cell.index);
+      Point n = cell.normal(ufc_cell.local_facet);
+
+      const double g = 0;
+      values[0] = g*n[0];
+      values[1] = g*n[1];
+      values[2] = g*n[2];
+    }
+
+  private:
+    const Mesh&amp; mesh; 
+};
+
+int main(int argc, char* argv[])
+{ 
+  // Read any command line flags
+  parameters.parse(argc,argv);
+
+  // Create mesh
+  BoxMesh mesh(0,0,0,100,100,30,200,200,5);
+
+  // Construct function space
+  RT0::FunctionSpace W(mesh);
+  RT0::BilinearForm a(W, W);
+  RT0::LinearForm L(W);
+
+  // Define boundaries
+  SubSpace W0(W, 0);
+  BoundarySource G(mesh);
+  SW sw;
+  SE se;
+  NE ne;
+  NW nw;
+  Top top;
+  Bottom bottom;
+  SWpressure swpressure;
+  SEpressure sepressure;
+  Toppressure toppressure;
+  MeshFunction&lt;std::size_t&gt; boundaries(mesh,mesh.topology().dim()-1);
+  boundaries.set_all(0);
+  sw.mark(boundaries,1);
+  se.mark(boundaries,2);
+  ne.mark(boundaries,3);
+  nw.mark(boundaries,4);
+  top.mark(boundaries,5);
+  bottom.mark(boundaries,6);
+  swpressure.mark(boundaries,7);
+  sepressure.mark(boundaries,8);
+  toppressure.mark(boundaries,9);
+
+  // Apply boundary conditions
+  DirichletBC bc1(W0,G,sw);
+  DirichletBC bc2(W0,G,se);
+  DirichletBC bc3(W0,G,ne);
+  DirichletBC bc4(W0,G,nw);
+  DirichletBC bc5(W0,G,top);
+  DirichletBC bc6(W0,G,bottom);
+  std::vector&lt;const DirichletBC*&gt; bcs;
+  bcs.push_back(&amp;bc1);
+  bcs.push_back(&amp;bc2);
+  bcs.push_back(&amp;bc3);
+  bcs.push_back(&amp;bc4);
+  bcs.push_back(&amp;bc5);
+  bcs.push_back(&amp;bc6);
+
+  // Material properties
+  Constant alpha(3.95e7);
+  Constant rhob(0.0,0.0,-4699);
+  Constant p_Production(101325.0);
+  Constant p_Injection(101325000.0);
+  a.alpha = alpha;
+  L.rhob = rhob;
+  L.p_Production = p_Production;
+  L.p_Injection = p_Injection;
+
+  // Compute solution
+  Function w(W);
+  Matrix A;
+  Vector b;
+  assemble_system(A,b,a,L,bcs);
+  solve(A,*w.vector(),b,"gmres","bjacobi");
+
+  // Extract sub functions (function views)
+  Function&amp; sigma = w[0];
+  Function&amp; u = w[1];
+  list_timings();
+  // Plot solutions
+  //plot(u);
+  //plot(sigma);
+  //interactive();
+
+  return 0;
+}
+</code></pre>
+
+<p>This is a 3D problem, but it seems my program (namely the DirichletBC) keeps expecting a 2D problem. Any idea how to fix this? Thanks.</p>
+</div>
+										</div>
+										<div class="qa-q-view-tags">
+											<ul class="qa-q-view-tag-list">
+												<li class="qa-q-view-tag-item"><a href="../../tag/3d" rel="tag" class="qa-tag-link">3d</a></li>
+												<li class="qa-q-view-tag-item"><a href="../../tag/dirichlet" rel="tag" class="qa-tag-link">dirichlet</a></li>
+												<li class="qa-q-view-tag-item"><a href="../../tag/boundary-conditions" rel="tag" class="qa-tag-link">boundary-conditions</a></li>
+												<li class="qa-q-view-tag-item"><a href="../../tag/cpp" rel="tag" class="qa-tag-link">cpp</a></li>
+											</ul>
+										</div>
+										<span class="qa-q-view-avatar-meta">
+											<span class="qa-q-view-meta">
+												<a href="../../6662/wrong-dirichletbc-dimension-in-3d" class="qa-q-view-what">asked</a>
+												<span class="qa-q-view-when">
+													<span class="qa-q-view-when-data"><span class="published"><span class="value-title" title="2015-03-02T18:23:40+0000"></span>Mar 2, 2015</span></span>
+												</span>
+												<span class="qa-q-view-who">
+													<span class="qa-q-view-who-pad">by </span>
+													<span class="qa-q-view-who-data"><span class="vcard author"><a href="../../user/jychang48" class="qa-user-link url nickname">jychang48</a></span></span>
+													<span class="qa-q-view-who-title">FEniCS Novice</span>
+													<span class="qa-q-view-who-points">
+														<span class="qa-q-view-who-points-pad">(</span><span class="qa-q-view-who-points-data">510</span><span class="qa-q-view-who-points-pad"> points)</span>
+													</span>
+												</span>
+											</span>
+										</span>
+										<div class="qa-q-view-buttons">
+										</div>
+										
+										<div class="qa-q-view-c-list" style="display:none;" id="c6662_list">
+										</div> <!-- END qa-c-list -->
+										
+										<input type="hidden" name="code" value="0-1516468081-d2a31ff92b7ae8a31397823df8c761e41bd704a1">
+										<input type="hidden" name="qa_click" value="">
+									</form>
+									<div class="qa-c-form">
+									</div> <!-- END qa-c-form -->
+									
+								</div> <!-- END qa-q-view-main -->
+								<div class="qa-q-view-clear">
+								</div>
+							</div> <!-- END qa-q-view -->
+							
+						</div>
+						<div class="qa-part-a-list">
+							<h2 id="a_list_title">1 Answer</h2>
+							<div class="qa-a-list" id="a_list">
+								
+								<div class="qa-a-list-item  hentry answer answer-selected qa-a-list-item-selected" id="a6663">
+									<form method="post" action="../../6662/wrong-dirichletbc-dimension-in-3d">
+										<div class="qa-voting qa-voting-net" id="voting_6663">
+											<div class="qa-vote-count qa-vote-count-net">
+												<span class="qa-netvote-count">
+													<span class="qa-netvote-count-data">0<span class="votes-up"><span class="value-title" title="0"></span></span><span class="votes-down"><span class="value-title" title="0"></span></span></span><span class="qa-netvote-count-pad"> votes</span>
+												</span>
+											</div>
+											<div class="qa-vote-clear">
+											</div>
+										</div>
+										<input type="hidden" name="code" value="0-1516468081-496b8d42c5f1bd1859e84d5a0976d980a6196326">
+									</form>
+									<div class="qa-a-item-main">
+										<form method="post" action="../../6662/wrong-dirichletbc-dimension-in-3d">
+											<div class="qa-a-item-selected">
+												<div class="qa-a-selection">
+													<div class="qa-a-selected">&#160;</div>
+													<div class="qa-a-selected-text">Best answer</div>
+												</div>
+												<div class="qa-a-item-content">
+													<a name="6663"></a><div class="entry-content"><p>Hi, try</p>
+
+<pre><code>cell = tetrahedron
+V = FiniteElement("RT", cell, 1)
+P  = FiniteElement("DG", cell, 0)
+W = V * P
+
+# Trial and test functions
+(v,p) = TrialFunctions(W)
+(w,q) = TestFunctions(W)
+
+# Define coefficients
+n = FacetNormal(cell)
+alpha = Constant(cell)
+rhob = Coefficient(V)
+p_Production = Constant(cell)
+p_Injection = Constant(cell)
+</code></pre>
+</div>
+												</div>
+												<span class="qa-a-item-avatar-meta">
+													<span class="qa-a-item-avatar">
+														<a href="../../user/MiroK" class="qa-avatar-link"><img src="https://www.gravatar.com/avatar/f566be3274ec73e3a6dda27bca11631c?s=40" width="40" height="40" class="qa-avatar-image" alt=""></a>
+													</span>
+													<span class="qa-a-item-meta">
+														<a href="../../6662/wrong-dirichletbc-dimension-in-3d?show=6663#a6663" class="qa-a-item-what">answered</a>
+														<span class="qa-a-item-when">
+															<span class="qa-a-item-when-data"><span class="published"><span class="value-title" title="2015-03-02T20:34:14+0000"></span>Mar 2, 2015</span></span>
+														</span>
+														<span class="qa-a-item-who">
+															<span class="qa-a-item-who-pad">by </span>
+															<span class="qa-a-item-who-data"><span class="vcard author"><a href="../../user/MiroK" class="qa-user-link url nickname">MiroK</a></span></span>
+															<span class="qa-a-item-who-title">FEniCS Expert</span>
+															<span class="qa-a-item-who-points">
+																<span class="qa-a-item-who-points-pad">(</span><span class="qa-a-item-who-points-data">80,920</span><span class="qa-a-item-who-points-pad"> points)</span>
+															</span>
+														</span>
+														<br>
+														<span class="qa-a-item-what">selected</span>
+														<span class="qa-a-item-when">
+															<span class="qa-a-item-when-data"><span class="updated"><span class="value-title" title="2015-03-03T22:15:15+0000"></span>Mar 3, 2015</span></span>
+														</span>
+														<span class="qa-a-item-who">
+															<span class="qa-a-item-who-pad">by </span><span class="qa-a-item-who-data"><a href="../../user/jychang48" class="qa-user-link url nickname">jychang48</a></span>
+														</span>
+													</span>
+												</span>
+											</div>
+											<div class="qa-a-item-buttons">
+												</div>
+											
+											<div class="qa-a-item-c-list" id="c6663_list">
+												<div class="qa-c-list-item  hentry comment" id="c6679">
+													<div class="qa-c-item-content">
+														<a name="6679"></a><div class="entry-content"><p>That did the trick, thanks</p>
+</div>
+													</div>
+													<div class="qa-c-item-footer">
+														<span class="qa-c-item-avatar-meta">
+															<span class="qa-c-item-meta">
+																<a href="../../6662/wrong-dirichletbc-dimension-in-3d?show=6679#c6679" class="qa-c-item-what">commented</a>
+																<span class="qa-c-item-when">
+																	<span class="qa-c-item-when-data"><span class="published"><span class="value-title" title="2015-03-03T22:15:30+0000"></span>Mar 3, 2015</span></span>
+																</span>
+																<span class="qa-c-item-who">
+																	<span class="qa-c-item-who-pad">by </span>
+																	<span class="qa-c-item-who-data"><span class="vcard author"><a href="../../user/jychang48" class="qa-user-link url nickname">jychang48</a></span></span>
+																	<span class="qa-c-item-who-title">FEniCS Novice</span>
+																	<span class="qa-c-item-who-points">
+																		<span class="qa-c-item-who-points-pad">(</span><span class="qa-c-item-who-points-data">510</span><span class="qa-c-item-who-points-pad"> points)</span>
+																	</span>
+																</span>
+															</span>
+														</span>
+														<div class="qa-c-item-buttons">
+														</div>
+													</div>
+													<div class="qa-c-item-clear">
+													</div>
+												</div> <!-- END qa-c-item -->
+											</div> <!-- END qa-c-list -->
+											
+											<input type="hidden" name="code" value="0-1516468081-8b2e1908cd033e5c685db1b30a95195781390920">
+											<input type="hidden" name="qa_click" value="">
+										</form>
+										<div class="qa-c-form">
+										</div> <!-- END qa-c-form -->
+										
+									</div> <!-- END qa-a-item-main -->
+									<div class="qa-a-item-clear">
+									</div>
+								</div> <!-- END qa-a-list-item -->
+								
+							</div> <!-- END qa-a-list -->
+							
+						</div>
+					</div> <!-- END qa-main -->
+					
+				</div> <!-- END main-wrapper -->
+			</div> <!-- END main-shadow -->
+		</div> <!-- END body-wrapper -->
+		<!-- END footer-bottom-group -->
+		
+		<div style="position:absolute; left:-9999px; top:-9999px;">
+			<span id="qa-waiting-template" class="qa-waiting">...</span>
+		</div>
+	
+	
+
+</body><!-- Powered by Question2Answer - http://www.question2answer.org/ --></html>

@@ -1,0 +1,574 @@
+<html><!-- Powered by Question2Answer - http://www.question2answer.org/ --><head>
+		<meta http-equiv="content-type" content="text/html; charset=utf-8">
+		<title>how to manually build a mesh and use it to solve a pde - FEniCS Q&amp;A</title>
+		<meta name="description" content="I'm trying to build a mesh manually because I am linking Fenics into another project I'm working on where a  ... )*dx # Linear form L = dot(v,f)*dx">
+		<meta name="keywords" content="mesheditor,mesh,petsc,cpp">
+		<link rel="stylesheet" type="text/css" href="../../qa-theme/Snow/qa-styles.css">
+		<link rel="canonical" href="http://fenicsproject.org/qa/11785/how-to-manually-build-a-mesh-and-use-it-to-solve-a-pde">
+		<script type="text/x-mathjax-config">
+  MathJax.Hub.Config({
+    extensions: ["tex2jax.js"],
+    jax: ["input/TeX","output/HTML-CSS"],
+    tex2jax: {inlineMath: [["$","$"],["\\(","\\)"]]},
+    TeX: { extensions: ["AMSmath.js","AMSsymbols.js"]}
+  });
+</script>
+<script type="text/javascript" src="../../mathjax/MathJax.js"></script>
+		<script src="../../jquery-1.7.2.min.js" type="text/javascript"></script>
+		<script src="../../highlight.min.js"></script>
+<script type="text/javascript">
+$(function(){
+	$('.wmd-input').keypress(function(){
+		window.clearTimeout(hljs.Timeout);
+		hljs.Timeout = window.setTimeout(function() {
+			hljs.initHighlighting.called = false;
+			hljs.initHighlighting();
+		}, 500);
+	});
+	window.setTimeout(function() {
+		hljs.initHighlighting.called = false;
+		hljs.initHighlighting();
+	}, 500);
+});
+</script>
+
+
+	</head>
+	<body class="qa-template-question qa-body-js-off">
+		<div class="qa-body-wrapper">
+			
+			<div class="qa-header">
+				<div class="qa-logo">
+					<a href="../../" class="qa-logo-link" title="FEniCS Q&amp;A"><img src="../../qa-theme/fenics_qa.png" border="0" alt="FEniCS Q&amp;A"></a>
+				</div>
+				<div class="qa-header-clear">
+				</div>
+			</div> <!-- END qa-header -->
+			
+			<div class="qa-main-shadow">
+				
+				<div class="qa-main-wrapper">
+					
+					<div class="qa-sidepanel">
+						<div class="qa-sidebar">
+							This is a read only copy of the old FEniCS QA forum. Please visit the <a href="https://www.allanswered.com/community/s/fenics-project/">new QA forum</a> to ask questions
+						</div>
+						
+					</div>
+					
+					<div class="qa-main">
+						<h1>
+							<span class="entry-title">how to manually build a mesh and use it to solve a pde</span>
+						</h1>
+						<div class="qa-part-q-view">
+							<div class="qa-q-view  hentry question" id="q11785">
+								<form method="post" action="../../11785/how-to-manually-build-a-mesh-and-use-it-to-solve-a-pde">
+									<div class="qa-q-view-stats">
+										<div class="qa-voting qa-voting-net" id="voting_11785">
+											<div class="qa-vote-count qa-vote-count-net">
+												<span class="qa-netvote-count">
+													<span class="qa-netvote-count-data">0<span class="votes-up"><span class="value-title" title="0"></span></span><span class="votes-down"><span class="value-title" title="0"></span></span></span><span class="qa-netvote-count-pad"> votes</span>
+												</span>
+											</div>
+											<div class="qa-vote-clear">
+											</div>
+										</div>
+									</div>
+									<input type="hidden" name="code" value="0-1516467786-59fe50835c3e839b7b140a35288c23c3a24aaf50">
+								</form>
+								<div class="qa-q-view-main">
+									<form method="post" action="../../11785/how-to-manually-build-a-mesh-and-use-it-to-solve-a-pde">
+										<div class="qa-q-view-content">
+											<a name="11785"></a><div class="entry-content"><p>I'm trying to build a mesh manually because I am linking Fenics into another project I'm working on where a mesh structure is already defined. It makes more sense to build the mesh in code rather than import two separate files.</p>
+
+<p>Further, I would like to be able to assign the vertex and cell indices so that they correspond with the other mesh data structure that I'm already using.</p>
+
+<p>When I try to do this, I am getting the error</p>
+
+<p>*** Error:   Unable to set given (local) rows to identity matrix.<br>
+*** Reason:  some diagonal elements not preallocated (try assembler option keep_diagonal).<br>
+*** Where:   This error was encountered inside PETScMatrix.cpp.<br>
+*** Process: 0</p>
+
+<hr>
+
+<p>*** DOLFIN version: 2016.1.0<br>
+*** Git changeset:  unknown</p>
+
+<p>Here is a minimum working example</p>
+
+<pre><code>#include &lt;iostream&gt;
+/*---------------------------------------------------------------------------*/
+#include &lt;dolfin.h&gt;
+#include "pde.h"
+/*---------------------------------------------------------------------------*/
+
+/*---------------------------------------------------------------------------*/
+/*---------------------------------------------------------------------------*/
+
+// Sub domain for Dirichlet boundary condition
+class DirichletBoundary : public dolfin::SubDomain
+{
+  bool inside(const dolfin::Array&lt;double&gt;&amp; x, bool on_boundary) const
+  { return on_boundary; }
+};
+
+// a function that gives the representation vector at every point on the boundary
+class RepresentationVectorFunction : public dolfin::Expression
+{
+  public:
+    RepresentationVectorFunction(std::size_t dim):dolfin::Expression(dim){}
+
+  private:
+    void eval(dolfin::Array&lt;double&gt; &amp;values, const dolfin::Array&lt;double&gt; &amp;x) const
+    {
+      values[0] = 0;
+      values[1] = 1;
+    }
+};
+
+
+/*---------------------------------------------------------------------------*/
+int main()
+{
+  //Create the mesh and open for editing
+  auto mesh = std::make_shared&lt;dolfin::Mesh&gt;();
+  dolfin::MeshEditor editor;
+  editor.open(*mesh, 2, 2);
+
+  std::vector&lt;double&gt; v = {0,0   //0
+                          ,0,1   //1
+                          ,0,2   //2
+                          ,1,0   //3
+                          ,1,1   //4
+                          ,1,2   //5
+                          ,2,0   //6
+                          ,2,1   //7
+                          ,2,2}; //8
+
+  editor.init_vertices(v.size());
+
+  int vertex_id = 0;
+  for (unsigned int i = 0; i &lt; v.size(); i += 2)
+  {
+    editor.add_vertex(vertex_id++,v[i],v[i+1]);
+  }
+
+  int num_triangles = 8;
+  editor.init_cells(num_triangles);
+
+  editor.add_cell(0, 0,1,4);
+  editor.add_cell(1, 0,4,3);
+  editor.add_cell(2, 1,2,5);
+  editor.add_cell(3, 1,5,4);
+  editor.add_cell(4, 3,4,7);
+  editor.add_cell(5, 3,7,6);
+  editor.add_cell(6, 4,5,8);
+  editor.add_cell(7, 4,8,7);
+
+
+  // Close the mesh for editing
+  editor.close();
+
+  dolfin::plot(mesh);
+  dolfin::interactive();
+
+  // Create function space
+  auto V = std::make_shared&lt;pde::FunctionSpace&gt;(mesh);
+
+  auto f = std::make_shared&lt;dolfin::Constant&gt;(0,0);
+
+  // Define boundary condition
+  auto u0 = std::make_shared&lt;RepresentationVectorFunction&gt;(2);
+  auto boundary = std::make_shared&lt;DirichletBoundary&gt;();
+  dolfin::DirichletBC bc(V, u0, boundary);
+
+  // Define pde variational problem
+  pde::BilinearForm a(V, V);
+  pde::LinearForm L(V);
+  L.f = f;
+
+  // Compute pde solution
+  auto u = std::make_shared&lt;dolfin::Function&gt;(V);
+  dolfin::solve(a == L, *u, bc);
+
+  return 0;
+}
+</code></pre>
+
+<p>The UFL file is</p>
+
+<pre><code># Elements
+V = VectorElement("Lagrange", triangle, 2)
+
+# Trial and test functions
+u = TrialFunction(V)
+v = TestFunction(V)
+f = Coefficient(V)
+
+# Bilinear form
+a = inner(grad(u), grad(v))*dx
+
+# Linear form
+L = dot(v,f)*dx
+</code></pre>
+</div>
+										</div>
+										<div class="qa-q-view-tags">
+											<ul class="qa-q-view-tag-list">
+												<li class="qa-q-view-tag-item"><a href="../../tag/mesheditor" rel="tag" class="qa-tag-link">mesheditor</a></li>
+												<li class="qa-q-view-tag-item"><a href="../../tag/mesh" rel="tag" class="qa-tag-link">mesh</a></li>
+												<li class="qa-q-view-tag-item"><a href="../../tag/petsc" rel="tag" class="qa-tag-link">petsc</a></li>
+												<li class="qa-q-view-tag-item"><a href="../../tag/cpp" rel="tag" class="qa-tag-link">cpp</a></li>
+											</ul>
+										</div>
+										<span class="qa-q-view-avatar-meta">
+											<span class="qa-q-view-avatar">
+												<a href="../../user/rviertel" class="qa-avatar-link"><img src="../../?qa=image&amp;qa_blobid=10721583502098350530&amp;qa_size=50" width="38" height="50" class="qa-avatar-image" alt=""></a>
+											</span>
+											<span class="qa-q-view-meta">
+												<a href="../../11785/how-to-manually-build-a-mesh-and-use-it-to-solve-a-pde" class="qa-q-view-what">asked</a>
+												<span class="qa-q-view-when">
+													<span class="qa-q-view-when-data"><span class="published"><span class="value-title" title="2016-11-29T19:18:42+0000"></span>Nov 29, 2016</span></span>
+												</span>
+												<span class="qa-q-view-who">
+													<span class="qa-q-view-who-pad">by </span>
+													<span class="qa-q-view-who-data"><span class="vcard author"><a href="../../user/rviertel" class="qa-user-link url nickname">rviertel</a></span></span>
+													<span class="qa-q-view-who-title">FEniCS Novice</span>
+													<span class="qa-q-view-who-points">
+														<span class="qa-q-view-who-points-pad">(</span><span class="qa-q-view-who-points-data">700</span><span class="qa-q-view-who-points-pad"> points)</span>
+													</span>
+												</span>
+											</span>
+										</span>
+										<div class="qa-q-view-buttons">
+										</div>
+										
+										<div class="qa-q-view-c-list" style="display:none;" id="c11785_list">
+										</div> <!-- END qa-c-list -->
+										
+										<input type="hidden" name="code" value="0-1516467786-82d415a919d487b4bf7bc727aa975dae14105ecf">
+										<input type="hidden" name="qa_click" value="">
+									</form>
+									<div class="qa-c-form">
+									</div> <!-- END qa-c-form -->
+									
+								</div> <!-- END qa-q-view-main -->
+								<div class="qa-q-view-clear">
+								</div>
+							</div> <!-- END qa-q-view -->
+							
+						</div>
+						<div class="qa-part-a-list">
+							<h2 id="a_list_title">1 Answer</h2>
+							<div class="qa-a-list" id="a_list">
+								
+								<div class="qa-a-list-item  hentry answer answer-selected qa-a-list-item-selected" id="a11793">
+									<form method="post" action="../../11785/how-to-manually-build-a-mesh-and-use-it-to-solve-a-pde">
+										<div class="qa-voting qa-voting-net" id="voting_11793">
+											<div class="qa-vote-count qa-vote-count-net">
+												<span class="qa-netvote-count">
+													<span class="qa-netvote-count-data">+1<span class="votes-up"><span class="value-title" title="1"></span></span><span class="votes-down"><span class="value-title" title="0"></span></span></span><span class="qa-netvote-count-pad"> vote</span>
+												</span>
+											</div>
+											<div class="qa-vote-clear">
+											</div>
+										</div>
+										<input type="hidden" name="code" value="0-1516467786-59fe50835c3e839b7b140a35288c23c3a24aaf50">
+									</form>
+									<div class="qa-a-item-main">
+										<form method="post" action="../../11785/how-to-manually-build-a-mesh-and-use-it-to-solve-a-pde">
+											<div class="qa-a-item-selected">
+												<div class="qa-a-selection">
+													<div class="qa-a-selected">&#160;</div>
+													<div class="qa-a-selected-text">Best answer</div>
+												</div>
+												<div class="qa-a-item-content">
+													<a name="11793"></a><div class="entry-content"><p>Hi, <code>init_vertices</code> should take the number of vertices, in your case v.size()/2.</p>
+</div>
+												</div>
+												<span class="qa-a-item-avatar-meta">
+													<span class="qa-a-item-avatar">
+														<a href="../../user/MiroK" class="qa-avatar-link"><img src="https://www.gravatar.com/avatar/f566be3274ec73e3a6dda27bca11631c?s=40" width="40" height="40" class="qa-avatar-image" alt=""></a>
+													</span>
+													<span class="qa-a-item-meta">
+														<a href="../../11785/how-to-manually-build-a-mesh-and-use-it-to-solve-a-pde?show=11793#a11793" class="qa-a-item-what">answered</a>
+														<span class="qa-a-item-when">
+															<span class="qa-a-item-when-data"><span class="published"><span class="value-title" title="2016-11-30T09:29:02+0000"></span>Nov 30, 2016</span></span>
+														</span>
+														<span class="qa-a-item-who">
+															<span class="qa-a-item-who-pad">by </span>
+															<span class="qa-a-item-who-data"><span class="vcard author"><a href="../../user/MiroK" class="qa-user-link url nickname">MiroK</a></span></span>
+															<span class="qa-a-item-who-title">FEniCS Expert</span>
+															<span class="qa-a-item-who-points">
+																<span class="qa-a-item-who-points-pad">(</span><span class="qa-a-item-who-points-data">80,920</span><span class="qa-a-item-who-points-pad"> points)</span>
+															</span>
+														</span>
+														<br>
+														<span class="qa-a-item-what">selected</span>
+														<span class="qa-a-item-when">
+															<span class="qa-a-item-when-data"><span class="updated"><span class="value-title" title="2016-12-01T01:37:42+0000"></span>Dec 1, 2016</span></span>
+														</span>
+														<span class="qa-a-item-who">
+															<span class="qa-a-item-who-pad">by </span><span class="qa-a-item-who-data"><a href="../../user/rviertel" class="qa-user-link url nickname">rviertel</a></span>
+														</span>
+													</span>
+												</span>
+											</div>
+											<div class="qa-a-item-buttons">
+												</div>
+											
+											<div class="qa-a-item-c-list" id="c11793_list">
+												<div class="qa-c-list-item  hentry comment" id="c11800">
+													<div class="qa-c-item-content">
+														<a name="11800"></a><div class="entry-content"><p>Thanks for your answer MiroK.  That did in fact fix the code I posted, however in my original code I know for sure that am passing the right number to <code>init_vertices</code>, but I'm still getting the same error.</p>
+
+<p>Here is my original code (which won't be able to run without linking to the rest of the project).  It should be fairly straightforward to read. The variable <code>m_mesh</code> is the other mesh data structure that I am using to build the mesh in fenics.  Would you mind looking through it to see if you notice anything that would be causing this error?</p>
+
+<pre><code> //Create the mesh and open for editing
+  auto mesh = std::make_shared&lt;dolfin::Mesh&gt;();
+  dolfin::MeshEditor editor;
+  editor.open(*mesh, 2, 2);
+
+  int num_nodes = m_mesh-&gt;getNbNodes();
+  editor.init_vertices(num_nodes);
+
+  std::map&lt;gmds::TCellID,std::size_t&gt; node_map;
+
+  int vertex_id = 0;
+  gmds::IGMesh::node_iterator node_it = m_mesh-&gt;nodes_begin();
+  for (; !node_it.isDone(); node_it.next())
+  {
+    gmds::Node n = node_it.value();
+    node_map[n.getID()] = vertex_id;
+    editor.add_vertex(vertex_id++,n.X(),n.Y());
+  }
+
+  int num_triangles = m_mesh-&gt;getNbFaces();
+  editor.init_cells(num_triangles);
+
+  int cell_id = 0;
+  gmds::IGMesh::face_iterator f_it = m_mesh-&gt;faces_begin();
+  for(; !f_it.isDone(); f_it.next())
+  {
+    gmds::Face f = f_it.value();
+    std::vector&lt;gmds::Node&gt; nodes = f.get&lt;gmds::Node&gt;();
+
+    std::size_t v0,v1,v2;
+    v0 = node_map[nodes[0].getID()];
+    v1 = node_map[nodes[1].getID()];
+    v2 = node_map[nodes[2].getID()];
+    editor.add_cell(cell_id++,v0,v1,v2);
+  }
+
+
+  // Close the mesh for editing
+  editor.close();
+
+  dolfin::plot(mesh);
+  dolfin::interactive();
+
+
+  // Create function space
+  auto V = std::make_shared&lt;initial::FunctionSpace&gt;(mesh);
+
+  auto f = std::make_shared&lt;dolfin::Constant&gt;(0,0);
+
+  // Define boundary condition
+  auto u0 = std::make_shared&lt;RepresentationVectorFunction&gt;(2,*mesh);
+  auto boundary = std::make_shared&lt;DirichletBoundary&gt;();
+  dolfin::DirichletBC bc(V, u0, boundary);
+
+  // Define initial variational problem
+  initial::BilinearForm a(V, V);
+  initial::LinearForm L(V);
+  L.f = f;
+
+  // Compute initial solution
+  auto u = std::make_shared&lt;dolfin::Function&gt;(V);
+  dolfin::solve(a == L, *u, bc);
+</code></pre>
+</div>
+													</div>
+													<div class="qa-c-item-footer">
+														<span class="qa-c-item-avatar-meta">
+															<span class="qa-c-item-avatar">
+																<a href="../../user/rviertel" class="qa-avatar-link"><img src="../../?qa=image&amp;qa_blobid=10721583502098350530&amp;qa_size=20" width="15" height="20" class="qa-avatar-image" alt=""></a>
+															</span>
+															<span class="qa-c-item-meta">
+																<a href="../../11785/how-to-manually-build-a-mesh-and-use-it-to-solve-a-pde?show=11800#c11800" class="qa-c-item-what">commented</a>
+																<span class="qa-c-item-when">
+																	<span class="qa-c-item-when-data"><span class="published"><span class="value-title" title="2016-11-30T17:52:35+0000"></span>Nov 30, 2016</span></span>
+																</span>
+																<span class="qa-c-item-who">
+																	<span class="qa-c-item-who-pad">by </span>
+																	<span class="qa-c-item-who-data"><span class="vcard author"><a href="../../user/rviertel" class="qa-user-link url nickname">rviertel</a></span></span>
+																	<span class="qa-c-item-who-title">FEniCS Novice</span>
+																	<span class="qa-c-item-who-points">
+																		<span class="qa-c-item-who-points-pad">(</span><span class="qa-c-item-who-points-data">700</span><span class="qa-c-item-who-points-pad"> points)</span>
+																	</span>
+																</span>
+															</span>
+														</span>
+														<div class="qa-c-item-buttons">
+														</div>
+													</div>
+													<div class="qa-c-item-clear">
+													</div>
+												</div> <!-- END qa-c-item -->
+												<div class="qa-c-list-item  hentry comment" id="c11801">
+													<div class="qa-c-item-content">
+														<a name="11801"></a><div class="entry-content"><p>I suggest you inspect the mesh when you are done editing. For example, is the number of vertices/cell (in python mesh.num_vertices(), mesh.num_cells()) as you expect?</p>
+</div>
+													</div>
+													<div class="qa-c-item-footer">
+														<span class="qa-c-item-avatar-meta">
+															<span class="qa-c-item-avatar">
+																<a href="../../user/MiroK" class="qa-avatar-link"><img src="https://www.gravatar.com/avatar/f566be3274ec73e3a6dda27bca11631c?s=20" width="20" height="20" class="qa-avatar-image" alt=""></a>
+															</span>
+															<span class="qa-c-item-meta">
+																<a href="../../11785/how-to-manually-build-a-mesh-and-use-it-to-solve-a-pde?show=11801#c11801" class="qa-c-item-what">commented</a>
+																<span class="qa-c-item-when">
+																	<span class="qa-c-item-when-data"><span class="published"><span class="value-title" title="2016-11-30T18:23:13+0000"></span>Nov 30, 2016</span></span>
+																</span>
+																<span class="qa-c-item-who">
+																	<span class="qa-c-item-who-pad">by </span>
+																	<span class="qa-c-item-who-data"><span class="vcard author"><a href="../../user/MiroK" class="qa-user-link url nickname">MiroK</a></span></span>
+																	<span class="qa-c-item-who-title">FEniCS Expert</span>
+																	<span class="qa-c-item-who-points">
+																		<span class="qa-c-item-who-points-pad">(</span><span class="qa-c-item-who-points-data">80,920</span><span class="qa-c-item-who-points-pad"> points)</span>
+																	</span>
+																</span>
+															</span>
+														</span>
+														<div class="qa-c-item-buttons">
+														</div>
+													</div>
+													<div class="qa-c-item-clear">
+													</div>
+												</div> <!-- END qa-c-item -->
+												<div class="qa-c-list-item  hentry comment" id="c11802">
+													<div class="qa-c-item-content">
+														<a name="11802"></a><div class="entry-content"><p>They both are what I expect.  Also when I plot the mesh it looks exactly as I expect.</p>
+</div>
+													</div>
+													<div class="qa-c-item-footer">
+														<span class="qa-c-item-avatar-meta">
+															<span class="qa-c-item-avatar">
+																<a href="../../user/rviertel" class="qa-avatar-link"><img src="../../?qa=image&amp;qa_blobid=10721583502098350530&amp;qa_size=20" width="15" height="20" class="qa-avatar-image" alt=""></a>
+															</span>
+															<span class="qa-c-item-meta">
+																<a href="../../11785/how-to-manually-build-a-mesh-and-use-it-to-solve-a-pde?show=11802#c11802" class="qa-c-item-what">commented</a>
+																<span class="qa-c-item-when">
+																	<span class="qa-c-item-when-data"><span class="published"><span class="value-title" title="2016-11-30T18:25:22+0000"></span>Nov 30, 2016</span></span>
+																</span>
+																<span class="qa-c-item-who">
+																	<span class="qa-c-item-who-pad">by </span>
+																	<span class="qa-c-item-who-data"><span class="vcard author"><a href="../../user/rviertel" class="qa-user-link url nickname">rviertel</a></span></span>
+																	<span class="qa-c-item-who-title">FEniCS Novice</span>
+																	<span class="qa-c-item-who-points">
+																		<span class="qa-c-item-who-points-pad">(</span><span class="qa-c-item-who-points-data">700</span><span class="qa-c-item-who-points-pad"> points)</span>
+																	</span>
+																</span>
+															</span>
+														</span>
+														<div class="qa-c-item-buttons">
+														</div>
+													</div>
+													<div class="qa-c-item-clear">
+													</div>
+												</div> <!-- END qa-c-item -->
+												<div class="qa-c-list-item  hentry comment" id="c11803">
+													<div class="qa-c-item-content">
+														<a name="11803"></a><div class="entry-content"><p>Well it looked okay before too, didn't it. Are there any duplicate coordinates? Anyways, consider also passing in keep_diagonal=true to solve (via parameters)</p>
+</div>
+													</div>
+													<div class="qa-c-item-footer">
+														<span class="qa-c-item-avatar-meta">
+															<span class="qa-c-item-avatar">
+																<a href="../../user/MiroK" class="qa-avatar-link"><img src="https://www.gravatar.com/avatar/f566be3274ec73e3a6dda27bca11631c?s=20" width="20" height="20" class="qa-avatar-image" alt=""></a>
+															</span>
+															<span class="qa-c-item-meta">
+																<a href="../../11785/how-to-manually-build-a-mesh-and-use-it-to-solve-a-pde?show=11803#c11803" class="qa-c-item-what">commented</a>
+																<span class="qa-c-item-when">
+																	<span class="qa-c-item-when-data"><span class="published"><span class="value-title" title="2016-11-30T18:38:07+0000"></span>Nov 30, 2016</span></span>
+																</span>
+																<span class="qa-c-item-who">
+																	<span class="qa-c-item-who-pad">by </span>
+																	<span class="qa-c-item-who-data"><span class="vcard author"><a href="../../user/MiroK" class="qa-user-link url nickname">MiroK</a></span></span>
+																	<span class="qa-c-item-who-title">FEniCS Expert</span>
+																	<span class="qa-c-item-who-points">
+																		<span class="qa-c-item-who-points-pad">(</span><span class="qa-c-item-who-points-data">80,920</span><span class="qa-c-item-who-points-pad"> points)</span>
+																	</span>
+																</span>
+															</span>
+														</span>
+														<div class="qa-c-item-buttons">
+														</div>
+													</div>
+													<div class="qa-c-item-clear">
+													</div>
+												</div> <!-- END qa-c-item -->
+												<div class="qa-c-list-item  hentry comment" id="c11805">
+													<div class="qa-c-item-content">
+														<a name="11805"></a><div class="entry-content"><p>I tried keep_diagonal=true in the parameters but the solver didn't recognize it.  I think that it might be a PETSc specific parameter.</p>
+
+<p>I also built my own mesh file and when I run it with that the code runs to completion and everything works as expected. The problem must be in the file that I've been trying to use. Anyway, thanks for the help! Your suggestions helped me narrow down the problem.</p>
+</div>
+													</div>
+													<div class="qa-c-item-footer">
+														<span class="qa-c-item-avatar-meta">
+															<span class="qa-c-item-avatar">
+																<a href="../../user/rviertel" class="qa-avatar-link"><img src="../../?qa=image&amp;qa_blobid=10721583502098350530&amp;qa_size=20" width="15" height="20" class="qa-avatar-image" alt=""></a>
+															</span>
+															<span class="qa-c-item-meta">
+																<a href="../../11785/how-to-manually-build-a-mesh-and-use-it-to-solve-a-pde?show=11805#c11805" class="qa-c-item-what">commented</a>
+																<span class="qa-c-item-when">
+																	<span class="qa-c-item-when-data"><span class="published"><span class="value-title" title="2016-12-01T03:49:15+0000"></span>Dec 1, 2016</span></span>
+																</span>
+																<span class="qa-c-item-who">
+																	<span class="qa-c-item-who-pad">by </span>
+																	<span class="qa-c-item-who-data"><span class="vcard author"><a href="../../user/rviertel" class="qa-user-link url nickname">rviertel</a></span></span>
+																	<span class="qa-c-item-who-title">FEniCS Novice</span>
+																	<span class="qa-c-item-who-points">
+																		<span class="qa-c-item-who-points-pad">(</span><span class="qa-c-item-who-points-data">700</span><span class="qa-c-item-who-points-pad"> points)</span>
+																	</span>
+																</span>
+															</span>
+														</span>
+														<div class="qa-c-item-buttons">
+														</div>
+													</div>
+													<div class="qa-c-item-clear">
+													</div>
+												</div> <!-- END qa-c-item -->
+											</div> <!-- END qa-c-list -->
+											
+											<input type="hidden" name="code" value="0-1516467786-fe8d53b9e8864807049d3e9328281be46f777656">
+											<input type="hidden" name="qa_click" value="">
+										</form>
+										<div class="qa-c-form">
+										</div> <!-- END qa-c-form -->
+										
+									</div> <!-- END qa-a-item-main -->
+									<div class="qa-a-item-clear">
+									</div>
+								</div> <!-- END qa-a-list-item -->
+								
+							</div> <!-- END qa-a-list -->
+							
+						</div>
+					</div> <!-- END qa-main -->
+					
+				</div> <!-- END main-wrapper -->
+			</div> <!-- END main-shadow -->
+		</div> <!-- END body-wrapper -->
+		<!-- END footer-bottom-group -->
+		
+		<div style="position:absolute; left:-9999px; top:-9999px;">
+			<span id="qa-waiting-template" class="qa-waiting">...</span>
+		</div>
+	
+	
+
+</body><!-- Powered by Question2Answer - http://www.question2answer.org/ --></html>

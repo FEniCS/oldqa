@@ -1,0 +1,607 @@
+<html><!-- Powered by Question2Answer - http://www.question2answer.org/ --><head>
+		<meta http-equiv="content-type" content="text/html; charset=utf-8">
+		<title>extension of restricted function to full space - FEniCS Q&amp;A</title>
+		<meta name="description" content='Assume $u_r$ to be a function on some restricted space $V_r \subset V$. What would be a good way to ... ") plot(u, title="u extended") interactive()'>
+		<meta name="keywords" content="restriction">
+		<link rel="stylesheet" type="text/css" href="../../qa-theme/Snow/qa-styles.css">
+		<link rel="canonical" href="http://fenicsproject.org/qa/1839/extension-of-restricted-function-to-full-space">
+		<script type="text/x-mathjax-config">
+  MathJax.Hub.Config({
+    extensions: ["tex2jax.js"],
+    jax: ["input/TeX","output/HTML-CSS"],
+    tex2jax: {inlineMath: [["$","$"],["\\(","\\)"]]},
+    TeX: { extensions: ["AMSmath.js","AMSsymbols.js"]}
+  });
+</script>
+<script type="text/javascript" src="../../mathjax/MathJax.js"></script>
+		<script src="../../jquery-1.7.2.min.js" type="text/javascript"></script>
+		<script src="../../highlight.min.js"></script>
+<script type="text/javascript">
+$(function(){
+	$('.wmd-input').keypress(function(){
+		window.clearTimeout(hljs.Timeout);
+		hljs.Timeout = window.setTimeout(function() {
+			hljs.initHighlighting.called = false;
+			hljs.initHighlighting();
+		}, 500);
+	});
+	window.setTimeout(function() {
+		hljs.initHighlighting.called = false;
+		hljs.initHighlighting();
+	}, 500);
+});
+</script>
+
+
+	</head>
+	<body class="qa-template-question qa-body-js-off">
+		<div class="qa-body-wrapper">
+			
+			<div class="qa-header">
+				<div class="qa-logo">
+					<a href="../../" class="qa-logo-link" title="FEniCS Q&amp;A"><img src="../../qa-theme/fenics_qa.png" border="0" alt="FEniCS Q&amp;A"></a>
+				</div>
+				<div class="qa-header-clear">
+				</div>
+			</div> <!-- END qa-header -->
+			
+			<div class="qa-main-shadow">
+				
+				<div class="qa-main-wrapper">
+					
+					<div class="qa-sidepanel">
+						<div class="qa-sidebar">
+							This is a read only copy of the old FEniCS QA forum. Please visit the <a href="https://www.allanswered.com/community/s/fenics-project/">new QA forum</a> to ask questions
+						</div>
+						
+					</div>
+					
+					<div class="qa-main">
+						<h1>
+							<span class="entry-title">extension of restricted function to full space</span>
+						</h1>
+						<div class="qa-part-q-view">
+							<div class="qa-q-view  hentry question" id="q1839">
+								<form method="post" action="../../1839/extension-of-restricted-function-to-full-space">
+									<div class="qa-q-view-stats">
+										<div class="qa-voting qa-voting-net" id="voting_1839">
+											<div class="qa-vote-count qa-vote-count-net">
+												<span class="qa-netvote-count">
+													<span class="qa-netvote-count-data">+3<span class="votes-up"><span class="value-title" title="3"></span></span><span class="votes-down"><span class="value-title" title="0"></span></span></span><span class="qa-netvote-count-pad"> votes</span>
+												</span>
+											</div>
+											<div class="qa-vote-clear">
+											</div>
+										</div>
+									</div>
+									<input type="hidden" name="code" value="0-1516467901-9f9a4f79385c042b5107ddfe99b8005238ddb3ac">
+								</form>
+								<div class="qa-q-view-main">
+									<form method="post" action="../../1839/extension-of-restricted-function-to-full-space">
+										<div class="qa-q-view-content">
+											<a name="1839"></a><div class="entry-content"><p>Assume $u_r$ to be a function on some restricted space $V_r \subset V$. What would be a good way to extend $u_r$ by zero to $u \in V$? Interpolation does not work and I have not found a way to associate restricted dofs with global dofs (which would be a useful information to have in any case).<br>
+Here is an example to play with.</p>
+
+<pre><code>from dolfin import *
+
+# create mesh and select patch of some cell -&gt; C
+mesh = UnitSquareMesh(4,4)
+arbitrary_selected_index = 3
+arbitrary_selected_cell = Cell(mesh, arbitrary_selected_index)
+C = [c.index() for c in cells(arbitrary_selected_cell)]
+C.append(arbitrary_selected_cell.index())
+
+cf = CellFunction('size_t', mesh)
+cf.set_all(1)
+for i in C:
+    cf[i] = 0
+
+# create patch measure
+dx = dx[cf]
+
+# define restricted space
+restriction = Restriction(cf, 0)
+Vr = FunctionSpace(restriction, "CG", 1)
+
+# define functions
+u = TrialFunction(Vr)
+v = TestFunction(Vr)
+f = Constant(1.0)
+
+# define forms
+a = dot(grad(u),grad(v))*dx()
+L = f*v*dx()
+
+# define boundary condition
+ff = FacetFunction("size_t", mesh, 0)
+mesh.init()
+# set value of ff to 1 on boundary of restriction
+for cell in cells(mesh):
+    if cf[cell.index()] == 0:
+        for facet in facets(cell):
+            if facet.num_entities(2) == 1: # exterior boundary
+                ff[facet.index()] = 1
+            else:
+                c0, c1 = facet.entities(2)
+                if cf[int(c0)] != cf[int(c1)]:   # interior boundary
+                    ff[facet.index()] = 1
+
+zero = Constant(0.0)
+bc = DirichletBC(Vr, zero, ff, 1)
+
+# solve system
+ur = Function(Vr)
+solve(a == L, ur, bcs=bc)
+
+# transfer ur to V --- but HOW?
+V = FunctionSpace(mesh, "CG", 1)
+u = interpolate(ur, V)
+
+# plot cell patch and solution
+plot(cf, title="patch")
+plot(ur, title="u restricted")
+plot(u, title="u extended")
+interactive()
+</code></pre>
+</div>
+										</div>
+										<div class="qa-q-view-tags">
+											<ul class="qa-q-view-tag-list">
+												<li class="qa-q-view-tag-item"><a href="../../tag/restriction" rel="tag" class="qa-tag-link">restriction</a></li>
+											</ul>
+										</div>
+										<span class="qa-q-view-avatar-meta">
+											<span class="qa-q-view-meta">
+												<a href="../../1839/extension-of-restricted-function-to-full-space" class="qa-q-view-what">asked</a>
+												<span class="qa-q-view-when">
+													<span class="qa-q-view-when-data"><span class="published"><span class="value-title" title="2013-12-01T12:52:49+0000"></span>Dec 1, 2013</span></span>
+												</span>
+												<span class="qa-q-view-who">
+													<span class="qa-q-view-who-pad">by </span>
+													<span class="qa-q-view-who-data"><span class="vcard author"><a href="../../user/meigel" class="qa-user-link url nickname">meigel</a></span></span>
+													<span class="qa-q-view-who-title">FEniCS User</span>
+													<span class="qa-q-view-who-points">
+														<span class="qa-q-view-who-points-pad">(</span><span class="qa-q-view-who-points-data">1,520</span><span class="qa-q-view-who-points-pad"> points)</span>
+													</span>
+												</span>
+												<br>
+												<span class="qa-q-view-what">edited</span>
+												<span class="qa-q-view-when">
+													<span class="qa-q-view-when-data"><span class="updated"><span class="value-title" title="2013-12-01T21:32:26+0000"></span>Dec 1, 2013</span></span>
+												</span>
+												<span class="qa-q-view-who">
+													<span class="qa-q-view-who-pad">by </span><span class="qa-q-view-who-data"><a href="../../user/meigel" class="qa-user-link url nickname">meigel</a></span>
+												</span>
+											</span>
+										</span>
+										<div class="qa-q-view-buttons">
+										</div>
+										
+										<div class="qa-q-view-c-list" id="c1839_list">
+											<div class="qa-c-list-item  hentry comment" id="c1840">
+												<div class="qa-c-item-content">
+													<a name="1840"></a><div class="entry-content"><p>This seems to me as a bug. Evaluation of <code>ur</code> seems to be correct - <code>ur</code> is automatically extended by zero outside of the restriction:</p>
+
+<pre><code>&gt;&gt;&gt; for c in cells(mesh):
+...   if cf[c] == 1:
+...     for v in vertices(c):
+...       print ur(v.point())
+... 
+(zeros or small numbers here)
+</code></pre>
+
+<p><code>Function::compute_vertex_values</code> seems to work well also</p>
+
+<pre><code>&gt;&gt;&gt; ur.compute_vertex_values(mesh)
+array([ 0.        ,  0.        ,  0.        ,  0.        ,  0.        ,
+        0.        ,  0.02083333,  0.02083333,  0.        ,  0.        ,
+        0.        ,  0.        ,  0.        ,  0.        ,  0.        ,
+        0.        ,  0.        ,  0.        ,  0.        ,  0.        ,
+        0.        ,  0.        ,  0.        ,  0.        ,  0.        ])
+</code></pre>
+
+<p>You should file a bug probably. Alternatively we could ask developers for making <code>FunctionAssigner</code> work also for restrictions.</p>
+
+<p>On the other hand I'm also going to solve for a quantity defined on a whole mesh given a plenty of local problems on patches. My idea is rather to assemble small local problems into one big and then take advantage of specialized routines in PETSc for solving block-diagonal problems. This should be scalable and also take advantage of a locality of a problem on each patch.</p>
+</div>
+												</div>
+												<div class="qa-c-item-footer">
+													<span class="qa-c-item-avatar-meta">
+														<span class="qa-c-item-avatar">
+															<a href="../../user/Jan+Blechta" class="qa-avatar-link"><img src="https://www.gravatar.com/avatar/dc6f8dce77e4a0bd5adc7ff31ab83741?s=20" width="20" height="20" class="qa-avatar-image" alt=""></a>
+														</span>
+														<span class="qa-c-item-meta">
+															<a href="../../1839/extension-of-restricted-function-to-full-space?show=1840#c1840" class="qa-c-item-what">commented</a>
+															<span class="qa-c-item-when">
+																<span class="qa-c-item-when-data"><span class="published"><span class="value-title" title="2013-12-01T16:30:51+0000"></span>Dec 1, 2013</span></span>
+															</span>
+															<span class="qa-c-item-who">
+																<span class="qa-c-item-who-pad">by </span>
+																<span class="qa-c-item-who-data"><span class="vcard author"><a href="../../user/Jan+Blechta" class="qa-user-link url nickname">Jan Blechta</a></span></span>
+																<span class="qa-c-item-who-title">FEniCS Expert</span>
+																<span class="qa-c-item-who-points">
+																	<span class="qa-c-item-who-points-pad">(</span><span class="qa-c-item-who-points-data">51,420</span><span class="qa-c-item-who-points-pad"> points)</span>
+																</span>
+															</span>
+														</span>
+													</span>
+													<div class="qa-c-item-buttons">
+													</div>
+												</div>
+												<div class="qa-c-item-clear">
+												</div>
+											</div> <!-- END qa-c-item -->
+											<div class="qa-c-list-item  hentry comment" id="c1841">
+												<div class="qa-c-item-content">
+													<a name="1841"></a><div class="entry-content"><p>Ok, I see. I can file a bug report for this. However, I'd in particular be interested in a work-around. The local patch problems I am looking at are in some DG space. Thus, a simple evaluation at the vertices and mapping to global dofs won't do the trick. Are there any other suggestions or is it somehow possible to get the dof correspondence w.r.t. the full space?</p>
+
+<p>The other approach you mention probably is more efficient. Could you elaborate on how you setup and assemble the global matrix?</p>
+</div>
+												</div>
+												<div class="qa-c-item-footer">
+													<span class="qa-c-item-avatar-meta">
+														<span class="qa-c-item-meta">
+															<a href="../../1839/extension-of-restricted-function-to-full-space?show=1841#c1841" class="qa-c-item-what">commented</a>
+															<span class="qa-c-item-when">
+																<span class="qa-c-item-when-data"><span class="published"><span class="value-title" title="2013-12-01T17:33:43+0000"></span>Dec 1, 2013</span></span>
+															</span>
+															<span class="qa-c-item-who">
+																<span class="qa-c-item-who-pad">by </span>
+																<span class="qa-c-item-who-data"><span class="vcard author"><a href="../../user/meigel" class="qa-user-link url nickname">meigel</a></span></span>
+																<span class="qa-c-item-who-title">FEniCS User</span>
+																<span class="qa-c-item-who-points">
+																	<span class="qa-c-item-who-points-pad">(</span><span class="qa-c-item-who-points-data">1,520</span><span class="qa-c-item-who-points-pad"> points)</span>
+																</span>
+															</span>
+														</span>
+													</span>
+													<div class="qa-c-item-buttons">
+													</div>
+												</div>
+												<div class="qa-c-item-clear">
+												</div>
+											</div> <!-- END qa-c-item -->
+											<div class="qa-c-list-item  hentry comment" id="c1842">
+												<div class="qa-c-item-content">
+													<a name="1842"></a><div class="entry-content"><blockquote>
+  <p>Could you elaborate on how you setup and assemble the global matrix?</p>
+</blockquote>
+
+<p>I was thinking that I could assemble a global problem by just summing up local ones. But now I see that in my case this does not make a resulting problem block-diagonal. So now I'm just thinking about patch-wise assembling another big matrix having diagonal blocks given by local restricted problems. Then there is some mapping between this auxiliary problem and a global problem which is probably represented just by (rectangular) matrix multiplication. But this will require some C++ coding and will be tricky in parallel.</p>
+</div>
+												</div>
+												<div class="qa-c-item-footer">
+													<span class="qa-c-item-avatar-meta">
+														<span class="qa-c-item-avatar">
+															<a href="../../user/Jan+Blechta" class="qa-avatar-link"><img src="https://www.gravatar.com/avatar/dc6f8dce77e4a0bd5adc7ff31ab83741?s=20" width="20" height="20" class="qa-avatar-image" alt=""></a>
+														</span>
+														<span class="qa-c-item-meta">
+															<a href="../../1839/extension-of-restricted-function-to-full-space?show=1842#c1842" class="qa-c-item-what">commented</a>
+															<span class="qa-c-item-when">
+																<span class="qa-c-item-when-data"><span class="published"><span class="value-title" title="2013-12-01T18:02:44+0000"></span>Dec 1, 2013</span></span>
+															</span>
+															<span class="qa-c-item-who">
+																<span class="qa-c-item-who-pad">by </span>
+																<span class="qa-c-item-who-data"><span class="vcard author"><a href="../../user/Jan+Blechta" class="qa-user-link url nickname">Jan Blechta</a></span></span>
+																<span class="qa-c-item-who-title">FEniCS Expert</span>
+																<span class="qa-c-item-who-points">
+																	<span class="qa-c-item-who-points-pad">(</span><span class="qa-c-item-who-points-data">51,420</span><span class="qa-c-item-who-points-pad"> points)</span>
+																</span>
+															</span>
+														</span>
+													</span>
+													<div class="qa-c-item-buttons">
+													</div>
+												</div>
+												<div class="qa-c-item-clear">
+												</div>
+											</div> <!-- END qa-c-item -->
+											<div class="qa-c-list-item  hentry comment" id="c1843">
+												<div class="qa-c-item-content">
+													<a name="1843"></a><div class="entry-content"><p>In any case you would also need a mapping between restricted and global dofs. Is there currently no way to obtain this information?<br>
+I also have tried to reset the dofs that should be zero explicitly. Unfortunately, this does not work reliably since even on the patch the interpolation is incorrect.</p>
+
+<pre><code># "postprocess" after creation of "interpolated" u
+V_dofmap = V.dofmap()
+V_dofs = dict([(cid, V_dofmap.cell_dofs(cid)) for cid in C])
+V_dofs = [v.tolist() for v in V_dofs.values()]
+import itertools as iter
+V_dofs = set(iter.chain(*V_dofs))
+zero_idx = set(range(V.dim())).difference(V_dofs)
+u.vector()[list(zero_idx)] = 0
+</code></pre>
+</div>
+												</div>
+												<div class="qa-c-item-footer">
+													<span class="qa-c-item-avatar-meta">
+														<span class="qa-c-item-meta">
+															<a href="../../1839/extension-of-restricted-function-to-full-space?show=1843#c1843" class="qa-c-item-what">commented</a>
+															<span class="qa-c-item-when">
+																<span class="qa-c-item-when-data"><span class="published"><span class="value-title" title="2013-12-01T19:12:56+0000"></span>Dec 1, 2013</span></span>
+															</span>
+															<span class="qa-c-item-who">
+																<span class="qa-c-item-who-pad">by </span>
+																<span class="qa-c-item-who-data"><span class="vcard author"><a href="../../user/meigel" class="qa-user-link url nickname">meigel</a></span></span>
+																<span class="qa-c-item-who-title">FEniCS User</span>
+																<span class="qa-c-item-who-points">
+																	<span class="qa-c-item-who-points-pad">(</span><span class="qa-c-item-who-points-data">1,520</span><span class="qa-c-item-who-points-pad"> points)</span>
+																</span>
+															</span>
+															<br>
+															<span class="qa-c-item-what">edited</span>
+															<span class="qa-c-item-when">
+																<span class="qa-c-item-when-data"><span class="updated"><span class="value-title" title="2013-12-01T21:37:20+0000"></span>Dec 1, 2013</span></span>
+															</span>
+															<span class="qa-c-item-who">
+																<span class="qa-c-item-who-pad">by </span><span class="qa-c-item-who-data"><a href="../../user/meigel" class="qa-user-link url nickname">meigel</a></span>
+															</span>
+														</span>
+													</span>
+													<div class="qa-c-item-buttons">
+													</div>
+												</div>
+												<div class="qa-c-item-clear">
+												</div>
+											</div> <!-- END qa-c-item -->
+											<div class="qa-c-list-item  hentry comment" id="c1852">
+												<div class="qa-c-item-content">
+													<a name="1852"></a><div class="entry-content"><p>Please, <a rel="nofollow" href="https://bitbucket.org/fenics-project/dolfin/issues/new">file a bug report</a>, so that relevant developer can take care of this issue.</p>
+</div>
+												</div>
+												<div class="qa-c-item-footer">
+													<span class="qa-c-item-avatar-meta">
+														<span class="qa-c-item-avatar">
+															<a href="../../user/Jan+Blechta" class="qa-avatar-link"><img src="https://www.gravatar.com/avatar/dc6f8dce77e4a0bd5adc7ff31ab83741?s=20" width="20" height="20" class="qa-avatar-image" alt=""></a>
+														</span>
+														<span class="qa-c-item-meta">
+															<a href="../../1839/extension-of-restricted-function-to-full-space?show=1852#c1852" class="qa-c-item-what">commented</a>
+															<span class="qa-c-item-when">
+																<span class="qa-c-item-when-data"><span class="published"><span class="value-title" title="2013-12-02T15:34:10+0000"></span>Dec 2, 2013</span></span>
+															</span>
+															<span class="qa-c-item-who">
+																<span class="qa-c-item-who-pad">by </span>
+																<span class="qa-c-item-who-data"><span class="vcard author"><a href="../../user/Jan+Blechta" class="qa-user-link url nickname">Jan Blechta</a></span></span>
+																<span class="qa-c-item-who-title">FEniCS Expert</span>
+																<span class="qa-c-item-who-points">
+																	<span class="qa-c-item-who-points-pad">(</span><span class="qa-c-item-who-points-data">51,420</span><span class="qa-c-item-who-points-pad"> points)</span>
+																</span>
+															</span>
+														</span>
+													</span>
+													<div class="qa-c-item-buttons">
+													</div>
+												</div>
+												<div class="qa-c-item-clear">
+												</div>
+											</div> <!-- END qa-c-item -->
+											<div class="qa-c-list-item  hentry comment" id="c1855">
+												<div class="qa-c-item-content">
+													<a name="1855"></a><div class="entry-content"><p>ok, done now.</p>
+</div>
+												</div>
+												<div class="qa-c-item-footer">
+													<span class="qa-c-item-avatar-meta">
+														<span class="qa-c-item-meta">
+															<a href="../../1839/extension-of-restricted-function-to-full-space?show=1855#c1855" class="qa-c-item-what">commented</a>
+															<span class="qa-c-item-when">
+																<span class="qa-c-item-when-data"><span class="published"><span class="value-title" title="2013-12-02T22:45:46+0000"></span>Dec 2, 2013</span></span>
+															</span>
+															<span class="qa-c-item-who">
+																<span class="qa-c-item-who-pad">by </span>
+																<span class="qa-c-item-who-data"><span class="vcard author"><a href="../../user/meigel" class="qa-user-link url nickname">meigel</a></span></span>
+																<span class="qa-c-item-who-title">FEniCS User</span>
+																<span class="qa-c-item-who-points">
+																	<span class="qa-c-item-who-points-pad">(</span><span class="qa-c-item-who-points-data">1,520</span><span class="qa-c-item-who-points-pad"> points)</span>
+																</span>
+															</span>
+														</span>
+													</span>
+													<div class="qa-c-item-buttons">
+													</div>
+												</div>
+												<div class="qa-c-item-clear">
+												</div>
+											</div> <!-- END qa-c-item -->
+										</div> <!-- END qa-c-list -->
+										
+										<input type="hidden" name="code" value="0-1516467901-c94b0d3a986a1c627e1539521f02306201f39c0c">
+										<input type="hidden" name="qa_click" value="">
+									</form>
+									<div class="qa-c-form">
+									</div> <!-- END qa-c-form -->
+									
+								</div> <!-- END qa-q-view-main -->
+								<div class="qa-q-view-clear">
+								</div>
+							</div> <!-- END qa-q-view -->
+							
+						</div>
+						<div class="qa-part-a-list">
+							<h2 id="a_list_title">1 Answer</h2>
+							<div class="qa-a-list" id="a_list">
+								
+								<div class="qa-a-list-item  hentry answer answer-selected qa-a-list-item-selected" id="a9347">
+									<form method="post" action="../../1839/extension-of-restricted-function-to-full-space">
+										<div class="qa-voting qa-voting-net" id="voting_9347">
+											<div class="qa-vote-count qa-vote-count-net">
+												<span class="qa-netvote-count">
+													<span class="qa-netvote-count-data">+1<span class="votes-up"><span class="value-title" title="1"></span></span><span class="votes-down"><span class="value-title" title="0"></span></span></span><span class="qa-netvote-count-pad"> vote</span>
+												</span>
+											</div>
+											<div class="qa-vote-clear">
+											</div>
+										</div>
+										<input type="hidden" name="code" value="0-1516467901-9f9a4f79385c042b5107ddfe99b8005238ddb3ac">
+									</form>
+									<div class="qa-a-item-main">
+										<form method="post" action="../../1839/extension-of-restricted-function-to-full-space">
+											<div class="qa-a-item-selected">
+												<div class="qa-a-selection">
+													<div class="qa-a-selected">&#160;</div>
+													<div class="qa-a-selected-text">Best answer</div>
+												</div>
+												<div class="qa-a-item-content">
+													<a name="9347"></a><div class="entry-content"><p>Since FEniCS has no problem interpolating from $V$ to $V_r$ (the other way around from what is desired), we can construct the inverse map as follows:</p>
+
+<p>Start with the function in $V$ whose value for each degree of freedom is actually the index for that degree of freedom. That is, the function has the vector of dof values [0,1,2,3,..]. Then interpolate it into the smaller space $V_r$. After rounding to integers, the vector of values for the interpolated function in the smaller space will be the corresponding indices from the larger space. </p>
+
+<p>Here is a minimal example:</p>
+
+<pre><code>import numpy as np
+from dolfin import *
+
+def make_submesh_local_to_global_map(V, Vr):
+    # V is function space on whole mesh, 
+    # Vr is restriction of V to submesh
+    # u.vector()[local_to_global_map] = ur.vector()
+    u = Function(V)
+    u.vector()[:] = np.array(range(V.dim()))
+    ur = interpolate(u, Vr)
+    local_to_global_map = np.round(ur.vector().array()).astype(int)
+    return local_to_global_map
+
+# Test it out
+mesh = UnitSquareMesh(30,30)
+
+V = FunctionSpace(mesh,'Lagrange',1)
+
+class My_domain(SubDomain):
+    def inside(self,x,on_boundary):
+        return x[0]&lt;=0.5
+
+subdomain = CellFunction('size_t',mesh)
+subdomain.set_all(0)
+my_domain = My_domain()
+my_domain.mark(subdomain,1 )
+
+submesh = SubMesh(mesh, subdomain, 1)
+Vr = FunctionSpace(submesh,'Lagrange',1)
+
+local_to_global_map = make_submesh_local_to_global_map(V, Vr)
+
+wr = interpolate(Expression('sin(pi*x[0])*x[1]'), Vr)
+
+w = Function(V)
+w.vector()[local_to_global_map] = wr.vector().array()
+
+plot(wr, title='restricted expression')
+plot(w, title='prolongation')
+interactive()`
+</code></pre>
+</div>
+												</div>
+												<span class="qa-a-item-avatar-meta">
+													<span class="qa-a-item-meta">
+														<a href="../../1839/extension-of-restricted-function-to-full-space?show=9347#a9347" class="qa-a-item-what">answered</a>
+														<span class="qa-a-item-when">
+															<span class="qa-a-item-when-data"><span class="published"><span class="value-title" title="2016-02-18T08:18:37+0000"></span>Feb 18, 2016</span></span>
+														</span>
+														<span class="qa-a-item-who">
+															<span class="qa-a-item-who-pad">by </span>
+															<span class="qa-a-item-who-data"><span class="vcard author"><a href="../../user/Nick+Alger" class="qa-user-link url nickname">Nick Alger</a></span></span>
+															<span class="qa-a-item-who-title">FEniCS User</span>
+															<span class="qa-a-item-who-points">
+																<span class="qa-a-item-who-points-pad">(</span><span class="qa-a-item-who-points-data">1,490</span><span class="qa-a-item-who-points-pad"> points)</span>
+															</span>
+														</span>
+														<br>
+														<span class="qa-a-item-what">edited</span>
+														<span class="qa-a-item-when">
+															<span class="qa-a-item-when-data"><span class="updated"><span class="value-title" title="2016-02-19T00:34:19+0000"></span>Feb 19, 2016</span></span>
+														</span>
+														<span class="qa-a-item-who">
+															<span class="qa-a-item-who-pad">by </span><span class="qa-a-item-who-data"><a href="../../user/Nick+Alger" class="qa-user-link url nickname">Nick Alger</a></span>
+														</span>
+													</span>
+												</span>
+											</div>
+											<div class="qa-a-item-buttons">
+												</div>
+											
+											<div class="qa-a-item-c-list" id="c9347_list">
+												<div class="qa-c-list-item  hentry comment" id="c9351">
+													<div class="qa-c-item-content">
+														<a name="9351"></a><div class="entry-content"><p>Thanks for the suggestion of this work-around. I had the impression that the recent or planned developments in FEniCS would allow for a nicer way but haven't checked lately.</p>
+</div>
+													</div>
+													<div class="qa-c-item-footer">
+														<span class="qa-c-item-avatar-meta">
+															<span class="qa-c-item-meta">
+																<a href="../../1839/extension-of-restricted-function-to-full-space?show=9351#c9351" class="qa-c-item-what">commented</a>
+																<span class="qa-c-item-when">
+																	<span class="qa-c-item-when-data"><span class="published"><span class="value-title" title="2016-02-18T11:26:48+0000"></span>Feb 18, 2016</span></span>
+																</span>
+																<span class="qa-c-item-who">
+																	<span class="qa-c-item-who-pad">by </span>
+																	<span class="qa-c-item-who-data"><span class="vcard author"><a href="../../user/meigel" class="qa-user-link url nickname">meigel</a></span></span>
+																	<span class="qa-c-item-who-title">FEniCS User</span>
+																	<span class="qa-c-item-who-points">
+																		<span class="qa-c-item-who-points-pad">(</span><span class="qa-c-item-who-points-data">1,520</span><span class="qa-c-item-who-points-pad"> points)</span>
+																	</span>
+																</span>
+															</span>
+														</span>
+														<div class="qa-c-item-buttons">
+														</div>
+													</div>
+													<div class="qa-c-item-clear">
+													</div>
+												</div> <!-- END qa-c-item -->
+												<div class="qa-c-list-item  hentry comment" id="c9357">
+													<div class="qa-c-item-content">
+														<a name="9357"></a><div class="entry-content"><p>Maybe there is a more direct way, I don't know. If there is, google searches were not of much help finding it (that's how I ended up at this question).</p>
+</div>
+													</div>
+													<div class="qa-c-item-footer">
+														<span class="qa-c-item-avatar-meta">
+															<span class="qa-c-item-meta">
+																<a href="../../1839/extension-of-restricted-function-to-full-space?show=9357#c9357" class="qa-c-item-what">commented</a>
+																<span class="qa-c-item-when">
+																	<span class="qa-c-item-when-data"><span class="published"><span class="value-title" title="2016-02-18T17:59:33+0000"></span>Feb 18, 2016</span></span>
+																</span>
+																<span class="qa-c-item-who">
+																	<span class="qa-c-item-who-pad">by </span>
+																	<span class="qa-c-item-who-data"><span class="vcard author"><a href="../../user/Nick+Alger" class="qa-user-link url nickname">Nick Alger</a></span></span>
+																	<span class="qa-c-item-who-title">FEniCS User</span>
+																	<span class="qa-c-item-who-points">
+																		<span class="qa-c-item-who-points-pad">(</span><span class="qa-c-item-who-points-data">1,490</span><span class="qa-c-item-who-points-pad"> points)</span>
+																	</span>
+																</span>
+															</span>
+														</span>
+														<div class="qa-c-item-buttons">
+														</div>
+													</div>
+													<div class="qa-c-item-clear">
+													</div>
+												</div> <!-- END qa-c-item -->
+											</div> <!-- END qa-c-list -->
+											
+											<input type="hidden" name="code" value="0-1516467901-618099ef8cd5fdd8e1623c9ed1f703b35b0a3ae3">
+											<input type="hidden" name="qa_click" value="">
+										</form>
+										<div class="qa-c-form">
+										</div> <!-- END qa-c-form -->
+										
+									</div> <!-- END qa-a-item-main -->
+									<div class="qa-a-item-clear">
+									</div>
+								</div> <!-- END qa-a-list-item -->
+								
+							</div> <!-- END qa-a-list -->
+							
+						</div>
+					</div> <!-- END qa-main -->
+					
+				</div> <!-- END main-wrapper -->
+			</div> <!-- END main-shadow -->
+		</div> <!-- END body-wrapper -->
+		<!-- END footer-bottom-group -->
+		
+		<div style="position:absolute; left:-9999px; top:-9999px;">
+			<span id="qa-waiting-template" class="qa-waiting">...</span>
+		</div>
+	
+	
+
+</body><!-- Powered by Question2Answer - http://www.question2answer.org/ --></html>

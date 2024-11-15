@@ -1,0 +1,261 @@
+<html><!-- Powered by Question2Answer - http://www.question2answer.org/ --><head>
+		<meta http-equiv="content-type" content="text/html; charset=utf-8">
+		<title>dolfin-adjoint solution continuation not working - FEniCS Q&amp;A</title>
+		<meta name="description" content="I'm a dolfin-adjoint user. Recently I met a problem when I was trying to implement a ... second for loop and l-BFGS kept throwing &quot;REL_REDUCTION_OF_F_">
+		<meta name="keywords" content="dolfin-adjoint,continuation">
+		<link rel="stylesheet" type="text/css" href="../../qa-theme/Snow/qa-styles.css">
+		<link rel="canonical" href="http://fenicsproject.org/qa/11241/dolfin-adjoint-solution-continuation-not-working">
+		<script type="text/x-mathjax-config">
+  MathJax.Hub.Config({
+    extensions: ["tex2jax.js"],
+    jax: ["input/TeX","output/HTML-CSS"],
+    tex2jax: {inlineMath: [["$","$"],["\\(","\\)"]]},
+    TeX: { extensions: ["AMSmath.js","AMSsymbols.js"]}
+  });
+</script>
+<script type="text/javascript" src="../../mathjax/MathJax.js"></script>
+		<script src="../../jquery-1.7.2.min.js" type="text/javascript"></script>
+		<script src="../../highlight.min.js"></script>
+<script type="text/javascript">
+$(function(){
+	$('.wmd-input').keypress(function(){
+		window.clearTimeout(hljs.Timeout);
+		hljs.Timeout = window.setTimeout(function() {
+			hljs.initHighlighting.called = false;
+			hljs.initHighlighting();
+		}, 500);
+	});
+	window.setTimeout(function() {
+		hljs.initHighlighting.called = false;
+		hljs.initHighlighting();
+	}, 500);
+});
+</script>
+
+
+	</head>
+	<body class="qa-template-question qa-body-js-off">
+		<div class="qa-body-wrapper">
+			
+			<div class="qa-header">
+				<div class="qa-logo">
+					<a href="../../" class="qa-logo-link" title="FEniCS Q&amp;A"><img src="../../qa-theme/fenics_qa.png" border="0" alt="FEniCS Q&amp;A"></a>
+				</div>
+				<div class="qa-header-clear">
+				</div>
+			</div> <!-- END qa-header -->
+			
+			<div class="qa-main-shadow">
+				
+				<div class="qa-main-wrapper">
+					
+					<div class="qa-sidepanel">
+						<div class="qa-sidebar">
+							This is a read only copy of the old FEniCS QA forum. Please visit the <a href="https://www.allanswered.com/community/s/fenics-project/">new QA forum</a> to ask questions
+						</div>
+						
+					</div>
+					
+					<div class="qa-main">
+						<h1>
+							<span class="entry-title">dolfin-adjoint solution continuation not working</span>
+						</h1>
+						<div class="qa-part-q-view">
+							<div class="qa-q-view  hentry question" id="q11241">
+								<form method="post" action="../../11241/dolfin-adjoint-solution-continuation-not-working">
+									<div class="qa-q-view-stats">
+										<div class="qa-voting qa-voting-net" id="voting_11241">
+											<div class="qa-vote-count qa-vote-count-net">
+												<span class="qa-netvote-count">
+													<span class="qa-netvote-count-data">0<span class="votes-up"><span class="value-title" title="0"></span></span><span class="votes-down"><span class="value-title" title="0"></span></span></span><span class="qa-netvote-count-pad"> votes</span>
+												</span>
+											</div>
+											<div class="qa-vote-clear">
+											</div>
+										</div>
+									</div>
+									<input type="hidden" name="code" value="0-1516467102-9f41dea5934c026b3a2049dac62e458e131b91fe">
+								</form>
+								<div class="qa-q-view-main">
+									<form method="post" action="../../11241/dolfin-adjoint-solution-continuation-not-working">
+										<div class="qa-q-view-content">
+											<a name="11241"></a><div class="entry-content"><p>I'm a dolfin-adjoint user. Recently I met a problem when I was trying to implement a continuation strategy, i.e. feed the solution from last iteration to the next iteration. I am aware that this has been demonstrated in one of your examples (<a rel="nofollow" href="http://www.dolfin-adjoint.org/en/latest/documentation/stokes-topology/stokes-topology.html">stokes_topology</a>). But it somehow failed on me when I was testing a dumb case.</p>
+
+<p>For my dumb test case, I took the poisson-mother.py example and did a slight modification. Now it looks like below. Basically, what I did is that, instead of letting it run straight for 20 iterations and end up with a convergence f_val=1.99e-7, I set a 20-iteration for loop and feed each solution as initial guess to the control variable in each for loop. But this test case got stuck at f_val=3.64e-7 from only the second for loop and l-BFGS kept throwing "REL_REDUCTION_OF_F_&lt;=_FACTR*EPSMCH " in all later for loops.</p>
+
+<p>By the way, I'm using 2016.1.0 version for both fenics and dolfin-adjoint.</p>
+
+<pre><code>from dolfin import *
+from dolfin_adjoint import *
+
+set_log_level(ERROR)
+
+# Create mesh, refined in the center
+n = 64
+mesh = UnitSquareMesh(n, n)
+
+# Define discrete function spaces and funcions
+V = FunctionSpace(mesh, "CG", 1)
+W = FunctionSpace(mesh, "DG", 0)
+
+f = interpolate(Expression("0.0"), W, name='Control')
+
+def forward(f):
+  u = Function(V, name='State')
+  v = TestFunction(V)
+
+  # Define and solve the Poisson equation to generate the dolfin-adjoint annotation
+  F = (inner(grad(u), grad(v)) - f*v)*dx
+  bc = DirichletBC(V, 0, "on_boundary")
+  solve(F == 0, u, bc)
+  return u
+
+# Define functional of interest and the reduced functional
+x = SpatialCoordinate(mesh)
+d = 1/(2*pi**2)*sin(pi*x[0])*sin(pi*x[1])   # the desired temperature profile
+
+alpha = Constant(1e-6)
+
+for it in range(20):
+  adj_reset()
+
+  u = forward(f)
+
+  J = Functional((0.5*inner(u-d, u-d))*dx + alpha/2*f**2*dx)
+  control = Control(f)
+  rf = ReducedFunctional(J, control)
+  f_opt = minimize(rf, bounds=(0.0, 0.8), tol=1.0e-10, options={"gtol": 1.0e-10, "factr": 0.0, "maxiter":1})
+  f.assign(f_opt)
+</code></pre>
+</div>
+										</div>
+										<div class="qa-q-view-tags">
+											<ul class="qa-q-view-tag-list">
+												<li class="qa-q-view-tag-item"><a href="../../tag/dolfin-adjoint" rel="tag" class="qa-tag-link">dolfin-adjoint</a></li>
+												<li class="qa-q-view-tag-item"><a href="../../tag/continuation" rel="tag" class="qa-tag-link">continuation</a></li>
+											</ul>
+										</div>
+										<span class="qa-q-view-avatar-meta">
+											<span class="qa-q-view-meta">
+												<a href="../../11241/dolfin-adjoint-solution-continuation-not-working" class="qa-q-view-what">asked</a>
+												<span class="qa-q-view-when">
+													<span class="qa-q-view-when-data"><span class="published"><span class="value-title" title="2016-09-29T04:56:48+0000"></span>Sep 29, 2016</span></span>
+												</span>
+												<span class="qa-q-view-who">
+													<span class="qa-q-view-who-pad">by </span>
+													<span class="qa-q-view-who-data"><span class="vcard author"><a href="../../user/ldong87" class="qa-user-link url nickname">ldong87</a></span></span>
+													<span class="qa-q-view-who-title">FEniCS Novice</span>
+													<span class="qa-q-view-who-points">
+														<span class="qa-q-view-who-points-pad">(</span><span class="qa-q-view-who-points-data">580</span><span class="qa-q-view-who-points-pad"> points)</span>
+													</span>
+												</span>
+												<br>
+												<span class="qa-q-view-what">edited</span>
+												<span class="qa-q-view-when">
+													<span class="qa-q-view-when-data"><span class="updated"><span class="value-title" title="2016-09-29T05:04:06+0000"></span>Sep 29, 2016</span></span>
+												</span>
+												<span class="qa-q-view-who">
+													<span class="qa-q-view-who-pad">by </span><span class="qa-q-view-who-data"><a href="../../user/ldong87" class="qa-user-link url nickname">ldong87</a></span>
+												</span>
+											</span>
+										</span>
+										<div class="qa-q-view-buttons">
+										</div>
+										
+										<div class="qa-q-view-c-list" style="display:none;" id="c11241_list">
+										</div> <!-- END qa-c-list -->
+										
+										<input type="hidden" name="code" value="0-1516467102-80e1f16f9bf69ec4d838e9f965fa123b4a195809">
+										<input type="hidden" name="qa_click" value="">
+									</form>
+									<div class="qa-c-form">
+									</div> <!-- END qa-c-form -->
+									
+								</div> <!-- END qa-q-view-main -->
+								<div class="qa-q-view-clear">
+								</div>
+							</div> <!-- END qa-q-view -->
+							
+						</div>
+						<div class="qa-part-a-list">
+							<h2 id="a_list_title">1 Answer</h2>
+							<div class="qa-a-list" id="a_list">
+								
+								<div class="qa-a-list-item  hentry answer answer-selected qa-a-list-item-selected" id="a11247">
+									<form method="post" action="../../11241/dolfin-adjoint-solution-continuation-not-working">
+										<div class="qa-voting qa-voting-net" id="voting_11247">
+											<div class="qa-vote-count qa-vote-count-net">
+												<span class="qa-netvote-count">
+													<span class="qa-netvote-count-data">0<span class="votes-up"><span class="value-title" title="0"></span></span><span class="votes-down"><span class="value-title" title="0"></span></span></span><span class="qa-netvote-count-pad"> votes</span>
+												</span>
+											</div>
+											<div class="qa-vote-clear">
+											</div>
+										</div>
+										<input type="hidden" name="code" value="0-1516467102-9f41dea5934c026b3a2049dac62e458e131b91fe">
+									</form>
+									<div class="qa-a-item-main">
+										<form method="post" action="../../11241/dolfin-adjoint-solution-continuation-not-working">
+											<div class="qa-a-item-selected">
+												<div class="qa-a-selection">
+													<div class="qa-a-selected">&#160;</div>
+													<div class="qa-a-selected-text">Best answer</div>
+												</div>
+												<div class="qa-a-item-content">
+													<a name="11247"></a><div class="entry-content"><p>Somehow when I changed the convergence criteria of the solver like below, everything works...</p>
+
+<pre><code>f_opt = minimize(rf, bounds=(0.0, 0.8), tol=1.0e-10, options={"ftol": 1e-20,"gtol": 1.0e-15, "factr": 0.0, "maxiter":2})
+</code></pre>
+</div>
+												</div>
+												<span class="qa-a-item-avatar-meta">
+													<span class="qa-a-item-meta">
+														<a href="../../11241/dolfin-adjoint-solution-continuation-not-working?show=11247#a11247" class="qa-a-item-what">answered</a>
+														<span class="qa-a-item-when">
+															<span class="qa-a-item-when-data"><span class="published"><span class="value-title" title="2016-09-29T15:33:59+0000"></span>Sep 29, 2016</span></span>
+														</span>
+														<span class="qa-a-item-who">
+															<span class="qa-a-item-who-pad">by </span>
+															<span class="qa-a-item-who-data"><span class="vcard author"><a href="../../user/ldong87" class="qa-user-link url nickname">ldong87</a></span></span>
+															<span class="qa-a-item-who-title">FEniCS Novice</span>
+															<span class="qa-a-item-who-points">
+																<span class="qa-a-item-who-points-pad">(</span><span class="qa-a-item-who-points-data">580</span><span class="qa-a-item-who-points-pad"> points)</span>
+															</span>
+														</span>
+													</span>
+												</span>
+											</div>
+											<div class="qa-a-item-buttons">
+												</div>
+											
+											<div class="qa-a-item-c-list" style="display:none;" id="c11247_list">
+											</div> <!-- END qa-c-list -->
+											
+											<input type="hidden" name="code" value="0-1516467102-f4948b9d7a60dc9b462af5f317b3de22738ae1c7">
+											<input type="hidden" name="qa_click" value="">
+										</form>
+										<div class="qa-c-form">
+										</div> <!-- END qa-c-form -->
+										
+									</div> <!-- END qa-a-item-main -->
+									<div class="qa-a-item-clear">
+									</div>
+								</div> <!-- END qa-a-list-item -->
+								
+							</div> <!-- END qa-a-list -->
+							
+						</div>
+					</div> <!-- END qa-main -->
+					
+				</div> <!-- END main-wrapper -->
+			</div> <!-- END main-shadow -->
+		</div> <!-- END body-wrapper -->
+		<!-- END footer-bottom-group -->
+		
+		<div style="position:absolute; left:-9999px; top:-9999px;">
+			<span id="qa-waiting-template" class="qa-waiting">...</span>
+		</div>
+	
+	
+
+</body><!-- Powered by Question2Answer - http://www.question2answer.org/ --></html>

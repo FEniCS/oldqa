@@ -1,0 +1,682 @@
+<html><!-- Powered by Question2Answer - http://www.question2answer.org/ --><head>
+		<meta http-equiv="content-type" content="text/html; charset=utf-8">
+		<title>Discontinuous coefficient in Poisson: Subdomain vs Expression - FEniCS Q&amp;A</title>
+		<meta name="description" content="Hello all, I've been experimenting with the Poisson equation with a discontinuous coefficient, like in  ... # Exact solution u_ex = Expression(&quot;x[1]">
+		<meta name="keywords" content="coefficient,multi-domain,subdomains,poisson">
+		<link rel="stylesheet" type="text/css" href="../../qa-theme/Snow/qa-styles.css">
+		<link rel="canonical" href="http://fenicsproject.org/qa/8683/discontinuous-coefficient-poisson-subdomain-expression">
+		<script type="text/x-mathjax-config">
+  MathJax.Hub.Config({
+    extensions: ["tex2jax.js"],
+    jax: ["input/TeX","output/HTML-CSS"],
+    tex2jax: {inlineMath: [["$","$"],["\\(","\\)"]]},
+    TeX: { extensions: ["AMSmath.js","AMSsymbols.js"]}
+  });
+</script>
+<script type="text/javascript" src="../../mathjax/MathJax.js"></script>
+		<script src="../../jquery-1.7.2.min.js" type="text/javascript"></script>
+		<script src="../../highlight.min.js"></script>
+<script type="text/javascript">
+$(function(){
+	$('.wmd-input').keypress(function(){
+		window.clearTimeout(hljs.Timeout);
+		hljs.Timeout = window.setTimeout(function() {
+			hljs.initHighlighting.called = false;
+			hljs.initHighlighting();
+		}, 500);
+	});
+	window.setTimeout(function() {
+		hljs.initHighlighting.called = false;
+		hljs.initHighlighting();
+	}, 500);
+});
+</script>
+
+
+	</head>
+	<body class="qa-template-question qa-body-js-off">
+		<div class="qa-body-wrapper">
+			
+			<div class="qa-header">
+				<div class="qa-logo">
+					<a href="../../" class="qa-logo-link" title="FEniCS Q&amp;A"><img src="../../qa-theme/fenics_qa.png" border="0" alt="FEniCS Q&amp;A"></a>
+				</div>
+				<div class="qa-header-clear">
+				</div>
+			</div> <!-- END qa-header -->
+			
+			<div class="qa-main-shadow">
+				
+				<div class="qa-main-wrapper">
+					
+					<div class="qa-sidepanel">
+						<div class="qa-sidebar">
+							This is a read only copy of the old FEniCS QA forum. Please visit the <a href="https://www.allanswered.com/community/s/fenics-project/">new QA forum</a> to ask questions
+						</div>
+						
+					</div>
+					
+					<div class="qa-main">
+						<h1>
+							<span class="entry-title">Discontinuous coefficient in Poisson: Subdomain vs Expression</span>
+						</h1>
+						<div class="qa-part-q-view">
+							<div class="qa-q-view  hentry question" id="q8683">
+								<form method="post" action="../../8683/discontinuous-coefficient-poisson-subdomain-expression">
+									<div class="qa-q-view-stats">
+										<div class="qa-voting qa-voting-net" id="voting_8683">
+											<div class="qa-vote-count qa-vote-count-net">
+												<span class="qa-netvote-count">
+													<span class="qa-netvote-count-data">+4<span class="votes-up"><span class="value-title" title="4"></span></span><span class="votes-down"><span class="value-title" title="0"></span></span></span><span class="qa-netvote-count-pad"> votes</span>
+												</span>
+											</div>
+											<div class="qa-vote-clear">
+											</div>
+										</div>
+									</div>
+									<input type="hidden" name="code" value="0-1516468187-aea7a21dd125b53ac40d7855a9b7eb6e56ad18a7">
+								</form>
+								<div class="qa-q-view-main">
+									<form method="post" action="../../8683/discontinuous-coefficient-poisson-subdomain-expression">
+										<div class="qa-q-view-content">
+											<a name="8683"></a><div class="entry-content"><p>Hello all,</p>
+
+<p>I've been experimenting with the Poisson equation with a discontinuous coefficient, like in this <a rel="nofollow" href="http://fenicsproject.org/documentation/tutorial/materials.html">example from the tutorial</a> and the <a rel="nofollow" href="http://fenicsproject.org/documentation/dolfin/1.6.0/python/demo/documented/subdomains-poisson/python/documentation.html">multiple subdomain demo</a>.<br>
+There seem to be several ways to define the coefficients, and I wonder what the difference might be.<br>
+The method described in the demo is via <strong>subdomains</strong>. <br>
+Example: </p>
+
+<pre><code>from dolfin import *
+import mshr
+
+# Define Dirichlet boundary (x = 0 or x = 1)
+class BoundaryLeft(SubDomain):
+    def inside(self, x, on_boundary):
+        return x[1] &lt; DOLFIN_EPS and on_boundary
+
+class BoundaryRight(SubDomain):
+    def inside(self, x, on_boundary):
+        return x[1] &gt; 1 - DOLFIN_EPS and on_boundary
+
+class Omega0(SubDomain):
+    def inside(self, x, on_boundary):
+        return True if x[1] &lt;= 0.5 else False
+
+class Omega1(SubDomain):
+    def inside(self, x, on_boundary):
+        return True if x[1] &gt;= 0.5 else False
+
+domain = mshr.Rectangle(Point(0., 0.), Point(1., 1.))
+mesh = mshr.generate_mesh(domain, 32)
+
+V = FunctionSpace(mesh, "CG", 1)
+
+domains = CellFunction("size_t", mesh)
+domains.set_all(0)
+subdomain0 = Omega0()
+subdomain0.mark(domains, 0)
+subdomain1 = Omega1()
+subdomain1.mark(domains, 1)
+dx = Measure('dx', domain=mesh, subdomain_data=domains)
+
+left = BoundaryLeft()
+right = BoundaryRight()
+bcs = [DirichletBC(V, 0., left),
+       DirichletBC(V, 1., right)]
+
+k0 = Constant(1.5)
+k1 = Constant(50.)
+f = Constant(0.)
+
+# Exact solution
+u_ex = Expression("x[1] &lt;= 0.5 ? 2*x[1]*k1/(k0+k1) : \
+        ((2*x[1]-1)*k0+k1)/(k0+k1)", k0=float(k0), k1=float(k1))
+
+# Define variational problem
+u = TrialFunction(V)
+v = TestFunction(V)
+
+L = f*v*dx
+a = inner(k0*grad(u), grad(v))*dx(0) + inner(k1*grad(u), grad(v))*dx(1)
+u1 = Function(V)
+solve(a == L, u1, bcs)
+
+print("Err = %.3e" % errornorm(u_ex, u1))
+</code></pre>
+
+<p>Another method I consider is by interpolating an expression onto a DG-0 space, instead of using subdomains:</p>
+
+<pre><code>dx = Measure('dx')
+kf = Expression("x[1]&lt;=0.5 ? k0 : k1", k0=k0, k1=k1)
+V0 = FunctionSpace(mesh, "DG", 0)
+ki = interpolate(kf, V0)
+u = TrialFunction(V)
+v = TestFunction(V)
+a = inner(ki*grad(u), grad(v))*dx
+u2 = Function(V)
+solve(a == L, u2, bcs)
+
+print("Err = %.3e" % errornorm(u_ex, u2))
+</code></pre>
+
+<p>On the "unstructured" mesh, the error of the second method appears to be generally smaller than with the first one. With <code>UnitSquareMesh(32, 32)</code> the problem is solved exactly and in both cases the error is exactly the same and near machine precision; but this is not the case I'm interested in.</p>
+
+<p>Apart from the general advantages that subdomains may have for complex externally created meshs over expressions, what is the recommended way? What is the technical difference?</p>
+
+<p>Thank you for your help!<br>
+David</p>
+</div>
+										</div>
+										<div class="qa-q-view-tags">
+											<ul class="qa-q-view-tag-list">
+												<li class="qa-q-view-tag-item"><a href="../../tag/coefficient" rel="tag" class="qa-tag-link">coefficient</a></li>
+												<li class="qa-q-view-tag-item"><a href="../../tag/multi-domain" rel="tag" class="qa-tag-link">multi-domain</a></li>
+												<li class="qa-q-view-tag-item"><a href="../../tag/subdomains" rel="tag" class="qa-tag-link">subdomains</a></li>
+												<li class="qa-q-view-tag-item"><a href="../../tag/poisson" rel="tag" class="qa-tag-link">poisson</a></li>
+											</ul>
+										</div>
+										<span class="qa-q-view-avatar-meta">
+											<span class="qa-q-view-meta">
+												<a href="../../8683/discontinuous-coefficient-poisson-subdomain-expression" class="qa-q-view-what">asked</a>
+												<span class="qa-q-view-when">
+													<span class="qa-q-view-when-data"><span class="published"><span class="value-title" title="2015-11-25T04:21:52+0000"></span>Nov 25, 2015</span></span>
+												</span>
+												<span class="qa-q-view-who">
+													<span class="qa-q-view-who-pad">by </span>
+													<span class="qa-q-view-who-data"><span class="vcard author"><a href="../../user/dajuno" class="qa-user-link url nickname">dajuno</a></span></span>
+													<span class="qa-q-view-who-title">FEniCS User</span>
+													<span class="qa-q-view-who-points">
+														<span class="qa-q-view-who-points-pad">(</span><span class="qa-q-view-who-points-data">4,140</span><span class="qa-q-view-who-points-pad"> points)</span>
+													</span>
+												</span>
+											</span>
+										</span>
+										<div class="qa-q-view-buttons">
+										</div>
+										
+										<div class="qa-q-view-c-list" id="c8683_list">
+											<div class="qa-c-list-item  hentry comment" id="c8686">
+												<div class="qa-c-item-content">
+													<a name="8686"></a><div class="entry-content"><p>I wanted to ask very much the same question one of these days, so thanks for beating me to it</p>
+</div>
+												</div>
+												<div class="qa-c-item-footer">
+													<span class="qa-c-item-avatar-meta">
+														<span class="qa-c-item-meta">
+															<a href="../../8683/discontinuous-coefficient-poisson-subdomain-expression?show=8686#c8686" class="qa-c-item-what">commented</a>
+															<span class="qa-c-item-when">
+																<span class="qa-c-item-when-data"><span class="published"><span class="value-title" title="2015-11-25T12:03:18+0000"></span>Nov 25, 2015</span></span>
+															</span>
+															<span class="qa-c-item-who">
+																<span class="qa-c-item-who-pad">by </span>
+																<span class="qa-c-item-who-data"><span class="vcard author"><a href="../../user/maartent" class="qa-user-link url nickname">maartent</a></span></span>
+																<span class="qa-c-item-who-title">FEniCS User</span>
+																<span class="qa-c-item-who-points">
+																	<span class="qa-c-item-who-points-pad">(</span><span class="qa-c-item-who-points-data">3,910</span><span class="qa-c-item-who-points-pad"> points)</span>
+																</span>
+															</span>
+														</span>
+													</span>
+													<div class="qa-c-item-buttons">
+													</div>
+												</div>
+												<div class="qa-c-item-clear">
+												</div>
+											</div> <!-- END qa-c-item -->
+											<div class="qa-c-list-item  hentry comment" id="c8726">
+												<div class="qa-c-item-content">
+													<a name="8726"></a><div class="entry-content"><p>yes.. would be great to have some insights =)</p>
+</div>
+												</div>
+												<div class="qa-c-item-footer">
+													<span class="qa-c-item-avatar-meta">
+														<span class="qa-c-item-meta">
+															<a href="../../8683/discontinuous-coefficient-poisson-subdomain-expression?show=8726#c8726" class="qa-c-item-what">commented</a>
+															<span class="qa-c-item-when">
+																<span class="qa-c-item-when-data"><span class="published"><span class="value-title" title="2015-11-28T19:08:05+0000"></span>Nov 28, 2015</span></span>
+															</span>
+															<span class="qa-c-item-who">
+																<span class="qa-c-item-who-pad">by </span>
+																<span class="qa-c-item-who-data"><span class="vcard author"><a href="../../user/dajuno" class="qa-user-link url nickname">dajuno</a></span></span>
+																<span class="qa-c-item-who-title">FEniCS User</span>
+																<span class="qa-c-item-who-points">
+																	<span class="qa-c-item-who-points-pad">(</span><span class="qa-c-item-who-points-data">4,140</span><span class="qa-c-item-who-points-pad"> points)</span>
+																</span>
+															</span>
+														</span>
+													</span>
+													<div class="qa-c-item-buttons">
+													</div>
+												</div>
+												<div class="qa-c-item-clear">
+												</div>
+											</div> <!-- END qa-c-item -->
+										</div> <!-- END qa-c-list -->
+										
+										<input type="hidden" name="code" value="0-1516468187-eed6031bbf94096ea21ff72ef7a8a26458db202a">
+										<input type="hidden" name="qa_click" value="">
+									</form>
+									<div class="qa-c-form">
+									</div> <!-- END qa-c-form -->
+									
+								</div> <!-- END qa-q-view-main -->
+								<div class="qa-q-view-clear">
+								</div>
+							</div> <!-- END qa-q-view -->
+							
+						</div>
+						<div class="qa-part-a-list">
+							<h2 id="a_list_title">1 Answer</h2>
+							<div class="qa-a-list" id="a_list">
+								
+								<div class="qa-a-list-item  hentry answer answer-selected qa-a-list-item-selected" id="a8747">
+									<form method="post" action="../../8683/discontinuous-coefficient-poisson-subdomain-expression">
+										<div class="qa-voting qa-voting-net" id="voting_8747">
+											<div class="qa-vote-count qa-vote-count-net">
+												<span class="qa-netvote-count">
+													<span class="qa-netvote-count-data">+3<span class="votes-up"><span class="value-title" title="3"></span></span><span class="votes-down"><span class="value-title" title="0"></span></span></span><span class="qa-netvote-count-pad"> votes</span>
+												</span>
+											</div>
+											<div class="qa-vote-clear">
+											</div>
+										</div>
+										<input type="hidden" name="code" value="0-1516468187-aea7a21dd125b53ac40d7855a9b7eb6e56ad18a7">
+									</form>
+									<div class="qa-a-item-main">
+										<form method="post" action="../../8683/discontinuous-coefficient-poisson-subdomain-expression">
+											<div class="qa-a-item-selected">
+												<div class="qa-a-selection">
+													<div class="qa-a-selected">&#160;</div>
+													<div class="qa-a-selected-text">Best answer</div>
+												</div>
+												<div class="qa-a-item-content">
+													<a name="8747"></a><div class="entry-content"><p>The solutions are different because the coefficients are different.</p>
+
+<pre><code>kf = Expression("x[1]&lt;=0.5 ? k0 : k1", k0=k0, k1=k1)
+V0 = FunctionSpace(mesh, "DG", 0)
+ki = interpolate(kf, V0)
+</code></pre>
+
+<p>This results in a coefficient that equals k0 on the cells where the midpoint x1 coordinate is lesser or equal to 0.5, and k1 on the remaining cells.</p>
+
+<pre><code>subdomain1.mark(domains, 1)
+dx = Measure('dx', domain=mesh, subdomain_data=domains)
+</code></pre>
+
+<p>The cells marked 1 are those that have <em>all three vertices and the midpoint</em> inside subdomain1. </p>
+
+<p>The discontinuous coefficient can also be implemented a UFL conditional:</p>
+
+<pre><code>x0, x1 = MeshCoordinates(mesh)
+k = conditional(x1 &lt;= 0.5, k0, k1)
+</code></pre>
+
+<p>This avoids discretising the discontinous diffusion coefficient. The coefficient will be correctly evaluated at each quadrature point (but the quadrature rule will be inexact). </p>
+
+<p>The last method is arguably better than the other the two since it admits optimal convergence rates for sufficiently smooth solutions when the polynomial degree of the FEM space is larger than 1. (This does not result in better a priori estimates since diffusion problems with discontinuous diffusion coefficient are not in general sufficiently smooth.) </p>
+</div>
+												</div>
+												<span class="qa-a-item-avatar-meta">
+													<span class="qa-a-item-meta">
+														<a href="../../8683/discontinuous-coefficient-poisson-subdomain-expression?show=8747#a8747" class="qa-a-item-what">answered</a>
+														<span class="qa-a-item-when">
+															<span class="qa-a-item-when-data"><span class="published"><span class="value-title" title="2015-11-30T16:07:18+0000"></span>Nov 30, 2015</span></span>
+														</span>
+														<span class="qa-a-item-who">
+															<span class="qa-a-item-who-pad">by </span>
+															<span class="qa-a-item-who-data"><span class="vcard author"><a href="../../user/Magne+Nordaas" class="qa-user-link url nickname">Magne Nordaas</a></span></span>
+															<span class="qa-a-item-who-title">FEniCS Expert</span>
+															<span class="qa-a-item-who-points">
+																<span class="qa-a-item-who-points-pad">(</span><span class="qa-a-item-who-points-data">13,820</span><span class="qa-a-item-who-points-pad"> points)</span>
+															</span>
+														</span>
+														<br>
+														<span class="qa-a-item-what">selected</span>
+														<span class="qa-a-item-when">
+															<span class="qa-a-item-when-data"><span class="updated"><span class="value-title" title="2015-11-30T17:08:12+0000"></span>Nov 30, 2015</span></span>
+														</span>
+														<span class="qa-a-item-who">
+															<span class="qa-a-item-who-pad">by </span><span class="qa-a-item-who-data"><a href="../../user/dajuno" class="qa-user-link url nickname">dajuno</a></span>
+														</span>
+													</span>
+												</span>
+											</div>
+											<div class="qa-a-item-buttons">
+												</div>
+											
+											<div class="qa-a-item-c-list" id="c8747_list">
+												<div class="qa-c-list-item  hentry comment" id="c8751">
+													<div class="qa-c-item-content">
+														<a name="8751"></a><div class="entry-content"><p>Great, thanks for the answer!</p>
+</div>
+													</div>
+													<div class="qa-c-item-footer">
+														<span class="qa-c-item-avatar-meta">
+															<span class="qa-c-item-meta">
+																<a href="../../8683/discontinuous-coefficient-poisson-subdomain-expression?show=8751#c8751" class="qa-c-item-what">commented</a>
+																<span class="qa-c-item-when">
+																	<span class="qa-c-item-when-data"><span class="published"><span class="value-title" title="2015-12-01T03:01:57+0000"></span>Dec 1, 2015</span></span>
+																</span>
+																<span class="qa-c-item-who">
+																	<span class="qa-c-item-who-pad">by </span>
+																	<span class="qa-c-item-who-data"><span class="vcard author"><a href="../../user/dajuno" class="qa-user-link url nickname">dajuno</a></span></span>
+																	<span class="qa-c-item-who-title">FEniCS User</span>
+																	<span class="qa-c-item-who-points">
+																		<span class="qa-c-item-who-points-pad">(</span><span class="qa-c-item-who-points-data">4,140</span><span class="qa-c-item-who-points-pad"> points)</span>
+																	</span>
+																</span>
+															</span>
+														</span>
+														<div class="qa-c-item-buttons">
+														</div>
+													</div>
+													<div class="qa-c-item-clear">
+													</div>
+												</div> <!-- END qa-c-item -->
+												<div class="qa-c-list-item  hentry comment" id="c8759">
+													<div class="qa-c-item-content">
+														<a name="8759"></a><div class="entry-content"><p>In addition to Magne's excellent answer, with a Quadrature function space ("Q") you should get the same answer as with the UFL conditional approach. This will evaluate your exact coefficient at each quadrature point.</p>
+</div>
+													</div>
+													<div class="qa-c-item-footer">
+														<span class="qa-c-item-avatar-meta">
+															<span class="qa-c-item-meta">
+																<a href="../../8683/discontinuous-coefficient-poisson-subdomain-expression?show=8759#c8759" class="qa-c-item-what">commented</a>
+																<span class="qa-c-item-when">
+																	<span class="qa-c-item-when-data"><span class="published"><span class="value-title" title="2015-12-01T11:04:05+0000"></span>Dec 1, 2015</span></span>
+																</span>
+																<span class="qa-c-item-who">
+																	<span class="qa-c-item-who-pad">by </span>
+																	<span class="qa-c-item-who-data"><span class="vcard author"><a href="../../user/jack.hale" class="qa-user-link url nickname">jack.hale</a></span></span>
+																	<span class="qa-c-item-who-title">FEniCS Novice</span>
+																	<span class="qa-c-item-who-points">
+																		<span class="qa-c-item-who-points-pad">(</span><span class="qa-c-item-who-points-data">240</span><span class="qa-c-item-who-points-pad"> points)</span>
+																	</span>
+																</span>
+															</span>
+														</span>
+														<div class="qa-c-item-buttons">
+														</div>
+													</div>
+													<div class="qa-c-item-clear">
+													</div>
+												</div> <!-- END qa-c-item -->
+												<div class="qa-c-list-item  hentry comment" id="c8762">
+													<div class="qa-c-item-content">
+														<a name="8762"></a><div class="entry-content"><p>Ok, thanks. So summarizing, if a formula for the 'domain partition' is known, use the UFL conditional or an Expression interpolated to the "Q"-space; if not, e.g., for an externally generated mesh, you're left with the (less optimal) <code>subdomain.mark()</code> method.</p>
+</div>
+													</div>
+													<div class="qa-c-item-footer">
+														<span class="qa-c-item-avatar-meta">
+															<span class="qa-c-item-meta">
+																<a href="../../8683/discontinuous-coefficient-poisson-subdomain-expression?show=8762#c8762" class="qa-c-item-what">commented</a>
+																<span class="qa-c-item-when">
+																	<span class="qa-c-item-when-data"><span class="published"><span class="value-title" title="2015-12-01T14:57:14+0000"></span>Dec 1, 2015</span></span>
+																</span>
+																<span class="qa-c-item-who">
+																	<span class="qa-c-item-who-pad">by </span>
+																	<span class="qa-c-item-who-data"><span class="vcard author"><a href="../../user/dajuno" class="qa-user-link url nickname">dajuno</a></span></span>
+																	<span class="qa-c-item-who-title">FEniCS User</span>
+																	<span class="qa-c-item-who-points">
+																		<span class="qa-c-item-who-points-pad">(</span><span class="qa-c-item-who-points-data">4,140</span><span class="qa-c-item-who-points-pad"> points)</span>
+																	</span>
+																</span>
+															</span>
+														</span>
+														<div class="qa-c-item-buttons">
+														</div>
+													</div>
+													<div class="qa-c-item-clear">
+													</div>
+												</div> <!-- END qa-c-item -->
+												<div class="qa-c-list-item  hentry comment" id="c8763">
+													<div class="qa-c-item-content">
+														<a name="8763"></a><div class="entry-content"><p>It will be inefficient computationally and programmatically, but you could make two "Q"-based functions, then use (discrete) subdomain marking to get ds(1) and ds(2) and repeat your bilinear form term twice. Then you will get your interface.</p>
+
+<p>I believe restricting FunctionSpaces to subsets of meshes is in the works, then this will be both efficient and easy.</p>
+</div>
+													</div>
+													<div class="qa-c-item-footer">
+														<span class="qa-c-item-avatar-meta">
+															<span class="qa-c-item-meta">
+																<a href="../../8683/discontinuous-coefficient-poisson-subdomain-expression?show=8763#c8763" class="qa-c-item-what">commented</a>
+																<span class="qa-c-item-when">
+																	<span class="qa-c-item-when-data"><span class="published"><span class="value-title" title="2015-12-01T15:49:26+0000"></span>Dec 1, 2015</span></span>
+																</span>
+																<span class="qa-c-item-who">
+																	<span class="qa-c-item-who-pad">by </span>
+																	<span class="qa-c-item-who-data"><span class="vcard author"><a href="../../user/jack.hale" class="qa-user-link url nickname">jack.hale</a></span></span>
+																	<span class="qa-c-item-who-title">FEniCS Novice</span>
+																	<span class="qa-c-item-who-points">
+																		<span class="qa-c-item-who-points-pad">(</span><span class="qa-c-item-who-points-data">240</span><span class="qa-c-item-who-points-pad"> points)</span>
+																	</span>
+																</span>
+															</span>
+														</span>
+														<div class="qa-c-item-buttons">
+														</div>
+													</div>
+													<div class="qa-c-item-clear">
+													</div>
+												</div> <!-- END qa-c-item -->
+												<div class="qa-c-list-item  hentry comment" id="c8768">
+													<div class="qa-c-item-content">
+														<a name="8768"></a><div class="entry-content"><p>Oh, sounds good, I guess being able to restrict FunctionSpaces to subsets of meshes would resolve this <a rel="nofollow" href="http://fenicsproject.org/qa/8628/repeat-function-periodically-over-mesh">other problem</a> I'm having. Hehe.</p>
+</div>
+													</div>
+													<div class="qa-c-item-footer">
+														<span class="qa-c-item-avatar-meta">
+															<span class="qa-c-item-meta">
+																<a href="../../8683/discontinuous-coefficient-poisson-subdomain-expression?show=8768#c8768" class="qa-c-item-what">commented</a>
+																<span class="qa-c-item-when">
+																	<span class="qa-c-item-when-data"><span class="published"><span class="value-title" title="2015-12-02T02:27:40+0000"></span>Dec 2, 2015</span></span>
+																</span>
+																<span class="qa-c-item-who">
+																	<span class="qa-c-item-who-pad">by </span>
+																	<span class="qa-c-item-who-data"><span class="vcard author"><a href="../../user/dajuno" class="qa-user-link url nickname">dajuno</a></span></span>
+																	<span class="qa-c-item-who-title">FEniCS User</span>
+																	<span class="qa-c-item-who-points">
+																		<span class="qa-c-item-who-points-pad">(</span><span class="qa-c-item-who-points-data">4,140</span><span class="qa-c-item-who-points-pad"> points)</span>
+																	</span>
+																</span>
+																<br>
+																<span class="qa-c-item-what">edited</span>
+																<span class="qa-c-item-when">
+																	<span class="qa-c-item-when-data"><span class="updated"><span class="value-title" title="2015-12-02T03:36:41+0000"></span>Dec 2, 2015</span></span>
+																</span>
+																<span class="qa-c-item-who">
+																	<span class="qa-c-item-who-pad">by </span><span class="qa-c-item-who-data"><a href="../../user/dajuno" class="qa-user-link url nickname">dajuno</a></span>
+																</span>
+															</span>
+														</span>
+														<div class="qa-c-item-buttons">
+														</div>
+													</div>
+													<div class="qa-c-item-clear">
+													</div>
+												</div> <!-- END qa-c-item -->
+												<div class="qa-c-list-item  hentry comment" id="c11660">
+													<div class="qa-c-item-content">
+														<a name="11660"></a><div class="entry-content"><p>Is this preferred 3rd method still valid?  When I use 1D and put <br>
+<code>x0 = MeshCoordinates(mesh)</code><br>
+<code>k = conditional(x0 &lt;= 0.5, k0, k1)</code><br>
+then I get an error message:<br>
+"Expecting scalar arguments."</p>
+</div>
+													</div>
+													<div class="qa-c-item-footer">
+														<span class="qa-c-item-avatar-meta">
+															<span class="qa-c-item-meta">
+																<a href="../../8683/discontinuous-coefficient-poisson-subdomain-expression?show=11660#c11660" class="qa-c-item-what">commented</a>
+																<span class="qa-c-item-when">
+																	<span class="qa-c-item-when-data"><span class="published"><span class="value-title" title="2016-11-17T13:00:02+0000"></span>Nov 17, 2016</span></span>
+																</span>
+																<span class="qa-c-item-who">
+																	<span class="qa-c-item-who-pad">by </span>
+																	<span class="qa-c-item-who-data"><span class="vcard author"><a href="../../user/dparsons" class="qa-user-link url nickname">dparsons</a></span></span>
+																	<span class="qa-c-item-who-title">FEniCS Novice</span>
+																	<span class="qa-c-item-who-points">
+																		<span class="qa-c-item-who-points-pad">(</span><span class="qa-c-item-who-points-data">490</span><span class="qa-c-item-who-points-pad"> points)</span>
+																	</span>
+																</span>
+															</span>
+														</span>
+														<div class="qa-c-item-buttons">
+														</div>
+													</div>
+													<div class="qa-c-item-clear">
+													</div>
+												</div> <!-- END qa-c-item -->
+												<div class="qa-c-list-item  hentry comment" id="c11661">
+													<div class="qa-c-item-content">
+														<a name="11661"></a><div class="entry-content"><p>Does it work if you index into x0, e.g. x0[0]?</p>
+</div>
+													</div>
+													<div class="qa-c-item-footer">
+														<span class="qa-c-item-avatar-meta">
+															<span class="qa-c-item-meta">
+																<a href="../../8683/discontinuous-coefficient-poisson-subdomain-expression?show=11661#c11661" class="qa-c-item-what">commented</a>
+																<span class="qa-c-item-when">
+																	<span class="qa-c-item-when-data"><span class="published"><span class="value-title" title="2016-11-17T13:11:16+0000"></span>Nov 17, 2016</span></span>
+																</span>
+																<span class="qa-c-item-who">
+																	<span class="qa-c-item-who-pad">by </span>
+																	<span class="qa-c-item-who-data"><span class="vcard author"><a href="../../user/jack_s_hale" class="qa-user-link url nickname">jack_s_hale</a></span></span>
+																	<span class="qa-c-item-who-title">FEniCS Novice</span>
+																	<span class="qa-c-item-who-points">
+																		<span class="qa-c-item-who-points-pad">(</span><span class="qa-c-item-who-points-data">180</span><span class="qa-c-item-who-points-pad"> points)</span>
+																	</span>
+																</span>
+															</span>
+														</span>
+														<div class="qa-c-item-buttons">
+														</div>
+													</div>
+													<div class="qa-c-item-clear">
+													</div>
+												</div> <!-- END qa-c-item -->
+												<div class="qa-c-list-item  hentry comment" id="c11662">
+													<div class="qa-c-item-content">
+														<a name="11662"></a><div class="entry-content"><p>Use <code>SpatialCoordinate</code>. For example,</p>
+
+<pre><code>x = SpatialCoordinate(mesh)
+k = conditional(x[0] &lt;= 0.5, k0, k1)
+</code></pre>
+</div>
+													</div>
+													<div class="qa-c-item-footer">
+														<span class="qa-c-item-avatar-meta">
+															<span class="qa-c-item-meta">
+																<a href="../../8683/discontinuous-coefficient-poisson-subdomain-expression?show=11662#c11662" class="qa-c-item-what">commented</a>
+																<span class="qa-c-item-when">
+																	<span class="qa-c-item-when-data"><span class="published"><span class="value-title" title="2016-11-17T13:13:17+0000"></span>Nov 17, 2016</span></span>
+																</span>
+																<span class="qa-c-item-who">
+																	<span class="qa-c-item-who-pad">by </span>
+																	<span class="qa-c-item-who-data"><span class="vcard author"><a href="../../user/Magne+Nordaas" class="qa-user-link url nickname">Magne Nordaas</a></span></span>
+																	<span class="qa-c-item-who-title">FEniCS Expert</span>
+																	<span class="qa-c-item-who-points">
+																		<span class="qa-c-item-who-points-pad">(</span><span class="qa-c-item-who-points-data">13,820</span><span class="qa-c-item-who-points-pad"> points)</span>
+																	</span>
+																</span>
+															</span>
+														</span>
+														<div class="qa-c-item-buttons">
+														</div>
+													</div>
+													<div class="qa-c-item-clear">
+													</div>
+												</div> <!-- END qa-c-item -->
+												<div class="qa-c-list-item  hentry comment" id="c11664">
+													<div class="qa-c-item-content">
+														<a name="11664"></a><div class="entry-content"><p>Not that way, Jack (MeshCoordinates with x0[0]). It segfaults with</p>
+
+<p>#0  0x00007fffe7ef9a33 in dolfin::MeshCoordinates::MeshCoordinates(std::shared_ptr) () from /usr/lib/x86_64-linux-gnu/libdolfin.so.2016.1<br>
+#1  0x00007fffbf7b4a3a in ?? () from /usr/lib/python2.7/dist-packages/dolfin/cpp/_function.x86_64-linux-gnu.so<br>
+#2  0x0000555555654e70 in PyEval_EvalFrameEx ()<br>
+#3  0x000055555564d3c5 in PyEval_EvalCodeEx ()</p>
+</div>
+													</div>
+													<div class="qa-c-item-footer">
+														<span class="qa-c-item-avatar-meta">
+															<span class="qa-c-item-meta">
+																<a href="../../8683/discontinuous-coefficient-poisson-subdomain-expression?show=11664#c11664" class="qa-c-item-what">commented</a>
+																<span class="qa-c-item-when">
+																	<span class="qa-c-item-when-data"><span class="published"><span class="value-title" title="2016-11-17T13:48:15+0000"></span>Nov 17, 2016</span></span>
+																</span>
+																<span class="qa-c-item-who">
+																	<span class="qa-c-item-who-pad">by </span>
+																	<span class="qa-c-item-who-data"><span class="vcard author"><a href="../../user/dparsons" class="qa-user-link url nickname">dparsons</a></span></span>
+																	<span class="qa-c-item-who-title">FEniCS Novice</span>
+																	<span class="qa-c-item-who-points">
+																		<span class="qa-c-item-who-points-pad">(</span><span class="qa-c-item-who-points-data">490</span><span class="qa-c-item-who-points-pad"> points)</span>
+																	</span>
+																</span>
+															</span>
+														</span>
+														<div class="qa-c-item-buttons">
+														</div>
+													</div>
+													<div class="qa-c-item-clear">
+													</div>
+												</div> <!-- END qa-c-item -->
+												<div class="qa-c-list-item  hentry comment" id="c11665">
+													<div class="qa-c-item-content">
+														<a name="11665"></a><div class="entry-content"><p>Hmm, no nested replies, so it looks like I'm replying to myself...</p>
+
+<p>Thanks  Magne, your update with SpatialCoordinate works great.</p>
+</div>
+													</div>
+													<div class="qa-c-item-footer">
+														<span class="qa-c-item-avatar-meta">
+															<span class="qa-c-item-meta">
+																<a href="../../8683/discontinuous-coefficient-poisson-subdomain-expression?show=11665#c11665" class="qa-c-item-what">commented</a>
+																<span class="qa-c-item-when">
+																	<span class="qa-c-item-when-data"><span class="published"><span class="value-title" title="2016-11-17T13:52:55+0000"></span>Nov 17, 2016</span></span>
+																</span>
+																<span class="qa-c-item-who">
+																	<span class="qa-c-item-who-pad">by </span>
+																	<span class="qa-c-item-who-data"><span class="vcard author"><a href="../../user/dparsons" class="qa-user-link url nickname">dparsons</a></span></span>
+																	<span class="qa-c-item-who-title">FEniCS Novice</span>
+																	<span class="qa-c-item-who-points">
+																		<span class="qa-c-item-who-points-pad">(</span><span class="qa-c-item-who-points-data">490</span><span class="qa-c-item-who-points-pad"> points)</span>
+																	</span>
+																</span>
+															</span>
+														</span>
+														<div class="qa-c-item-buttons">
+														</div>
+													</div>
+													<div class="qa-c-item-clear">
+													</div>
+												</div> <!-- END qa-c-item -->
+											</div> <!-- END qa-c-list -->
+											
+											<input type="hidden" name="code" value="0-1516468187-a6de41978c6f80a4040d24b9c46c05eed5e9aa00">
+											<input type="hidden" name="qa_click" value="">
+										</form>
+										<div class="qa-c-form">
+										</div> <!-- END qa-c-form -->
+										
+									</div> <!-- END qa-a-item-main -->
+									<div class="qa-a-item-clear">
+									</div>
+								</div> <!-- END qa-a-list-item -->
+								
+							</div> <!-- END qa-a-list -->
+							
+						</div>
+					</div> <!-- END qa-main -->
+					
+				</div> <!-- END main-wrapper -->
+			</div> <!-- END main-shadow -->
+		</div> <!-- END body-wrapper -->
+		<!-- END footer-bottom-group -->
+		
+		<div style="position:absolute; left:-9999px; top:-9999px;">
+			<span id="qa-waiting-template" class="qa-waiting">...</span>
+		</div>
+	
+	
+
+</body><!-- Powered by Question2Answer - http://www.question2answer.org/ --></html>

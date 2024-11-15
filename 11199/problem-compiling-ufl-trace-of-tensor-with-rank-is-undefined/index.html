@@ -1,0 +1,347 @@
+<html><!-- Powered by Question2Answer - http://www.question2answer.org/ --><head>
+		<meta http-equiv="content-type" content="text/html; charset=utf-8">
+		<title>Problem compiling UFL: Trace of tensor with rank != 2 is undefined - FEniCS Q&amp;A</title>
+		<meta name="description" content="Hello Everyone, Please use: `ffc -l dolfin filename.ufl` to run the following form file. I have the  ... du)/2*beta*dt)*tr(grad(w))*dx #damping">
+		<meta name="keywords" content="error,compilation,ufl,trace,gradient">
+		<link rel="stylesheet" type="text/css" href="../../qa-theme/Snow/qa-styles.css">
+		<link rel="canonical" href="http://fenicsproject.org/qa/11199/problem-compiling-ufl-trace-of-tensor-with-rank-is-undefined">
+		<script type="text/x-mathjax-config">
+  MathJax.Hub.Config({
+    extensions: ["tex2jax.js"],
+    jax: ["input/TeX","output/HTML-CSS"],
+    tex2jax: {inlineMath: [["$","$"],["\\(","\\)"]]},
+    TeX: { extensions: ["AMSmath.js","AMSsymbols.js"]}
+  });
+</script>
+<script type="text/javascript" src="../../mathjax/MathJax.js"></script>
+		<script src="../../jquery-1.7.2.min.js" type="text/javascript"></script>
+		<script src="../../highlight.min.js"></script>
+<script type="text/javascript">
+$(function(){
+	$('.wmd-input').keypress(function(){
+		window.clearTimeout(hljs.Timeout);
+		hljs.Timeout = window.setTimeout(function() {
+			hljs.initHighlighting.called = false;
+			hljs.initHighlighting();
+		}, 500);
+	});
+	window.setTimeout(function() {
+		hljs.initHighlighting.called = false;
+		hljs.initHighlighting();
+	}, 500);
+});
+</script>
+
+
+	</head>
+	<body class="qa-template-question qa-body-js-off">
+		<div class="qa-body-wrapper">
+			
+			<div class="qa-header">
+				<div class="qa-logo">
+					<a href="../../" class="qa-logo-link" title="FEniCS Q&amp;A"><img src="../../qa-theme/fenics_qa.png" border="0" alt="FEniCS Q&amp;A"></a>
+				</div>
+				<div class="qa-header-clear">
+				</div>
+			</div> <!-- END qa-header -->
+			
+			<div class="qa-main-shadow">
+				
+				<div class="qa-main-wrapper">
+					
+					<div class="qa-sidepanel">
+						<div class="qa-sidebar">
+							This is a read only copy of the old FEniCS QA forum. Please visit the <a href="https://www.allanswered.com/community/s/fenics-project/">new QA forum</a> to ask questions
+						</div>
+						
+					</div>
+					
+					<div class="qa-main">
+						<h1>
+							<span class="entry-title">Problem compiling UFL: Trace of tensor with rank != 2 is undefined</span>
+						</h1>
+						<div class="qa-part-q-view">
+							<div class="qa-q-view  hentry question" id="q11199">
+								<form method="post" action="../../11199/problem-compiling-ufl-trace-of-tensor-with-rank-is-undefined">
+									<div class="qa-q-view-stats">
+										<div class="qa-voting qa-voting-net" id="voting_11199">
+											<div class="qa-vote-count qa-vote-count-net">
+												<span class="qa-netvote-count">
+													<span class="qa-netvote-count-data">+2<span class="votes-up"><span class="value-title" title="2"></span></span><span class="votes-down"><span class="value-title" title="0"></span></span></span><span class="qa-netvote-count-pad"> votes</span>
+												</span>
+											</div>
+											<div class="qa-vote-clear">
+											</div>
+										</div>
+									</div>
+									<input type="hidden" name="code" value="0-1516467099-0c41ee92c2d67c657ac42586ba30cc964373782d">
+								</form>
+								<div class="qa-q-view-main">
+									<form method="post" action="../../11199/problem-compiling-ufl-trace-of-tensor-with-rank-is-undefined">
+										<div class="qa-q-view-content">
+											<a name="11199"></a><div class="entry-content"><p>Hello Everyone,</p>
+
+<p>Please use: <code>ffc -l dolfin filename.ufl</code> to run the following form file.</p>
+
+<p>I have the following UFL. The UFL used to compile successfully before I added a damping term in it. You can observe that the damping term is the one with constant "eta", in both the RHS and LHS. If you remove that, it will compile. So don't worry about understanding other terms in RHS/ LHS. The problem I am solving is a dynamic problem using predictor-corrector Newmark Beta scheme. The issue is with the way "v_pred" is defined. It is the predicted velocity containing the initial velocity "v" and initial accn "a". I understand that to find trace, you at least need a matrix (i.e. a tensor of rank 2). </p>
+
+<pre><code>degree = 2
+elementA = VectorElement("Lagrange", triangle, degree)
+elementT = VectorElement("Quadrature", triangle, degree, 9)
+elementS = VectorElement("Quadrature", triangle, degree, 3)
+
+w = TestFunction(elementA)
+du = TrialFunction(elementA)
+
+u = Coefficient(elementA) # current displacement
+
+f = Coefficient(elementA) # body force
+g = Coefficient(elementA) # surface traction
+t = Coefficient(elementT)  # vectorized tangent matrix
+s = Coefficient(elementS) # vectorized stress matrix
+
+u0 = Coefficient(elementA) # displacement prediction
+v = Coefficient(elementA) #velocity
+a = Coefficient(elementA) #accn
+
+rho = Constant(triangle) # density
+beta = Constant(triangle) # beta-parameter in the Newmark time stepping
+dt = Constant(triangle) # time increment
+eta = Constant(triangle) # Damping
+
+def eps(u):
+    return as_vector([u[i].dx(i) for i in range(2)] + [u[i].dx(j) + u[j].dx(i) for i, j in [(0, 1)]])
+
+def sigma(s):
+    return as_matrix([[s[0], s[2]], [s[2], s[1]]])
+
+def tangent(t):
+    return as_matrix([[t[i*3 + j] for j in range(3)] for i in range(3)])
+
+#def v_pred():             # velocity prediction
+#    return (v+(dt/2)*a)
+
+# Nonlinear elastoplastic dynamic equation after discretization (with a damping term)
+
+L += eta*tr((grad(u)/2*beta*dt)+grad(v_pred)-(grad(u0)/2*beta*dt))*tr(grad(w))*dx      #damping
+
+# Jacobian (with the damping term)
+
+J += eta*tr(eps(du)/2*beta*dt)*tr(grad(w))*dx    #damping
+</code></pre>
+</div>
+										</div>
+										<div class="qa-q-view-tags">
+											<ul class="qa-q-view-tag-list">
+												<li class="qa-q-view-tag-item"><a href="../../tag/error" rel="tag" class="qa-tag-link">error</a></li>
+												<li class="qa-q-view-tag-item"><a href="../../tag/compilation" rel="tag" class="qa-tag-link">compilation</a></li>
+												<li class="qa-q-view-tag-item"><a href="../../tag/ufl" rel="tag" class="qa-tag-link">ufl</a></li>
+												<li class="qa-q-view-tag-item"><a href="../../tag/trace" rel="tag" class="qa-tag-link">trace</a></li>
+												<li class="qa-q-view-tag-item"><a href="../../tag/gradient" rel="tag" class="qa-tag-link">gradient</a></li>
+											</ul>
+										</div>
+										<span class="qa-q-view-avatar-meta">
+											<span class="qa-q-view-avatar">
+												<a href="../../user/Chaitanya_Raj_Goyal" class="qa-avatar-link"><img src="../../?qa=image&amp;qa_blobid=5557427273671820211&amp;qa_size=50" width="50" height="31" class="qa-avatar-image" alt=""></a>
+											</span>
+											<span class="qa-q-view-meta">
+												<a href="../../11199/problem-compiling-ufl-trace-of-tensor-with-rank-is-undefined" class="qa-q-view-what">asked</a>
+												<span class="qa-q-view-when">
+													<span class="qa-q-view-when-data"><span class="published"><span class="value-title" title="2016-09-24T16:34:49+0000"></span>Sep 24, 2016</span></span>
+												</span>
+												<span class="qa-q-view-who">
+													<span class="qa-q-view-who-pad">by </span>
+													<span class="qa-q-view-who-data"><span class="vcard author"><a href="../../user/Chaitanya_Raj_Goyal" class="qa-user-link url nickname">Chaitanya_Raj_Goyal</a></span></span>
+													<span class="qa-q-view-who-title">FEniCS User</span>
+													<span class="qa-q-view-who-points">
+														<span class="qa-q-view-who-points-pad">(</span><span class="qa-q-view-who-points-data">4,150</span><span class="qa-q-view-who-points-pad"> points)</span>
+													</span>
+												</span>
+												<br>
+												<span class="qa-q-view-what">edited</span>
+												<span class="qa-q-view-when">
+													<span class="qa-q-view-when-data"><span class="updated"><span class="value-title" title="2016-09-26T03:40:10+0000"></span>Sep 26, 2016</span></span>
+												</span>
+												<span class="qa-q-view-who">
+													<span class="qa-q-view-who-pad">by </span><span class="qa-q-view-who-data"><a href="../../user/Chaitanya_Raj_Goyal" class="qa-user-link url nickname">Chaitanya_Raj_Goyal</a></span>
+												</span>
+											</span>
+										</span>
+										<div class="qa-q-view-buttons">
+										</div>
+										
+										<div class="qa-q-view-c-list" style="display:none;" id="c11199_list">
+										</div> <!-- END qa-c-list -->
+										
+										<input type="hidden" name="code" value="0-1516467099-f4bbb6163a4f2d4e197c92f20c13dcdcbc13be5b">
+										<input type="hidden" name="qa_click" value="">
+									</form>
+									<div class="qa-c-form">
+									</div> <!-- END qa-c-form -->
+									
+								</div> <!-- END qa-q-view-main -->
+								<div class="qa-q-view-clear">
+								</div>
+							</div> <!-- END qa-q-view -->
+							
+						</div>
+						<div class="qa-part-a-list">
+							<h2 id="a_list_title">1 Answer</h2>
+							<div class="qa-a-list" id="a_list">
+								
+								<div class="qa-a-list-item  hentry answer answer-selected qa-a-list-item-selected" id="a11203">
+									<form method="post" action="../../11199/problem-compiling-ufl-trace-of-tensor-with-rank-is-undefined">
+										<div class="qa-voting qa-voting-net" id="voting_11203">
+											<div class="qa-vote-count qa-vote-count-net">
+												<span class="qa-netvote-count">
+													<span class="qa-netvote-count-data">0<span class="votes-up"><span class="value-title" title="0"></span></span><span class="votes-down"><span class="value-title" title="0"></span></span></span><span class="qa-netvote-count-pad"> votes</span>
+												</span>
+											</div>
+											<div class="qa-vote-clear">
+											</div>
+										</div>
+										<input type="hidden" name="code" value="0-1516467099-0c41ee92c2d67c657ac42586ba30cc964373782d">
+									</form>
+									<div class="qa-a-item-main">
+										<form method="post" action="../../11199/problem-compiling-ufl-trace-of-tensor-with-rank-is-undefined">
+											<div class="qa-a-item-selected">
+												<div class="qa-a-selection">
+													<div class="qa-a-selected">&#160;</div>
+													<div class="qa-a-selected-text">Best answer</div>
+												</div>
+												<div class="qa-a-item-content">
+													<a name="11203"></a><div class="entry-content"><p>Hi Chaitanya,<br>
+the error message is due to the term <code>eps(du)</code> in the last line of the .ufl file. The rank of <code>eps(du)</code> is equal to 1 (is a vector!) and hence you can't take the trace of that term.</p>
+</div>
+												</div>
+												<span class="qa-a-item-avatar-meta">
+													<span class="qa-a-item-avatar">
+														<a href="../../user/hernan_mella" class="qa-avatar-link"><img src="../../?qa=image&amp;qa_blobid=14920815903966845416&amp;qa_size=40" width="40" height="22" class="qa-avatar-image" alt=""></a>
+													</span>
+													<span class="qa-a-item-meta">
+														<a href="../../11199/problem-compiling-ufl-trace-of-tensor-with-rank-is-undefined?show=11203#a11203" class="qa-a-item-what">answered</a>
+														<span class="qa-a-item-when">
+															<span class="qa-a-item-when-data"><span class="published"><span class="value-title" title="2016-09-25T02:37:53+0000"></span>Sep 25, 2016</span></span>
+														</span>
+														<span class="qa-a-item-who">
+															<span class="qa-a-item-who-pad">by </span>
+															<span class="qa-a-item-who-data"><span class="vcard author"><a href="../../user/hernan_mella" class="qa-user-link url nickname">hernan_mella</a></span></span>
+															<span class="qa-a-item-who-title">FEniCS Expert</span>
+															<span class="qa-a-item-who-points">
+																<span class="qa-a-item-who-points-pad">(</span><span class="qa-a-item-who-points-data">19,460</span><span class="qa-a-item-who-points-pad"> points)</span>
+															</span>
+														</span>
+														<br>
+														<span class="qa-a-item-what">selected</span>
+														<span class="qa-a-item-when">
+															<span class="qa-a-item-when-data"><span class="updated"><span class="value-title" title="2016-09-25T03:02:00+0000"></span>Sep 25, 2016</span></span>
+														</span>
+														<span class="qa-a-item-who">
+															<span class="qa-a-item-who-pad">by </span><span class="qa-a-item-who-data"><a href="../../user/Chaitanya_Raj_Goyal" class="qa-user-link url nickname">Chaitanya_Raj_Goyal</a></span>
+														</span>
+													</span>
+												</span>
+											</div>
+											<div class="qa-a-item-buttons">
+												</div>
+											
+											<div class="qa-a-item-c-list" id="c11203_list">
+												<div class="qa-c-list-item  hentry comment" id="c11205">
+													<div class="qa-c-item-content">
+														<a name="11205"></a><div class="entry-content"><p>Hi Hernan,</p>
+
+<p>I changed that term to grad(du) instead of eps(du) and it worked. If you look at the weak form I have shown above (only at the damping terms with &#951;), do you think it is correctly written?</p>
+
+<p>Also, do I need to define 'v_pred' or is it ok to directly write $v+(dt/2)*a$ in LHS, with respect to the Newmark Scheme. </p>
+
+<p>Thanks a lot!<br>
+Chaitanya</p>
+</div>
+													</div>
+													<div class="qa-c-item-footer">
+														<span class="qa-c-item-avatar-meta">
+															<span class="qa-c-item-avatar">
+																<a href="../../user/Chaitanya_Raj_Goyal" class="qa-avatar-link"><img src="../../?qa=image&amp;qa_blobid=5557427273671820211&amp;qa_size=20" width="20" height="12" class="qa-avatar-image" alt=""></a>
+															</span>
+															<span class="qa-c-item-meta">
+																<a href="../../11199/problem-compiling-ufl-trace-of-tensor-with-rank-is-undefined?show=11205#c11205" class="qa-c-item-what">commented</a>
+																<span class="qa-c-item-when">
+																	<span class="qa-c-item-when-data"><span class="published"><span class="value-title" title="2016-09-25T02:58:08+0000"></span>Sep 25, 2016</span></span>
+																</span>
+																<span class="qa-c-item-who">
+																	<span class="qa-c-item-who-pad">by </span>
+																	<span class="qa-c-item-who-data"><span class="vcard author"><a href="../../user/Chaitanya_Raj_Goyal" class="qa-user-link url nickname">Chaitanya_Raj_Goyal</a></span></span>
+																	<span class="qa-c-item-who-title">FEniCS User</span>
+																	<span class="qa-c-item-who-points">
+																		<span class="qa-c-item-who-points-pad">(</span><span class="qa-c-item-who-points-data">4,150</span><span class="qa-c-item-who-points-pad"> points)</span>
+																	</span>
+																</span>
+															</span>
+														</span>
+														<div class="qa-c-item-buttons">
+														</div>
+													</div>
+													<div class="qa-c-item-clear">
+													</div>
+												</div> <!-- END qa-c-item -->
+												<div class="qa-c-list-item  hentry comment" id="c11206">
+													<div class="qa-c-item-content">
+														<a name="11206"></a><div class="entry-content"><p>Yes to the first question and i think that it's fine just write <code>v+(dt/2)&#8727;a</code> in the lhs.</p>
+</div>
+													</div>
+													<div class="qa-c-item-footer">
+														<span class="qa-c-item-avatar-meta">
+															<span class="qa-c-item-avatar">
+																<a href="../../user/hernan_mella" class="qa-avatar-link"><img src="../../?qa=image&amp;qa_blobid=14920815903966845416&amp;qa_size=20" width="20" height="11" class="qa-avatar-image" alt=""></a>
+															</span>
+															<span class="qa-c-item-meta">
+																<a href="../../11199/problem-compiling-ufl-trace-of-tensor-with-rank-is-undefined?show=11206#c11206" class="qa-c-item-what">commented</a>
+																<span class="qa-c-item-when">
+																	<span class="qa-c-item-when-data"><span class="published"><span class="value-title" title="2016-09-25T03:18:51+0000"></span>Sep 25, 2016</span></span>
+																</span>
+																<span class="qa-c-item-who">
+																	<span class="qa-c-item-who-pad">by </span>
+																	<span class="qa-c-item-who-data"><span class="vcard author"><a href="../../user/hernan_mella" class="qa-user-link url nickname">hernan_mella</a></span></span>
+																	<span class="qa-c-item-who-title">FEniCS Expert</span>
+																	<span class="qa-c-item-who-points">
+																		<span class="qa-c-item-who-points-pad">(</span><span class="qa-c-item-who-points-data">19,460</span><span class="qa-c-item-who-points-pad"> points)</span>
+																	</span>
+																</span>
+															</span>
+														</span>
+														<div class="qa-c-item-buttons">
+														</div>
+													</div>
+													<div class="qa-c-item-clear">
+													</div>
+												</div> <!-- END qa-c-item -->
+											</div> <!-- END qa-c-list -->
+											
+											<input type="hidden" name="code" value="0-1516467099-571b1106fb973531b34a5f80093aeccca1c38f38">
+											<input type="hidden" name="qa_click" value="">
+										</form>
+										<div class="qa-c-form">
+										</div> <!-- END qa-c-form -->
+										
+									</div> <!-- END qa-a-item-main -->
+									<div class="qa-a-item-clear">
+									</div>
+								</div> <!-- END qa-a-list-item -->
+								
+							</div> <!-- END qa-a-list -->
+							
+						</div>
+					</div> <!-- END qa-main -->
+					
+				</div> <!-- END main-wrapper -->
+			</div> <!-- END main-shadow -->
+		</div> <!-- END body-wrapper -->
+		<!-- END footer-bottom-group -->
+		
+		<div style="position:absolute; left:-9999px; top:-9999px;">
+			<span id="qa-waiting-template" class="qa-waiting">...</span>
+		</div>
+	
+	
+
+</body><!-- Powered by Question2Answer - http://www.question2answer.org/ --></html>

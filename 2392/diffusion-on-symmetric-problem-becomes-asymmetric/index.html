@@ -1,0 +1,467 @@
+<html><!-- Powered by Question2Answer - http://www.question2answer.org/ --><head>
+		<meta http-equiv="content-type" content="text/html; charset=utf-8">
+		<title>Diffusion on symmetric problem becomes asymmetric. - FEniCS Q&amp;A</title>
+		<meta name="description" content="Hi. Consider a simple heat diffusion problem in a domain &#937;=[0,1] consisting of three subdomains &#937;_0  ...  the initial values too. We need to use 0">
+		<meta name="keywords" content="subdomains,initialization,diffusion">
+		<link rel="stylesheet" type="text/css" href="../../qa-theme/Snow/qa-styles.css">
+		<link rel="canonical" href="http://fenicsproject.org/qa/2392/diffusion-on-symmetric-problem-becomes-asymmetric">
+		<script type="text/x-mathjax-config">
+  MathJax.Hub.Config({
+    extensions: ["tex2jax.js"],
+    jax: ["input/TeX","output/HTML-CSS"],
+    tex2jax: {inlineMath: [["$","$"],["\\(","\\)"]]},
+    TeX: { extensions: ["AMSmath.js","AMSsymbols.js"]}
+  });
+</script>
+<script type="text/javascript" src="../../mathjax/MathJax.js"></script>
+		<script src="../../jquery-1.7.2.min.js" type="text/javascript"></script>
+		<script src="../../highlight.min.js"></script>
+<script type="text/javascript">
+$(function(){
+	$('.wmd-input').keypress(function(){
+		window.clearTimeout(hljs.Timeout);
+		hljs.Timeout = window.setTimeout(function() {
+			hljs.initHighlighting.called = false;
+			hljs.initHighlighting();
+		}, 500);
+	});
+	window.setTimeout(function() {
+		hljs.initHighlighting.called = false;
+		hljs.initHighlighting();
+	}, 500);
+});
+</script>
+
+
+	</head>
+	<body class="qa-template-question qa-body-js-off">
+		<div class="qa-body-wrapper">
+			
+			<div class="qa-header">
+				<div class="qa-logo">
+					<a href="../../" class="qa-logo-link" title="FEniCS Q&amp;A"><img src="../../qa-theme/fenics_qa.png" border="0" alt="FEniCS Q&amp;A"></a>
+				</div>
+				<div class="qa-header-clear">
+				</div>
+			</div> <!-- END qa-header -->
+			
+			<div class="qa-main-shadow">
+				
+				<div class="qa-main-wrapper">
+					
+					<div class="qa-sidepanel">
+						<div class="qa-sidebar">
+							This is a read only copy of the old FEniCS QA forum. Please visit the <a href="https://www.allanswered.com/community/s/fenics-project/">new QA forum</a> to ask questions
+						</div>
+						
+					</div>
+					
+					<div class="qa-main">
+						<h1>
+							<span class="entry-title">Diffusion on symmetric problem becomes asymmetric.</span>
+						</h1>
+						<div class="qa-part-q-view">
+							<div class="qa-q-view  hentry question" id="q2392">
+								<form method="post" action="../../2392/diffusion-on-symmetric-problem-becomes-asymmetric">
+									<div class="qa-q-view-stats">
+										<div class="qa-voting qa-voting-net" id="voting_2392">
+											<div class="qa-vote-count qa-vote-count-net">
+												<span class="qa-netvote-count">
+													<span class="qa-netvote-count-data">+1<span class="votes-up"><span class="value-title" title="1"></span></span><span class="votes-down"><span class="value-title" title="0"></span></span></span><span class="qa-netvote-count-pad"> vote</span>
+												</span>
+											</div>
+											<div class="qa-vote-clear">
+											</div>
+										</div>
+									</div>
+									<input type="hidden" name="code" value="0-1516467925-152284b1ab1ed3435358d048f1dedc7c0b8df4fd">
+								</form>
+								<div class="qa-q-view-main">
+									<form method="post" action="../../2392/diffusion-on-symmetric-problem-becomes-asymmetric">
+										<div class="qa-q-view-content">
+											<a name="2392"></a><div class="entry-content"><p>Hi.</p>
+
+<p>Consider a simple heat diffusion problem in a domain &#937;=[0,1] consisting of three subdomains <br>
+&#937;_0 = [0 , 0.4)<br>
+&#937;_1 = [0.4 , 0.6]<br>
+&#937;_2 = (0.6 , 1]</p>
+
+<p>Diffusion coefficient k is piecewise constant<br>
+k = 1 in &#937;_0<br>
+k = 0.1 in &#937;_1<br>
+k = 1 in &#937;_2</p>
+
+<p>Initially the temperature u is set to<br>
+u = 1 in &#937;_0<br>
+u = 0 in &#937;_1<br>
+u = 1 in &#937;_2</p>
+
+<p>On this link you will find plots of the initial values and a plot of the FEniCS solution at first time step. <br>
+<a rel="nofollow" href="https://www.dropbox.com/sh/es6bulvq7nxcucu/gydWkt0Mkv">Images and python file</a><br>
+The problem is that the initial values are symmetric but the diffusion is asymmetric.</p>
+
+<p>We had some problems with setting the initial values too. We need to use 0&lt;= x &lt;= 0.4 to define &#937;_0, such that our initial values is u = 1 in &#937;_0 = [0 , 0.4) and thereby symmetric. If we set  0&lt;= x &lt; 0.4 the initial condition becomes asymmetric!</p>
+
+<p>We have tried a lot of different ways to define the initial values, but cannot get this problem to be symmetric from start to end.</p>
+
+<pre><code>""" Heat diffusion into an element with different diffusion coefficient"""
+
+from dolfin import *
+import time
+
+# set parameters
+t = 0.0;            #Start time
+dt = 0.005;           #Step size
+T = 0.05;            #Total simulation time
+
+
+# define mesh
+mesh = UnitIntervalMesh(30)
+
+# define function space
+V = FunctionSpace(mesh, "CG", 1)
+V0 = FunctionSpace(mesh, 'DG', 0)
+
+# define functions
+c1 = Function(V)
+c_trial = TrialFunction(V)
+phi = TestFunction(V)
+
+
+# left part
+class Left(SubDomain):
+    def inside(self, x, on_boundary):
+        return ( (x[0] &lt;= 0.4) )
+left = Left()
+
+# right part
+class Right(SubDomain):
+    def inside(self, x, on_boundary):
+        return ( (x[0] &gt; 0.6) )
+right = Right()
+
+
+# Initialize mesh function for interior domains
+domains = CellFunction("size_t", mesh)
+domains.set_all(1)
+left.mark(domains, 0)
+right.mark(domains, 2)
+
+
+
+# Define new measures associated with the interior domains
+dxx = Measure("dx")[domains]
+
+# set initial condition
+c0_trial = TrialFunction(V0)
+phi0 = TestFunction(V0)
+c0 = Function(V0)
+
+
+a = c0_trial*phi0*dx
+l = phi0*dxx(0)+phi0*dxx(2)
+solve(a == l, c0)
+c0 = interpolate(c0,V)
+
+
+# define form
+F = (1/dt)*(c_trial-c0)*phi*dx \
+    + dot(grad(c_trial), grad(phi))*dxx(0) \
+    + 0.2*dot(grad(c_trial), grad(phi))*dxx(1) \
+    + dot(grad(c_trial), grad(phi))*dxx(2)
+
+
+a = lhs(F)
+l = rhs(F)
+
+# preassembly
+A = assemble(a)
+b = None
+
+plot1 = plot(c0); time.sleep(5)
+plot1.write_png("initial.png")
+
+while t &lt; T:
+
+    b = assemble(l, tensor=b)
+    solve(A, c1.vector(), b)
+
+    c0.assign(c1)
+
+    print " time = %g" %t
+
+    t += dt
+    plot2 = plot(c1 , title = "c1"); time.sleep(5)
+    if t == dt:
+        plot2.write_png("assymetric.png")
+</code></pre>
+
+<p>Anyone have an idea to solve this?<br>
+Using OSX 10.8.5 and FEniCS V1.2<br>
+Thank you in advance.<br>
+A &amp; C</p>
+
+<p>Update: 23/1-14 at 12.50<br>
+We now found out that if we initialize the problem with <br>
+&#937;_0 = [0 , 0.4]<br>
+&#937;_1 = (0.4 , 0.6]<br>
+&#937;_2 = (0.6 , 1]</p>
+
+<p>And solve the problem with <br>
+&#937;_0 = [0 , 0.4)<br>
+&#937;_1 = [0.4 , 0.6]<br>
+&#937;_2 = (0.6 , 1]</p>
+
+<p>The solution becomes symmetric. But this cannot be the right way to go? There must be an error in FEniCS otherwise I don't understand this. Anyone who knows more about this?</p>
+</div>
+										</div>
+										<div class="qa-q-view-tags">
+											<ul class="qa-q-view-tag-list">
+												<li class="qa-q-view-tag-item"><a href="../../tag/subdomains" rel="tag" class="qa-tag-link">subdomains</a></li>
+												<li class="qa-q-view-tag-item"><a href="../../tag/initialization" rel="tag" class="qa-tag-link">initialization</a></li>
+												<li class="qa-q-view-tag-item"><a href="../../tag/diffusion" rel="tag" class="qa-tag-link">diffusion</a></li>
+											</ul>
+										</div>
+										<span class="qa-q-view-avatar-meta">
+											<span class="qa-q-view-avatar">
+												<a href="../../user/christianv" class="qa-avatar-link"><img src="../../?qa=image&amp;qa_blobid=6727404027380851966&amp;qa_size=50" width="50" height="50" class="qa-avatar-image" alt=""></a>
+											</span>
+											<span class="qa-q-view-meta">
+												<a href="../../2392/diffusion-on-symmetric-problem-becomes-asymmetric" class="qa-q-view-what">asked</a>
+												<span class="qa-q-view-when">
+													<span class="qa-q-view-when-data"><span class="published"><span class="value-title" title="2014-01-23T08:58:27+0000"></span>Jan 23, 2014</span></span>
+												</span>
+												<span class="qa-q-view-who">
+													<span class="qa-q-view-who-pad">by </span>
+													<span class="qa-q-view-who-data"><span class="vcard author"><a href="../../user/christianv" class="qa-user-link url nickname">christianv</a></span></span>
+													<span class="qa-q-view-who-title">FEniCS User</span>
+													<span class="qa-q-view-who-points">
+														<span class="qa-q-view-who-points-pad">(</span><span class="qa-q-view-who-points-data">2,460</span><span class="qa-q-view-who-points-pad"> points)</span>
+													</span>
+												</span>
+												<br>
+												<span class="qa-q-view-what">edited</span>
+												<span class="qa-q-view-when">
+													<span class="qa-q-view-when-data"><span class="updated"><span class="value-title" title="2014-01-23T11:53:49+0000"></span>Jan 23, 2014</span></span>
+												</span>
+												<span class="qa-q-view-who">
+													<span class="qa-q-view-who-pad">by </span><span class="qa-q-view-who-data"><a href="../../user/christianv" class="qa-user-link url nickname">christianv</a></span>
+												</span>
+											</span>
+										</span>
+										<div class="qa-q-view-buttons">
+										</div>
+										
+										<div class="qa-q-view-c-list" style="display:none;" id="c2392_list">
+										</div> <!-- END qa-c-list -->
+										
+										<input type="hidden" name="code" value="0-1516467925-4f911372b50ddf1368b7c5b94fd20164aa24f54c">
+										<input type="hidden" name="qa_click" value="">
+									</form>
+									<div class="qa-c-form">
+									</div> <!-- END qa-c-form -->
+									
+								</div> <!-- END qa-q-view-main -->
+								<div class="qa-q-view-clear">
+								</div>
+							</div> <!-- END qa-q-view -->
+							
+						</div>
+						<div class="qa-part-a-list">
+							<h2 id="a_list_title">2 Answers</h2>
+							<div class="qa-a-list" id="a_list">
+								
+								<div class="qa-a-list-item  hentry answer" id="a2412">
+									<form method="post" action="../../2392/diffusion-on-symmetric-problem-becomes-asymmetric">
+										<div class="qa-voting qa-voting-net" id="voting_2412">
+											<div class="qa-vote-count qa-vote-count-net">
+												<span class="qa-netvote-count">
+													<span class="qa-netvote-count-data">+3<span class="votes-up"><span class="value-title" title="3"></span></span><span class="votes-down"><span class="value-title" title="0"></span></span></span><span class="qa-netvote-count-pad"> votes</span>
+												</span>
+											</div>
+											<div class="qa-vote-clear">
+											</div>
+										</div>
+										<input type="hidden" name="code" value="0-1516467925-152284b1ab1ed3435358d048f1dedc7c0b8df4fd">
+									</form>
+									<div class="qa-a-item-main">
+										<form method="post" action="../../2392/diffusion-on-symmetric-problem-becomes-asymmetric">
+											<div class="qa-a-selection">
+											</div>
+											<div class="qa-a-item-content">
+												<a name="2412"></a><div class="entry-content"><p>Hi,</p>
+
+<p>It's a lot of code to look through, but I think this could be because you're using interpolate instead of project when moving c0 from DG0 to CG1. Interpolate will use only one of the values from element left or right of the node, depending on which element is visited last.  Change </p>
+
+<pre><code>c0 = interpolate(c0, V)
+</code></pre>
+
+<p>to</p>
+
+<pre><code>c0 = project(c0, V)
+</code></pre>
+
+<p>and I think you should be good.</p>
+
+<p>Ok, I tested and it seems like project is symmetric, but leads to some initial oscillations. To get rid of those you could do as suggested by miroK. To get it truly symmetric for long runs, though, you need also use an odd number of elements. </p>
+</div>
+											</div>
+											<span class="qa-a-item-avatar-meta">
+												<span class="qa-a-item-avatar">
+													<a href="../../user/mikael-mortensen" class="qa-avatar-link"><img src="https://www.gravatar.com/avatar/d5614112a2818f1800a461e49ac229df?s=40" width="40" height="40" class="qa-avatar-image" alt=""></a>
+												</span>
+												<span class="qa-a-item-meta">
+													<a href="../../2392/diffusion-on-symmetric-problem-becomes-asymmetric?show=2412#a2412" class="qa-a-item-what">answered</a>
+													<span class="qa-a-item-when">
+														<span class="qa-a-item-when-data"><span class="published"><span class="value-title" title="2014-01-23T18:22:19+0000"></span>Jan 23, 2014</span></span>
+													</span>
+													<span class="qa-a-item-who">
+														<span class="qa-a-item-who-pad">by </span>
+														<span class="qa-a-item-who-data"><span class="vcard author"><a href="../../user/mikael-mortensen" class="qa-user-link url nickname">mikael-mortensen</a></span></span>
+														<span class="qa-a-item-who-title">FEniCS Expert</span>
+														<span class="qa-a-item-who-points">
+															<span class="qa-a-item-who-points-pad">(</span><span class="qa-a-item-who-points-data">29,340</span><span class="qa-a-item-who-points-pad"> points)</span>
+														</span>
+													</span>
+													<br>
+													<span class="qa-a-item-what">edited</span>
+													<span class="qa-a-item-when">
+														<span class="qa-a-item-when-data"><span class="updated"><span class="value-title" title="2014-01-24T07:42:41+0000"></span>Jan 24, 2014</span></span>
+													</span>
+													<span class="qa-a-item-who">
+														<span class="qa-a-item-who-pad">by </span><span class="qa-a-item-who-data"><a href="../../user/mikael-mortensen" class="qa-user-link url nickname">mikael-mortensen</a></span>
+													</span>
+												</span>
+											</span>
+											<div class="qa-a-item-buttons">
+												</div>
+											
+											<div class="qa-a-item-c-list" id="c2412_list">
+												<div class="qa-c-list-item  hentry comment" id="c2453">
+													<div class="qa-c-item-content">
+														<a name="2453"></a><div class="entry-content"><p>Tank you anyway for looking in to the code :)</p>
+</div>
+													</div>
+													<div class="qa-c-item-footer">
+														<span class="qa-c-item-avatar-meta">
+															<span class="qa-c-item-avatar">
+																<a href="../../user/christianv" class="qa-avatar-link"><img src="../../?qa=image&amp;qa_blobid=6727404027380851966&amp;qa_size=20" width="20" height="20" class="qa-avatar-image" alt=""></a>
+															</span>
+															<span class="qa-c-item-meta">
+																<a href="../../2392/diffusion-on-symmetric-problem-becomes-asymmetric?show=2453#c2453" class="qa-c-item-what">commented</a>
+																<span class="qa-c-item-when">
+																	<span class="qa-c-item-when-data"><span class="published"><span class="value-title" title="2014-01-24T12:10:36+0000"></span>Jan 24, 2014</span></span>
+																</span>
+																<span class="qa-c-item-who">
+																	<span class="qa-c-item-who-pad">by </span>
+																	<span class="qa-c-item-who-data"><span class="vcard author"><a href="../../user/christianv" class="qa-user-link url nickname">christianv</a></span></span>
+																	<span class="qa-c-item-who-title">FEniCS User</span>
+																	<span class="qa-c-item-who-points">
+																		<span class="qa-c-item-who-points-pad">(</span><span class="qa-c-item-who-points-data">2,460</span><span class="qa-c-item-who-points-pad"> points)</span>
+																	</span>
+																</span>
+															</span>
+														</span>
+														<div class="qa-c-item-buttons">
+														</div>
+													</div>
+													<div class="qa-c-item-clear">
+													</div>
+												</div> <!-- END qa-c-item -->
+											</div> <!-- END qa-c-list -->
+											
+											<input type="hidden" name="code" value="0-1516467925-c548b75599a960e19d77521055f57bb6c700afcf">
+											<input type="hidden" name="qa_click" value="">
+										</form>
+										<div class="qa-c-form">
+										</div> <!-- END qa-c-form -->
+										
+									</div> <!-- END qa-a-item-main -->
+									<div class="qa-a-item-clear">
+									</div>
+								</div> <!-- END qa-a-list-item -->
+								
+								<div class="qa-a-list-item  hentry answer" id="a2432">
+									<form method="post" action="../../2392/diffusion-on-symmetric-problem-becomes-asymmetric">
+										<div class="qa-voting qa-voting-net" id="voting_2432">
+											<div class="qa-vote-count qa-vote-count-net">
+												<span class="qa-netvote-count">
+													<span class="qa-netvote-count-data">+3<span class="votes-up"><span class="value-title" title="3"></span></span><span class="votes-down"><span class="value-title" title="0"></span></span></span><span class="qa-netvote-count-pad"> votes</span>
+												</span>
+											</div>
+											<div class="qa-vote-clear">
+											</div>
+										</div>
+										<input type="hidden" name="code" value="0-1516467925-152284b1ab1ed3435358d048f1dedc7c0b8df4fd">
+									</form>
+									<div class="qa-a-item-main">
+										<form method="post" action="../../2392/diffusion-on-symmetric-problem-becomes-asymmetric">
+											<div class="qa-a-selection">
+											</div>
+											<div class="qa-a-item-content">
+												<a name="2432"></a><div class="entry-content"><p>Hi, apparently asymmetry is introduced into the system at some point. If you inspect your <em>c0</em></p>
+
+<pre><code>print c0.vector().array()
+</code></pre>
+
+<p>you will see that it is in fact not symmetric; the left domain has more ones then the right one. Instead of solving a problem to get <em>c0</em> I defined it as follows</p>
+
+<pre><code>c0 = interpolate(Expression("(x[0] &gt;= 0.4 - DOLFIN_EPS) &amp; (x[0] &lt;= 0.6 + DOLFIN_EPS) ? 0.0 : 1"), V)
+</code></pre>
+
+<p>The rest of the code remained the same and the solution is symmetric all the way to steady state at <em>T=1</em> or so. </p>
+</div>
+											</div>
+											<span class="qa-a-item-avatar-meta">
+												<span class="qa-a-item-avatar">
+													<a href="../../user/MiroK" class="qa-avatar-link"><img src="https://www.gravatar.com/avatar/f566be3274ec73e3a6dda27bca11631c?s=40" width="40" height="40" class="qa-avatar-image" alt=""></a>
+												</span>
+												<span class="qa-a-item-meta">
+													<a href="../../2392/diffusion-on-symmetric-problem-becomes-asymmetric?show=2432#a2432" class="qa-a-item-what">answered</a>
+													<span class="qa-a-item-when">
+														<span class="qa-a-item-when-data"><span class="published"><span class="value-title" title="2014-01-23T21:21:09+0000"></span>Jan 23, 2014</span></span>
+													</span>
+													<span class="qa-a-item-who">
+														<span class="qa-a-item-who-pad">by </span>
+														<span class="qa-a-item-who-data"><span class="vcard author"><a href="../../user/MiroK" class="qa-user-link url nickname">MiroK</a></span></span>
+														<span class="qa-a-item-who-title">FEniCS Expert</span>
+														<span class="qa-a-item-who-points">
+															<span class="qa-a-item-who-points-pad">(</span><span class="qa-a-item-who-points-data">80,920</span><span class="qa-a-item-who-points-pad"> points)</span>
+														</span>
+													</span>
+												</span>
+											</span>
+											<div class="qa-a-item-buttons">
+												</div>
+											
+											<div class="qa-a-item-c-list" style="display:none;" id="c2432_list">
+											</div> <!-- END qa-c-list -->
+											
+											<input type="hidden" name="code" value="0-1516467925-1392ff981c241f50196c821ebe9412d670aa9814">
+											<input type="hidden" name="qa_click" value="">
+										</form>
+										<div class="qa-c-form">
+										</div> <!-- END qa-c-form -->
+										
+									</div> <!-- END qa-a-item-main -->
+									<div class="qa-a-item-clear">
+									</div>
+								</div> <!-- END qa-a-list-item -->
+								
+							</div> <!-- END qa-a-list -->
+							
+						</div>
+					</div> <!-- END qa-main -->
+					
+				</div> <!-- END main-wrapper -->
+			</div> <!-- END main-shadow -->
+		</div> <!-- END body-wrapper -->
+		<!-- END footer-bottom-group -->
+		
+		<div style="position:absolute; left:-9999px; top:-9999px;">
+			<span id="qa-waiting-template" class="qa-waiting">...</span>
+		</div>
+	
+	
+
+</body><!-- Powered by Question2Answer - http://www.question2answer.org/ --></html>

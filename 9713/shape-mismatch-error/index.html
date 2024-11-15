@@ -1,0 +1,538 @@
+<html><!-- Powered by Question2Answer - http://www.question2answer.org/ --><head>
+		<meta http-equiv="content-type" content="text/html; charset=utf-8">
+		<title>Shape mismatch error - FEniCS Q&amp;A</title>
+		<meta name="description" content="Hi, I'm trying to solve the following system of equations on a 1D interval mesh: $$\frac{\partial A}{\ ...  dt print &quot;t=&quot;, t # Hold plot interactive()">
+		<meta name="keywords" content="error,shape-mismatch,coupled-equations">
+		<link rel="stylesheet" type="text/css" href="../../qa-theme/Snow/qa-styles.css">
+		<link rel="canonical" href="http://fenicsproject.org/qa/9713/shape-mismatch-error">
+		<script type="text/x-mathjax-config">
+  MathJax.Hub.Config({
+    extensions: ["tex2jax.js"],
+    jax: ["input/TeX","output/HTML-CSS"],
+    tex2jax: {inlineMath: [["$","$"],["\\(","\\)"]]},
+    TeX: { extensions: ["AMSmath.js","AMSsymbols.js"]}
+  });
+</script>
+<script type="text/javascript" src="../../mathjax/MathJax.js"></script>
+		<script src="../../jquery-1.7.2.min.js" type="text/javascript"></script>
+		<script src="../../highlight.min.js"></script>
+<script type="text/javascript">
+$(function(){
+	$('.wmd-input').keypress(function(){
+		window.clearTimeout(hljs.Timeout);
+		hljs.Timeout = window.setTimeout(function() {
+			hljs.initHighlighting.called = false;
+			hljs.initHighlighting();
+		}, 500);
+	});
+	window.setTimeout(function() {
+		hljs.initHighlighting.called = false;
+		hljs.initHighlighting();
+	}, 500);
+});
+</script>
+
+
+	</head>
+	<body class="qa-template-question qa-body-js-off">
+		<div class="qa-body-wrapper">
+			
+			<div class="qa-header">
+				<div class="qa-logo">
+					<a href="../../" class="qa-logo-link" title="FEniCS Q&amp;A"><img src="../../qa-theme/fenics_qa.png" border="0" alt="FEniCS Q&amp;A"></a>
+				</div>
+				<div class="qa-header-clear">
+				</div>
+			</div> <!-- END qa-header -->
+			
+			<div class="qa-main-shadow">
+				
+				<div class="qa-main-wrapper">
+					
+					<div class="qa-sidepanel">
+						<div class="qa-sidebar">
+							This is a read only copy of the old FEniCS QA forum. Please visit the <a href="https://www.allanswered.com/community/s/fenics-project/">new QA forum</a> to ask questions
+						</div>
+						
+					</div>
+					
+					<div class="qa-main">
+						<h1>
+							<span class="entry-title">Shape mismatch error</span>
+						</h1>
+						<div class="qa-part-q-view">
+							<div class="qa-q-view  hentry question" id="q9713">
+								<form method="post" action="../../9713/shape-mismatch-error">
+									<div class="qa-q-view-stats">
+										<div class="qa-voting qa-voting-net" id="voting_9713">
+											<div class="qa-vote-count qa-vote-count-net">
+												<span class="qa-netvote-count">
+													<span class="qa-netvote-count-data">0<span class="votes-up"><span class="value-title" title="0"></span></span><span class="votes-down"><span class="value-title" title="0"></span></span></span><span class="qa-netvote-count-pad"> votes</span>
+												</span>
+											</div>
+											<div class="qa-vote-clear">
+											</div>
+										</div>
+									</div>
+									<input type="hidden" name="code" value="0-1516468234-cbf95742d43a5cb1e8e526f7d98e4c56288ee009">
+								</form>
+								<div class="qa-q-view-main">
+									<form method="post" action="../../9713/shape-mismatch-error">
+										<div class="qa-q-view-content">
+											<a name="9713"></a><div class="entry-content"><p>Hi, <br>
+I'm trying to solve the following system of equations on a 1D interval mesh:</p>
+
+<p>$$\frac{\partial A}{\partial t} + \nabla \left( A u \right) = 0$$<br>
+$$\frac{\partial u}{\partial t} + \frac{\beta}{2 \rho \sqrt{A}} \nabla A + u \nabla u = - \frac{8 \pi \mu}{\rho} \frac{u}{A}$$</p>
+
+<p>The equations describe the time evolution of the cross-sectional area of an artery and blood velocity u within that artery. I've gathered from the tutorial examples that a useful approach for solving a highly coupled system like this is the use of two test functions v and q. I use v as the test function for the first equation and q as the test function for the second equation and then add both equations so that I am only left with a single equation (see code below). As I implement a(u, A, v, q) I run into a shape mismatch error, which occurs on the term <code>dt*beta/(2*rho)*inner(a**-0.5*grad(a), q)*dx</code>. How do I resolve this error? </p>
+
+<pre><code># Set up simulation parameters
+l = 20.0
+a0 = 1.0
+beta = 22967.4
+c0 = 357.14
+mu = 3.5e-3
+rho = 1060.0
+
+nx = 100
+dx = l/nx
+dt = 0.5*dx/c0
+T = 0.06
+nt = int(T/dt)
+nu = 3.5e-3
+
+
+# Create 1d line mesh
+mesh = IntervalMesh(nx, 0.0, l)
+
+# Define function spaces (P2-P1)
+V = FunctionSpace(mesh, "DG", 1)
+Q = FunctionSpace(mesh, "DG", 1)
+W = MixedFunctionSpace([V, Q])
+
+# Define trial and test functions for velocity and area
+(u, a) = TrialFunctions(W)
+(v, q) = TestFunctions(W)
+
+# Define boundary conditions
+p_in = 1.0
+p_out = 0.0
+a_in = A0 / (1 - p_in/(2*rho*c0**2))**2
+a_out = A0 / (1 - p_out/(2*rho*c0**2))**2
+L = Constant(l)
+inflow  = DirichletBC(W.sub(1), Constant(a_in), 
+                      "on_boundary &amp;&amp; near(x[0], 0.0)")
+outflow = DirichletBC(W.sub(1), Constant(a_out), 
+                      "on_boundary &amp;&amp; near(x[0], 1.0)")
+bcs = [inflow, outflow]
+
+u_0 = Function(W)
+a_0 = Function(W)
+
+a = inner(a, v)*dx + dt*inner(u*grad(a), v)*dx + dt*inner(a*grad(u), v)*dx +\
+    inner(u, q)*dx + dt*beta/(2*rho)*inner(a**-0.5*grad(a), q)*dx +\
+    dt*inner(u*grad(u), q)*dx
+L = inner(a_0, v)*dx + inner(u_0, q)*dx -\
+    8*np.pi*mu*dt/rho*inner(u/a, q)*dx
+A = assemble(a)
+
+# Use amg preconditioner if available
+prec = "amg" if has_krylov_solver_preconditioner("amg") else "default"
+
+# Use nonzero guesses - essential for CG with non-symmetric BC
+parameters['krylov_solver']['nonzero_initial_guess'] = True
+
+t = dt
+while t &lt; T + DOLFIN_EPS:
+    b = assemble(L)
+    [bc.apply(A, b) for bc in bcs]
+    solve(A, (u_0.vector(), a_0.vector()), b, "bicgstab", "default")
+
+    plot(u_0, title="velocity", rescale=True)
+    plot(a_0, title="area", rescale=True)    
+
+    t += dt
+    print "t=", t
+
+# Hold plot
+interactive()
+</code></pre>
+</div>
+										</div>
+										<div class="qa-q-view-tags">
+											<ul class="qa-q-view-tag-list">
+												<li class="qa-q-view-tag-item"><a href="../../tag/error" rel="tag" class="qa-tag-link">error</a></li>
+												<li class="qa-q-view-tag-item"><a href="../../tag/shape-mismatch" rel="tag" class="qa-tag-link">shape-mismatch</a></li>
+												<li class="qa-q-view-tag-item"><a href="../../tag/coupled-equations" rel="tag" class="qa-tag-link">coupled-equations</a></li>
+											</ul>
+										</div>
+										<span class="qa-q-view-avatar-meta">
+											<span class="qa-q-view-avatar">
+												<a href="../../user/akdiem" class="qa-avatar-link"><img src="https://www.gravatar.com/avatar/77641b837c2106025d289db57855f4f0?s=50" width="50" height="50" class="qa-avatar-image" alt=""></a>
+											</span>
+											<span class="qa-q-view-meta">
+												<a href="../../9713/shape-mismatch-error" class="qa-q-view-what">asked</a>
+												<span class="qa-q-view-when">
+													<span class="qa-q-view-when-data"><span class="published"><span class="value-title" title="2016-03-30T14:39:27+0000"></span>Mar 30, 2016</span></span>
+												</span>
+												<span class="qa-q-view-who">
+													<span class="qa-q-view-who-pad">by </span>
+													<span class="qa-q-view-who-data"><span class="vcard author"><a href="../../user/akdiem" class="qa-user-link url nickname">akdiem</a></span></span>
+													<span class="qa-q-view-who-title">FEniCS Novice</span>
+													<span class="qa-q-view-who-points">
+														<span class="qa-q-view-who-points-pad">(</span><span class="qa-q-view-who-points-data">150</span><span class="qa-q-view-who-points-pad"> points)</span>
+													</span>
+												</span>
+											</span>
+										</span>
+										<div class="qa-q-view-buttons">
+										</div>
+										
+										<div class="qa-q-view-c-list" id="c9713_list">
+											<div class="qa-c-list-item  hentry comment" id="c9714">
+												<div class="qa-c-item-content">
+													<a name="9714"></a><div class="entry-content"><p>Can you explain the term: a**-0.5*grad(a)?</p>
+</div>
+												</div>
+												<div class="qa-c-item-footer">
+													<span class="qa-c-item-avatar-meta">
+														<span class="qa-c-item-meta">
+															<a href="../../9713/shape-mismatch-error?show=9714#c9714" class="qa-c-item-what">commented</a>
+															<span class="qa-c-item-when">
+																<span class="qa-c-item-when-data"><span class="published"><span class="value-title" title="2016-03-30T18:43:33+0000"></span>Mar 30, 2016</span></span>
+															</span>
+															<span class="qa-c-item-who">
+																<span class="qa-c-item-who-pad">by </span>
+																<span class="qa-c-item-who-data"><span class="vcard author"><a href="../../user/str" class="qa-user-link url nickname">str</a></span></span>
+																<span class="qa-c-item-who-title">FEniCS User</span>
+																<span class="qa-c-item-who-points">
+																	<span class="qa-c-item-who-points-pad">(</span><span class="qa-c-item-who-points-data">1,600</span><span class="qa-c-item-who-points-pad"> points)</span>
+																</span>
+															</span>
+														</span>
+													</span>
+													<div class="qa-c-item-buttons">
+													</div>
+												</div>
+												<div class="qa-c-item-clear">
+												</div>
+											</div> <!-- END qa-c-item -->
+											<div class="qa-c-list-item  hentry comment" id="c9719">
+												<div class="qa-c-item-content">
+													<a name="9719"></a><div class="entry-content"><p>Hi,<br>
+sorry, I thought it was obvious from the equations and the code. It's the variational form of the term $$\frac{\beta}{2 \rho} \frac{\nabla A}{\sqrt{A}}$$ in the second equation, where the TrialFunction a in the code is the variable A in the equation.</p>
+</div>
+												</div>
+												<div class="qa-c-item-footer">
+													<span class="qa-c-item-avatar-meta">
+														<span class="qa-c-item-avatar">
+															<a href="../../user/akdiem" class="qa-avatar-link"><img src="https://www.gravatar.com/avatar/77641b837c2106025d289db57855f4f0?s=20" width="20" height="20" class="qa-avatar-image" alt=""></a>
+														</span>
+														<span class="qa-c-item-meta">
+															<a href="../../9713/shape-mismatch-error?show=9719#c9719" class="qa-c-item-what">commented</a>
+															<span class="qa-c-item-when">
+																<span class="qa-c-item-when-data"><span class="published"><span class="value-title" title="2016-03-31T08:14:17+0000"></span>Mar 31, 2016</span></span>
+															</span>
+															<span class="qa-c-item-who">
+																<span class="qa-c-item-who-pad">by </span>
+																<span class="qa-c-item-who-data"><span class="vcard author"><a href="../../user/akdiem" class="qa-user-link url nickname">akdiem</a></span></span>
+																<span class="qa-c-item-who-title">FEniCS Novice</span>
+																<span class="qa-c-item-who-points">
+																	<span class="qa-c-item-who-points-pad">(</span><span class="qa-c-item-who-points-data">150</span><span class="qa-c-item-who-points-pad"> points)</span>
+																</span>
+															</span>
+														</span>
+													</span>
+													<div class="qa-c-item-buttons">
+													</div>
+												</div>
+												<div class="qa-c-item-clear">
+												</div>
+											</div> <!-- END qa-c-item -->
+										</div> <!-- END qa-c-list -->
+										
+										<input type="hidden" name="code" value="0-1516468234-0899fcb8629183d31cfda67cd77f00b126467392">
+										<input type="hidden" name="qa_click" value="">
+									</form>
+									<div class="qa-c-form">
+									</div> <!-- END qa-c-form -->
+									
+								</div> <!-- END qa-q-view-main -->
+								<div class="qa-q-view-clear">
+								</div>
+							</div> <!-- END qa-q-view -->
+							
+						</div>
+						<div class="qa-part-a-list">
+							<h2 id="a_list_title">2 Answers</h2>
+							<div class="qa-a-list" id="a_list">
+								
+								<div class="qa-a-list-item  hentry answer" id="a9721">
+									<form method="post" action="../../9713/shape-mismatch-error">
+										<div class="qa-voting qa-voting-net" id="voting_9721">
+											<div class="qa-vote-count qa-vote-count-net">
+												<span class="qa-netvote-count">
+													<span class="qa-netvote-count-data">0<span class="votes-up"><span class="value-title" title="0"></span></span><span class="votes-down"><span class="value-title" title="0"></span></span></span><span class="qa-netvote-count-pad"> votes</span>
+												</span>
+											</div>
+											<div class="qa-vote-clear">
+											</div>
+										</div>
+										<input type="hidden" name="code" value="0-1516468234-cbf95742d43a5cb1e8e526f7d98e4c56288ee009">
+									</form>
+									<div class="qa-a-item-main">
+										<form method="post" action="../../9713/shape-mismatch-error">
+											<div class="qa-a-selection">
+											</div>
+											<div class="qa-a-item-content">
+												<a name="9721"></a><div class="entry-content"><p>Since u and q are vectors, you need a vector functionspace and I think in this problem you don't need to use discontinuous elements so: use Q = VectorFunctionSpace(mesh, "CG", 1).</p>
+
+<p>The weak formulation also has some issues. The weak form of the first equation is:</p>
+
+<pre><code> inner(a, v)*dx + dt*inner(grad(a*u),v)*dx 
+</code></pre>
+
+<p>or if you want to integrate by parts then:</p>
+
+<pre><code> inner(a, v)*dx + dt*inner(a*u,grad(v))*dx - (boundary terms)
+</code></pre>
+</div>
+											</div>
+											<span class="qa-a-item-avatar-meta">
+												<span class="qa-a-item-meta">
+													<a href="../../9713/shape-mismatch-error?show=9721#a9721" class="qa-a-item-what">answered</a>
+													<span class="qa-a-item-when">
+														<span class="qa-a-item-when-data"><span class="published"><span class="value-title" title="2016-03-31T10:36:12+0000"></span>Mar 31, 2016</span></span>
+													</span>
+													<span class="qa-a-item-who">
+														<span class="qa-a-item-who-pad">by </span>
+														<span class="qa-a-item-who-data"><span class="vcard author"><a href="../../user/str" class="qa-user-link url nickname">str</a></span></span>
+														<span class="qa-a-item-who-title">FEniCS User</span>
+														<span class="qa-a-item-who-points">
+															<span class="qa-a-item-who-points-pad">(</span><span class="qa-a-item-who-points-data">1,600</span><span class="qa-a-item-who-points-pad"> points)</span>
+														</span>
+													</span>
+												</span>
+											</span>
+											<div class="qa-a-item-buttons">
+												</div>
+											
+											<div class="qa-a-item-c-list" id="c9721_list">
+												<div class="qa-c-list-item  hentry comment" id="c9733">
+													<div class="qa-c-item-content">
+														<a name="9733"></a><div class="entry-content"><p>Thank you for your suggestions! I have made the changes you suggested, ie have corrected the weak form of the first equation to </p>
+
+<pre><code>inner(a, v)*dx + dt*inner(grad(a*u), v)*dx
+</code></pre>
+
+<p>and have changed my function spaces</p>
+
+<pre><code>V = VectorFunctionSpace(mesh, "CG", 1)
+Q = FunctionSpace(mesh, "CG", 1)
+W = MixedFunctionSpace([V, Q])
+</code></pre>
+
+<p>But I still get the same shape mismatch error on the same line. </p>
+</div>
+													</div>
+													<div class="qa-c-item-footer">
+														<span class="qa-c-item-avatar-meta">
+															<span class="qa-c-item-avatar">
+																<a href="../../user/akdiem" class="qa-avatar-link"><img src="https://www.gravatar.com/avatar/77641b837c2106025d289db57855f4f0?s=20" width="20" height="20" class="qa-avatar-image" alt=""></a>
+															</span>
+															<span class="qa-c-item-meta">
+																<a href="../../9713/shape-mismatch-error?show=9733#c9733" class="qa-c-item-what">commented</a>
+																<span class="qa-c-item-when">
+																	<span class="qa-c-item-when-data"><span class="published"><span class="value-title" title="2016-03-31T12:58:48+0000"></span>Mar 31, 2016</span></span>
+																</span>
+																<span class="qa-c-item-who">
+																	<span class="qa-c-item-who-pad">by </span>
+																	<span class="qa-c-item-who-data"><span class="vcard author"><a href="../../user/akdiem" class="qa-user-link url nickname">akdiem</a></span></span>
+																	<span class="qa-c-item-who-title">FEniCS Novice</span>
+																	<span class="qa-c-item-who-points">
+																		<span class="qa-c-item-who-points-pad">(</span><span class="qa-c-item-who-points-data">150</span><span class="qa-c-item-who-points-pad"> points)</span>
+																	</span>
+																</span>
+															</span>
+														</span>
+														<div class="qa-c-item-buttons">
+														</div>
+													</div>
+													<div class="qa-c-item-clear">
+													</div>
+												</div> <!-- END qa-c-item -->
+												<div class="qa-c-list-item  hentry comment" id="c9745">
+													<div class="qa-c-item-content">
+														<a name="9745"></a><div class="entry-content"><p>Are you sure, that the problem is in same line? If I run your code I get an error related to the boundary conditions.</p>
+</div>
+													</div>
+													<div class="qa-c-item-footer">
+														<span class="qa-c-item-avatar-meta">
+															<span class="qa-c-item-meta">
+																<a href="../../9713/shape-mismatch-error?show=9745#c9745" class="qa-c-item-what">commented</a>
+																<span class="qa-c-item-when">
+																	<span class="qa-c-item-when-data"><span class="published"><span class="value-title" title="2016-04-01T22:37:44+0000"></span>Apr 2, 2016</span></span>
+																</span>
+																<span class="qa-c-item-who">
+																	<span class="qa-c-item-who-pad">by </span>
+																	<span class="qa-c-item-who-data"><span class="vcard author"><a href="../../user/str" class="qa-user-link url nickname">str</a></span></span>
+																	<span class="qa-c-item-who-title">FEniCS User</span>
+																	<span class="qa-c-item-who-points">
+																		<span class="qa-c-item-who-points-pad">(</span><span class="qa-c-item-who-points-data">1,600</span><span class="qa-c-item-who-points-pad"> points)</span>
+																	</span>
+																</span>
+															</span>
+														</span>
+														<div class="qa-c-item-buttons">
+														</div>
+													</div>
+													<div class="qa-c-item-clear">
+													</div>
+												</div> <!-- END qa-c-item -->
+												<div class="qa-c-list-item  hentry comment" id="c9747">
+													<div class="qa-c-item-content">
+														<a name="9747"></a><div class="entry-content"><p>I can reproduce the boundary condition error if I define both V and Q as a VectorFunctionSpace, but thinking about it, shouldn't they both be FunctionSpace as I'm working in 1D.</p>
+</div>
+													</div>
+													<div class="qa-c-item-footer">
+														<span class="qa-c-item-avatar-meta">
+															<span class="qa-c-item-avatar">
+																<a href="../../user/akdiem" class="qa-avatar-link"><img src="https://www.gravatar.com/avatar/77641b837c2106025d289db57855f4f0?s=20" width="20" height="20" class="qa-avatar-image" alt=""></a>
+															</span>
+															<span class="qa-c-item-meta">
+																<a href="../../9713/shape-mismatch-error?show=9747#c9747" class="qa-c-item-what">commented</a>
+																<span class="qa-c-item-when">
+																	<span class="qa-c-item-when-data"><span class="published"><span class="value-title" title="2016-04-04T09:46:19+0000"></span>Apr 4, 2016</span></span>
+																</span>
+																<span class="qa-c-item-who">
+																	<span class="qa-c-item-who-pad">by </span>
+																	<span class="qa-c-item-who-data"><span class="vcard author"><a href="../../user/akdiem" class="qa-user-link url nickname">akdiem</a></span></span>
+																	<span class="qa-c-item-who-title">FEniCS Novice</span>
+																	<span class="qa-c-item-who-points">
+																		<span class="qa-c-item-who-points-pad">(</span><span class="qa-c-item-who-points-data">150</span><span class="qa-c-item-who-points-pad"> points)</span>
+																	</span>
+																</span>
+															</span>
+														</span>
+														<div class="qa-c-item-buttons">
+														</div>
+													</div>
+													<div class="qa-c-item-clear">
+													</div>
+												</div> <!-- END qa-c-item -->
+												<div class="qa-c-list-item  hentry comment" id="c9748">
+													<div class="qa-c-item-content">
+														<a name="9748"></a><div class="entry-content"><p>In my understanding velocity is a vector even in 1D (it has magnitude and direction).</p>
+</div>
+													</div>
+													<div class="qa-c-item-footer">
+														<span class="qa-c-item-avatar-meta">
+															<span class="qa-c-item-meta">
+																<a href="../../9713/shape-mismatch-error?show=9748#c9748" class="qa-c-item-what">commented</a>
+																<span class="qa-c-item-when">
+																	<span class="qa-c-item-when-data"><span class="published"><span class="value-title" title="2016-04-04T10:02:53+0000"></span>Apr 4, 2016</span></span>
+																</span>
+																<span class="qa-c-item-who">
+																	<span class="qa-c-item-who-pad">by </span>
+																	<span class="qa-c-item-who-data"><span class="vcard author"><a href="../../user/str" class="qa-user-link url nickname">str</a></span></span>
+																	<span class="qa-c-item-who-title">FEniCS User</span>
+																	<span class="qa-c-item-who-points">
+																		<span class="qa-c-item-who-points-pad">(</span><span class="qa-c-item-who-points-data">1,600</span><span class="qa-c-item-who-points-pad"> points)</span>
+																	</span>
+																</span>
+															</span>
+														</span>
+														<div class="qa-c-item-buttons">
+														</div>
+													</div>
+													<div class="qa-c-item-clear">
+													</div>
+												</div> <!-- END qa-c-item -->
+											</div> <!-- END qa-c-list -->
+											
+											<input type="hidden" name="code" value="0-1516468234-4c18af7338418855f5fe01b938e925c0c80faa09">
+											<input type="hidden" name="qa_click" value="">
+										</form>
+										<div class="qa-c-form">
+										</div> <!-- END qa-c-form -->
+										
+									</div> <!-- END qa-a-item-main -->
+									<div class="qa-a-item-clear">
+									</div>
+								</div> <!-- END qa-a-list-item -->
+								
+								<div class="qa-a-list-item  hentry answer" id="a9750">
+									<form method="post" action="../../9713/shape-mismatch-error">
+										<div class="qa-voting qa-voting-net" id="voting_9750">
+											<div class="qa-vote-count qa-vote-count-net">
+												<span class="qa-netvote-count">
+													<span class="qa-netvote-count-data">0<span class="votes-up"><span class="value-title" title="0"></span></span><span class="votes-down"><span class="value-title" title="0"></span></span></span><span class="qa-netvote-count-pad"> votes</span>
+												</span>
+											</div>
+											<div class="qa-vote-clear">
+											</div>
+										</div>
+										<input type="hidden" name="code" value="0-1516468234-cbf95742d43a5cb1e8e526f7d98e4c56288ee009">
+									</form>
+									<div class="qa-a-item-main">
+										<form method="post" action="../../9713/shape-mismatch-error">
+											<div class="qa-a-selection">
+											</div>
+											<div class="qa-a-item-content">
+												<a name="9750"></a><div class="entry-content"><p>You are redefining a from being a trial function to a trial test function product. Furthermore,  last I checked, one should not use trial functions for solving non-linear problems.</p>
+</div>
+											</div>
+											<span class="qa-a-item-avatar-meta">
+												<span class="qa-a-item-avatar">
+													<a href="../../user/KristianE" class="qa-avatar-link"><img src="https://www.gravatar.com/avatar/8e8c30d82e263e44bd8fe50055a60421?s=40" width="40" height="40" class="qa-avatar-image" alt=""></a>
+												</span>
+												<span class="qa-a-item-meta">
+													<a href="../../9713/shape-mismatch-error?show=9750#a9750" class="qa-a-item-what">answered</a>
+													<span class="qa-a-item-when">
+														<span class="qa-a-item-when-data"><span class="published"><span class="value-title" title="2016-04-04T12:01:05+0000"></span>Apr 4, 2016</span></span>
+													</span>
+													<span class="qa-a-item-who">
+														<span class="qa-a-item-who-pad">by </span>
+														<span class="qa-a-item-who-data"><span class="vcard author"><a href="../../user/KristianE" class="qa-user-link url nickname">KristianE</a></span></span>
+														<span class="qa-a-item-who-title">FEniCS Expert</span>
+														<span class="qa-a-item-who-points">
+															<span class="qa-a-item-who-points-pad">(</span><span class="qa-a-item-who-points-data">12,900</span><span class="qa-a-item-who-points-pad"> points)</span>
+														</span>
+													</span>
+												</span>
+											</span>
+											<div class="qa-a-item-buttons">
+												</div>
+											
+											<div class="qa-a-item-c-list" style="display:none;" id="c9750_list">
+											</div> <!-- END qa-c-list -->
+											
+											<input type="hidden" name="code" value="0-1516468234-f6712b36212a217019bcab273706e7d8ea8c4d07">
+											<input type="hidden" name="qa_click" value="">
+										</form>
+										<div class="qa-c-form">
+										</div> <!-- END qa-c-form -->
+										
+									</div> <!-- END qa-a-item-main -->
+									<div class="qa-a-item-clear">
+									</div>
+								</div> <!-- END qa-a-list-item -->
+								
+							</div> <!-- END qa-a-list -->
+							
+						</div>
+					</div> <!-- END qa-main -->
+					
+				</div> <!-- END main-wrapper -->
+			</div> <!-- END main-shadow -->
+		</div> <!-- END body-wrapper -->
+		<!-- END footer-bottom-group -->
+		
+		<div style="position:absolute; left:-9999px; top:-9999px;">
+			<span id="qa-waiting-template" class="qa-waiting">...</span>
+		</div>
+	
+	
+
+</body><!-- Powered by Question2Answer - http://www.question2answer.org/ --></html>

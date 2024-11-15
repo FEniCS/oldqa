@@ -1,0 +1,670 @@
+<html><!-- Powered by Question2Answer - http://www.question2answer.org/ --><head>
+		<meta http-equiv="content-type" content="text/html; charset=utf-8">
+		<title>Defining Lagrange's multiplier field ONLY on boundaries - FEniCS Q&amp;A</title>
+		<meta name="description" content='Hello! My question is close related with the topic http://scicomp.stackexchange.com/questions/7204/ ... True) file = File("Temperature.pvd") file'>
+		<meta name="keywords" content="boundary-conditions,subdomain">
+		<link rel="stylesheet" type="text/css" href="../../qa-theme/Snow/qa-styles.css">
+		<link rel="canonical" href="http://fenicsproject.org/qa/663/defining-lagranges-multiplier-field-only-on-boundaries">
+		<script type="text/x-mathjax-config">
+  MathJax.Hub.Config({
+    extensions: ["tex2jax.js"],
+    jax: ["input/TeX","output/HTML-CSS"],
+    tex2jax: {inlineMath: [["$","$"],["\\(","\\)"]]},
+    TeX: { extensions: ["AMSmath.js","AMSsymbols.js"]}
+  });
+</script>
+<script type="text/javascript" src="../../mathjax/MathJax.js"></script>
+		<script src="../../jquery-1.7.2.min.js" type="text/javascript"></script>
+		<script src="../../highlight.min.js"></script>
+<script type="text/javascript">
+$(function(){
+	$('.wmd-input').keypress(function(){
+		window.clearTimeout(hljs.Timeout);
+		hljs.Timeout = window.setTimeout(function() {
+			hljs.initHighlighting.called = false;
+			hljs.initHighlighting();
+		}, 500);
+	});
+	window.setTimeout(function() {
+		hljs.initHighlighting.called = false;
+		hljs.initHighlighting();
+	}, 500);
+});
+</script>
+
+
+	</head>
+	<body class="qa-template-question qa-body-js-off">
+		<div class="qa-body-wrapper">
+			
+			<div class="qa-header">
+				<div class="qa-logo">
+					<a href="../../" class="qa-logo-link" title="FEniCS Q&amp;A"><img src="../../qa-theme/fenics_qa.png" border="0" alt="FEniCS Q&amp;A"></a>
+				</div>
+				<div class="qa-header-clear">
+				</div>
+			</div> <!-- END qa-header -->
+			
+			<div class="qa-main-shadow">
+				
+				<div class="qa-main-wrapper">
+					
+					<div class="qa-sidepanel">
+						<div class="qa-sidebar">
+							This is a read only copy of the old FEniCS QA forum. Please visit the <a href="https://www.allanswered.com/community/s/fenics-project/">new QA forum</a> to ask questions
+						</div>
+						
+					</div>
+					
+					<div class="qa-main">
+						<h1>
+							<span class="entry-title">Defining Lagrange's multiplier field ONLY on boundaries</span>
+						</h1>
+						<div class="qa-part-q-view">
+							<div class="qa-q-view  hentry question" id="q663">
+								<form method="post" action="../../663/defining-lagranges-multiplier-field-only-on-boundaries">
+									<div class="qa-q-view-stats">
+										<div class="qa-voting qa-voting-net" id="voting_663">
+											<div class="qa-vote-count qa-vote-count-net">
+												<span class="qa-netvote-count">
+													<span class="qa-netvote-count-data">+2<span class="votes-up"><span class="value-title" title="2"></span></span><span class="votes-down"><span class="value-title" title="0"></span></span></span><span class="qa-netvote-count-pad"> votes</span>
+												</span>
+											</div>
+											<div class="qa-vote-clear">
+											</div>
+										</div>
+									</div>
+									<input type="hidden" name="code" value="0-1516468079-93ebd5f88e189be25caceac8a06a28438a7337dd">
+								</form>
+								<div class="qa-q-view-main">
+									<form method="post" action="../../663/defining-lagranges-multiplier-field-only-on-boundaries">
+										<div class="qa-q-view-content">
+											<a name="663"></a><div class="entry-content"><p>Hello!</p>
+
+<p>My question is close related with the topic</p>
+
+<p><a rel="nofollow" href="http://scicomp.stackexchange.com/questions/7204/poisson-equation-impose-full-gradient-as-boundary-condition-via-lagrange-multip">http://scicomp.stackexchange.com/questions/7204/poisson-equation-impose-full-gradient-as-boundary-condition-via-lagrange-multip</a></p>
+
+<p>which was discussed in another forum. Shortly, I need to impose a general non-linear boundary condition (given as a restriction R(u) = 0) on certain boundary and the best way is to define a Lagrange multiplier field (lm) on the boundary. As a test, I supose my restriction is a simple Dirichlet bc "u = u_bot"  =&gt; "R(u) = u - u_bot" on a specific booundary. My implementation of the problem is the following:</p>
+
+<pre><code>from dolfin import *
+import numpy
+set_log_level(ERROR)
+
+#-------------- Preprocessing step -----------------
+
+# Create mesh and define function space
+mesh = UnitSquareMesh(10, 10)
+
+V = FunctionSpace(mesh, 'Lagrange', 1)
+#print V.print_dofmap()
+
+# Define boundary segments for the boundary condition via Lagrange multiplier
+
+# Create mesh function over cell facets
+boundary_parts = MeshFunction("size_t", mesh, mesh.topology().dim()-1)
+
+# Mark upper boundary facets as subdomain 0
+class UpperBoundary(SubDomain):
+    def inside(self, x, on_boundary):
+        tol = 1E-14   # tolerance for coordinate comparisons
+        return on_boundary and abs(x[1] - 1) &lt; tol
+
+Gamma_Up = UpperBoundary()
+Gamma_Up.mark(boundary_parts, 0)
+
+
+# Mark lower boundary facets as subdomain 1
+class LowerBoundary(SubDomain):
+    def inside(self, x, on_boundary):
+        tol = 1E-14   # tolerance for coordinate comparisons
+        return on_boundary and abs(x[1]) &lt; tol
+    def map(self, x, y):
+    y = x
+
+Gamma_Low = LowerBoundary()
+Gamma_Low.mark(boundary_parts, 1)
+
+# Create function space over Lower boundary edges???
+V_lm = FunctionSpace(mesh, 'Lagrange', 1, constrained_domain = Gamma_Low)
+#print V_lm.print_dofmap()
+
+#Mixed finite element space
+W = V * V_lm
+print W
+
+
+#-------------- Solution and problem definition step -----------------
+# given mesh and boundary_parts
+
+u_up = Constant(373.15)
+bcs = [DirichletBC(W.sub(0), u_up, Gamma_Up)]
+
+# Define variational problem
+f_e = Expression("1000")
+u_bot = Expression("273.15")
+#expression = -inner(grad(u), grad(v))*dx - v*f_e*dx - v*f_e*ds
+(u , lm)  = TrialFunctions(W)
+(v, v_lm) = TestFunctions(W)
+expression = -inner(grad(u), grad(v))*dx + (lm*v + v_lm*(u-u_bot))*ds(1) - v*f_e*dx
+
+a = lhs(expression)
+L = rhs(expression)
+
+
+# Compute solution
+A = assemble(a, exterior_facet_domains=boundary_parts)
+b = assemble(L, exterior_facet_domains=boundary_parts)
+for bc in bcs: bc.apply(A, b)
+
+U = Function(W)
+solve(A, U.vector(), b, 'lu')
+u, lm = U.split()
+
+#Plotting
+plot(u,interactive=True)
+plot(lm,interactive=True)
+
+file = File("Temperature.pvd")
+file &lt;&lt; u  
+</code></pre>
+
+<p>For the formulation works, "lm" and its test functions "v_lm" must be defined only on the boundary ds(1). That its, "lm" must have a DofMap restricted only to the mesh nodes lying on the boundary "1". This problem run cleanly for coarse meshes (7x7) but for finer the solution is "nan" (see the file after run). I suspect that the system is singular, because the DofMap for "lm" is actually not restricted to the specified boundary; as result, the formulation is giving zero rows in the system matrix  because there is nothing to assembly in the interior nodes for the variable "lm". </p>
+
+<p>So, my questions are: </p>
+
+<ul>
+<li>Am I doing a right definition of the "constrained_domain" space for the Lagrange Multipliers field? I use a identity mapping  "x = y" in the class LowerBoundary, because I do not wish to do any special mapping with the boundary.</li>
+<li>There is another way to define a Lagrange multiplier field restricted only to a specific boundary of the domain?</li>
+</ul>
+
+<p>Thanks!</p>
+
+<p>Diego</p>
+</div>
+										</div>
+										<div class="qa-q-view-tags">
+											<ul class="qa-q-view-tag-list">
+												<li class="qa-q-view-tag-item"><a href="../../tag/boundary-conditions" rel="tag" class="qa-tag-link">boundary-conditions</a></li>
+												<li class="qa-q-view-tag-item"><a href="../../tag/subdomain" rel="tag" class="qa-tag-link">subdomain</a></li>
+											</ul>
+										</div>
+										<span class="qa-q-view-avatar-meta">
+											<span class="qa-q-view-meta">
+												<a href="../../663/defining-lagranges-multiplier-field-only-on-boundaries" class="qa-q-view-what">asked</a>
+												<span class="qa-q-view-when">
+													<span class="qa-q-view-when-data"><span class="published"><span class="value-title" title="2013-07-22T16:38:35+0000"></span>Jul 22, 2013</span></span>
+												</span>
+												<span class="qa-q-view-who">
+													<span class="qa-q-view-who-pad">by </span>
+													<span class="qa-q-view-who-data"><span class="vcard author"><a href="../../user/DiegoM" class="qa-user-link url nickname">DiegoM</a></span></span>
+													<span class="qa-q-view-who-title">FEniCS Novice</span>
+													<span class="qa-q-view-who-points">
+														<span class="qa-q-view-who-points-pad">(</span><span class="qa-q-view-who-points-data">330</span><span class="qa-q-view-who-points-pad"> points)</span>
+													</span>
+												</span>
+											</span>
+										</span>
+										<div class="qa-q-view-buttons">
+										</div>
+										
+										<div class="qa-q-view-c-list" id="c663_list">
+											<div class="qa-c-list-item  hentry comment" id="c667">
+												<div class="qa-c-item-content">
+													<a name="667"></a><div class="entry-content"><p>What is the application? I have been looking for PDEs with nonlinear BCs for quite some time. See this <a rel="nofollow" href="http://scicomp.stackexchange.com/questions/7103/example-of-a-pde-model-with-nonlinear-dirichlet-boundary-conditions">post</a>...</p>
+</div>
+												</div>
+												<div class="qa-c-item-footer">
+													<span class="qa-c-item-avatar-meta">
+														<span class="qa-c-item-avatar">
+															<a href="../../user/Jan" class="qa-avatar-link"><img src="https://www.gravatar.com/avatar/c71e1343e533ab01bcce8649718574fa?s=20" width="20" height="20" class="qa-avatar-image" alt=""></a>
+														</span>
+														<span class="qa-c-item-meta">
+															<a href="../../663/defining-lagranges-multiplier-field-only-on-boundaries?show=667#c667" class="qa-c-item-what">commented</a>
+															<span class="qa-c-item-when">
+																<span class="qa-c-item-when-data"><span class="published"><span class="value-title" title="2013-07-22T19:36:33+0000"></span>Jul 22, 2013</span></span>
+															</span>
+															<span class="qa-c-item-who">
+																<span class="qa-c-item-who-pad">by </span>
+																<span class="qa-c-item-who-data"><span class="vcard author"><a href="../../user/Jan" class="qa-user-link url nickname">Jan</a></span></span>
+																<span class="qa-c-item-who-title">FEniCS User</span>
+																<span class="qa-c-item-who-points">
+																	<span class="qa-c-item-who-points-pad">(</span><span class="qa-c-item-who-points-data">8,290</span><span class="qa-c-item-who-points-pad"> points)</span>
+																</span>
+															</span>
+														</span>
+													</span>
+													<div class="qa-c-item-buttons">
+													</div>
+												</div>
+												<div class="qa-c-item-clear">
+												</div>
+											</div> <!-- END qa-c-item -->
+											<div class="qa-c-list-item  hentry comment" id="c678">
+												<div class="qa-c-item-content">
+													<a name="678"></a><div class="entry-content"><p>Thanks Jan for your answer.</p>
+
+<p>I am actually doing simulations of fluid flow in presence of free surfaces (interfacial flows). Then, I have to take account of the evolution of the free surface and adapt the domain and mesh accordingly. My approach is to solve the problem in a fully coupled and implicit way: inside a Newton's step, I update simultaneously all the variables: velocity, pressure, nodal positions, surfactant concentration (if present), etc.</p>
+
+<p>The Lagrange's multiplier approach is very interesting because it allow to impose strong non-linear boundary conditions, as for example kinematic type conditions at interfaces, were the normal nodal velocities must equal the fluid velocity: dot(v-dxdt, n) = 0<br>
+Another similar example is the impermeability condition at solid walls, which implies that the normal fluid velocity is null: dot(v,n) = 0. This condition can be tricky to apply on boundaries which normal n does not coincides with some of the coordinates.</p>
+
+<p>Using a Lagrange multiplier we impose the boundary condition by controlling the normal flux of the property, in such a way to get the desired values on the boundary. Then, it is similar to impose a Robin-type condition as is discussed in the post you cite.</p>
+
+<p>In the example I posted, the Lagrange multiplier "lm" represents the heat flux normal to the boundary, which is adjusted  by the restriction "R = u - u_bot". In my applications, the Lagrange multipliers represents the fluid traction (normal stress) or a pseudo-stress that control the node displacements on the boundaries. Details about the method and its implementation can be seen for example in: </p>
+
+<p>J.E. Sprittles and Y.D. Shikhmurzaev, 2012.<br>
+Finite element framework for describing dynamic wetting phenomena.<br>
+International Journal for Numerical Methods in Fluids, 68, 1257-1298.</p>
+
+<p>In conclusion, the method is very general while we pay the cost of some additional degrees of freedoms of the boundaries: the Lagrange's multiplier DOFs.</p>
+
+<p>Best,<br>
+Diego</p>
+</div>
+												</div>
+												<div class="qa-c-item-footer">
+													<span class="qa-c-item-avatar-meta">
+														<span class="qa-c-item-meta">
+															<a href="../../663/defining-lagranges-multiplier-field-only-on-boundaries?show=678#c678" class="qa-c-item-what">commented</a>
+															<span class="qa-c-item-when">
+																<span class="qa-c-item-when-data"><span class="published"><span class="value-title" title="2013-07-23T01:04:40+0000"></span>Jul 23, 2013</span></span>
+															</span>
+															<span class="qa-c-item-who">
+																<span class="qa-c-item-who-pad">by </span>
+																<span class="qa-c-item-who-data"><span class="vcard author"><a href="../../user/DiegoM" class="qa-user-link url nickname">DiegoM</a></span></span>
+																<span class="qa-c-item-who-title">FEniCS Novice</span>
+																<span class="qa-c-item-who-points">
+																	<span class="qa-c-item-who-points-pad">(</span><span class="qa-c-item-who-points-data">330</span><span class="qa-c-item-who-points-pad"> points)</span>
+																</span>
+															</span>
+														</span>
+													</span>
+													<div class="qa-c-item-buttons">
+													</div>
+												</div>
+												<div class="qa-c-item-clear">
+												</div>
+											</div> <!-- END qa-c-item -->
+											<div class="qa-c-list-item  hentry comment" id="c689">
+												<div class="qa-c-item-content">
+													<a name="689"></a><div class="entry-content"><p>Thanks for the explanations. Btw., there is a <a rel="nofollow" href="http://arxiv.org/abs/1009.1418">preprint</a> of the paper you have mentioned on ArXiv. I fully agree with the advantages of using multipliers in general frameworks. However, I could not find any nonlinearities in the BCs... (?) </p>
+</div>
+												</div>
+												<div class="qa-c-item-footer">
+													<span class="qa-c-item-avatar-meta">
+														<span class="qa-c-item-avatar">
+															<a href="../../user/Jan" class="qa-avatar-link"><img src="https://www.gravatar.com/avatar/c71e1343e533ab01bcce8649718574fa?s=20" width="20" height="20" class="qa-avatar-image" alt=""></a>
+														</span>
+														<span class="qa-c-item-meta">
+															<a href="../../663/defining-lagranges-multiplier-field-only-on-boundaries?show=689#c689" class="qa-c-item-what">commented</a>
+															<span class="qa-c-item-when">
+																<span class="qa-c-item-when-data"><span class="published"><span class="value-title" title="2013-07-23T12:27:42+0000"></span>Jul 23, 2013</span></span>
+															</span>
+															<span class="qa-c-item-who">
+																<span class="qa-c-item-who-pad">by </span>
+																<span class="qa-c-item-who-data"><span class="vcard author"><a href="../../user/Jan" class="qa-user-link url nickname">Jan</a></span></span>
+																<span class="qa-c-item-who-title">FEniCS User</span>
+																<span class="qa-c-item-who-points">
+																	<span class="qa-c-item-who-points-pad">(</span><span class="qa-c-item-who-points-data">8,290</span><span class="qa-c-item-who-points-pad"> points)</span>
+																</span>
+															</span>
+														</span>
+													</span>
+													<div class="qa-c-item-buttons">
+													</div>
+												</div>
+												<div class="qa-c-item-clear">
+												</div>
+											</div> <!-- END qa-c-item -->
+											<div class="qa-c-list-item  hentry comment" id="c690">
+												<div class="qa-c-item-content">
+													<a name="690"></a><div class="entry-content"><p>In the case solved on my posted code, you are right, there are not non-linearities in the restriction <code>R = u - u_bot</code></p>
+
+<p>In case of kinematic conditions, like for example R = dot(u - dxdt, n), the coordinates x are actually variables solved simultaneously with the flow field. The normal vector n also depends on spatial derivatives of x. Thus, the dot product between dxdt and n set one of the non-linear boundary conditions. There are similar conditions for kinematic equations in case of impervious restrictions on walls and so on.</p>
+
+<p>Best,<br>
+Diego</p>
+</div>
+												</div>
+												<div class="qa-c-item-footer">
+													<span class="qa-c-item-avatar-meta">
+														<span class="qa-c-item-meta">
+															<a href="../../663/defining-lagranges-multiplier-field-only-on-boundaries?show=690#c690" class="qa-c-item-what">commented</a>
+															<span class="qa-c-item-when">
+																<span class="qa-c-item-when-data"><span class="published"><span class="value-title" title="2013-07-23T12:43:48+0000"></span>Jul 23, 2013</span></span>
+															</span>
+															<span class="qa-c-item-who">
+																<span class="qa-c-item-who-pad">by </span>
+																<span class="qa-c-item-who-data"><span class="vcard author"><a href="../../user/DiegoM" class="qa-user-link url nickname">DiegoM</a></span></span>
+																<span class="qa-c-item-who-title">FEniCS Novice</span>
+																<span class="qa-c-item-who-points">
+																	<span class="qa-c-item-who-points-pad">(</span><span class="qa-c-item-who-points-data">330</span><span class="qa-c-item-who-points-pad"> points)</span>
+																</span>
+															</span>
+														</span>
+													</span>
+													<div class="qa-c-item-buttons">
+													</div>
+												</div>
+												<div class="qa-c-item-clear">
+												</div>
+											</div> <!-- END qa-c-item -->
+										</div> <!-- END qa-c-list -->
+										
+										<input type="hidden" name="code" value="0-1516468079-f19836fab5a7d23ed077d4a81fd3730f79066aa2">
+										<input type="hidden" name="qa_click" value="">
+									</form>
+									<div class="qa-c-form">
+									</div> <!-- END qa-c-form -->
+									
+								</div> <!-- END qa-q-view-main -->
+								<div class="qa-q-view-clear">
+								</div>
+							</div> <!-- END qa-q-view -->
+							
+						</div>
+						<div class="qa-part-a-list">
+							<h2 id="a_list_title">1 Answer</h2>
+							<div class="qa-a-list" id="a_list">
+								
+								<div class="qa-a-list-item  hentry answer answer-selected qa-a-list-item-selected" id="a665">
+									<form method="post" action="../../663/defining-lagranges-multiplier-field-only-on-boundaries">
+										<div class="qa-voting qa-voting-net" id="voting_665">
+											<div class="qa-vote-count qa-vote-count-net">
+												<span class="qa-netvote-count">
+													<span class="qa-netvote-count-data">+2<span class="votes-up"><span class="value-title" title="2"></span></span><span class="votes-down"><span class="value-title" title="0"></span></span></span><span class="qa-netvote-count-pad"> votes</span>
+												</span>
+											</div>
+											<div class="qa-vote-clear">
+											</div>
+										</div>
+										<input type="hidden" name="code" value="0-1516468079-93ebd5f88e189be25caceac8a06a28438a7337dd">
+									</form>
+									<div class="qa-a-item-main">
+										<form method="post" action="../../663/defining-lagranges-multiplier-field-only-on-boundaries">
+											<div class="qa-a-item-selected">
+												<div class="qa-a-selection">
+													<div class="qa-a-selected">&#160;</div>
+													<div class="qa-a-selected-text">Best answer</div>
+												</div>
+												<div class="qa-a-item-content">
+													<a name="665"></a><div class="entry-content"><p>I believe that mixing spaces on different domains is still not supported but is on plan. As a workaround you can <em>constraint</em> your Lagrange multiplier space by applying <code>DirichletBC</code> on redundant DOFs.</p>
+</div>
+												</div>
+												<span class="qa-a-item-avatar-meta">
+													<span class="qa-a-item-avatar">
+														<a href="../../user/Jan+Blechta" class="qa-avatar-link"><img src="https://www.gravatar.com/avatar/dc6f8dce77e4a0bd5adc7ff31ab83741?s=40" width="40" height="40" class="qa-avatar-image" alt=""></a>
+													</span>
+													<span class="qa-a-item-meta">
+														<a href="../../663/defining-lagranges-multiplier-field-only-on-boundaries?show=665#a665" class="qa-a-item-what">answered</a>
+														<span class="qa-a-item-when">
+															<span class="qa-a-item-when-data"><span class="published"><span class="value-title" title="2013-07-22T18:33:44+0000"></span>Jul 22, 2013</span></span>
+														</span>
+														<span class="qa-a-item-who">
+															<span class="qa-a-item-who-pad">by </span>
+															<span class="qa-a-item-who-data"><span class="vcard author"><a href="../../user/Jan+Blechta" class="qa-user-link url nickname">Jan Blechta</a></span></span>
+															<span class="qa-a-item-who-title">FEniCS Expert</span>
+															<span class="qa-a-item-who-points">
+																<span class="qa-a-item-who-points-pad">(</span><span class="qa-a-item-who-points-data">51,420</span><span class="qa-a-item-who-points-pad"> points)</span>
+															</span>
+														</span>
+														<br>
+														<span class="qa-a-item-what">selected</span>
+														<span class="qa-a-item-when">
+															<span class="qa-a-item-when-data"><span class="updated"><span class="value-title" title="2013-08-08T17:09:51+0000"></span>Aug 8, 2013</span></span>
+														</span>
+														<span class="qa-a-item-who">
+															<span class="qa-a-item-who-pad">by </span><span class="qa-a-item-who-data"><a href="../../user/Jan+Blechta" class="qa-user-link url nickname">Jan Blechta</a></span>
+														</span>
+													</span>
+												</span>
+											</div>
+											<div class="qa-a-item-buttons">
+												</div>
+											
+											<div class="qa-a-item-c-list" id="c665_list">
+												<div class="qa-c-list-item  hentry comment" id="c675">
+													<div class="qa-c-item-content">
+														<a name="675"></a><div class="entry-content"><p>Thanks Jan for the information!</p>
+
+<p>I had hope when read in the release notes for the version 1.1 (<a rel="nofollow" href="http://fenicsproject.org/releases/1.1/index.html):">http://fenicsproject.org/releases/1.1/index.html):</a><br>
+  - Support for restricted function spaces</p>
+
+<p>Appearently, the support is not ready yet and/or I am doing something wrong in the definition of the "restricted FunctionSpace using the "constrained_domain" option. I am not sure about it and the documentation is not clear for me.</p>
+
+<p>Regarding your suggestion to "constrain" the unused DOFs of the Lagrange's multiplier space by mean DirichletBC, it work in the sense that avoid a singular system. </p>
+
+<p>However, it is obvious now that <br>
+the solution values on the desired boundary depends STRONGLY on the values assigned as BC to the field, which make invalid the proposed methodology. </p>
+
+<p>Hopefully the support for restricted funtion spaces be ready soon, because it will be very useful and certainly it will increase enormously the power of this really good package.</p>
+
+<p>Thanks!</p>
+</div>
+													</div>
+													<div class="qa-c-item-footer">
+														<span class="qa-c-item-avatar-meta">
+															<span class="qa-c-item-meta">
+																<a href="../../663/defining-lagranges-multiplier-field-only-on-boundaries?show=675#c675" class="qa-c-item-what">commented</a>
+																<span class="qa-c-item-when">
+																	<span class="qa-c-item-when-data"><span class="published"><span class="value-title" title="2013-07-23T00:10:05+0000"></span>Jul 23, 2013</span></span>
+																</span>
+																<span class="qa-c-item-who">
+																	<span class="qa-c-item-who-pad">by </span>
+																	<span class="qa-c-item-who-data"><span class="vcard author"><a href="../../user/DiegoM" class="qa-user-link url nickname">DiegoM</a></span></span>
+																	<span class="qa-c-item-who-title">FEniCS Novice</span>
+																	<span class="qa-c-item-who-points">
+																		<span class="qa-c-item-who-points-pad">(</span><span class="qa-c-item-who-points-data">330</span><span class="qa-c-item-who-points-pad"> points)</span>
+																	</span>
+																</span>
+															</span>
+														</span>
+														<div class="qa-c-item-buttons">
+														</div>
+													</div>
+													<div class="qa-c-item-clear">
+													</div>
+												</div> <!-- END qa-c-item -->
+												<div class="qa-c-list-item  hentry comment" id="c682">
+													<div class="qa-c-item-content">
+														<a name="682"></a><div class="entry-content"><blockquote>
+  <p>However, it is obvious now that <br>
+  the solution values on the desired boundary depends STRONGLY on the values assigned as BC to the field, which make invalid the proposed methodology.</p>
+</blockquote>
+
+<p>You're wrong. Your original form</p>
+
+<pre><code>-inner(grad(u), grad(v))*dx + (lm*v + v_lm*(u-u_bot))*ds(1) - v*f_e*dx
+</code></pre>
+
+<p>depend only on values of <code>lm</code> and <code>v_lm</code> on facets marked 1. You define</p>
+
+<pre><code>lm_constraint = DirichletBC(W.sub(1), 0.0, "abs(x[1])&gt;2.0*DOLFIN_EPS")
+</code></pre>
+
+<p>to constraint all unused values of <code>lm</code>. If properly defined it does not constraint any values on facets marked 1. Note that definition</p>
+
+<pre><code>lm_constraint = DirichletBC(W.sub(1), 0.0, boundary_parts, 0)
+</code></pre>
+
+<p>would not work. There may be necessary to use <code>DirichletBC(..., method="pointwise")</code> in special cases to avoid facet-wise search of DOFs. Generally user must be precise in that.</p>
+
+<p>Alternatively you may use <code>GenericMatrix.ident_zeros()</code> feature to make your matrix regular. But I don't recommend it as it may obfuscate another issues in your code. It also may not work with DOLFIN version $\le$ 1.2.0 and PETSc backend.</p>
+</div>
+													</div>
+													<div class="qa-c-item-footer">
+														<span class="qa-c-item-avatar-meta">
+															<span class="qa-c-item-avatar">
+																<a href="../../user/Jan+Blechta" class="qa-avatar-link"><img src="https://www.gravatar.com/avatar/dc6f8dce77e4a0bd5adc7ff31ab83741?s=20" width="20" height="20" class="qa-avatar-image" alt=""></a>
+															</span>
+															<span class="qa-c-item-meta">
+																<a href="../../663/defining-lagranges-multiplier-field-only-on-boundaries?show=682#c682" class="qa-c-item-what">commented</a>
+																<span class="qa-c-item-when">
+																	<span class="qa-c-item-when-data"><span class="published"><span class="value-title" title="2013-07-23T08:32:25+0000"></span>Jul 23, 2013</span></span>
+																</span>
+																<span class="qa-c-item-who">
+																	<span class="qa-c-item-who-pad">by </span>
+																	<span class="qa-c-item-who-data"><span class="vcard author"><a href="../../user/Jan+Blechta" class="qa-user-link url nickname">Jan Blechta</a></span></span>
+																	<span class="qa-c-item-who-title">FEniCS Expert</span>
+																	<span class="qa-c-item-who-points">
+																		<span class="qa-c-item-who-points-pad">(</span><span class="qa-c-item-who-points-data">51,420</span><span class="qa-c-item-who-points-pad"> points)</span>
+																	</span>
+																</span>
+															</span>
+														</span>
+														<div class="qa-c-item-buttons">
+														</div>
+													</div>
+													<div class="qa-c-item-clear">
+													</div>
+												</div> <!-- END qa-c-item -->
+												<div class="qa-c-list-item  hentry comment" id="c766">
+													<div class="qa-c-item-content">
+														<a name="766"></a><div class="entry-content"><p>I am trying to implement the command you suggested:</p>
+
+<pre><code>lm_constraint = DirichletBC(W.sub(1), 0.0, "abs(x[1])&gt;2.0*DOLFIN_EPS")
+</code></pre>
+
+<p>but I obtain the following error:</p>
+
+<pre><code>Calling DOLFIN just-in-time (JIT) compiler, this may take some time.
+In instant.recompile: The module did not compile with command 'make VERBOSE=1 ', see '/home/diego/.instant/error/dolfin_compile_code_c3dcf5394f8862b894b254bdae657d97/compile.log'
+Traceback (most recent call last):
+  File "published_code.py", line 74, in &lt;module&gt;
+    lm_constraint = DirichletBC(W.sub(1), 0.0, "abs(x[1] &gt; 2*DOLFIN_EPS)")
+  File "/usr/lib/python2.7/dist-packages/dolfin/fem/bcs.py", line 99, in __init__
+    sub_domain = compile_subdomains(args[2])
+  File "/usr/lib/python2.7/dist-packages/dolfin/compilemodules/subdomains.py", line 180, in compile_subdomains
+    subdomains = compile_subdomain_code("\n".join(all_code), classnames)
+  File "/usr/lib/python2.7/dist-packages/dolfin/compilemodules/subdomains.py", line 114, in compile_subdomain_code
+    compiled_module = compile_extension_module(code)
+  File "/usr/lib/python2.7/dist-packages/dolfin/compilemodules/jit.py", line 66, in mpi_jit
+    return local_jit(*args, **kwargs)
+  File "/usr/lib/python2.7/dist-packages/dolfin/compilemodules/compilemodule.py", line 452, in compile_extension_module
+    **instant_kwargs)
+  File "/usr/lib/python2.7/dist-packages/instant/build.py", line 541, in build_module
+    recompile(modulename, module_path, new_compilation_checksum, build_system)
+  File "/usr/lib/python2.7/dist-packages/instant/build.py", line 150, in recompile
+    instant_error(msg % (cmd, compile_log_filename_dest))
+  File "/usr/lib/python2.7/dist-packages/instant/output.py", line 49, in instant_error
+    raise RuntimeError(text)
+RuntimeError: In instant.recompile: The module did not compile with command 'make VERBOSE=1 ', see '/home/diego/.instant/error/dolfin_compile_code_c3dcf5394f8862b894b254bdae657d97/compile.log'
+</code></pre>
+
+<p>I take a look on the file "compile.log". The first lines are:</p>
+
+<pre><code>-- The C compiler identification is GNU
+-- The CXX compiler identification is GNU
+-- Check for working C compiler: /usr/bin/gcc
+-- Check for working C compiler: /usr/bin/gcc -- works
+-- Detecting C compiler ABI info
+-- Detecting C compiler ABI info - done
+-- Check for working CXX compiler: /usr/bin/c++
+-- Check for working CXX compiler: /usr/bin/c++ -- works
+-- Detecting CXX compiler ABI info
+-- Detecting CXX compiler ABI info - done
+-- Found SWIG: /usr/bin/swig2.0 (found version "2.0.4")
+-- Configuring done
+-- Generating done
+CMake Warning:
+  Manually-specified variables were not used by the project:
+
+    DEBUG
+</code></pre>
+
+<p>Do you have any idea about the problem?</p>
+
+<p>Thanks!</p>
+</div>
+													</div>
+													<div class="qa-c-item-footer">
+														<span class="qa-c-item-avatar-meta">
+															<span class="qa-c-item-meta">
+																<a href="../../663/defining-lagranges-multiplier-field-only-on-boundaries?show=766#c766" class="qa-c-item-what">commented</a>
+																<span class="qa-c-item-when">
+																	<span class="qa-c-item-when-data"><span class="published"><span class="value-title" title="2013-07-27T02:21:26+0000"></span>Jul 27, 2013</span></span>
+																</span>
+																<span class="qa-c-item-who">
+																	<span class="qa-c-item-who-pad">by </span>
+																	<span class="qa-c-item-who-data"><span class="vcard author"><a href="../../user/DiegoM" class="qa-user-link url nickname">DiegoM</a></span></span>
+																	<span class="qa-c-item-who-title">FEniCS Novice</span>
+																	<span class="qa-c-item-who-points">
+																		<span class="qa-c-item-who-points-pad">(</span><span class="qa-c-item-who-points-data">330</span><span class="qa-c-item-who-points-pad"> points)</span>
+																	</span>
+																</span>
+															</span>
+														</span>
+														<div class="qa-c-item-buttons">
+														</div>
+													</div>
+													<div class="qa-c-item-clear">
+													</div>
+												</div> <!-- END qa-c-item -->
+												<div class="qa-c-list-item  hentry comment" id="c767">
+													<div class="qa-c-item-content">
+														<a name="767"></a><div class="entry-content"><pre><code>CMake Warning:
+  Manually-specified variables were not used by the project:
+
+    DEBUG
+</code></pre>
+
+<p>is only warning which did not cause module not to compile. Search below for an <strong>error</strong>.</p>
+</div>
+													</div>
+													<div class="qa-c-item-footer">
+														<span class="qa-c-item-avatar-meta">
+															<span class="qa-c-item-avatar">
+																<a href="../../user/Jan+Blechta" class="qa-avatar-link"><img src="https://www.gravatar.com/avatar/dc6f8dce77e4a0bd5adc7ff31ab83741?s=20" width="20" height="20" class="qa-avatar-image" alt=""></a>
+															</span>
+															<span class="qa-c-item-meta">
+																<a href="../../663/defining-lagranges-multiplier-field-only-on-boundaries?show=767#c767" class="qa-c-item-what">commented</a>
+																<span class="qa-c-item-when">
+																	<span class="qa-c-item-when-data"><span class="published"><span class="value-title" title="2013-07-27T04:38:27+0000"></span>Jul 27, 2013</span></span>
+																</span>
+																<span class="qa-c-item-who">
+																	<span class="qa-c-item-who-pad">by </span>
+																	<span class="qa-c-item-who-data"><span class="vcard author"><a href="../../user/Jan+Blechta" class="qa-user-link url nickname">Jan Blechta</a></span></span>
+																	<span class="qa-c-item-who-title">FEniCS Expert</span>
+																	<span class="qa-c-item-who-points">
+																		<span class="qa-c-item-who-points-pad">(</span><span class="qa-c-item-who-points-data">51,420</span><span class="qa-c-item-who-points-pad"> points)</span>
+																	</span>
+																</span>
+															</span>
+														</span>
+														<div class="qa-c-item-buttons">
+														</div>
+													</div>
+													<div class="qa-c-item-clear">
+													</div>
+												</div> <!-- END qa-c-item -->
+											</div> <!-- END qa-c-list -->
+											
+											<input type="hidden" name="code" value="0-1516468079-b4f9cb33ec69a0a0991f14d5e93555ebea9fc8cc">
+											<input type="hidden" name="qa_click" value="">
+										</form>
+										<div class="qa-c-form">
+										</div> <!-- END qa-c-form -->
+										
+									</div> <!-- END qa-a-item-main -->
+									<div class="qa-a-item-clear">
+									</div>
+								</div> <!-- END qa-a-list-item -->
+								
+							</div> <!-- END qa-a-list -->
+							
+						</div>
+					</div> <!-- END qa-main -->
+					
+				</div> <!-- END main-wrapper -->
+			</div> <!-- END main-shadow -->
+		</div> <!-- END body-wrapper -->
+		<!-- END footer-bottom-group -->
+		
+		<div style="position:absolute; left:-9999px; top:-9999px;">
+			<span id="qa-waiting-template" class="qa-waiting">...</span>
+		</div>
+	
+	
+
+</body><!-- Powered by Question2Answer - http://www.question2answer.org/ --></html>

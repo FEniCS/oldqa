@@ -1,0 +1,276 @@
+<html><!-- Powered by Question2Answer - http://www.question2answer.org/ --><head>
+		<meta http-equiv="content-type" content="text/html; charset=utf-8">
+		<title>compute Gramian matrix - FEniCS Q&amp;A</title>
+		<meta name="description" content="Given a number of functions $\theta_i$, I would like to compute the Gramian matrix $$ G_{i,j} = ... , or other ideas for speeding up the above code?">
+		<meta name="keywords" content="matrix,assemble">
+		<link rel="stylesheet" type="text/css" href="../../qa-theme/Snow/qa-styles.css">
+		<link rel="canonical" href="http://fenicsproject.org/qa/1826/compute-gramian-matrix">
+		<script type="text/x-mathjax-config">
+  MathJax.Hub.Config({
+    extensions: ["tex2jax.js"],
+    jax: ["input/TeX","output/HTML-CSS"],
+    tex2jax: {inlineMath: [["$","$"],["\\(","\\)"]]},
+    TeX: { extensions: ["AMSmath.js","AMSsymbols.js"]}
+  });
+</script>
+<script type="text/javascript" src="../../mathjax/MathJax.js"></script>
+		<script src="../../jquery-1.7.2.min.js" type="text/javascript"></script>
+		<script src="../../highlight.min.js"></script>
+<script type="text/javascript">
+$(function(){
+	$('.wmd-input').keypress(function(){
+		window.clearTimeout(hljs.Timeout);
+		hljs.Timeout = window.setTimeout(function() {
+			hljs.initHighlighting.called = false;
+			hljs.initHighlighting();
+		}, 500);
+	});
+	window.setTimeout(function() {
+		hljs.initHighlighting.called = false;
+		hljs.initHighlighting();
+	}, 500);
+});
+</script>
+
+
+	</head>
+	<body class="qa-template-question qa-body-js-off">
+		<div class="qa-body-wrapper">
+			
+			<div class="qa-header">
+				<div class="qa-logo">
+					<a href="../../" class="qa-logo-link" title="FEniCS Q&amp;A"><img src="../../qa-theme/fenics_qa.png" border="0" alt="FEniCS Q&amp;A"></a>
+				</div>
+				<div class="qa-header-clear">
+				</div>
+			</div> <!-- END qa-header -->
+			
+			<div class="qa-main-shadow">
+				
+				<div class="qa-main-wrapper">
+					
+					<div class="qa-sidepanel">
+						<div class="qa-sidebar">
+							This is a read only copy of the old FEniCS QA forum. Please visit the <a href="https://www.allanswered.com/community/s/fenics-project/">new QA forum</a> to ask questions
+						</div>
+						
+					</div>
+					
+					<div class="qa-main">
+						<h1>
+							<span class="entry-title">compute Gramian matrix</span>
+						</h1>
+						<div class="qa-part-q-view">
+							<div class="qa-q-view  hentry question" id="q1826">
+								<form method="post" action="../../1826/compute-gramian-matrix">
+									<div class="qa-q-view-stats">
+										<div class="qa-voting qa-voting-net" id="voting_1826">
+											<div class="qa-vote-count qa-vote-count-net">
+												<span class="qa-netvote-count">
+													<span class="qa-netvote-count-data">+1<span class="votes-up"><span class="value-title" title="1"></span></span><span class="votes-down"><span class="value-title" title="0"></span></span></span><span class="qa-netvote-count-pad"> vote</span>
+												</span>
+											</div>
+											<div class="qa-vote-clear">
+											</div>
+										</div>
+									</div>
+									<input type="hidden" name="code" value="0-1516467900-ead8720e7cbd261b01c80750ed57d58f2d18fd12">
+								</form>
+								<div class="qa-q-view-main">
+									<form method="post" action="../../1826/compute-gramian-matrix">
+										<div class="qa-q-view-content">
+											<a name="1826"></a><div class="entry-content"><p>Given a number of functions $\theta_i$, I would like to compute the Gramian matrix<br>
+$$<br>
+G_{i,j} = \int_\Omega \overline{\theta_i} \theta_j.<br>
+$$<br>
+Up until now, I just did something along the lines of</p>
+
+<pre><code>n = len(Theta)
+G = np.empty((n, n))
+for i in range(n):
+    G[i, i] = assemble(Theta[i]*Theta[i]*dx)
+    for j in range(i+1, n):
+        alpha = assemble(Theta[i]*Theta[j]*dx)
+        G[i, j] = alpha
+        G[j, i] = alpha.conjugate()
+</code></pre>
+
+<p>This can take quite long though, and I thought about speeding this up a bit. Ideally, one would formulate all those <code>assemble()</code>s as<br>
+$$<br>
+\int_\Omega \overline{\theta_i} \theta_j = \alpha_i M \alpha_j,<br>
+$$<br>
+where $\alpha_i$ are the coefficients of the state $\theta_i$ in the finite-element space, and $M$ is the corresponding mass matrix. The Gramian can thus be expressed as<br>
+$$<br>
+G = A^H M A<br>
+$$<br>
+where the $i$th column of $A$ is $\alpha_i$. This representation encourages the use of a DGEMM-like routine. Not sure if it exists in this form (e.g., if the columns are PETSc vectors), let alone if anything is made available through the Dolfin/UFL layer.</p>
+
+<p>When using <code>uBLAS</code>, I could just arrange the above in NumPy (and use its <code>dot()</code> which calls DGEMM), but I'm not sure how to do <code>M*A</code> (column by column, I suppose) in Dolfin. -- How does <code>GenericLinearOperator::mult</code> (<a rel="nofollow" href="http://fenicsproject.org/documentation/dolfin/dev/cpp/programmers-reference/la/GenericLinearOperator.html#GenericLinearOperator::mult__GenericVectorCR.GenericVectorRC)">http://fenicsproject.org/documentation/dolfin/dev/cpp/programmers-reference/la/GenericLinearOperator.html#GenericLinearOperator::mult__GenericVectorCR.GenericVectorRC)</a> work in Python?</p>
+
+<p>Any hints, or other ideas for speeding up the above code?</p>
+</div>
+										</div>
+										<div class="qa-q-view-tags">
+											<ul class="qa-q-view-tag-list">
+												<li class="qa-q-view-tag-item"><a href="../../tag/matrix" rel="tag" class="qa-tag-link">matrix</a></li>
+												<li class="qa-q-view-tag-item"><a href="../../tag/assemble" rel="tag" class="qa-tag-link">assemble</a></li>
+											</ul>
+										</div>
+										<span class="qa-q-view-avatar-meta">
+											<span class="qa-q-view-avatar">
+												<a href="../../user/nschloe" class="qa-avatar-link"><img src="https://www.gravatar.com/avatar/500a1e2e864ae08f386afde2cd21add0?s=50" width="50" height="50" class="qa-avatar-image" alt=""></a>
+											</span>
+											<span class="qa-q-view-meta">
+												<a href="../../1826/compute-gramian-matrix" class="qa-q-view-what">asked</a>
+												<span class="qa-q-view-when">
+													<span class="qa-q-view-when-data"><span class="published"><span class="value-title" title="2013-11-28T21:39:17+0000"></span>Nov 28, 2013</span></span>
+												</span>
+												<span class="qa-q-view-who">
+													<span class="qa-q-view-who-pad">by </span>
+													<span class="qa-q-view-who-data"><span class="vcard author"><a href="../../user/nschloe" class="qa-user-link url nickname">nschloe</a></span></span>
+													<span class="qa-q-view-who-title">FEniCS User</span>
+													<span class="qa-q-view-who-points">
+														<span class="qa-q-view-who-points-pad">(</span><span class="qa-q-view-who-points-data">7,120</span><span class="qa-q-view-who-points-pad"> points)</span>
+													</span>
+												</span>
+											</span>
+										</span>
+										<div class="qa-q-view-buttons">
+										</div>
+										
+										<div class="qa-q-view-c-list" style="display:none;" id="c1826_list">
+										</div> <!-- END qa-c-list -->
+										
+										<input type="hidden" name="code" value="0-1516467900-18f83c93ce17182481778024c5fd6c9957f07c63">
+										<input type="hidden" name="qa_click" value="">
+									</form>
+									<div class="qa-c-form">
+									</div> <!-- END qa-c-form -->
+									
+								</div> <!-- END qa-q-view-main -->
+								<div class="qa-q-view-clear">
+								</div>
+							</div> <!-- END qa-q-view -->
+							
+						</div>
+						<div class="qa-part-a-list">
+							<h2 id="a_list_title">1 Answer</h2>
+							<div class="qa-a-list" id="a_list">
+								
+								<div class="qa-a-list-item  hentry answer answer-selected qa-a-list-item-selected" id="a1830">
+									<form method="post" action="../../1826/compute-gramian-matrix">
+										<div class="qa-voting qa-voting-net" id="voting_1830">
+											<div class="qa-vote-count qa-vote-count-net">
+												<span class="qa-netvote-count">
+													<span class="qa-netvote-count-data">0<span class="votes-up"><span class="value-title" title="0"></span></span><span class="votes-down"><span class="value-title" title="0"></span></span></span><span class="qa-netvote-count-pad"> votes</span>
+												</span>
+											</div>
+											<div class="qa-vote-clear">
+											</div>
+										</div>
+										<input type="hidden" name="code" value="0-1516467900-ead8720e7cbd261b01c80750ed57d58f2d18fd12">
+									</form>
+									<div class="qa-a-item-main">
+										<form method="post" action="../../1826/compute-gramian-matrix">
+											<div class="qa-a-item-selected">
+												<div class="qa-a-selection">
+													<div class="qa-a-selected">&#160;</div>
+													<div class="qa-a-selected-text">Best answer</div>
+												</div>
+												<div class="qa-a-item-content">
+													<a name="1830"></a><div class="entry-content"><p>Okay, I found a good solution for when the <code>uBLAS</code> backend is used, and still using something slower in all other cases.</p>
+
+<pre><code>def _build_gramian_matrix(Theta):
+
+    # Build mass matrix.
+    Q = Theta[0].function_space()
+    u = TrialFunction(Q)
+    v = TestFunction(Q)
+    M = assemble(u*v*dx)
+
+    n = len(Theta)
+
+    # Build list of M*Theta[i].
+    MTheta = []
+    for i in range(n):
+        MTheta.append(Function(Q))
+        M.mult(Theta[i].vector(), MTheta[i].vector())
+
+    if parameters['linear_algebra_backend'] == 'uBLAS':
+        # Cast Theta and MTheta into NumPy arrays.
+        A = np.empty((Theta[0].vector().size(), len(Theta)))
+        for i, theta in enumerate(Theta):
+            A[:, i] = Theta[i].vector().array()
+        MA = np.empty((MTheta[0].vector().size(), len(Theta)))
+        for i, theta in enumerate(Theta):
+            MA[:, i] = MTheta[i].vector().array()
+        G = np.dot(A.transpose().conjugate(), MA)
+    else:
+        # Compute all the inner products manually.
+        G = np.empty((n, n))
+        for i in range(n):
+            print(i)
+            G[i, i] = Theta[i].vector().inner(MTheta[i].vector())
+            for j in range(i+1, n):
+                alpha = Theta[i].vector().inner(MTheta[j].vector())
+                G[i, j] = alpha
+                G[j, i] = alpha.conjugate()
+
+    return G
+</code></pre>
+</div>
+												</div>
+												<span class="qa-a-item-avatar-meta">
+													<span class="qa-a-item-avatar">
+														<a href="../../user/nschloe" class="qa-avatar-link"><img src="https://www.gravatar.com/avatar/500a1e2e864ae08f386afde2cd21add0?s=40" width="40" height="40" class="qa-avatar-image" alt=""></a>
+													</span>
+													<span class="qa-a-item-meta">
+														<a href="../../1826/compute-gramian-matrix?show=1830#a1830" class="qa-a-item-what">answered</a>
+														<span class="qa-a-item-when">
+															<span class="qa-a-item-when-data"><span class="published"><span class="value-title" title="2013-11-29T13:29:38+0000"></span>Nov 29, 2013</span></span>
+														</span>
+														<span class="qa-a-item-who">
+															<span class="qa-a-item-who-pad">by </span>
+															<span class="qa-a-item-who-data"><span class="vcard author"><a href="../../user/nschloe" class="qa-user-link url nickname">nschloe</a></span></span>
+															<span class="qa-a-item-who-title">FEniCS User</span>
+															<span class="qa-a-item-who-points">
+																<span class="qa-a-item-who-points-pad">(</span><span class="qa-a-item-who-points-data">7,120</span><span class="qa-a-item-who-points-pad"> points)</span>
+															</span>
+														</span>
+													</span>
+												</span>
+											</div>
+											<div class="qa-a-item-buttons">
+												</div>
+											
+											<div class="qa-a-item-c-list" style="display:none;" id="c1830_list">
+											</div> <!-- END qa-c-list -->
+											
+											<input type="hidden" name="code" value="0-1516467900-034b052b1afb5727783aa00ece942f32950ee80c">
+											<input type="hidden" name="qa_click" value="">
+										</form>
+										<div class="qa-c-form">
+										</div> <!-- END qa-c-form -->
+										
+									</div> <!-- END qa-a-item-main -->
+									<div class="qa-a-item-clear">
+									</div>
+								</div> <!-- END qa-a-list-item -->
+								
+							</div> <!-- END qa-a-list -->
+							
+						</div>
+					</div> <!-- END qa-main -->
+					
+				</div> <!-- END main-wrapper -->
+			</div> <!-- END main-shadow -->
+		</div> <!-- END body-wrapper -->
+		<!-- END footer-bottom-group -->
+		
+		<div style="position:absolute; left:-9999px; top:-9999px;">
+			<span id="qa-waiting-template" class="qa-waiting">...</span>
+		</div>
+	
+	
+
+</body><!-- Powered by Question2Answer - http://www.question2answer.org/ --></html>

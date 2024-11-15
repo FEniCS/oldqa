@@ -1,0 +1,332 @@
+<html><!-- Powered by Question2Answer - http://www.question2answer.org/ --><head>
+		<meta http-equiv="content-type" content="text/html; charset=utf-8">
+		<title>PETScMatrix built from petsc4py matrix cannot do a matvec in parallel - FEniCS Q&amp;A</title>
+		<meta name="description" content="In Python, I assemble a PETSc matrix using petsc4py, then convert it to the dolfin format PETScMatrix ... ) would be very much appreciated. Thank you!">
+		<meta name="keywords" content="petsc,parallel,petsc4py,petscmatrix,mpi">
+		<link rel="stylesheet" type="text/css" href="../../qa-theme/Snow/qa-styles.css">
+		<link rel="canonical" href="http://fenicsproject.org/qa/11007/petscmatrix-built-petsc4py-matrix-cannot-matvec-parallel">
+		<script type="text/x-mathjax-config">
+  MathJax.Hub.Config({
+    extensions: ["tex2jax.js"],
+    jax: ["input/TeX","output/HTML-CSS"],
+    tex2jax: {inlineMath: [["$","$"],["\\(","\\)"]]},
+    TeX: { extensions: ["AMSmath.js","AMSsymbols.js"]}
+  });
+</script>
+<script type="text/javascript" src="../../mathjax/MathJax.js"></script>
+		<script src="../../jquery-1.7.2.min.js" type="text/javascript"></script>
+		<script src="../../highlight.min.js"></script>
+<script type="text/javascript">
+$(function(){
+	$('.wmd-input').keypress(function(){
+		window.clearTimeout(hljs.Timeout);
+		hljs.Timeout = window.setTimeout(function() {
+			hljs.initHighlighting.called = false;
+			hljs.initHighlighting();
+		}, 500);
+	});
+	window.setTimeout(function() {
+		hljs.initHighlighting.called = false;
+		hljs.initHighlighting();
+	}, 500);
+});
+</script>
+
+
+	</head>
+	<body class="qa-template-question qa-body-js-off">
+		<div class="qa-body-wrapper">
+			
+			<div class="qa-header">
+				<div class="qa-logo">
+					<a href="../../" class="qa-logo-link" title="FEniCS Q&amp;A"><img src="../../qa-theme/fenics_qa.png" border="0" alt="FEniCS Q&amp;A"></a>
+				</div>
+				<div class="qa-header-clear">
+				</div>
+			</div> <!-- END qa-header -->
+			
+			<div class="qa-main-shadow">
+				
+				<div class="qa-main-wrapper">
+					
+					<div class="qa-sidepanel">
+						<div class="qa-sidebar">
+							This is a read only copy of the old FEniCS QA forum. Please visit the <a href="https://www.allanswered.com/community/s/fenics-project/">new QA forum</a> to ask questions
+						</div>
+						
+					</div>
+					
+					<div class="qa-main">
+						<h1>
+							<span class="entry-title">PETScMatrix built from petsc4py matrix cannot do a matvec in parallel</span>
+						</h1>
+						<div class="qa-part-q-view">
+							<div class="qa-q-view  hentry question" id="q11007">
+								<form method="post" action="../../11007/petscmatrix-built-petsc4py-matrix-cannot-matvec-parallel">
+									<div class="qa-q-view-stats">
+										<div class="qa-voting qa-voting-net" id="voting_11007">
+											<div class="qa-vote-count qa-vote-count-net">
+												<span class="qa-netvote-count">
+													<span class="qa-netvote-count-data">+1<span class="votes-up"><span class="value-title" title="1"></span></span><span class="votes-down"><span class="value-title" title="0"></span></span></span><span class="qa-netvote-count-pad"> vote</span>
+												</span>
+											</div>
+											<div class="qa-vote-clear">
+											</div>
+										</div>
+									</div>
+									<input type="hidden" name="code" value="0-1516467088-8b707cb3a9196680b5a9dc42ded27c74ba7e2368">
+								</form>
+								<div class="qa-q-view-main">
+									<form method="post" action="../../11007/petscmatrix-built-petsc4py-matrix-cannot-matvec-parallel">
+										<div class="qa-q-view-content">
+											<a name="11007"></a><div class="entry-content"><p>In Python, I assemble a PETSc matrix using petsc4py, then convert it to the dolfin format PETScMatrix. When trying to do a matvec with the resulting PETScMatrix, and while using multiple processes, I get a RuntimeError.</p>
+
+<p>Below is a simpler version of the code. It works with a single process but fails on the last line when using 2 processes,</p>
+
+<blockquote>
+  <p>mpirun -n 2 python code.py</p>
+</blockquote>
+
+<p>giving the error message</p>
+
+<blockquote>
+  <p>Error:   Unable to successfully call PETSc function 'MatMult'.<br>
+  Reason:  PETSc error code is: 60.<br>
+  Where:   This error was encountered inside /build/dolfin-k_QrtL/dolfin-1.6.0/dolfin/la/PETScMatrix.cpp.</p>
+</blockquote>
+
+<pre><code>import dolfin as dl
+import petsc4py, sys
+petsc4py.init(sys.argv)
+from petsc4py import PETSc
+
+from dolfin import MPI, mpi_comm_world
+mycomm = mpi_comm_world()
+mpisize = MPI.size(mycomm)
+mpirank = MPI.rank(mycomm)
+
+mesh = dl.UnitSquareMesh(2,2)
+Vr = dl.FunctionSpace(mesh, 'Lagrange', 1)
+Vc = dl.FunctionSpace(mesh, 'Lagrange', 1)
+MPETSc = PETSc.Mat()
+MPETSc.create(PETSc.COMM_WORLD)
+MPETSc.setSizes([Vr.dim(), Vc.dim()])
+MPETSc.setType('aij') # sparse
+MPETSc.setPreallocationNNZ(5)
+MPETSc.setUp()
+Istart, Iend = MPETSc.getOwnershipRange()
+for I in xrange(Istart, Iend) :
+    MPETSc[I,I] = I
+    if I-1 &gt;= 0: MPETSc[I,I-1] = 1.0
+    if I-2 &gt;= 0: MPETSc[I,I-2] = -1.0
+    if I+1 &lt; Vc.dim():  MPETSc[I,I+1] = 1.0
+    if I+2 &lt; Vc.dim():  MPETSc[I,I+2] = -1.0
+MPETSc.assemblyBegin()
+MPETSc.assemblyEnd()
+
+Mdolfin = dl.PETScMatrix(MPETSc)
+
+x, y = MPETSc.getVecs()
+x.set(1.0)
+y.set(0.0)
+y = MPETSc * x
+
+x2 = dl.interpolate(dl.Constant(1.0), Vc)
+y2 = Mdolfin * x2.vector()
+</code></pre>
+
+<p>I'm using the Ubuntu distribution of Fenics 1.6.0 on Ubuntu 14.04LTS.</p>
+
+<p>Any help on this (is that bug? is there a workaround?) would be very much appreciated.</p>
+
+<p>Thank you!</p>
+</div>
+										</div>
+										<div class="qa-q-view-tags">
+											<ul class="qa-q-view-tag-list">
+												<li class="qa-q-view-tag-item"><a href="../../tag/petsc" rel="tag" class="qa-tag-link">petsc</a></li>
+												<li class="qa-q-view-tag-item"><a href="../../tag/parallel" rel="tag" class="qa-tag-link">parallel</a></li>
+												<li class="qa-q-view-tag-item"><a href="../../tag/petsc4py" rel="tag" class="qa-tag-link">petsc4py</a></li>
+												<li class="qa-q-view-tag-item"><a href="../../tag/petscmatrix" rel="tag" class="qa-tag-link">petscmatrix</a></li>
+												<li class="qa-q-view-tag-item"><a href="../../tag/mpi" rel="tag" class="qa-tag-link">mpi</a></li>
+											</ul>
+										</div>
+										<span class="qa-q-view-avatar-meta">
+											<span class="qa-q-view-meta">
+												<a href="../../11007/petscmatrix-built-petsc4py-matrix-cannot-matvec-parallel" class="qa-q-view-what">asked</a>
+												<span class="qa-q-view-when">
+													<span class="qa-q-view-when-data"><span class="published"><span class="value-title" title="2016-08-29T21:11:21+0000"></span>Aug 29, 2016</span></span>
+												</span>
+												<span class="qa-q-view-who">
+													<span class="qa-q-view-who-pad">by </span>
+													<span class="qa-q-view-who-data"><span class="vcard author"><a href="../../user/BC" class="qa-user-link url nickname">BC</a></span></span>
+													<span class="qa-q-view-who-title">FEniCS Novice</span>
+													<span class="qa-q-view-who-points">
+														<span class="qa-q-view-who-points-pad">(</span><span class="qa-q-view-who-points-data">790</span><span class="qa-q-view-who-points-pad"> points)</span>
+													</span>
+												</span>
+											</span>
+										</span>
+										<div class="qa-q-view-buttons">
+										</div>
+										
+										<div class="qa-q-view-c-list" id="c11007_list">
+											<div class="qa-c-list-item  hentry comment" id="c11008">
+												<div class="qa-c-item-content">
+													<a name="11008"></a><div class="entry-content"><p>Follow-up: It turns out that petsc4py and dolfin do not partition the matrix in the same manner. So that explains where the error comes from. The real question now is,<br>
+Is there a workaround to this issue that someone is aware of?<br>
+And also, is there any way to define the partitioning of the matrix MPETSc in the above example to match the mesh partition from fenics?</p>
+</div>
+												</div>
+												<div class="qa-c-item-footer">
+													<span class="qa-c-item-avatar-meta">
+														<span class="qa-c-item-meta">
+															<a href="../../11007/petscmatrix-built-petsc4py-matrix-cannot-matvec-parallel?show=11008#c11008" class="qa-c-item-what">commented</a>
+															<span class="qa-c-item-when">
+																<span class="qa-c-item-when-data"><span class="published"><span class="value-title" title="2016-08-29T21:49:10+0000"></span>Aug 29, 2016</span></span>
+															</span>
+															<span class="qa-c-item-who">
+																<span class="qa-c-item-who-pad">by </span>
+																<span class="qa-c-item-who-data"><span class="vcard author"><a href="../../user/BC" class="qa-user-link url nickname">BC</a></span></span>
+																<span class="qa-c-item-who-title">FEniCS Novice</span>
+																<span class="qa-c-item-who-points">
+																	<span class="qa-c-item-who-points-pad">(</span><span class="qa-c-item-who-points-data">790</span><span class="qa-c-item-who-points-pad"> points)</span>
+																</span>
+															</span>
+														</span>
+													</span>
+													<div class="qa-c-item-buttons">
+													</div>
+												</div>
+												<div class="qa-c-item-clear">
+												</div>
+											</div> <!-- END qa-c-item -->
+										</div> <!-- END qa-c-list -->
+										
+										<input type="hidden" name="code" value="0-1516467088-d1c93efa2a4809b0dfe5b479ffaad9f77fc5fe9d">
+										<input type="hidden" name="qa_click" value="">
+									</form>
+									<div class="qa-c-form">
+									</div> <!-- END qa-c-form -->
+									
+								</div> <!-- END qa-q-view-main -->
+								<div class="qa-q-view-clear">
+								</div>
+							</div> <!-- END qa-q-view -->
+							
+						</div>
+						<div class="qa-part-a-list">
+							<h2 id="a_list_title">1 Answer</h2>
+							<div class="qa-a-list" id="a_list">
+								
+								<div class="qa-a-list-item  hentry answer answer-selected qa-a-list-item-selected" id="a11040">
+									<form method="post" action="../../11007/petscmatrix-built-petsc4py-matrix-cannot-matvec-parallel">
+										<div class="qa-voting qa-voting-net" id="voting_11040">
+											<div class="qa-vote-count qa-vote-count-net">
+												<span class="qa-netvote-count">
+													<span class="qa-netvote-count-data">+2<span class="votes-up"><span class="value-title" title="2"></span></span><span class="votes-down"><span class="value-title" title="0"></span></span></span><span class="qa-netvote-count-pad"> votes</span>
+												</span>
+											</div>
+											<div class="qa-vote-clear">
+											</div>
+										</div>
+										<input type="hidden" name="code" value="0-1516467088-8b707cb3a9196680b5a9dc42ded27c74ba7e2368">
+									</form>
+									<div class="qa-a-item-main">
+										<form method="post" action="../../11007/petscmatrix-built-petsc4py-matrix-cannot-matvec-parallel">
+											<div class="qa-a-item-selected">
+												<div class="qa-a-selection">
+													<div class="qa-a-selected">&#160;</div>
+													<div class="qa-a-selected-text">Best answer</div>
+												</div>
+												<div class="qa-a-item-content">
+													<a name="11040"></a><div class="entry-content"><p>Alright, I'll just answer my own question then.<br>
+1. Yes, you can define the size of the PETSc partition, and<br>
+2. yes, you can define the local-to-global-dofs map for the PETSc matrix using the local-to-global-dofs map defined by the mesh partition.</p>
+
+<p>I only show the relevant (modified/added) lines from the original code,</p>
+
+<pre><code>...
+mesh = dl.UnitSquareMesh(2,2)
+Vr = dl.FunctionSpace(mesh, 'Lagrange', 1)
+Vc = dl.FunctionSpace(mesh, 'Lagrange', 2)
+Vrdofmap, Vcdofmap = Vr.dofmap(), Vc.dofmap()
+rmap = PETSc.LGMap().create(Vrdofmap.dofs(), mycomm)
+cmap = PETSc.LGMap().create(Vcdofmap.dofs(), mycomm)
+...
+MPETSc.create(PETSc.COMM_WORLD)
+MPETSc.setSizes([ [Vrdofmap.local_dimension("owned"), Vr.dim()], [Vcdofmap.local_dimension("owned"), Vc.dim()] ])
+MPETSc.setType('aij') # sparse
+MPETSc.setUp()
+MPETSc.setLGMap(rmap, cmap)
+...
+</code></pre>
+
+<p>This works with fenics default mesh generation (structured mesh). I have not tested it with unstructured meshes. For this reason, it's probably best to add a check somewhere to make sure that the mesh partition is 'continuous' (or sometimes called 'monotonous'). Something like that should work</p>
+
+<pre><code>Istart, Iend = MPETSc.getOwnershipRange()
+assert list(Vrdofmap.dofs()) == range(Istart, Iend)
+</code></pre>
+
+<p>Hope it helps someone.</p>
+</div>
+												</div>
+												<span class="qa-a-item-avatar-meta">
+													<span class="qa-a-item-meta">
+														<a href="../../11007/petscmatrix-built-petsc4py-matrix-cannot-matvec-parallel?show=11040#a11040" class="qa-a-item-what">answered</a>
+														<span class="qa-a-item-when">
+															<span class="qa-a-item-when-data"><span class="published"><span class="value-title" title="2016-09-02T19:40:02+0000"></span>Sep 2, 2016</span></span>
+														</span>
+														<span class="qa-a-item-who">
+															<span class="qa-a-item-who-pad">by </span>
+															<span class="qa-a-item-who-data"><span class="vcard author"><a href="../../user/BC" class="qa-user-link url nickname">BC</a></span></span>
+															<span class="qa-a-item-who-title">FEniCS Novice</span>
+															<span class="qa-a-item-who-points">
+																<span class="qa-a-item-who-points-pad">(</span><span class="qa-a-item-who-points-data">790</span><span class="qa-a-item-who-points-pad"> points)</span>
+															</span>
+														</span>
+														<br>
+														<span class="qa-a-item-what">selected</span>
+														<span class="qa-a-item-when">
+															<span class="qa-a-item-when-data"><span class="updated"><span class="value-title" title="2016-09-09T14:14:11+0000"></span>Sep 9, 2016</span></span>
+														</span>
+														<span class="qa-a-item-who">
+															<span class="qa-a-item-who-pad">by </span><span class="qa-a-item-who-data"><a href="../../user/BC" class="qa-user-link url nickname">BC</a></span>
+														</span>
+													</span>
+												</span>
+											</div>
+											<div class="qa-a-item-buttons">
+												</div>
+											
+											<div class="qa-a-item-c-list" style="display:none;" id="c11040_list">
+											</div> <!-- END qa-c-list -->
+											
+											<input type="hidden" name="code" value="0-1516467088-a17cb495eea3cd8bf590a13906ebe3b3e35e8978">
+											<input type="hidden" name="qa_click" value="">
+										</form>
+										<div class="qa-c-form">
+										</div> <!-- END qa-c-form -->
+										
+									</div> <!-- END qa-a-item-main -->
+									<div class="qa-a-item-clear">
+									</div>
+								</div> <!-- END qa-a-list-item -->
+								
+							</div> <!-- END qa-a-list -->
+							
+						</div>
+					</div> <!-- END qa-main -->
+					
+				</div> <!-- END main-wrapper -->
+			</div> <!-- END main-shadow -->
+		</div> <!-- END body-wrapper -->
+		<!-- END footer-bottom-group -->
+		
+		<div style="position:absolute; left:-9999px; top:-9999px;">
+			<span id="qa-waiting-template" class="qa-waiting">...</span>
+		</div>
+	
+	
+
+</body><!-- Powered by Question2Answer - http://www.question2answer.org/ --></html>

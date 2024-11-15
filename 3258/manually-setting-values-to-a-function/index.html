@@ -1,0 +1,294 @@
+<html><!-- Powered by Question2Answer - http://www.question2answer.org/ --><head>
+		<meta http-equiv="content-type" content="text/html; charset=utf-8">
+		<title>Manually Setting Values to a Function - FEniCS Q&amp;A</title>
+		<meta name="description" content="Hi, The FEniCS fundamentals document gives the following example of how to manipulate a Function on ... ().set_local(w_array) plot(w,interactive=True)">
+		<meta name="keywords" content="set_local,function">
+		<link rel="stylesheet" type="text/css" href="../../qa-theme/Snow/qa-styles.css">
+		<link rel="canonical" href="http://fenicsproject.org/qa/3258/manually-setting-values-to-a-function">
+		<script type="text/x-mathjax-config">
+  MathJax.Hub.Config({
+    extensions: ["tex2jax.js"],
+    jax: ["input/TeX","output/HTML-CSS"],
+    tex2jax: {inlineMath: [["$","$"],["\\(","\\)"]]},
+    TeX: { extensions: ["AMSmath.js","AMSsymbols.js"]}
+  });
+</script>
+<script type="text/javascript" src="../../mathjax/MathJax.js"></script>
+		<script src="../../jquery-1.7.2.min.js" type="text/javascript"></script>
+		<script src="../../highlight.min.js"></script>
+<script type="text/javascript">
+$(function(){
+	$('.wmd-input').keypress(function(){
+		window.clearTimeout(hljs.Timeout);
+		hljs.Timeout = window.setTimeout(function() {
+			hljs.initHighlighting.called = false;
+			hljs.initHighlighting();
+		}, 500);
+	});
+	window.setTimeout(function() {
+		hljs.initHighlighting.called = false;
+		hljs.initHighlighting();
+	}, 500);
+});
+</script>
+
+
+	</head>
+	<body class="qa-template-question qa-body-js-off">
+		<div class="qa-body-wrapper">
+			
+			<div class="qa-header">
+				<div class="qa-logo">
+					<a href="../../" class="qa-logo-link" title="FEniCS Q&amp;A"><img src="../../qa-theme/fenics_qa.png" border="0" alt="FEniCS Q&amp;A"></a>
+				</div>
+				<div class="qa-header-clear">
+				</div>
+			</div> <!-- END qa-header -->
+			
+			<div class="qa-main-shadow">
+				
+				<div class="qa-main-wrapper">
+					
+					<div class="qa-sidepanel">
+						<div class="qa-sidebar">
+							This is a read only copy of the old FEniCS QA forum. Please visit the <a href="https://www.allanswered.com/community/s/fenics-project/">new QA forum</a> to ask questions
+						</div>
+						
+					</div>
+					
+					<div class="qa-main">
+						<h1>
+							<span class="entry-title">Manually Setting Values to a Function</span>
+						</h1>
+						<div class="qa-part-q-view">
+							<div class="qa-q-view  hentry question" id="q3258">
+								<form method="post" action="../../3258/manually-setting-values-to-a-function">
+									<div class="qa-q-view-stats">
+										<div class="qa-voting qa-voting-net" id="voting_3258">
+											<div class="qa-vote-count qa-vote-count-net">
+												<span class="qa-netvote-count">
+													<span class="qa-netvote-count-data">+4<span class="votes-up"><span class="value-title" title="4"></span></span><span class="votes-down"><span class="value-title" title="0"></span></span></span><span class="qa-netvote-count-pad"> votes</span>
+												</span>
+											</div>
+											<div class="qa-vote-clear">
+											</div>
+										</div>
+									</div>
+									<input type="hidden" name="code" value="0-1516467964-e6b5ef06ad1e5c4c4fcfb299a3e104d947f0ce8b">
+								</form>
+								<div class="qa-q-view-main">
+									<form method="post" action="../../3258/manually-setting-values-to-a-function">
+										<div class="qa-q-view-content">
+											<a name="3258"></a><div class="entry-content"><p>Hi,</p>
+
+<p>The FEniCS fundamentals document gives the following example of how to manipulate a Function on an FE space with degree 1 Lagrange elements.  In the example, the function is divided by the max value at all points</p>
+
+<pre><code>u_nodal_values = u.vector()
+u_array = u_nodal_values.array()
+max_u = u_array.max()
+u_array /= max_u
+u.vector()[:] = u_array
+u.vector().set_local(u_array)  # alternative
+print u.vector().array()
+</code></pre>
+
+<p>When I try to use a similar method in the following example, however, it doesn't work.  The ordering seems to get mixed up.  Is there a simple way to assign values to the vertices of a FE Function?</p>
+
+<pre><code>from dolfin import *
+
+#3D FE space
+mesh = UnitCubeMesh(20,20,20)
+V = FunctionSpace(mesh,"Lagrange",1)
+
+#solve 3D poisson equation on cube
+def u0_boundary(x,on_boundary):
+    return on_boundary
+
+bc = DirichletBC(V,Constant(0.0) , u0_boundary)
+
+u = TestFunction(V)
+v = TrialFunction(V)
+a = inner(grad(u),grad(v))*dx
+L = Constant("1.0")*v*dx
+
+u = Function(V)
+solve(a==L,u,bc)
+
+#Assign slice at z=.5 to 2D function
+
+#2D FE space w/ function 
+mesh2 = UnitSquareMesh(20,20)
+W = FunctionSpace(mesh2,"Lagrange",1)
+w = Function(W)
+
+coor = mesh2.coordinates()
+w_array = w.vector().array()
+if mesh2.num_vertices() == len(w_array):
+    for i in range(mesh2.num_vertices()):
+        w_array[i] = u(coor[i][0],coor[i][1],.5)
+
+w.vector().set_local(w_array)
+
+plot(w,interactive=True)
+</code></pre>
+</div>
+										</div>
+										<div class="qa-q-view-tags">
+											<ul class="qa-q-view-tag-list">
+												<li class="qa-q-view-tag-item"><a href="../../tag/set_local" rel="tag" class="qa-tag-link">set_local</a></li>
+												<li class="qa-q-view-tag-item"><a href="../../tag/function" rel="tag" class="qa-tag-link">function</a></li>
+											</ul>
+										</div>
+										<span class="qa-q-view-avatar-meta">
+											<span class="qa-q-view-meta">
+												<a href="../../3258/manually-setting-values-to-a-function" class="qa-q-view-what">asked</a>
+												<span class="qa-q-view-when">
+													<span class="qa-q-view-when-data"><span class="published"><span class="value-title" title="2014-04-13T10:09:50+0000"></span>Apr 13, 2014</span></span>
+												</span>
+												<span class="qa-q-view-who">
+													<span class="qa-q-view-who-pad">by </span>
+													<span class="qa-q-view-who-data"><span class="vcard author"><a href="../../user/sixtysymbols" class="qa-user-link url nickname">sixtysymbols</a></span></span>
+													<span class="qa-q-view-who-title">FEniCS User</span>
+													<span class="qa-q-view-who-points">
+														<span class="qa-q-view-who-points-pad">(</span><span class="qa-q-view-who-points-data">2,280</span><span class="qa-q-view-who-points-pad"> points)</span>
+													</span>
+												</span>
+											</span>
+										</span>
+										<div class="qa-q-view-buttons">
+										</div>
+										
+										<div class="qa-q-view-c-list" style="display:none;" id="c3258_list">
+										</div> <!-- END qa-c-list -->
+										
+										<input type="hidden" name="code" value="0-1516467964-5b657d1d8b0331b46358ebd94ee9c59e5fb68477">
+										<input type="hidden" name="qa_click" value="">
+									</form>
+									<div class="qa-c-form">
+									</div> <!-- END qa-c-form -->
+									
+								</div> <!-- END qa-q-view-main -->
+								<div class="qa-q-view-clear">
+								</div>
+							</div> <!-- END qa-q-view -->
+							
+						</div>
+						<div class="qa-part-a-list">
+							<h2 id="a_list_title">1 Answer</h2>
+							<div class="qa-a-list" id="a_list">
+								
+								<div class="qa-a-list-item  hentry answer answer-selected qa-a-list-item-selected" id="a3259">
+									<form method="post" action="../../3258/manually-setting-values-to-a-function">
+										<div class="qa-voting qa-voting-net" id="voting_3259">
+											<div class="qa-vote-count qa-vote-count-net">
+												<span class="qa-netvote-count">
+													<span class="qa-netvote-count-data">+3<span class="votes-up"><span class="value-title" title="3"></span></span><span class="votes-down"><span class="value-title" title="0"></span></span></span><span class="qa-netvote-count-pad"> votes</span>
+												</span>
+											</div>
+											<div class="qa-vote-clear">
+											</div>
+										</div>
+										<input type="hidden" name="code" value="0-1516467964-e6b5ef06ad1e5c4c4fcfb299a3e104d947f0ce8b">
+									</form>
+									<div class="qa-a-item-main">
+										<form method="post" action="../../3258/manually-setting-values-to-a-function">
+											<div class="qa-a-item-selected">
+												<div class="qa-a-selection">
+													<div class="qa-a-selected">&#160;</div>
+													<div class="qa-a-selected-text">Best answer</div>
+												</div>
+												<div class="qa-a-item-content">
+													<a name="3259"></a><div class="entry-content"><p>Starting from version 1.2 or so, the numbering of the coordinates in the mesh and the DOFs in serial computations do not necessarily coincide anymore; in parallel this was never the case as far as I know. To work around such issues, you can have a look <a rel="nofollow" href="http://fenicsproject.org/qa/2550/which-dofs-belong-to-which-vector-components">here</a> or <a rel="nofollow" href="http://fenicsproject.org/qa/2715/coordinates-u_nodal_values-using-numerical-source-function?show=2721#a2721">here</a>. There is also an undocumented (?) parameter reorder_dofs_serial which you can set to False to obtain the old way of ordering in serial.</p>
+</div>
+												</div>
+												<span class="qa-a-item-avatar-meta">
+													<span class="qa-a-item-meta">
+														<a href="../../3258/manually-setting-values-to-a-function?show=3259#a3259" class="qa-a-item-what">answered</a>
+														<span class="qa-a-item-when">
+															<span class="qa-a-item-when-data"><span class="published"><span class="value-title" title="2014-04-13T11:23:32+0000"></span>Apr 13, 2014</span></span>
+														</span>
+														<span class="qa-a-item-who">
+															<span class="qa-a-item-who-pad">by </span>
+															<span class="qa-a-item-who-data"><span class="vcard author"><a href="../../user/Christian+Waluga" class="qa-user-link url nickname">Christian Waluga</a></span></span>
+															<span class="qa-a-item-who-title">FEniCS Expert</span>
+															<span class="qa-a-item-who-points">
+																<span class="qa-a-item-who-points-pad">(</span><span class="qa-a-item-who-points-data">12,310</span><span class="qa-a-item-who-points-pad"> points)</span>
+															</span>
+														</span>
+														<br>
+														<span class="qa-a-item-what">selected</span>
+														<span class="qa-a-item-when">
+															<span class="qa-a-item-when-data"><span class="updated"><span class="value-title" title="2014-04-13T14:53:07+0000"></span>Apr 13, 2014</span></span>
+														</span>
+														<span class="qa-a-item-who">
+															<span class="qa-a-item-who-pad">by </span><span class="qa-a-item-who-data"><a href="../../user/sixtysymbols" class="qa-user-link url nickname">sixtysymbols</a></span>
+														</span>
+													</span>
+												</span>
+											</div>
+											<div class="qa-a-item-buttons">
+												</div>
+											
+											<div class="qa-a-item-c-list" id="c3259_list">
+												<div class="qa-c-list-item  hentry comment" id="c3260">
+													<div class="qa-c-item-content">
+														<a name="3260"></a><div class="entry-content"><p>Hi,</p>
+
+<p>parameters["reorder_dofs_serial"] = False worked fine.  Thanks.</p>
+
+<p>Is this parameter undocumented because it is depreciated/not recommended?</p>
+</div>
+													</div>
+													<div class="qa-c-item-footer">
+														<span class="qa-c-item-avatar-meta">
+															<span class="qa-c-item-meta">
+																<a href="../../3258/manually-setting-values-to-a-function?show=3260#c3260" class="qa-c-item-what">commented</a>
+																<span class="qa-c-item-when">
+																	<span class="qa-c-item-when-data"><span class="published"><span class="value-title" title="2014-04-13T14:54:01+0000"></span>Apr 13, 2014</span></span>
+																</span>
+																<span class="qa-c-item-who">
+																	<span class="qa-c-item-who-pad">by </span>
+																	<span class="qa-c-item-who-data"><span class="vcard author"><a href="../../user/sixtysymbols" class="qa-user-link url nickname">sixtysymbols</a></span></span>
+																	<span class="qa-c-item-who-title">FEniCS User</span>
+																	<span class="qa-c-item-who-points">
+																		<span class="qa-c-item-who-points-pad">(</span><span class="qa-c-item-who-points-data">2,280</span><span class="qa-c-item-who-points-pad"> points)</span>
+																	</span>
+																</span>
+															</span>
+														</span>
+														<div class="qa-c-item-buttons">
+														</div>
+													</div>
+													<div class="qa-c-item-clear">
+													</div>
+												</div> <!-- END qa-c-item -->
+											</div> <!-- END qa-c-list -->
+											
+											<input type="hidden" name="code" value="0-1516467964-177e8f55ccb2f8969524fa144e424d89b2fd50e5">
+											<input type="hidden" name="qa_click" value="">
+										</form>
+										<div class="qa-c-form">
+										</div> <!-- END qa-c-form -->
+										
+									</div> <!-- END qa-a-item-main -->
+									<div class="qa-a-item-clear">
+									</div>
+								</div> <!-- END qa-a-list-item -->
+								
+							</div> <!-- END qa-a-list -->
+							
+						</div>
+					</div> <!-- END qa-main -->
+					
+				</div> <!-- END main-wrapper -->
+			</div> <!-- END main-shadow -->
+		</div> <!-- END body-wrapper -->
+		<!-- END footer-bottom-group -->
+		
+		<div style="position:absolute; left:-9999px; top:-9999px;">
+			<span id="qa-waiting-template" class="qa-waiting">...</span>
+		</div>
+	
+	
+
+</body><!-- Powered by Question2Answer - http://www.question2answer.org/ --></html>

@@ -1,0 +1,254 @@
+<html><!-- Powered by Question2Answer - http://www.question2answer.org/ --><head>
+		<meta http-equiv="content-type" content="text/html; charset=utf-8">
+		<title>Solving eigenvalue problem on a nanometer scale mesh. - FEniCS Q&amp;A</title>
+		<meta name="description" content="Hi, Below is a toy script for solving an eigenvalue problem on a 2D circle. It fails due to  ... #assign eigenvector to function uh.vector()[:] = rx">
+		<meta name="keywords" content="eigenvalue,scale">
+		<link rel="stylesheet" type="text/css" href="../../qa-theme/Snow/qa-styles.css">
+		<link rel="canonical" href="http://fenicsproject.org/qa/5285/solving-eigenvalue-problem-on-a-nanometer-scale-mesh">
+		<script type="text/x-mathjax-config">
+  MathJax.Hub.Config({
+    extensions: ["tex2jax.js"],
+    jax: ["input/TeX","output/HTML-CSS"],
+    tex2jax: {inlineMath: [["$","$"],["\\(","\\)"]]},
+    TeX: { extensions: ["AMSmath.js","AMSsymbols.js"]}
+  });
+</script>
+<script type="text/javascript" src="../../mathjax/MathJax.js"></script>
+		<script src="../../jquery-1.7.2.min.js" type="text/javascript"></script>
+		<script src="../../highlight.min.js"></script>
+<script type="text/javascript">
+$(function(){
+	$('.wmd-input').keypress(function(){
+		window.clearTimeout(hljs.Timeout);
+		hljs.Timeout = window.setTimeout(function() {
+			hljs.initHighlighting.called = false;
+			hljs.initHighlighting();
+		}, 500);
+	});
+	window.setTimeout(function() {
+		hljs.initHighlighting.called = false;
+		hljs.initHighlighting();
+	}, 500);
+});
+</script>
+
+
+	</head>
+	<body class="qa-template-question qa-body-js-off">
+		<div class="qa-body-wrapper">
+			
+			<div class="qa-header">
+				<div class="qa-logo">
+					<a href="../../" class="qa-logo-link" title="FEniCS Q&amp;A"><img src="../../qa-theme/fenics_qa.png" border="0" alt="FEniCS Q&amp;A"></a>
+				</div>
+				<div class="qa-header-clear">
+				</div>
+			</div> <!-- END qa-header -->
+			
+			<div class="qa-main-shadow">
+				
+				<div class="qa-main-wrapper">
+					
+					<div class="qa-sidepanel">
+						<div class="qa-sidebar">
+							This is a read only copy of the old FEniCS QA forum. Please visit the <a href="https://www.allanswered.com/community/s/fenics-project/">new QA forum</a> to ask questions
+						</div>
+						
+					</div>
+					
+					<div class="qa-main">
+						<h1>
+							<span class="entry-title">Solving eigenvalue problem on a nanometer scale mesh.</span>
+						</h1>
+						<div class="qa-part-q-view">
+							<div class="qa-q-view  hentry question" id="q5285">
+								<form method="post" action="../../5285/solving-eigenvalue-problem-on-a-nanometer-scale-mesh">
+									<div class="qa-q-view-stats">
+										<div class="qa-voting qa-voting-net" id="voting_5285">
+											<div class="qa-vote-count qa-vote-count-net">
+												<span class="qa-netvote-count">
+													<span class="qa-netvote-count-data">+1<span class="votes-up"><span class="value-title" title="1"></span></span><span class="votes-down"><span class="value-title" title="0"></span></span></span><span class="qa-netvote-count-pad"> vote</span>
+												</span>
+											</div>
+											<div class="qa-vote-clear">
+											</div>
+										</div>
+									</div>
+									<input type="hidden" name="code" value="0-1516468022-49df130b52043cb4b05a801a09518d00aed2e9e5">
+								</form>
+								<div class="qa-q-view-main">
+									<form method="post" action="../../5285/solving-eigenvalue-problem-on-a-nanometer-scale-mesh">
+										<div class="qa-q-view-content">
+											<a name="5285"></a><div class="entry-content"><p>Hi,</p>
+
+<p>Below is a toy script for solving an eigenvalue problem on a 2D circle.  It fails due to the small radius of the mesh.  I.e. if radius and mesh are made larger (e.g. 5.0 and 0.7), the script runs correctly.</p>
+
+<p>Is there any way to get FEniCs to accept such small scales explicitly?  Unit conversion would be easy enough in the toy model but the real thing is much more complicated.</p>
+
+<p>Thanks</p>
+
+<pre><code>from dolfin import *
+
+radius = 5e-9
+grain = 0.7e-9
+#define mesh and function space 
+mesh = CircleMesh(Point(0,0),radius,grain)
+V = FunctionSpace(mesh, 'Lagrange', 1)
+
+#build essential boundary conditions
+def u0_boundary(x, on_boundary):
+        return on_boundary
+bc = DirichletBC(V,Constant(0.0) , u0_boundary)
+
+#define functions
+u = TrialFunction(V)
+v = TestFunction(V)
+
+Pot = Expression('1.0')
+
+#define problem
+A = PETScMatrix() 
+M = PETScMatrix()
+_ = PETScVector()
+L = Constant(1.)*v*dx
+m = u*v*dx
+assemble_system(m, L, A_tensor=M, b_tensor=_)
+
+a = (inner(grad(u), grad(v)) \
+             + Pot*u*v)*dx
+assemble_system(a, L, bc, A_tensor=A, b_tensor=_)
+
+#create eigensolver
+eigensolver = SLEPcEigenSolver(A,M)
+eigensolver.parameters['spectrum'] = 'smallest real'
+eigensolver.parameters['tolerance'] = 1.e-15
+
+#solve for eigenvalues
+eigensolver.solve(5)
+
+uh = Function(V)
+for j in range(0,5):
+    #extract next eigenpair
+    r, c, rx, cx = eigensolver.get_eigenpair(j)
+    print 'eigenvalue:', r
+
+    #assign eigenvector to function
+    uh.vector()[:] = rx
+</code></pre>
+</div>
+										</div>
+										<div class="qa-q-view-tags">
+											<ul class="qa-q-view-tag-list">
+												<li class="qa-q-view-tag-item"><a href="../../tag/eigenvalue" rel="tag" class="qa-tag-link">eigenvalue</a></li>
+												<li class="qa-q-view-tag-item"><a href="../../tag/scale" rel="tag" class="qa-tag-link">scale</a></li>
+											</ul>
+										</div>
+										<span class="qa-q-view-avatar-meta">
+											<span class="qa-q-view-meta">
+												<a href="../../5285/solving-eigenvalue-problem-on-a-nanometer-scale-mesh" class="qa-q-view-what">asked</a>
+												<span class="qa-q-view-when">
+													<span class="qa-q-view-when-data"><span class="published"><span class="value-title" title="2014-09-03T21:23:16+0000"></span>Sep 3, 2014</span></span>
+												</span>
+												<span class="qa-q-view-who">
+													<span class="qa-q-view-who-pad">by </span>
+													<span class="qa-q-view-who-data"><span class="vcard author"><a href="../../user/sixtysymbols" class="qa-user-link url nickname">sixtysymbols</a></span></span>
+													<span class="qa-q-view-who-title">FEniCS User</span>
+													<span class="qa-q-view-who-points">
+														<span class="qa-q-view-who-points-pad">(</span><span class="qa-q-view-who-points-data">2,280</span><span class="qa-q-view-who-points-pad"> points)</span>
+													</span>
+												</span>
+											</span>
+										</span>
+										<div class="qa-q-view-buttons">
+										</div>
+										
+										<div class="qa-q-view-c-list" style="display:none;" id="c5285_list">
+										</div> <!-- END qa-c-list -->
+										
+										<input type="hidden" name="code" value="0-1516468022-93252360a51615ae5ba0bed51486e8ea26acc0b8">
+										<input type="hidden" name="qa_click" value="">
+									</form>
+									<div class="qa-c-form">
+									</div> <!-- END qa-c-form -->
+									
+								</div> <!-- END qa-q-view-main -->
+								<div class="qa-q-view-clear">
+								</div>
+							</div> <!-- END qa-q-view -->
+							
+						</div>
+						<div class="qa-part-a-list">
+							<h2 id="a_list_title">1 Answer</h2>
+							<div class="qa-a-list" id="a_list">
+								
+								<div class="qa-a-list-item  hentry answer" id="a7657">
+									<form method="post" action="../../5285/solving-eigenvalue-problem-on-a-nanometer-scale-mesh">
+										<div class="qa-voting qa-voting-net" id="voting_7657">
+											<div class="qa-vote-count qa-vote-count-net">
+												<span class="qa-netvote-count">
+													<span class="qa-netvote-count-data">0<span class="votes-up"><span class="value-title" title="0"></span></span><span class="votes-down"><span class="value-title" title="0"></span></span></span><span class="qa-netvote-count-pad"> votes</span>
+												</span>
+											</div>
+											<div class="qa-vote-clear">
+											</div>
+										</div>
+										<input type="hidden" name="code" value="0-1516468022-49df130b52043cb4b05a801a09518d00aed2e9e5">
+									</form>
+									<div class="qa-a-item-main">
+										<form method="post" action="../../5285/solving-eigenvalue-problem-on-a-nanometer-scale-mesh">
+											<div class="qa-a-selection">
+											</div>
+											<div class="qa-a-item-content">
+												<a name="7657"></a><div class="entry-content"><p>You should try to non-dimensionalize the problem analytically first so that your radius only varies on a much more computationally friendly radius interval (e.g. radius ranging from 0 to 1).  This will enable you to solve (essentially) the same problem on a mesh that this not vulnerable to small number arithmetic.  There is no unique way of non-dimensionalizing, but I highly recommend reading a simple paper on the matter, such as Yovanovich &amp; Muzychka's paper <a rel="nofollow" href="http://mhtlab.uwaterloo.ca/pdf_papers/mhtl97-6.pdf">"Solutions of Poisson Equations within Singly and Doubly Connected Prismatic Domains"</a>, which illustrates a simple procedure to non-dimensionalize a domain which you can easily adapt to your problem.</p>
+</div>
+											</div>
+											<span class="qa-a-item-avatar-meta">
+												<span class="qa-a-item-meta">
+													<a href="../../5285/solving-eigenvalue-problem-on-a-nanometer-scale-mesh?show=7657#a7657" class="qa-a-item-what">answered</a>
+													<span class="qa-a-item-when">
+														<span class="qa-a-item-when-data"><span class="published"><span class="value-title" title="2015-07-23T22:31:08+0000"></span>Jul 24, 2015</span></span>
+													</span>
+													<span class="qa-a-item-who">
+														<span class="qa-a-item-who-pad">by </span>
+														<span class="qa-a-item-who-data"><span class="vcard author"><a href="../../user/pmdelgado2" class="qa-user-link url nickname">pmdelgado2</a></span></span>
+														<span class="qa-a-item-who-title">FEniCS Novice</span>
+														<span class="qa-a-item-who-points">
+															<span class="qa-a-item-who-points-pad">(</span><span class="qa-a-item-who-points-data">210</span><span class="qa-a-item-who-points-pad"> points)</span>
+														</span>
+													</span>
+												</span>
+											</span>
+											<div class="qa-a-item-buttons">
+												</div>
+											
+											<div class="qa-a-item-c-list" style="display:none;" id="c7657_list">
+											</div> <!-- END qa-c-list -->
+											
+											<input type="hidden" name="code" value="0-1516468022-f9b676f28789ce62badacdfef3e1e335d2afe0b1">
+											<input type="hidden" name="qa_click" value="">
+										</form>
+										<div class="qa-c-form">
+										</div> <!-- END qa-c-form -->
+										
+									</div> <!-- END qa-a-item-main -->
+									<div class="qa-a-item-clear">
+									</div>
+								</div> <!-- END qa-a-list-item -->
+								
+							</div> <!-- END qa-a-list -->
+							
+						</div>
+					</div> <!-- END qa-main -->
+					
+				</div> <!-- END main-wrapper -->
+			</div> <!-- END main-shadow -->
+		</div> <!-- END body-wrapper -->
+		<!-- END footer-bottom-group -->
+		
+		<div style="position:absolute; left:-9999px; top:-9999px;">
+			<span id="qa-waiting-template" class="qa-waiting">...</span>
+		</div>
+	
+	
+
+</body><!-- Powered by Question2Answer - http://www.question2answer.org/ --></html>

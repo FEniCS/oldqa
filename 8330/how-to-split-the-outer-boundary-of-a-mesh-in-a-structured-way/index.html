@@ -1,0 +1,339 @@
+<html><!-- Powered by Question2Answer - http://www.question2answer.org/ --><head>
+		<meta http-equiv="content-type" content="text/html; charset=utf-8">
+		<title>How to split the outer boundary of a mesh in a structured way - FEniCS Q&amp;A</title>
+		<meta name="description" content="***Section 1. An overview of the problem*** I have a planar mesh `my_mesh` which incorporates  ...  &gt;= self.theta_initial - DOLFIN_TOL) \ and (angle">
+		<meta name="keywords" content="mshr,meshfunction,boundarymesh,boundary,dolfin">
+		<link rel="stylesheet" type="text/css" href="../../qa-theme/Snow/qa-styles.css">
+		<link rel="canonical" href="http://fenicsproject.org/qa/8330/how-to-split-the-outer-boundary-of-a-mesh-in-a-structured-way">
+		<script type="text/x-mathjax-config">
+  MathJax.Hub.Config({
+    extensions: ["tex2jax.js"],
+    jax: ["input/TeX","output/HTML-CSS"],
+    tex2jax: {inlineMath: [["$","$"],["\\(","\\)"]]},
+    TeX: { extensions: ["AMSmath.js","AMSsymbols.js"]}
+  });
+</script>
+<script type="text/javascript" src="../../mathjax/MathJax.js"></script>
+		<script src="../../jquery-1.7.2.min.js" type="text/javascript"></script>
+		<script src="../../highlight.min.js"></script>
+<script type="text/javascript">
+$(function(){
+	$('.wmd-input').keypress(function(){
+		window.clearTimeout(hljs.Timeout);
+		hljs.Timeout = window.setTimeout(function() {
+			hljs.initHighlighting.called = false;
+			hljs.initHighlighting();
+		}, 500);
+	});
+	window.setTimeout(function() {
+		hljs.initHighlighting.called = false;
+		hljs.initHighlighting();
+	}, 500);
+});
+</script>
+
+
+	</head>
+	<body class="qa-template-question qa-body-js-off">
+		<div class="qa-body-wrapper">
+			
+			<div class="qa-header">
+				<div class="qa-logo">
+					<a href="../../" class="qa-logo-link" title="FEniCS Q&amp;A"><img src="../../qa-theme/fenics_qa.png" border="0" alt="FEniCS Q&amp;A"></a>
+				</div>
+				<div class="qa-header-clear">
+				</div>
+			</div> <!-- END qa-header -->
+			
+			<div class="qa-main-shadow">
+				
+				<div class="qa-main-wrapper">
+					
+					<div class="qa-sidepanel">
+						<div class="qa-sidebar">
+							This is a read only copy of the old FEniCS QA forum. Please visit the <a href="https://www.allanswered.com/community/s/fenics-project/">new QA forum</a> to ask questions
+						</div>
+						
+					</div>
+					
+					<div class="qa-main">
+						<h1>
+							<span class="entry-title">How to split the outer boundary of a mesh in a structured way</span>
+						</h1>
+						<div class="qa-part-q-view">
+							<div class="qa-q-view  hentry question" id="q8330">
+								<form method="post" action="../../8330/how-to-split-the-outer-boundary-of-a-mesh-in-a-structured-way">
+									<div class="qa-q-view-stats">
+										<div class="qa-voting qa-voting-net" id="voting_8330">
+											<div class="qa-vote-count qa-vote-count-net">
+												<span class="qa-netvote-count">
+													<span class="qa-netvote-count-data">0<span class="votes-up"><span class="value-title" title="0"></span></span><span class="votes-down"><span class="value-title" title="0"></span></span></span><span class="qa-netvote-count-pad"> votes</span>
+												</span>
+											</div>
+											<div class="qa-vote-clear">
+											</div>
+										</div>
+									</div>
+									<input type="hidden" name="code" value="0-1516468167-8914034f4be5d9226158bce68dd9428a1db78802">
+								</form>
+								<div class="qa-q-view-main">
+									<form method="post" action="../../8330/how-to-split-the-outer-boundary-of-a-mesh-in-a-structured-way">
+										<div class="qa-q-view-content">
+											<a name="8330"></a><div class="entry-content"><p><strong><em>Section 1. An overview of the problem</em></strong></p>
+
+<p>I have a planar mesh <code>my_mesh</code> which incorporates an internal boundary and whose outer boundary is a regular polygon centered at the origin.</p>
+
+<p><em>My current task</em> is to split the boundary of <code>my_mesh</code> in six arcs using a <code>dolfin.MeshFunction</code>, where there should be three boundary arcs $P_0, P_2, P_4$ with an angular aperture of $\frac{\pi}{6}$ and another three boundary arcs $P_1, P_3, P_5$ with an angular aperture of $\frac{\pi}{2}$.</p>
+
+<p>In Section 2, I have included my attempt to implement this; the code also computes the lengths of $P_0, P_1, P_2, P_3, P_4, P_5$. According to the precise geometric description of <code>my_mesh</code> in Section 3, it should turn out that the lengths of $P_1, P_3, P_5$ are equal. However, the code in Section 2 computes:</p>
+
+<ul>
+<li>the length of $P_1$ as 1.55291427062</li>
+<li>the length of $P_3$ as 1.55291427062</li>
+<li>the length of $P_5$ as 1.48820950934</li>
+</ul>
+
+<p><em>My question:</em> If you could help me understand how to re-design my code so that $P_1, P_3, P_5$ are computed to have the same length, I would be very grateful.</p>
+
+<p><strong><em>Section 2. The implementation</em></strong></p>
+
+<pre><code># ------------------------
+# BEGIN: import statements
+
+import mshr
+import dolfin
+
+import numpy
+
+# END: import statements
+# ----------------------
+
+
+
+# ------------------------
+# BEGIN: class definitions
+
+class BoundaryArc(dolfin.SubDomain):
+    """ Given a planar domain P which is star-shaped
+        with respect to a point x_0 in its interior,
+        this class represents and manipulates 
+        connected subsets of the boundary of P,
+        where each such connected subset is
+        specified as an angular aperture.
+
+        Angles are ASSUMED to be measured:
+
+            1) in the CCW direction from (the parallel translate of)
+            the positive x-axis originating at x_0
+
+            2) and in radians."""
+
+    def __init__(self, theta_initial, theta_final):
+
+        self.theta_initial = theta_initial
+        self.theta_final = theta_final
+        dolfin.SubDomain.__init__(self)
+
+
+    def inside(self, x, on_boundary):
+
+        angle = my_arctan(x[1], x[0], angular_unit = TYPE_ANGULAR_UNITS)
+        is_angle_in_arc_aperture = (angle &gt;= self.theta_initial - DOLFIN_TOL) \
+                                and (angle &lt;= self.theta_final + DOLFIN_TOL)
+
+        return (on_boundary and is_angle_in_arc_aperture)
+
+# END: class definitions
+# ----------------------
+
+
+
+# ---------------------------
+# BEGIN: function definitions
+
+def my_arctan(y, x, angular_unit = 'radians'):
+
+    angle = numpy.arctan2(y, x)
+    if (angle &lt; 0):
+        angle += 2 * numpy.pi
+
+    if (angular_unit == 'radians'):
+        return angle
+    elif (angular_unit == 'degrees'):
+        return angle * (180/numpy.pi)
+
+# END: function definitions
+# -------------------------
+
+
+
+if __name__ == '__main__':
+
+    MAX_DEGREES = 360.0
+    TYPE_ANGULAR_UNITS = 'degrees'
+    CONV_FCT_DEG_TO_RAD = numpy.pi / 180.0
+
+    DOLFIN_TOL = 1E-6
+
+
+    # construct a regular polygon P centered at the origin,
+    # on whose interior we are to create an unstructured mesh my_mesh later
+    number_of_vertices = 12
+    ang_pos_of_vertices = \
+        numpy.linspace(0, MAX_DEGREES, num = number_of_vertices, endpoint = False)
+
+    x_coords_of_vertices = [numpy.cos(t * CONV_FCT_DEG_TO_RAD) for t in ang_pos_of_vertices]
+    y_coords_of_vertices = [numpy.sin(t * CONV_FCT_DEG_TO_RAD) for t in ang_pos_of_vertices]
+
+    coords_of_vertices = zip(x_coords_of_vertices, y_coords_of_vertices)
+    Vertices_Of_P = [dolfin.Point(x, y) for x, y in coords_of_vertices]
+    Outer_Bdry_Of_P = mshr.Polygon(Vertices_Of_P)
+
+    # construct an internal boundary 
+    # to be incorporated into the unstructured mesh my_mesh on the interior of P,
+    # which we are to construct later
+    num_vertices_internal_bdry = 32
+    ang_pos_of_vertices_internal_bdry = \
+        numpy.linspace(0, MAX_DEGREES, num = num_vertices_internal_bdry, endpoint = False)
+
+    x_coords_of_vertices_internal_bdry = \
+                            [0.35 + 0.25 * numpy.cos(t * CONV_FCT_DEG_TO_RAD) 
+                                    for t in ang_pos_of_vertices_internal_bdry]
+    y_coords_of_vertices_internal_bdry = \
+                            [0.35 + 0.25 * numpy.sin(t * CONV_FCT_DEG_TO_RAD)
+                                    for t in ang_pos_of_vertices_internal_bdry]
+
+    coords_of_vertices_internal_bdry = \
+        zip(x_coords_of_vertices_internal_bdry, y_coords_of_vertices_internal_bdry)
+    Vertices_Of_Internal_Bdry = [dolfin.Point(x, y) for x, y in coords_of_vertices_internal_bdry]
+    Internal_Bdry = mshr.Polygon(Vertices_Of_Internal_Bdry)
+
+    # generate the mesh my_mesh
+    mesh_resol_param = 15
+    Outer_Bdry_Of_P.set_subdomain(1, Internal_Bdry)
+    my_mesh = mshr.generate_mesh(Outer_Bdry_Of_P, mesh_resol_param)
+
+    # mark boundary arcs on the outer boundary of my_mesh
+    # by means of a dolfin.MeshFunction;
+    # each boundary arc will be specified by its angular aperture
+    # (measured in the counter-clockwise sense from the positive x-axis)
+    angles = [0.0, 30.0, 120.0, 150.0, 240.0, 270.0]
+    mesh_bdry_fn = dolfin.MeshFunction("size_t", my_mesh,
+                                my_mesh.topology().dim()-1)
+
+    for j in range(len(angles)-1):
+        print 'angular aperture of boundary arc #{0}'.format(j), \
+                ':', angles[j], angles[j+1]
+        Current_Bdry_Arc = BoundaryArc(angles[j], angles[j+1])
+        Current_Bdry_Arc.mark(mesh_bdry_fn, j)
+
+    j = len(angles)-1
+    print 'angular aperture of boundary arc #{0}'.format(j), \
+                ':', angles[j], MAX_DEGREES
+    Current_Bdry_Arc = BoundaryArc(angles[j], MAX_DEGREES)
+    Current_Bdry_Arc.mark(mesh_bdry_fn, j)
+
+
+    # compute the lengths of each boundary arc
+    ds = dolfin.Measure("ds", domain = my_mesh, subdomain_data = mesh_bdry_fn)
+
+    number_bdry_arcs = len(angles)
+
+    print
+    for j in range(number_bdry_arcs):
+        length_of_curr_bdry_arc = dolfin.Constant(1) * ds(j)
+        length_of_curr_bdry_arc = dolfin.assemble(length_of_curr_bdry_arc)
+
+        print 'length of boundary arc {0}:'.format(j), length_of_curr_bdry_arc
+</code></pre>
+
+<p><strong><em>Section 3. A precise geometric description of</em></strong> <code>my_mesh</code></p>
+
+<p>I would like to use the <code>mshr</code> module to:</p>
+
+<ul>
+<li>create a mesh <code>my_mesh</code> whose outer boundary is the boundary $Q$ of the regular polygon inscribed in the unit circle with 12 vertices and one vertex of $Q$ is at the point $(1, 0)$</li>
+<li>incorporate an internal polygonal boundary $Q_{internal}$ into <code>my_mesh</code>, where $Q_{internal}$ is the boundary of the regular polygon inscribed in the circle $\partial B( (0.35, 0.35); 0.25)$ and one vertex of $Q_{internal}$ is at the point $(0.35 + 0.25, 0.35)$</li>
+<li>use a <code>dolfin.MeshFunction</code> to mark parts of the outer boundary of <code>my_mesh</code> (i.e. parts of the boundary of $Q$) according to their angular aperture as measured in the counter-clockwise sense from the positive $x$-axis; specifically, I would like to divide the outer boundary of <code>my_mesh</code> into the following six angular apertures: [0, 30], [30, 120], [120, 150], [150, 240], [240, 270], [270, 360], where all angles are in degrees and all endpoints are included</li>
+</ul>
+
+<p>By applying the law of sines to the mathematical situation described above, one sees that:</p>
+
+<ul>
+<li>each of the boundary parts corresponding to angular apertures [0, 30], [120, 150], [240, 270] has a length of $sin(\pi/6) / sin(5\pi / 12) \approx 0.517638$</li>
+<li>each of the boundary parts corresponding to angular apertures [30, 120], [150, 240], [270, 360] has a length of $3 * sin(\pi/6) / sin(5\pi / 12) \approx 1.552914$</li>
+</ul>
+</div>
+										</div>
+										<div class="qa-q-view-tags">
+											<ul class="qa-q-view-tag-list">
+												<li class="qa-q-view-tag-item"><a href="../../tag/mshr" rel="tag" class="qa-tag-link">mshr</a></li>
+												<li class="qa-q-view-tag-item"><a href="../../tag/meshfunction" rel="tag" class="qa-tag-link">meshfunction</a></li>
+												<li class="qa-q-view-tag-item"><a href="../../tag/boundarymesh" rel="tag" class="qa-tag-link">boundarymesh</a></li>
+												<li class="qa-q-view-tag-item"><a href="../../tag/boundary" rel="tag" class="qa-tag-link">boundary</a></li>
+												<li class="qa-q-view-tag-item"><a href="../../tag/dolfin" rel="tag" class="qa-tag-link">dolfin</a></li>
+											</ul>
+										</div>
+										<span class="qa-q-view-avatar-meta">
+											<span class="qa-q-view-meta">
+												<a href="../../8330/how-to-split-the-outer-boundary-of-a-mesh-in-a-structured-way" class="qa-q-view-what">asked</a>
+												<span class="qa-q-view-when">
+													<span class="qa-q-view-when-data"><span class="published"><span class="value-title" title="2015-10-10T09:12:01+0000"></span>Oct 10, 2015</span></span>
+												</span>
+												<span class="qa-q-view-who">
+													<span class="qa-q-view-who-pad">by </span>
+													<span class="qa-q-view-who-data"><span class="vcard author"><a href="../../user/kdma-at-dtu" class="qa-user-link url nickname">kdma-at-dtu</a></span></span>
+													<span class="qa-q-view-who-title">FEniCS Novice</span>
+													<span class="qa-q-view-who-points">
+														<span class="qa-q-view-who-points-pad">(</span><span class="qa-q-view-who-points-data">590</span><span class="qa-q-view-who-points-pad"> points)</span>
+													</span>
+												</span>
+												<br>
+												<span class="qa-q-view-what">edited</span>
+												<span class="qa-q-view-when">
+													<span class="qa-q-view-when-data"><span class="updated"><span class="value-title" title="2015-10-19T09:19:10+0000"></span>Oct 19, 2015</span></span>
+												</span>
+												<span class="qa-q-view-who">
+													<span class="qa-q-view-who-pad">by </span><span class="qa-q-view-who-data"><a href="../../user/kdma-at-dtu" class="qa-user-link url nickname">kdma-at-dtu</a></span>
+												</span>
+											</span>
+										</span>
+										<div class="qa-q-view-buttons">
+										</div>
+										
+										<div class="qa-q-view-c-list" style="display:none;" id="c8330_list">
+										</div> <!-- END qa-c-list -->
+										
+										<input type="hidden" name="code" value="0-1516468167-b33448e438f066d6233bb1a60791269464935f59">
+										<input type="hidden" name="qa_click" value="">
+									</form>
+									<div class="qa-c-form">
+									</div> <!-- END qa-c-form -->
+									
+								</div> <!-- END qa-q-view-main -->
+								<div class="qa-q-view-clear">
+								</div>
+							</div> <!-- END qa-q-view -->
+							
+						</div>
+						<div class="qa-part-a-list">
+							<h2 id="a_list_title" style="display:none;"></h2>
+							<div class="qa-a-list" id="a_list">
+								
+							</div> <!-- END qa-a-list -->
+							
+						</div>
+					</div> <!-- END qa-main -->
+					
+				</div> <!-- END main-wrapper -->
+			</div> <!-- END main-shadow -->
+		</div> <!-- END body-wrapper -->
+		<!-- END footer-bottom-group -->
+		
+		<div style="position:absolute; left:-9999px; top:-9999px;">
+			<span id="qa-waiting-template" class="qa-waiting">...</span>
+		</div>
+	
+	
+
+</body><!-- Powered by Question2Answer - http://www.question2answer.org/ --></html>

@@ -1,0 +1,323 @@
+<html><!-- Powered by Question2Answer - http://www.question2answer.org/ --><head>
+		<meta http-equiv="content-type" content="text/html; charset=utf-8">
+		<title>How to extract vertex values of *x,y coordinates* of vector-valued function? - FEniCS Q&amp;A</title>
+		<meta name="description" content="I am feeling extremely anxious and frustrated bc I cannot find the answer to what I think is a simple  ...  at all where I am going wrong! Thank you!">
+		<meta name="keywords" content="dofs,vertex">
+		<link rel="stylesheet" type="text/css" href="../../qa-theme/Snow/qa-styles.css">
+		<link rel="canonical" href="http://fenicsproject.org/qa/14055/extract-vertex-values-coordinates-vector-valued-function">
+		<script type="text/x-mathjax-config">
+  MathJax.Hub.Config({
+    extensions: ["tex2jax.js"],
+    jax: ["input/TeX","output/HTML-CSS"],
+    tex2jax: {inlineMath: [["$","$"],["\\(","\\)"]]},
+    TeX: { extensions: ["AMSmath.js","AMSsymbols.js"]}
+  });
+</script>
+<script type="text/javascript" src="../../mathjax/MathJax.js"></script>
+		<script src="../../jquery-1.7.2.min.js" type="text/javascript"></script>
+		<script src="../../highlight.min.js"></script>
+<script type="text/javascript">
+$(function(){
+	$('.wmd-input').keypress(function(){
+		window.clearTimeout(hljs.Timeout);
+		hljs.Timeout = window.setTimeout(function() {
+			hljs.initHighlighting.called = false;
+			hljs.initHighlighting();
+		}, 500);
+	});
+	window.setTimeout(function() {
+		hljs.initHighlighting.called = false;
+		hljs.initHighlighting();
+	}, 500);
+});
+</script>
+
+
+	</head>
+	<body class="qa-template-question qa-body-js-off">
+		<div class="qa-body-wrapper">
+			
+			<div class="qa-header">
+				<div class="qa-logo">
+					<a href="../../" class="qa-logo-link" title="FEniCS Q&amp;A"><img src="../../qa-theme/fenics_qa.png" border="0" alt="FEniCS Q&amp;A"></a>
+				</div>
+				<div class="qa-header-clear">
+				</div>
+			</div> <!-- END qa-header -->
+			
+			<div class="qa-main-shadow">
+				
+				<div class="qa-main-wrapper">
+					
+					<div class="qa-sidepanel">
+						<div class="qa-sidebar">
+							This is a read only copy of the old FEniCS QA forum. Please visit the <a href="https://www.allanswered.com/community/s/fenics-project/">new QA forum</a> to ask questions
+						</div>
+						
+					</div>
+					
+					<div class="qa-main">
+						<h1>
+							<span class="entry-title">How to extract vertex values of *x,y coordinates* of vector-valued function?</span>
+						</h1>
+						<div class="qa-part-q-view">
+							<div class="qa-q-view  hentry question" id="q14055">
+								<form method="post" action="../../14055/extract-vertex-values-coordinates-vector-valued-function">
+									<div class="qa-q-view-stats">
+										<div class="qa-voting qa-voting-net" id="voting_14055">
+											<div class="qa-vote-count qa-vote-count-net">
+												<span class="qa-netvote-count">
+													<span class="qa-netvote-count-data">0<span class="votes-up"><span class="value-title" title="0"></span></span><span class="votes-down"><span class="value-title" title="0"></span></span></span><span class="qa-netvote-count-pad"> votes</span>
+												</span>
+											</div>
+											<div class="qa-vote-clear">
+											</div>
+										</div>
+									</div>
+									<input type="hidden" name="code" value="0-1516466504-54ba6fd4c9d24d4944adc02d49e6b57becb31dc3">
+								</form>
+								<div class="qa-q-view-main">
+									<form method="post" action="../../14055/extract-vertex-values-coordinates-vector-valued-function">
+										<div class="qa-q-view-content">
+											<a name="14055"></a><div class="entry-content"><p>I am feeling extremely anxious and frustrated bc I cannot find the answer to what I think is a simple question?</p>
+
+<p>I just want the x-coordinate vertex values of a vector-valued function so I can make a streamplot in matplot lib.</p>
+
+<p>Specifically I want just the x-coordinates of the vertex values of sigma below in this MWE:</p>
+
+<pre><code>from dolfin import *
+%matplotlib inline
+# Create mesh
+mesh = UnitSquareMesh(32, 32)
+
+# Define function spaces and mixed (product) space
+BDM = FunctionSpace(mesh, "BDM", 1)
+DG = FunctionSpace(mesh, "DG", 0)
+
+element_bdm = FiniteElement("BDM", triangle, 1)
+element_dg  = FiniteElement("DG", triangle, 0)
+mixed_element = element_bdm * element_dg
+W = FunctionSpace(mesh,mixed_element)
+
+# Define trial and test functions
+(sigma, u) = TrialFunctions(W)
+(tau, v) = TestFunctions(W)
+
+# Define source function
+f = Expression("10*exp(-(pow(x[0] - 0.5, 2) + pow(x[1] - 0.5, 2)) / 0.02)",degree=1)
+
+# Define variational form
+a = (dot(sigma, tau) + div(tau)*u + div(sigma)*v)*dx
+L = - f*v*dx
+
+# Define function G such that G \cdot n = g
+class BoundarySource(Expression):
+    def __init__(self, mesh, **kwargs):
+        self.mesh = mesh
+    def eval_cell(self, values, x, ufc_cell):
+        cell = Cell(self.mesh, ufc_cell.index)
+        n = cell.normal(ufc_cell.local_facet)
+        g = sin(5*x[0])
+        values[0] = g*n[0]
+        values[1] = g*n[1]
+    def value_shape(self):
+        return (2,)
+
+G = BoundarySource(mesh,degree=1)
+
+# Define essential boundary
+def boundary(x):
+    return x[1] &lt; DOLFIN_EPS or x[1] &gt; 1.0 - DOLFIN_EPS
+
+bc = DirichletBC(W.sub(0), G, boundary)
+
+# Compute solution
+w = Function(W)
+solve(a == L, w, bc)
+(sigma, u) = w.split()
+</code></pre>
+
+<p>For scalar values I could just use compute_vertex_values(). But here we see that this concatenates the values into a single vector so I can't tell how to extract just the x-components.</p>
+
+<pre><code>coordinates = mesh.coordinates()
+print coordinates.shape
+print coordinates[1]
+print(sigma(coordinates[1]))
+vertex_values = sigma.compute_vertex_values()
+print vertex_values.shape
+</code></pre>
+
+<p>in the Fenics manual supposedly using split should help, this gives me an error</p>
+
+<pre><code>x_sigma,y_sigma = sigma.split()
+</code></pre>
+
+<p>I also tried the hack on the previous question but you can't do uy.compute_vertex_values() as it throws an error also...please help if you can see at all where I am going wrong! Thank you!</p>
+</div>
+										</div>
+										<div class="qa-q-view-follows">
+											related to an answer for:
+											<a href="../../9895/how-to-extract-vector-field-components?show=9896#a9896" class="qa-q-view-follows-link">how to extract vector field components</a>
+										</div>
+										<div class="qa-q-view-tags">
+											<ul class="qa-q-view-tag-list">
+												<li class="qa-q-view-tag-item"><a href="../../tag/dofs" rel="tag" class="qa-tag-link">dofs</a></li>
+												<li class="qa-q-view-tag-item"><a href="../../tag/vertex" rel="tag" class="qa-tag-link">vertex</a></li>
+											</ul>
+										</div>
+										<span class="qa-q-view-avatar-meta">
+											<span class="qa-q-view-meta">
+												<a href="../../14055/extract-vertex-values-coordinates-vector-valued-function" class="qa-q-view-what">asked</a>
+												<span class="qa-q-view-when">
+													<span class="qa-q-view-when-data"><span class="published"><span class="value-title" title="2017-06-20T09:12:31+0000"></span>Jun 20, 2017</span></span>
+												</span>
+												<span class="qa-q-view-who">
+													<span class="qa-q-view-who-pad">by </span>
+													<span class="qa-q-view-who-data"><span class="vcard author"><a href="../../user/DocSauce" class="qa-user-link url nickname">DocSauce</a></span></span>
+													<span class="qa-q-view-who-title">FEniCS Novice</span>
+													<span class="qa-q-view-who-points">
+														<span class="qa-q-view-who-points-pad">(</span><span class="qa-q-view-who-points-data">170</span><span class="qa-q-view-who-points-pad"> points)</span>
+													</span>
+												</span>
+											</span>
+										</span>
+										<div class="qa-q-view-buttons">
+										</div>
+										
+										<div class="qa-q-view-c-list" style="display:none;" id="c14055_list">
+										</div> <!-- END qa-c-list -->
+										
+										<input type="hidden" name="code" value="0-1516466504-1d32f6f579cfac6b91ad37941b3831d1526a6260">
+										<input type="hidden" name="qa_click" value="">
+									</form>
+									<div class="qa-c-form">
+									</div> <!-- END qa-c-form -->
+									
+								</div> <!-- END qa-q-view-main -->
+								<div class="qa-q-view-clear">
+								</div>
+							</div> <!-- END qa-q-view -->
+							
+						</div>
+						<div class="qa-part-a-list">
+							<h2 id="a_list_title">1 Answer</h2>
+							<div class="qa-a-list" id="a_list">
+								
+								<div class="qa-a-list-item  hentry answer answer-selected qa-a-list-item-selected" id="a14072">
+									<form method="post" action="../../14055/extract-vertex-values-coordinates-vector-valued-function">
+										<div class="qa-voting qa-voting-net" id="voting_14072">
+											<div class="qa-vote-count qa-vote-count-net">
+												<span class="qa-netvote-count">
+													<span class="qa-netvote-count-data">+1<span class="votes-up"><span class="value-title" title="1"></span></span><span class="votes-down"><span class="value-title" title="0"></span></span></span><span class="qa-netvote-count-pad"> vote</span>
+												</span>
+											</div>
+											<div class="qa-vote-clear">
+											</div>
+										</div>
+										<input type="hidden" name="code" value="0-1516466504-54ba6fd4c9d24d4944adc02d49e6b57becb31dc3">
+									</form>
+									<div class="qa-a-item-main">
+										<form method="post" action="../../14055/extract-vertex-values-coordinates-vector-valued-function">
+											<div class="qa-a-item-selected">
+												<div class="qa-a-selection">
+													<div class="qa-a-selected">&#160;</div>
+													<div class="qa-a-selected-text">Best answer</div>
+												</div>
+												<div class="qa-a-item-content">
+													<a name="14072"></a><div class="entry-content"><p>Similar to the Nedlec elements I use, you cannot directly access the x- and y- components of a Function defined on a BDM space (maybe have a look at the definition of BDM elements).</p>
+
+<p>Solution: Interpolate your sigma on a Lagrange VectroFunctionSpace:</p>
+
+<pre><code>.... your code until:
+(sigma, u) = w.split()
+V_cg = VectorFunctionSpace(mesh, 'CG', 1)
+sigma_cg = interpolate(sigma, V_cg)
+
+sigma_x_array = sigma_cg.vector.array()[::2]
+sigma_y_array = sigma_cg.vector.array()[1::2]
+</code></pre>
+
+<p>These values belong to </p>
+
+<pre><code>V_cg.tabulate_dof_coordinates().reshape(-1,2)
+</code></pre>
+
+<blockquote>
+  <p>Appendix: Interpolation errors are neglegtible. Try the following code snippet</p>
+</blockquote>
+
+<pre><code>import dolfin as df
+
+mesh=df.UnitSquareMesh(1, 1)
+V_cg = df.VectorFunctionSpace(mesh, 'CG', 1)
+V_bdm = df.FunctionSpace(mesh, "BDM", 1)
+
+u = df.Expression(('x[0]','x[1]'), element=V_cg.ufl_element())
+u_bdm = df.interpolate(u, V)
+u_cg_from_u_bdm = df.interpolate(u_bdm, V_cg)
+u_cg_from_u_directly = df.interpolate(u, V_cg)
+
+print(u_cg_from_u_bdm.vector().array() -
+      u_cg_from_u_directly.vector().array())
+</code></pre>
+</div>
+												</div>
+												<span class="qa-a-item-avatar-meta">
+													<span class="qa-a-item-meta">
+														<a href="../../14055/extract-vertex-values-coordinates-vector-valued-function?show=14072#a14072" class="qa-a-item-what">answered</a>
+														<span class="qa-a-item-when">
+															<span class="qa-a-item-when-data"><span class="published"><span class="value-title" title="2017-06-21T12:46:59+0000"></span>Jun 21, 2017</span></span>
+														</span>
+														<span class="qa-a-item-who">
+															<span class="qa-a-item-who-pad">by </span>
+															<span class="qa-a-item-who-data"><span class="vcard author"><a href="../../user/RR" class="qa-user-link url nickname">RR</a></span></span>
+															<span class="qa-a-item-who-title">FEniCS User</span>
+															<span class="qa-a-item-who-points">
+																<span class="qa-a-item-who-points-pad">(</span><span class="qa-a-item-who-points-data">3,330</span><span class="qa-a-item-who-points-pad"> points)</span>
+															</span>
+														</span>
+														<br>
+														<span class="qa-a-item-what">selected</span>
+														<span class="qa-a-item-when">
+															<span class="qa-a-item-when-data"><span class="updated"><span class="value-title" title="2017-06-26T17:54:05+0000"></span>Jun 26, 2017</span></span>
+														</span>
+														<span class="qa-a-item-who">
+															<span class="qa-a-item-who-pad">by </span><span class="qa-a-item-who-data"><a href="../../user/DocSauce" class="qa-user-link url nickname">DocSauce</a></span>
+														</span>
+													</span>
+												</span>
+											</div>
+											<div class="qa-a-item-buttons">
+												</div>
+											
+											<div class="qa-a-item-c-list" style="display:none;" id="c14072_list">
+											</div> <!-- END qa-c-list -->
+											
+											<input type="hidden" name="code" value="0-1516466504-3e9fb2503860aeceaa134a7e02b86486a9163c02">
+											<input type="hidden" name="qa_click" value="">
+										</form>
+										<div class="qa-c-form">
+										</div> <!-- END qa-c-form -->
+										
+									</div> <!-- END qa-a-item-main -->
+									<div class="qa-a-item-clear">
+									</div>
+								</div> <!-- END qa-a-list-item -->
+								
+							</div> <!-- END qa-a-list -->
+							
+						</div>
+					</div> <!-- END qa-main -->
+					
+				</div> <!-- END main-wrapper -->
+			</div> <!-- END main-shadow -->
+		</div> <!-- END body-wrapper -->
+		<!-- END footer-bottom-group -->
+		
+		<div style="position:absolute; left:-9999px; top:-9999px;">
+			<span id="qa-waiting-template" class="qa-waiting">...</span>
+		</div>
+	
+	
+
+</body><!-- Powered by Question2Answer - http://www.question2answer.org/ --></html>

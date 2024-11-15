@@ -1,0 +1,328 @@
+<html><!-- Powered by Question2Answer - http://www.question2answer.org/ --><head>
+		<meta http-equiv="content-type" content="text/html; charset=utf-8">
+		<title>Arity Mismatch exception - FEniCS Q&amp;A</title>
+		<meta name="description" content="from dolfin import * mesh=Mesh('Heiztank_alle_Abrundungen.xml') V = VectorFunctionSpace(mesh,'CG' ... nonlinearities. Does anybody have a clue? Thanks">
+		<link rel="stylesheet" type="text/css" href="../../qa-theme/Snow/qa-styles.css">
+		<link rel="canonical" href="http://fenicsproject.org/qa/9117/arity-mismatch-exception">
+		<script type="text/x-mathjax-config">
+  MathJax.Hub.Config({
+    extensions: ["tex2jax.js"],
+    jax: ["input/TeX","output/HTML-CSS"],
+    tex2jax: {inlineMath: [["$","$"],["\\(","\\)"]]},
+    TeX: { extensions: ["AMSmath.js","AMSsymbols.js"]}
+  });
+</script>
+<script type="text/javascript" src="../../mathjax/MathJax.js"></script>
+		<script src="../../jquery-1.7.2.min.js" type="text/javascript"></script>
+		<script src="../../highlight.min.js"></script>
+<script type="text/javascript">
+$(function(){
+	$('.wmd-input').keypress(function(){
+		window.clearTimeout(hljs.Timeout);
+		hljs.Timeout = window.setTimeout(function() {
+			hljs.initHighlighting.called = false;
+			hljs.initHighlighting();
+		}, 500);
+	});
+	window.setTimeout(function() {
+		hljs.initHighlighting.called = false;
+		hljs.initHighlighting();
+	}, 500);
+});
+</script>
+
+
+	</head>
+	<body class="qa-template-question qa-body-js-off">
+		<div class="qa-body-wrapper">
+			
+			<div class="qa-header">
+				<div class="qa-logo">
+					<a href="../../" class="qa-logo-link" title="FEniCS Q&amp;A"><img src="../../qa-theme/fenics_qa.png" border="0" alt="FEniCS Q&amp;A"></a>
+				</div>
+				<div class="qa-header-clear">
+				</div>
+			</div> <!-- END qa-header -->
+			
+			<div class="qa-main-shadow">
+				
+				<div class="qa-main-wrapper">
+					
+					<div class="qa-sidepanel">
+						<div class="qa-sidebar">
+							This is a read only copy of the old FEniCS QA forum. Please visit the <a href="https://www.allanswered.com/community/s/fenics-project/">new QA forum</a> to ask questions
+						</div>
+						
+					</div>
+					
+					<div class="qa-main">
+						<h1>
+							<span class="entry-title">Arity Mismatch exception</span>
+						</h1>
+						<div class="qa-part-q-view">
+							<div class="qa-q-view  hentry question" id="q9117">
+								<form method="post" action="../../9117/arity-mismatch-exception">
+									<div class="qa-q-view-stats">
+										<div class="qa-voting qa-voting-net" id="voting_9117">
+											<div class="qa-vote-count qa-vote-count-net">
+												<span class="qa-netvote-count">
+													<span class="qa-netvote-count-data">0<span class="votes-up"><span class="value-title" title="0"></span></span><span class="votes-down"><span class="value-title" title="0"></span></span></span><span class="qa-netvote-count-pad"> votes</span>
+												</span>
+											</div>
+											<div class="qa-vote-clear">
+											</div>
+										</div>
+									</div>
+									<input type="hidden" name="code" value="0-1516468208-e692a3af2c258ad712f408a83bd0d9defeb84c8f">
+								</form>
+								<div class="qa-q-view-main">
+									<form method="post" action="../../9117/arity-mismatch-exception">
+										<div class="qa-q-view-content">
+											<a name="9117"></a><div class="entry-content"><pre><code>from dolfin import *
+mesh=Mesh('Heiztank_alle_Abrundungen.xml')
+V = VectorFunctionSpace(mesh,'CG',1)
+cells = MeshFunction('size_t',mesh,'Heiztank_alle_Abrundungen_physical_region.xml')
+facets = MeshFunction('size_t',mesh,'Heiztank_alle_Abrundungen_facet_region.xml')
+dA = Measure('ds')[facets]
+dV = Measure('dx')[cells]
+p0=101325.0E-6# in MPa
+g=9.81# in m/s2
+rho_oel=860# in kg/(m)3
+h=1.5350# in m
+padd=Expression(('AB(C-x[2]1.0E-3)'),A=rho_oel,B=g,C=h)# in 1.0E-6MPa
+pin=p0+1.0E-6padd# in MPa
+n=FacetNormal(mesh)
+tr_a=-p0n
+tr_i=-pinn
+null = Constant((0.0,0.0,0.0))
+bc = [DirichletBC(V,null,facets,84)]
+u = TrialFunction(V)
+del_u = TestFunction(V)
+nu = 0.38
+E = 1400.0 # MPa
+G = E/(2.0(1.0+nu))
+l = 2.0Gnu / (1.0 - 2.0 nu)
+mu = G
+delta = Identity(3)
+eps = as_tensor(1.0/2.0(u[i].dx(j)+u[j].dx(i)),(i,j))
+sigma = as_tensor(leps[k,k]delta[i,j]+2.0mueps[i,j],(i,j))
+a = sigma[j,i]del_u[i].dx(j)dV
+L = tr_a[i]del_u[i]dA(83)+tr_i[i]del_u[i]dA(82)
+disp = Function(V)
+solve(a==L, disp, bcs=bc)
+sdev = as_tensor(sigma[i,j]- 1.0/3.0sigma[k,k]delta[i,j],(i,j))
+mises = as_tensor( (3.0/2.0sdev[i,j] * sdev[i,j])**0.5, () )
+seq=project(mises,FunctionSpace(mesh,'CG',1),solver_type="mumps",form_compiler_parameters={"cpp_optimize":True,"representation":"quadrature","quadrature_degree":2})
+</code></pre>
+
+<p>Hi, this is our Code.<br>
+Everything works except for the last line. we want to write out 'seq' to file and if we run the code, it says:</p>
+
+<pre><code>Solving linear variational problem.
+Calling FFC just-in-time (JIT) compiler, this may take some time.
+Traceback (most recent call last):
+File "", line 1, in
+File "/usr/lib/python2.7/dist-packages/spyderlib/widgets/externalshell/sitecustomize.py", line 540, in runfile
+execfile(filename, namespace)
+File "/home/user/Dokumente/NumReal/Heiz&#246;ltank/Klotz1500.py", line 59, in
+seq = project(mises,FunctionSpace(mesh,'P',1),solver_type="mumps",form_compiler_parameters={"cpp_optimize":True,"representation":"quadrature","quadrature_degree":2})
+File "/usr/lib/python2.7/dist-packages/dolfin/fem/projection.py", line 111, in project
+form_compiler_parameters=form_compiler_parameters)
+File "/usr/lib/python2.7/dist-packages/dolfin/fem/assembling.py", line 244, in assemble_system
+b_dolfin_form = _create_dolfin_form(b_form, form_compiler_parameters)
+File "/usr/lib/python2.7/dist-packages/dolfin/fem/assembling.py", line 58, in _create_dolfin_form
+return Form(form, form_compiler_parameters=form_compiler_parameters)
+File "/usr/lib/python2.7/dist-packages/dolfin/fem/form.py", line 82, in init
+mpi_comm=mesh.mpi_comm())
+File "/usr/lib/python2.7/dist-packages/dolfin/compilemodules/jit.py", line 64, in mpi_jit
+return local_jit(*args, **kwargs)
+File "/usr/lib/python2.7/dist-packages/dolfin/compilemodules/jit.py", line 128, in jit
+return form_compiler.jit(form, parameters=p)
+File "/usr/lib/python2.7/dist-packages/ffc/jitcompiler.py", line 74, in jit
+return jit_form(ufl_object, parameters)
+File "/usr/lib/python2.7/dist-packages/ffc/jitcompiler.py", line 130, in jit_form
+parameters=parameters)
+File "/usr/lib/python2.7/dist-packages/ffc/compiler.py", line 154, in compile_form
+analysis = analyze_forms(forms, parameters)
+File "/usr/lib/python2.7/dist-packages/ffc/analysis.py", line 59, in analyze_forms
+parameters) for form in forms)
+File "/usr/lib/python2.7/dist-packages/ffc/analysis.py", line 59, in
+parameters) for form in forms)
+File "/usr/lib/python2.7/dist-packages/ffc/analysis.py", line 132, in _analyze_form
+form_data = compute_form_data(form)
+File "/usr/lib/python2.7/dist-packages/ufl/algorithms/compute_form_data.py", line 304, in compute_form_data
+check_form_arity(preprocessed_form, form.arguments()) # Currently testing how fast this is
+File "/usr/lib/python2.7/dist-packages/ufl/algorithms/check_arities.py", line 123, in check_form_arity
+check_integrand_arity(itg.integrand(), arguments)
+File "/usr/lib/python2.7/dist-packages/ufl/algorithms/check_arities.py", line 117, in check_integrand_arity
+args = map_expr_dag(rules, expr, compress=False)
+File "/usr/lib/python2.7/dist-packages/ufl/corealg/map_dag.py", line 64, in map_expr_dag
+r = function(v)
+File "/usr/lib/python2.7/dist-packages/ufl/corealg/multifunction.py", line 72, in call
+return self._handlerso._ufl_typecode_
+File "/usr/lib/python2.7/dist-packages/ufl/algorithms/check_arities.py", line 33, in nonlinear_operator
+raise ArityMismatch("Applying nonlinear operator to expression depending on form argument {0}.".format(t))
+ufl.algorithms.check_arities.ArityMismatch: Applying nonlinear operator to expression depending on form argument v_1.
+</code></pre>
+
+<p>We found another post which told us that we should use Function() in combination with a nonlinear form, but we are sure we're not having any nonlinearities.</p>
+
+<p>Does anybody have a clue?<br>
+Thanks</p>
+</div>
+										</div>
+										<span class="qa-q-view-avatar-meta">
+											<span class="qa-q-view-meta">
+												<a href="../../9117/arity-mismatch-exception" class="qa-q-view-what">asked</a>
+												<span class="qa-q-view-when">
+													<span class="qa-q-view-when-data"><span class="published"><span class="value-title" title="2016-01-26T15:09:41+0000"></span>Jan 26, 2016</span></span>
+												</span>
+												<span class="qa-q-view-who">
+													<span class="qa-q-view-who-pad">by </span>
+													<span class="qa-q-view-who-data"><span class="vcard author"><a href="../../user/philippdiercks" class="qa-user-link url nickname">philippdiercks</a></span></span>
+													<span class="qa-q-view-who-title">FEniCS Novice</span>
+													<span class="qa-q-view-who-points">
+														<span class="qa-q-view-who-points-pad">(</span><span class="qa-q-view-who-points-data">230</span><span class="qa-q-view-who-points-pad"> points)</span>
+													</span>
+												</span>
+											</span>
+										</span>
+										<div class="qa-q-view-buttons">
+										</div>
+										
+										<div class="qa-q-view-c-list" style="display:none;" id="c9117_list">
+										</div> <!-- END qa-c-list -->
+										
+										<input type="hidden" name="code" value="0-1516468208-09cc7bdeeaf572b04002e9923e30dda7a52b548e">
+										<input type="hidden" name="qa_click" value="">
+									</form>
+									<div class="qa-c-form">
+									</div> <!-- END qa-c-form -->
+									
+								</div> <!-- END qa-q-view-main -->
+								<div class="qa-q-view-clear">
+								</div>
+							</div> <!-- END qa-q-view -->
+							
+						</div>
+						<div class="qa-part-a-list">
+							<h2 id="a_list_title">1 Answer</h2>
+							<div class="qa-a-list" id="a_list">
+								
+								<div class="qa-a-list-item  hentry answer" id="a9131">
+									<form method="post" action="../../9117/arity-mismatch-exception">
+										<div class="qa-voting qa-voting-net" id="voting_9131">
+											<div class="qa-vote-count qa-vote-count-net">
+												<span class="qa-netvote-count">
+													<span class="qa-netvote-count-data">0<span class="votes-up"><span class="value-title" title="0"></span></span><span class="votes-down"><span class="value-title" title="0"></span></span></span><span class="qa-netvote-count-pad"> votes</span>
+												</span>
+											</div>
+											<div class="qa-vote-clear">
+											</div>
+										</div>
+										<input type="hidden" name="code" value="0-1516468208-e692a3af2c258ad712f408a83bd0d9defeb84c8f">
+									</form>
+									<div class="qa-a-item-main">
+										<form method="post" action="../../9117/arity-mismatch-exception">
+											<div class="qa-a-selection">
+											</div>
+											<div class="qa-a-item-content">
+												<a name="9131"></a><div class="entry-content"><p>Hi, the object to be projected must not be defined in terms of trial/test functions. Also, you want the von Mises stress to be computed from the displacement that you have obtained, right? If so consider</p>
+
+<pre><code>eps = lambda u: as_tensor(1.0/2.0*(u[i].dx(j) + u[j].dx(i)), (i,j))
+sigma = lambda u: as_tensor(l*eps(u)[k,k]*delta[i,j] + 2.0*mu*eps(u)[i,j], (i,j))
+a = sigma(u)[j,i]*del_u[i].dx(j)*dV
+L = tr_a[i]*del_u[i]*dA + tr_i[i]*del_u[i]*dA
+
+disp = Function(V)
+solve(a == L, disp, bcs=bc)
+
+# Use the stress from displacement
+sdev = as_tensor(sigma(disp)[i,j]- 1.0/3.0*sigma(disp)[k,k]*delta[i,j], (i,j))
+mises = as_tensor((3.0/2.0*sdev[i,j] * sdev[i,j])**0.5, () )
+seq = project(mises, FunctionSpace(mesh, 'CG', 1)) 
+</code></pre>
+</div>
+											</div>
+											<span class="qa-a-item-avatar-meta">
+												<span class="qa-a-item-avatar">
+													<a href="../../user/MiroK" class="qa-avatar-link"><img src="https://www.gravatar.com/avatar/f566be3274ec73e3a6dda27bca11631c?s=40" width="40" height="40" class="qa-avatar-image" alt=""></a>
+												</span>
+												<span class="qa-a-item-meta">
+													<a href="../../9117/arity-mismatch-exception?show=9131#a9131" class="qa-a-item-what">answered</a>
+													<span class="qa-a-item-when">
+														<span class="qa-a-item-when-data"><span class="published"><span class="value-title" title="2016-01-27T18:31:41+0000"></span>Jan 27, 2016</span></span>
+													</span>
+													<span class="qa-a-item-who">
+														<span class="qa-a-item-who-pad">by </span>
+														<span class="qa-a-item-who-data"><span class="vcard author"><a href="../../user/MiroK" class="qa-user-link url nickname">MiroK</a></span></span>
+														<span class="qa-a-item-who-title">FEniCS Expert</span>
+														<span class="qa-a-item-who-points">
+															<span class="qa-a-item-who-points-pad">(</span><span class="qa-a-item-who-points-data">80,920</span><span class="qa-a-item-who-points-pad"> points)</span>
+														</span>
+													</span>
+												</span>
+											</span>
+											<div class="qa-a-item-buttons">
+												</div>
+											
+											<div class="qa-a-item-c-list" id="c9131_list">
+												<div class="qa-c-list-item  hentry comment" id="c9147">
+													<div class="qa-c-item-content">
+														<a name="9147"></a><div class="entry-content"><p>Thanks MiroK, <br>
+that works !</p>
+</div>
+													</div>
+													<div class="qa-c-item-footer">
+														<span class="qa-c-item-avatar-meta">
+															<span class="qa-c-item-meta">
+																<a href="../../9117/arity-mismatch-exception?show=9147#c9147" class="qa-c-item-what">commented</a>
+																<span class="qa-c-item-when">
+																	<span class="qa-c-item-when-data"><span class="published"><span class="value-title" title="2016-01-29T11:11:40+0000"></span>Jan 29, 2016</span></span>
+																</span>
+																<span class="qa-c-item-who">
+																	<span class="qa-c-item-who-pad">by </span>
+																	<span class="qa-c-item-who-data"><span class="vcard author"><a href="../../user/philippdiercks" class="qa-user-link url nickname">philippdiercks</a></span></span>
+																	<span class="qa-c-item-who-title">FEniCS Novice</span>
+																	<span class="qa-c-item-who-points">
+																		<span class="qa-c-item-who-points-pad">(</span><span class="qa-c-item-who-points-data">230</span><span class="qa-c-item-who-points-pad"> points)</span>
+																	</span>
+																</span>
+															</span>
+														</span>
+														<div class="qa-c-item-buttons">
+														</div>
+													</div>
+													<div class="qa-c-item-clear">
+													</div>
+												</div> <!-- END qa-c-item -->
+											</div> <!-- END qa-c-list -->
+											
+											<input type="hidden" name="code" value="0-1516468208-4801c1d5ae476b051d2b315acedf6bad9fb9ef0b">
+											<input type="hidden" name="qa_click" value="">
+										</form>
+										<div class="qa-c-form">
+										</div> <!-- END qa-c-form -->
+										
+									</div> <!-- END qa-a-item-main -->
+									<div class="qa-a-item-clear">
+									</div>
+								</div> <!-- END qa-a-list-item -->
+								
+							</div> <!-- END qa-a-list -->
+							
+						</div>
+					</div> <!-- END qa-main -->
+					
+				</div> <!-- END main-wrapper -->
+			</div> <!-- END main-shadow -->
+		</div> <!-- END body-wrapper -->
+		<!-- END footer-bottom-group -->
+		
+		<div style="position:absolute; left:-9999px; top:-9999px;">
+			<span id="qa-waiting-template" class="qa-waiting">...</span>
+		</div>
+	
+	
+
+</body><!-- Powered by Question2Answer - http://www.question2answer.org/ --></html>

@@ -1,0 +1,482 @@
+<html><!-- Powered by Question2Answer - http://www.question2answer.org/ --><head>
+		<meta http-equiv="content-type" content="text/html; charset=utf-8">
+		<title>Different results surface integration depending on elemtype (with working example) - FEniCS Q&amp;A</title>
+		<meta name="description" content="Dear Fenics community, I have a question regarding the integration over mesh  ... 13629/incorrect-stress-computations-compared-analytical-solution">
+		<meta name="keywords" content="boundary-integration,element-type,integration,discontinuous-galerkin,continous-galerkin">
+		<link rel="stylesheet" type="text/css" href="../../qa-theme/Snow/qa-styles.css">
+		<link rel="canonical" href="http://fenicsproject.org/qa/13680/different-integration-depending-elemtype-working-example">
+		<script type="text/x-mathjax-config">
+  MathJax.Hub.Config({
+    extensions: ["tex2jax.js"],
+    jax: ["input/TeX","output/HTML-CSS"],
+    tex2jax: {inlineMath: [["$","$"],["\\(","\\)"]]},
+    TeX: { extensions: ["AMSmath.js","AMSsymbols.js"]}
+  });
+</script>
+<script type="text/javascript" src="../../mathjax/MathJax.js"></script>
+		<script src="../../jquery-1.7.2.min.js" type="text/javascript"></script>
+		<script src="../../highlight.min.js"></script>
+<script type="text/javascript">
+$(function(){
+	$('.wmd-input').keypress(function(){
+		window.clearTimeout(hljs.Timeout);
+		hljs.Timeout = window.setTimeout(function() {
+			hljs.initHighlighting.called = false;
+			hljs.initHighlighting();
+		}, 500);
+	});
+	window.setTimeout(function() {
+		hljs.initHighlighting.called = false;
+		hljs.initHighlighting();
+	}, 500);
+});
+</script>
+
+
+	</head>
+	<body class="qa-template-question qa-body-js-off">
+		<div class="qa-body-wrapper">
+			
+			<div class="qa-header">
+				<div class="qa-logo">
+					<a href="../../" class="qa-logo-link" title="FEniCS Q&amp;A"><img src="../../qa-theme/fenics_qa.png" border="0" alt="FEniCS Q&amp;A"></a>
+				</div>
+				<div class="qa-header-clear">
+				</div>
+			</div> <!-- END qa-header -->
+			
+			<div class="qa-main-shadow">
+				
+				<div class="qa-main-wrapper">
+					
+					<div class="qa-sidepanel">
+						<div class="qa-sidebar">
+							This is a read only copy of the old FEniCS QA forum. Please visit the <a href="https://www.allanswered.com/community/s/fenics-project/">new QA forum</a> to ask questions
+						</div>
+						
+					</div>
+					
+					<div class="qa-main">
+						<h1>
+							<span class="entry-title">Different results surface integration depending on elemtype (with working example)</span>
+						</h1>
+						<div class="qa-part-q-view">
+							<div class="qa-q-view  hentry question" id="q13680">
+								<form method="post" action="../../13680/different-integration-depending-elemtype-working-example">
+									<div class="qa-q-view-stats">
+										<div class="qa-voting qa-voting-net" id="voting_13680">
+											<div class="qa-vote-count qa-vote-count-net">
+												<span class="qa-netvote-count">
+													<span class="qa-netvote-count-data">+1<span class="votes-up"><span class="value-title" title="1"></span></span><span class="votes-down"><span class="value-title" title="0"></span></span></span><span class="qa-netvote-count-pad"> vote</span>
+												</span>
+											</div>
+											<div class="qa-vote-clear">
+											</div>
+										</div>
+									</div>
+									<input type="hidden" name="code" value="0-1516467876-cfa362b41e92b9873932fb21b6ef69bd951f2fff">
+								</form>
+								<div class="qa-q-view-main">
+									<form method="post" action="../../13680/different-integration-depending-elemtype-working-example">
+										<div class="qa-q-view-content">
+											<a name="13680"></a><div class="entry-content"><p>Dear Fenics community,</p>
+
+<p>I have a question regarding the integration over mesh boundaries, that seems to result in different solutions depending on the finite element type I choose. The context of this question is another question I asked recently <a rel="nofollow" href="https://fenicsproject.org/qa/13629/incorrect-stress-computations-compared-analytical-solution">here</a>, in which I want to compute the wall shear stress. A key step in this computation is integration over the boundary domain and depending on the element type I choose I get different answers: for instance if I choose first order continuous Galerkin elements my computations are a factor 2 too high.</p>
+
+<p>I can illustrate this by a working example at the bottom of this post, where I integrate a constant vector function (1., 1., 1.) over the boundary domain and divide by the FacetArea. I would imagine that irrespective of the element type this would again result in the vector (1., 1., 1.), but this only seems to work for zeroth-order discontinous Galerkin, whereas, for instance first-order continuous Galerkin results in a constant vector (2., 2., 2.). In addition, I observe some discrepancies on the edges of the mesh. Can anybody explain to me the reason why different element types result in different solutions? I do not mind having to multiply a solution by a certain factor to get the correct answer (for instance the first-order Galerkin by a factor 0.5), but I like to know why I should do so, to avoid making incorrect assumptions. Thanks in advance</p>
+
+<pre><code>#!/usr/bin/env python
+# -*- coding: utf-8 -*-
+
+"""
+Minimal working example surface integration question
+"""
+
+# Import statements
+from fenics import *
+
+# Create a 3D cube mesh
+meshsize = 10
+mesh = UnitCubeMesh(meshsize, meshsize, meshsize)
+
+# Define function spaces
+V0 = VectorFunctionSpace(mesh, 'DG', 0)  # Discontinous Galerkin const.
+V1 = VectorFunctionSpace(mesh, 'DG', 1)  # Discontinous Galerkin 1-order
+V2 = VectorFunctionSpace(mesh, 'DG', 2)  # Discontinous Galerkin 2-order
+VC1 = VectorFunctionSpace(mesh, 'CG', 1)  # Continous Galerkin 2-order
+VC2 = VectorFunctionSpace(mesh, 'CG', 2)  # Continous Galerkin 2-order
+
+# Define the test functions
+v0 = TestFunction(V0)
+v1 = TestFunction(V1)
+v2 = TestFunction(V2)
+vc1 = TestFunction(VC1)
+vc2 = TestFunction(VC2)
+
+# Define functions to be integrated
+u_0 = Function(V0)
+u_0 = Constant((1., 1., 1.))
+u_00 = Function(V0)
+u_1 = Function(V1)
+u_1 = Constant((1., 1., 1.))
+u_11 = Function(V1)
+u_2 = Function(V2)
+u_2 = Constant((1., 1., 1.))
+u_22 = Function(V2)
+u_c1 = Function(VC1)
+u_c1 = Constant((1., 1., 1.))
+u_c11 = Function(VC1)
+u_c2 = Function(VC2)
+u_c2 = Constant((1., 1., 1.))
+u_c22 = Function(VC2)
+
+
+# Integrate the functions elementwise
+assemble((1 / FacetArea(mesh)) * inner(v0, u_0) * ds, tensor=u_00.vector())
+assemble((1 / FacetArea(mesh)) * inner(v1, u_1) * ds, tensor=u_11.vector())
+assemble((1 / FacetArea(mesh)) * inner(v2, u_2) * ds, tensor=u_22.vector())
+assemble((1 / FacetArea(mesh)) * inner(vc1, u_c1) * ds, tensor=u_c11.vector())
+assemble((1 / FacetArea(mesh)) * inner(vc2, u_c2) * ds, tensor=u_c22.vector())
+plot(u_00, title='DG 0 vec')
+# plot(u_11, title='DG 1 vec')
+# plot(u_22, title='DG 2 vec')
+plot(u_c11, title='CG 1 vec')
+# plot(u_c22, title='CG 2 vec')
+
+# Only one component
+plot(u_00[0], title='DG 0 x-component')
+# plot(u_11[0], title='DG 1 x-component')
+# plot(u_22[0], title='DG 2 x-component')
+plot(u_c11[0], title='CG 1 x-component')
+# plot(u_c22[0], title='CG 2 x-component')
+interactive()
+</code></pre>
+</div>
+										</div>
+										<div class="qa-q-view-tags">
+											<ul class="qa-q-view-tag-list">
+												<li class="qa-q-view-tag-item"><a href="../../tag/boundary-integration" rel="tag" class="qa-tag-link">boundary-integration</a></li>
+												<li class="qa-q-view-tag-item"><a href="../../tag/element-type" rel="tag" class="qa-tag-link">element-type</a></li>
+												<li class="qa-q-view-tag-item"><a href="../../tag/integration" rel="tag" class="qa-tag-link">integration</a></li>
+												<li class="qa-q-view-tag-item"><a href="../../tag/discontinuous-galerkin" rel="tag" class="qa-tag-link">discontinuous-galerkin</a></li>
+												<li class="qa-q-view-tag-item"><a href="../../tag/continous-galerkin" rel="tag" class="qa-tag-link">continous-galerkin</a></li>
+											</ul>
+										</div>
+										<span class="qa-q-view-avatar-meta">
+											<span class="qa-q-view-meta">
+												<a href="../../13680/different-integration-depending-elemtype-working-example" class="qa-q-view-what">asked</a>
+												<span class="qa-q-view-when">
+													<span class="qa-q-view-when-data"><span class="published"><span class="value-title" title="2017-05-29T09:25:46+0000"></span>May 29, 2017</span></span>
+												</span>
+												<span class="qa-q-view-who">
+													<span class="qa-q-view-who-pad">by </span>
+													<span class="qa-q-view-who-data"><span class="vcard author"><a href="../../user/SQ" class="qa-user-link url nickname">SQ</a></span></span>
+													<span class="qa-q-view-who-title">FEniCS Novice</span>
+													<span class="qa-q-view-who-points">
+														<span class="qa-q-view-who-points-pad">(</span><span class="qa-q-view-who-points-data">320</span><span class="qa-q-view-who-points-pad"> points)</span>
+													</span>
+												</span>
+											</span>
+										</span>
+										<div class="qa-q-view-buttons">
+										</div>
+										
+										<div class="qa-q-view-c-list" style="display:none;" id="c13680_list">
+										</div> <!-- END qa-c-list -->
+										
+										<input type="hidden" name="code" value="0-1516467876-15c10495a7e1ac345d10f3ec7fb7e8f3cc4375e5">
+										<input type="hidden" name="qa_click" value="">
+									</form>
+									<div class="qa-c-form">
+									</div> <!-- END qa-c-form -->
+									
+								</div> <!-- END qa-q-view-main -->
+								<div class="qa-q-view-clear">
+								</div>
+							</div> <!-- END qa-q-view -->
+							
+						</div>
+						<div class="qa-part-a-list">
+							<h2 id="a_list_title">1 Answer</h2>
+							<div class="qa-a-list" id="a_list">
+								
+								<div class="qa-a-list-item  hentry answer answer-selected qa-a-list-item-selected" id="a13693">
+									<form method="post" action="../../13680/different-integration-depending-elemtype-working-example">
+										<div class="qa-voting qa-voting-net" id="voting_13693">
+											<div class="qa-vote-count qa-vote-count-net">
+												<span class="qa-netvote-count">
+													<span class="qa-netvote-count-data">+1<span class="votes-up"><span class="value-title" title="1"></span></span><span class="votes-down"><span class="value-title" title="0"></span></span></span><span class="qa-netvote-count-pad"> vote</span>
+												</span>
+											</div>
+											<div class="qa-vote-clear">
+											</div>
+										</div>
+										<input type="hidden" name="code" value="0-1516467876-cfa362b41e92b9873932fb21b6ef69bd951f2fff">
+									</form>
+									<div class="qa-a-item-main">
+										<form method="post" action="../../13680/different-integration-depending-elemtype-working-example">
+											<div class="qa-a-item-selected">
+												<div class="qa-a-selection">
+													<div class="qa-a-selected">&#160;</div>
+													<div class="qa-a-selected-text">Best answer</div>
+												</div>
+												<div class="qa-a-item-content">
+													<a name="13693"></a><div class="entry-content"><p>Hi, you seem to be after a function in <code>V</code> that represents <code>f=Constant((1, 1, 1))</code> in the space. In general this function is not represented by a vector you assemble above. First of all the problem: Find <code>u</code> in <code>V</code> such that <code>inner(u, v)*ds == inner(f, v)*ds</code> (<code>v</code> being test functions from V), is illposed. However, for <code>V</code> a DG0 space <code>assemble(1/FacetArea(mesh)*inner(f, v)*ds</code> can be viewed as applying the pseudoinverse of the <code>ds</code>-mass matrix, i.e. <code>assemble(inner(TrialFunction(V), v)*ds)</code> to vector <code>assemble(inner(f, v)*ds)</code>. Note that the mass matrix is diagonal with nonzero entries being the facet areas. In summary, for the other elements you are not projecting correctly. </p>
+</div>
+												</div>
+												<span class="qa-a-item-avatar-meta">
+													<span class="qa-a-item-avatar">
+														<a href="../../user/MiroK" class="qa-avatar-link"><img src="https://www.gravatar.com/avatar/f566be3274ec73e3a6dda27bca11631c?s=40" width="40" height="40" class="qa-avatar-image" alt=""></a>
+													</span>
+													<span class="qa-a-item-meta">
+														<a href="../../13680/different-integration-depending-elemtype-working-example?show=13693#a13693" class="qa-a-item-what">answered</a>
+														<span class="qa-a-item-when">
+															<span class="qa-a-item-when-data"><span class="published"><span class="value-title" title="2017-05-29T16:49:46+0000"></span>May 29, 2017</span></span>
+														</span>
+														<span class="qa-a-item-who">
+															<span class="qa-a-item-who-pad">by </span>
+															<span class="qa-a-item-who-data"><span class="vcard author"><a href="../../user/MiroK" class="qa-user-link url nickname">MiroK</a></span></span>
+															<span class="qa-a-item-who-title">FEniCS Expert</span>
+															<span class="qa-a-item-who-points">
+																<span class="qa-a-item-who-points-pad">(</span><span class="qa-a-item-who-points-data">80,920</span><span class="qa-a-item-who-points-pad"> points)</span>
+															</span>
+														</span>
+														<br>
+														<span class="qa-a-item-what">selected</span>
+														<span class="qa-a-item-when">
+															<span class="qa-a-item-when-data"><span class="updated"><span class="value-title" title="2017-05-30T09:35:15+0000"></span>May 30, 2017</span></span>
+														</span>
+														<span class="qa-a-item-who">
+															<span class="qa-a-item-who-pad">by </span><span class="qa-a-item-who-data"><a href="../../user/SQ" class="qa-user-link url nickname">SQ</a></span>
+														</span>
+													</span>
+												</span>
+											</div>
+											<div class="qa-a-item-buttons">
+												</div>
+											
+											<div class="qa-a-item-c-list" id="c13693_list">
+												<div class="qa-c-list-item  hentry comment" id="c13702">
+													<div class="qa-c-item-content">
+														<a name="13702"></a><div class="entry-content"><p>Dear Mirok,</p>
+
+<p>Thanks for your answer! This clarifies why I do not get the anticipated result for function spaces other than DG0 (and probably why I do not get the right wall shear stress calculations using this method, as this was my original problem). </p>
+
+<p>I have one remaining question: I agree with you that I am searching for a vector u in V such that (u, v)<em>ds == inner(f, v)</em>ds. However, you state that this problem is ill posed. How would you propose to obtain this, u, vector? By, for instance, setting a Dirichlet condition for everything but the boundary and then call a solve(A,b,u_)? Is it possible do set such a Dirichlet condition, as it isn't specified on the boundary?</p>
+
+<p>Sjeng</p>
+</div>
+													</div>
+													<div class="qa-c-item-footer">
+														<span class="qa-c-item-avatar-meta">
+															<span class="qa-c-item-meta">
+																<a href="../../13680/different-integration-depending-elemtype-working-example?show=13702#c13702" class="qa-c-item-what">commented</a>
+																<span class="qa-c-item-when">
+																	<span class="qa-c-item-when-data"><span class="published"><span class="value-title" title="2017-05-30T09:55:06+0000"></span>May 30, 2017</span></span>
+																</span>
+																<span class="qa-c-item-who">
+																	<span class="qa-c-item-who-pad">by </span>
+																	<span class="qa-c-item-who-data"><span class="vcard author"><a href="../../user/SQ" class="qa-user-link url nickname">SQ</a></span></span>
+																	<span class="qa-c-item-who-title">FEniCS Novice</span>
+																	<span class="qa-c-item-who-points">
+																		<span class="qa-c-item-who-points-pad">(</span><span class="qa-c-item-who-points-data">320</span><span class="qa-c-item-who-points-pad"> points)</span>
+																	</span>
+																</span>
+															</span>
+														</span>
+														<div class="qa-c-item-buttons">
+														</div>
+													</div>
+													<div class="qa-c-item-clear">
+													</div>
+												</div> <!-- END qa-c-item -->
+												<div class="qa-c-list-item  hentry comment" id="c13716">
+													<div class="qa-c-item-content">
+														<a name="13716"></a><div class="entry-content"><p>Ok, I've worked out that setting a Dirichlet BC = Constant((0., 0., 0.)) for all internal nodes is probably the way to go. However, I am unable to do this. Using the example given in <a rel="nofollow" href="https://fenicsproject.org/qa/830/interior-boundary-conditions">https://fenicsproject.org/qa/830/interior-boundary-conditions</a> I end up with a FacetFunction (facet_domains) that is 0 on the interior and 1 on the exterior. </p>
+
+<p>However, <code>DirichletBC(V, u_in, facet_domains, 0)</code> applies the boundary condition Constant((0., 0., 0.)) to all vertices that belong to any element that has one or more nodes on the interior. Is there another way to do this? (See working code that I borrowed and modified from the above mentioned post below)</p>
+
+<pre><code>#!/usr/bin/env python
+# -*- coding: utf-8 -*-
+
+"""
+Test to see if we can prescribe Dirichlet BC's on the internal domain
+"""
+
+# Import statements
+from dolfin import *
+
+def inside(x, on_boundary):
+    print(on_boundary)
+    # return x[0] &gt; DOLFIN_EPS and abs(x[0] - 1.0) &gt; DOLFIN_EPS \
+    #     and x[1] &gt; DOLFIN_EPS and abs(x[1] - 1.0) &gt; DOLFIN_EPS
+    return(True)
+
+
+mesh = RectangleMesh(Point(0,0), Point(1, 1), 10, 10, "right/left")
+
+V = FunctionSpace(mesh, "CG", 1)
+
+# initialize mesh connectivity so that Facet.exterior() works
+mesh.init()
+
+# define the interior of the domain by looking at each facets
+facet_domains = FacetFunction('size_t', mesh)
+facet_domains.set_all(0)
+for f in facets(mesh):
+    if any(ff.exterior() for ff in facets(f)):
+        facet_domains[f] = 1
+
+u_in = Constant(-0.0)
+
+bc_in = DirichletBC(V, u_in, facet_domains, 0)
+print(dir(bc_in))
+print(bc_in.markers())
+print(len(bc_in.get_boundary_values()))
+print(sum(facet_domains.array()))
+print(dir(facet_domains))
+
+u = Function(V)
+u.vector()[:] = 0.5
+
+bc_in.apply(u.vector())
+plot(facet_domains)
+plot(u, axes=True)
+interactive()
+</code></pre>
+</div>
+													</div>
+													<div class="qa-c-item-footer">
+														<span class="qa-c-item-avatar-meta">
+															<span class="qa-c-item-meta">
+																<a href="../../13680/different-integration-depending-elemtype-working-example?show=13716#c13716" class="qa-c-item-what">commented</a>
+																<span class="qa-c-item-when">
+																	<span class="qa-c-item-when-data"><span class="published"><span class="value-title" title="2017-05-30T15:12:59+0000"></span>May 30, 2017</span></span>
+																</span>
+																<span class="qa-c-item-who">
+																	<span class="qa-c-item-who-pad">by </span>
+																	<span class="qa-c-item-who-data"><span class="vcard author"><a href="../../user/SQ" class="qa-user-link url nickname">SQ</a></span></span>
+																	<span class="qa-c-item-who-title">FEniCS Novice</span>
+																	<span class="qa-c-item-who-points">
+																		<span class="qa-c-item-who-points-pad">(</span><span class="qa-c-item-who-points-data">320</span><span class="qa-c-item-who-points-pad"> points)</span>
+																	</span>
+																</span>
+															</span>
+														</span>
+														<div class="qa-c-item-buttons">
+														</div>
+													</div>
+													<div class="qa-c-item-clear">
+													</div>
+												</div> <!-- END qa-c-item -->
+												<div class="qa-c-list-item  hentry comment" id="c13718">
+													<div class="qa-c-item-content">
+														<a name="13718"></a><div class="entry-content"><p>Hi, consider the following</p>
+
+<pre><code>from dolfin import *
+
+mesh = UnitSquareMesh(32, 32)
+V = VectorFunctionSpace(mesh, 'CG', 1)
+u = TrialFunction(V)
+v = TestFunction(V)
+f = Constant((1, 1))
+
+a = inner(u, v)*ds
+L = inner(f, v)*ds
+A = assemble(a, keep_diagonal=True)
+b = assemble(L)
+A.ident_zeros()
+
+uh = Function(V)
+solve(A, uh.vector(), b)
+
+plot(uh, interactive=True)
+</code></pre>
+
+<p>The important piece here is <a rel="nofollow" href="https://bitbucket.org/fenics-project/dolfin/src/022b1a94ba5ef3e59a249ef998b3120546e36e34/dolfin/la/GenericMatrix.h?at=master&amp;fileviewer=file-view-default#GenericMatrix.h-253">ident_zeros</a> which makes the matrix A invertible.</p>
+</div>
+													</div>
+													<div class="qa-c-item-footer">
+														<span class="qa-c-item-avatar-meta">
+															<span class="qa-c-item-avatar">
+																<a href="../../user/MiroK" class="qa-avatar-link"><img src="https://www.gravatar.com/avatar/f566be3274ec73e3a6dda27bca11631c?s=20" width="20" height="20" class="qa-avatar-image" alt=""></a>
+															</span>
+															<span class="qa-c-item-meta">
+																<a href="../../13680/different-integration-depending-elemtype-working-example?show=13718#c13718" class="qa-c-item-what">commented</a>
+																<span class="qa-c-item-when">
+																	<span class="qa-c-item-when-data"><span class="published"><span class="value-title" title="2017-05-30T17:10:54+0000"></span>May 30, 2017</span></span>
+																</span>
+																<span class="qa-c-item-who">
+																	<span class="qa-c-item-who-pad">by </span>
+																	<span class="qa-c-item-who-data"><span class="vcard author"><a href="../../user/MiroK" class="qa-user-link url nickname">MiroK</a></span></span>
+																	<span class="qa-c-item-who-title">FEniCS Expert</span>
+																	<span class="qa-c-item-who-points">
+																		<span class="qa-c-item-who-points-pad">(</span><span class="qa-c-item-who-points-data">80,920</span><span class="qa-c-item-who-points-pad"> points)</span>
+																	</span>
+																</span>
+															</span>
+														</span>
+														<div class="qa-c-item-buttons">
+														</div>
+													</div>
+													<div class="qa-c-item-clear">
+													</div>
+												</div> <!-- END qa-c-item -->
+												<div class="qa-c-list-item  hentry comment" id="c13736">
+													<div class="qa-c-item-content">
+														<a name="13736"></a><div class="entry-content"><p>Thanks! I did not know of the existence of this function, but it seems to work for me.</p>
+</div>
+													</div>
+													<div class="qa-c-item-footer">
+														<span class="qa-c-item-avatar-meta">
+															<span class="qa-c-item-meta">
+																<a href="../../13680/different-integration-depending-elemtype-working-example?show=13736#c13736" class="qa-c-item-what">commented</a>
+																<span class="qa-c-item-when">
+																	<span class="qa-c-item-when-data"><span class="published"><span class="value-title" title="2017-05-31T12:43:21+0000"></span>May 31, 2017</span></span>
+																</span>
+																<span class="qa-c-item-who">
+																	<span class="qa-c-item-who-pad">by </span>
+																	<span class="qa-c-item-who-data"><span class="vcard author"><a href="../../user/SQ" class="qa-user-link url nickname">SQ</a></span></span>
+																	<span class="qa-c-item-who-title">FEniCS Novice</span>
+																	<span class="qa-c-item-who-points">
+																		<span class="qa-c-item-who-points-pad">(</span><span class="qa-c-item-who-points-data">320</span><span class="qa-c-item-who-points-pad"> points)</span>
+																	</span>
+																</span>
+															</span>
+														</span>
+														<div class="qa-c-item-buttons">
+														</div>
+													</div>
+													<div class="qa-c-item-clear">
+													</div>
+												</div> <!-- END qa-c-item -->
+											</div> <!-- END qa-c-list -->
+											
+											<input type="hidden" name="code" value="0-1516467876-870ef160ac962b30ed93a3609cbf26b443b4b43f">
+											<input type="hidden" name="qa_click" value="">
+										</form>
+										<div class="qa-c-form">
+										</div> <!-- END qa-c-form -->
+										
+									</div> <!-- END qa-a-item-main -->
+									<div class="qa-a-item-clear">
+									</div>
+								</div> <!-- END qa-a-list-item -->
+								
+							</div> <!-- END qa-a-list -->
+							
+						</div>
+					</div> <!-- END qa-main -->
+					
+				</div> <!-- END main-wrapper -->
+			</div> <!-- END main-shadow -->
+		</div> <!-- END body-wrapper -->
+		<!-- END footer-bottom-group -->
+		
+		<div style="position:absolute; left:-9999px; top:-9999px;">
+			<span id="qa-waiting-template" class="qa-waiting">...</span>
+		</div>
+	
+	
+
+</body><!-- Powered by Question2Answer - http://www.question2answer.org/ --></html>

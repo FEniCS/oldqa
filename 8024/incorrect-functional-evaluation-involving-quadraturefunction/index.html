@@ -1,0 +1,510 @@
+<html><!-- Powered by Question2Answer - http://www.question2answer.org/ --><head>
+		<meta http-equiv="content-type" content="text/html; charset=utf-8">
+		<title>FEniCS Solid Mechanics: incorrect functional evaluation involving a QuadratureFunction - FEniCS Q&amp;A</title>
+		<meta name="description" content="I'm now using FEniCS Solid Mechanics to solve an elasto-plastic problem. Consider the following  ... evaluate this kind of functional in this context?">
+		<meta name="keywords" content="fenics-solid-mechanics">
+		<link rel="stylesheet" type="text/css" href="../../qa-theme/Snow/qa-styles.css">
+		<link rel="canonical" href="http://fenicsproject.org/qa/8024/incorrect-functional-evaluation-involving-quadraturefunction">
+		<script type="text/x-mathjax-config">
+  MathJax.Hub.Config({
+    extensions: ["tex2jax.js"],
+    jax: ["input/TeX","output/HTML-CSS"],
+    tex2jax: {inlineMath: [["$","$"],["\\(","\\)"]]},
+    TeX: { extensions: ["AMSmath.js","AMSsymbols.js"]}
+  });
+</script>
+<script type="text/javascript" src="../../mathjax/MathJax.js"></script>
+		<script src="../../jquery-1.7.2.min.js" type="text/javascript"></script>
+		<script src="../../highlight.min.js"></script>
+<script type="text/javascript">
+$(function(){
+	$('.wmd-input').keypress(function(){
+		window.clearTimeout(hljs.Timeout);
+		hljs.Timeout = window.setTimeout(function() {
+			hljs.initHighlighting.called = false;
+			hljs.initHighlighting();
+		}, 500);
+	});
+	window.setTimeout(function() {
+		hljs.initHighlighting.called = false;
+		hljs.initHighlighting();
+	}, 500);
+});
+</script>
+
+
+	</head>
+	<body class="qa-template-question qa-body-js-off">
+		<div class="qa-body-wrapper">
+			
+			<div class="qa-header">
+				<div class="qa-logo">
+					<a href="../../" class="qa-logo-link" title="FEniCS Q&amp;A"><img src="../../qa-theme/fenics_qa.png" border="0" alt="FEniCS Q&amp;A"></a>
+				</div>
+				<div class="qa-header-clear">
+				</div>
+			</div> <!-- END qa-header -->
+			
+			<div class="qa-main-shadow">
+				
+				<div class="qa-main-wrapper">
+					
+					<div class="qa-sidepanel">
+						<div class="qa-sidebar">
+							This is a read only copy of the old FEniCS QA forum. Please visit the <a href="https://www.allanswered.com/community/s/fenics-project/">new QA forum</a> to ask questions
+						</div>
+						
+					</div>
+					
+					<div class="qa-main">
+						<h1>
+							<span class="entry-title">FEniCS Solid Mechanics: incorrect functional evaluation involving a QuadratureFunction</span>
+						</h1>
+						<div class="qa-part-q-view">
+							<div class="qa-q-view  hentry question" id="q8024">
+								<form method="post" action="../../8024/incorrect-functional-evaluation-involving-quadraturefunction">
+									<div class="qa-q-view-stats">
+										<div class="qa-voting qa-voting-net" id="voting_8024">
+											<div class="qa-vote-count qa-vote-count-net">
+												<span class="qa-netvote-count">
+													<span class="qa-netvote-count-data">+1<span class="votes-up"><span class="value-title" title="1"></span></span><span class="votes-down"><span class="value-title" title="0"></span></span></span><span class="qa-netvote-count-pad"> vote</span>
+												</span>
+											</div>
+											<div class="qa-vote-clear">
+											</div>
+										</div>
+									</div>
+									<input type="hidden" name="code" value="0-1516468153-3b8463743d14b11c4f3af8969518e667be6e9ef3">
+								</form>
+								<div class="qa-q-view-main">
+									<form method="post" action="../../8024/incorrect-functional-evaluation-involving-quadraturefunction">
+										<div class="qa-q-view-content">
+											<a name="8024"></a><div class="entry-content"><p>I'm now using FEniCS Solid Mechanics to solve an elasto-plastic problem. Consider the following UFL script</p>
+
+<pre><code>degree = 1
+elementA = VectorElement("Lagrange", triangle, degree)
+elementT = VectorElement("Quadrature", triangle, degree, 9)
+elementS = VectorElement("Quadrature", triangle, degree, 3)
+
+u = Coefficient(elementA)
+v = TestFunction(elementA)
+du = TrialFunction(elementA)
+f = Coefficient(elementA)
+t = Coefficient(elementT)
+s = Coefficient(elementS)
+
+def eps(u):
+    return as_vector([u[i].dx(i) for i in range(2)] + [u[i].dx(j) + u[j].dx(i) for i, j in [(0, 1)]])
+
+def sigma(s):
+    return as_matrix([[s[0], s[2]], [s[2], s[1]]])
+
+def tangent(t):
+    return as_matrix([[t[i*3 + j] for j in range(3)] for i in range(3)])
+
+a = inner(eps(v), dot(tangent(t), eps(du)))*dx
+L = inner(s, eps(v))*dx - inner(f, v)*dx
+
+M = inner(s, s)*dx
+</code></pre>
+
+<p>and the following definition of a <code>QuadratureFunction</code> for the stress tensor</p>
+
+<pre><code>fenicssolid::QuadratureFunction stress(mesh, element_s, constitutive_update-&gt;w_stress());
+L.s = stress;
+
+Plas2D::Form_M M(mesh);
+M.s = stress;
+
+M_value = assemble(M);
+</code></pre>
+
+<p>I discover that this functional <code>M</code> is incorrectly evaluated and it seems to me through debugging that the local stress tensor <code>s</code> is not updated during the assembly loop. Instead, its value corresponding to the last cell loop during the previous solving process is used.</p>
+
+<p>Could anyone point out how to correctly evaluate this kind of functional in this context?</p>
+</div>
+										</div>
+										<div class="qa-q-view-tags">
+											<ul class="qa-q-view-tag-list">
+												<li class="qa-q-view-tag-item"><a href="../../tag/fenics-solid-mechanics" rel="tag" class="qa-tag-link">fenics-solid-mechanics</a></li>
+											</ul>
+										</div>
+										<span class="qa-q-view-avatar-meta">
+											<span class="qa-q-view-avatar">
+												<a href="../../user/tianyikillua" class="qa-avatar-link"><img src="https://www.gravatar.com/avatar/72b6ccce5b06f5d0100be95bf9fc8d1c?s=50" width="50" height="50" class="qa-avatar-image" alt=""></a>
+											</span>
+											<span class="qa-q-view-meta">
+												<a href="../../8024/incorrect-functional-evaluation-involving-quadraturefunction" class="qa-q-view-what">asked</a>
+												<span class="qa-q-view-when">
+													<span class="qa-q-view-when-data"><span class="published"><span class="value-title" title="2015-09-04T14:17:41+0000"></span>Sep 4, 2015</span></span>
+												</span>
+												<span class="qa-q-view-who">
+													<span class="qa-q-view-who-pad">by </span>
+													<span class="qa-q-view-who-data"><span class="vcard author"><a href="../../user/tianyikillua" class="qa-user-link url nickname">tianyikillua</a></span></span>
+													<span class="qa-q-view-who-title">FEniCS User</span>
+													<span class="qa-q-view-who-points">
+														<span class="qa-q-view-who-points-pad">(</span><span class="qa-q-view-who-points-data">1,620</span><span class="qa-q-view-who-points-pad"> points)</span>
+													</span>
+												</span>
+												<br>
+												<span class="qa-q-view-what">edited</span>
+												<span class="qa-q-view-when">
+													<span class="qa-q-view-when-data"><span class="updated"><span class="value-title" title="2016-01-14T20:31:38+0000"></span>Jan 14, 2016</span></span>
+												</span>
+												<span class="qa-q-view-who">
+													<span class="qa-q-view-who-pad">by </span><span class="qa-q-view-who-data"><a href="../../user/tianyikillua" class="qa-user-link url nickname">tianyikillua</a></span>
+												</span>
+											</span>
+										</span>
+										<div class="qa-q-view-buttons">
+										</div>
+										
+										<div class="qa-q-view-c-list" id="c8024_list">
+											<div class="qa-c-list-item  hentry comment" id="c8033">
+												<div class="qa-c-item-content">
+													<a name="8033"></a><div class="entry-content"><p>Hi Tianyikillua, can you pls. tell what kind of elasto-plastic problem are you trying to solve. Thanks! </p>
+</div>
+												</div>
+												<div class="qa-c-item-footer">
+													<span class="qa-c-item-avatar-meta">
+														<span class="qa-c-item-avatar">
+															<a href="../../user/Chaitanya_Raj_Goyal" class="qa-avatar-link"><img src="../../?qa=image&amp;qa_blobid=5557427273671820211&amp;qa_size=20" width="20" height="12" class="qa-avatar-image" alt=""></a>
+														</span>
+														<span class="qa-c-item-meta">
+															<a href="../../8024/incorrect-functional-evaluation-involving-quadraturefunction?show=8033#c8033" class="qa-c-item-what">commented</a>
+															<span class="qa-c-item-when">
+																<span class="qa-c-item-when-data"><span class="published"><span class="value-title" title="2015-09-04T20:23:07+0000"></span>Sep 4, 2015</span></span>
+															</span>
+															<span class="qa-c-item-who">
+																<span class="qa-c-item-who-pad">by </span>
+																<span class="qa-c-item-who-data"><span class="vcard author"><a href="../../user/Chaitanya_Raj_Goyal" class="qa-user-link url nickname">Chaitanya_Raj_Goyal</a></span></span>
+																<span class="qa-c-item-who-title">FEniCS User</span>
+																<span class="qa-c-item-who-points">
+																	<span class="qa-c-item-who-points-pad">(</span><span class="qa-c-item-who-points-data">4,150</span><span class="qa-c-item-who-points-pad"> points)</span>
+																</span>
+															</span>
+														</span>
+													</span>
+													<div class="qa-c-item-buttons">
+													</div>
+												</div>
+												<div class="qa-c-item-clear">
+												</div>
+											</div> <!-- END qa-c-item -->
+										</div> <!-- END qa-c-list -->
+										
+										<input type="hidden" name="code" value="0-1516468153-3eaf7760a5f6fc3a73036193fdd8d000c42b5161">
+										<input type="hidden" name="qa_click" value="">
+									</form>
+									<div class="qa-c-form">
+									</div> <!-- END qa-c-form -->
+									
+								</div> <!-- END qa-q-view-main -->
+								<div class="qa-q-view-clear">
+								</div>
+							</div> <!-- END qa-q-view -->
+							
+						</div>
+						<div class="qa-part-a-list">
+							<h2 id="a_list_title">1 Answer</h2>
+							<div class="qa-a-list" id="a_list">
+								
+								<div class="qa-a-list-item  hentry answer" id="a8041">
+									<form method="post" action="../../8024/incorrect-functional-evaluation-involving-quadraturefunction">
+										<div class="qa-voting qa-voting-net" id="voting_8041">
+											<div class="qa-vote-count qa-vote-count-net">
+												<span class="qa-netvote-count">
+													<span class="qa-netvote-count-data">+1<span class="votes-up"><span class="value-title" title="1"></span></span><span class="votes-down"><span class="value-title" title="0"></span></span></span><span class="qa-netvote-count-pad"> vote</span>
+												</span>
+											</div>
+											<div class="qa-vote-clear">
+											</div>
+										</div>
+										<input type="hidden" name="code" value="0-1516468153-3b8463743d14b11c4f3af8969518e667be6e9ef3">
+									</form>
+									<div class="qa-a-item-main">
+										<form method="post" action="../../8024/incorrect-functional-evaluation-involving-quadraturefunction">
+											<div class="qa-a-selection">
+											</div>
+											<div class="qa-a-item-content">
+												<a name="8041"></a><div class="entry-content"><p>To make the problem more concrete, consider the following trivial 2-d elastic problem defined on a <code>UnitSquareMesh</code> composed of two triangles where the diagonal side appears as "/". All nodes are fixed, except at the right bottom corner where <code>U=[1.0, 0.0]</code> is prescribed. The yield stress is set to an extremely high value. The total elastic energy should be <code>M=0.375</code>. The upper left element is stress free due to BC, and in the lower right one we have <code>s=[1, 0, -0.5]</code>.</p>
+
+<p>However using the FEniCS Solid Mechanics interface, I found that <code>M=0</code>. Following the UFL file</p>
+
+<pre><code>degree = 1
+elementA = VectorElement("Lagrange", triangle, degree)
+elementT = VectorElement("Quadrature", triangle, degree, 9)
+elementS = VectorElement("Quadrature", triangle, degree, 3)
+
+u = Coefficient(elementA)
+v = TestFunction(elementA)
+du = TrialFunction(elementA)
+f = Coefficient(elementA)
+t = Coefficient(elementT)
+s = Coefficient(elementS)
+
+E = Constant(triangle)
+nu = Constant(triangle)
+
+def eps(u):
+    return as_vector([u[i].dx(i) for i in range(2)] + [u[i].dx(j) + u[j].dx(i) for i, j in [(0, 1)]])
+
+def sigma(s):
+    return as_matrix([[s[0], s[2]], [s[2], s[1]]])
+
+def eps_e(s):
+    return as_vector([(1-nu**2)/E*s[0]-nu/E*(1+nu)*s[1],
+                      (1-nu**2)/E*s[1]-nu/E*(1+nu)*s[0],
+                      2*(1+nu)*s[2]/E])
+
+def tangent(t):
+    return as_matrix([[t[i*3 + j] for j in range(3)] for i in range(3)])
+
+a = inner(eps(v), dot(tangent(t), eps(du)))*dx
+L = inner(s, eps(v))*dx - inner(f, v)*dx
+
+M = 0.5*inner(s, eps_e(s))*dx
+forms = [a, L, M]
+</code></pre>
+
+<p>and the C++ code</p>
+
+<pre><code>#include &lt;dolfin.h&gt;
+#include &lt;FenicsSolidMechanics.h&gt;
+#include "Plas2D.h"
+
+using namespace dolfin;
+
+// Displacement at the right bottom corner
+class DirichletCondition : public Expression
+{
+public:
+
+  DirichletCondition() : Expression(2) {}
+
+  void eval(Array&lt;double&gt;&amp; values, const Array&lt;double&gt;&amp; x) const
+  {
+    values[0] = 1.0;
+    values[1] = 0.0;
+  }
+};
+
+// Subdomain for Dirichlet boundary condition
+class LeftTop : public SubDomain
+{
+  bool inside(const Array&lt;double&gt;&amp; x, bool on_boundary) const
+  { return x[0] &lt; 0.5 || x[1] &gt; 0.5 ; }
+};
+
+// Subdomain for Dirichlet boundary condition
+class RightBottom : public SubDomain
+{
+  bool inside(const Array&lt;double&gt;&amp; x, bool on_boundary) const
+  { return x[0] &gt; 0.5 &amp;&amp; x[1] &lt; 0.5 ; }
+};
+
+int main()
+{
+  // Create mesh
+  UnitSquareMesh mesh(1, 1);
+
+  // Young's modulus and Poisson's ratio
+  const double E = 1.0;
+  const double nu = 0.0;
+  const double hardening_parameter = 0.0;
+  const double yield_stress = 100;
+  Constant E_(E);
+  Constant nu_(nu);
+
+  // Time parameter
+  double t = 0.0;
+  double dt  = 0.0;
+  unsigned int steps = 0;
+
+  // Source term, RHS
+  Constant f(0.0, 0.0);
+
+  // Function spaces
+  Plas2D::FunctionSpace V(mesh);
+
+  // Extract elements for stress and tangent
+  std::shared_ptr&lt;const FiniteElement&gt; element_t;
+  std::shared_ptr&lt;const FiniteElement&gt; element_s;
+
+  Plas2D::CoefficientSpace_t Vt(mesh);
+  element_t = Vt.element();
+  Plas2D::CoefficientSpace_s Vs(mesh);
+  element_s = Vs.element();
+
+  // Create boundary condition
+  DirichletCondition U;
+  Constant zero(0.0, 0.0);
+  LeftTop lefttop;
+  RightBottom rightbottom;
+  DirichletBC bc1(V, zero, lefttop, "pointwise");
+  DirichletBC bc2(V, U, rightbottom, "pointwise");
+  std::vector&lt;const DirichletBC*&gt; bcs;
+  bcs.push_back(&amp;bc1);
+  bcs.push_back(&amp;bc2);
+
+  // Solution function
+  Function u(V);
+
+  // Object of class von Mises
+  const fenicssolid::VonMises J2(E, nu, yield_stress, hardening_parameter);
+
+  // Constituive update
+  std::shared_ptr&lt;fenicssolid::ConstitutiveUpdate&gt;
+    constitutive_update(new fenicssolid::ConstitutiveUpdate(u, *element_s, *Vs.dofmap(), J2));
+
+  // Create forms and attach functions
+  fenicssolid::QuadratureFunction tangent(mesh, element_t,
+                                          constitutive_update,
+                                          constitutive_update-&gt;w_tangent());
+
+  Plas2D::Form_a a(V, V);
+  a.t = tangent;
+
+  Plas2D::Form_L L(V);
+  L.f = f;
+  fenicssolid::QuadratureFunction stress(mesh, element_s,
+                                         constitutive_update-&gt;w_stress());
+  L.s = stress;
+
+  // Create PlasticityProblem
+  fenicssolid::PlasticityProblem nonlinear_problem(a, L, u, tangent,
+                                                   stress, bcs, J2);
+
+  // Create nonlinear solver and set parameters
+  dolfin::NewtonSolver nonlinear_solver;
+  nonlinear_solver.parameters["convergence_criterion"] = "residual";
+  nonlinear_solver.parameters["maximum_iterations"]    = 50;
+  nonlinear_solver.parameters["relative_tolerance"]    = 1e-6;
+  nonlinear_solver.parameters["absolute_tolerance"]    = 1e-15;
+  nonlinear_solver.parameters["linear_solver"]         = "superlu_dist";
+  // nonlinear_solver.parameters["preconditioner"]        = "hypre_amg";
+
+  // File names for output
+  File file1("output/disp.xdmf");
+
+  // Functional
+  Plas2D::Form_M M(mesh);
+  M.s = stress; M.E = E_; M.nu = nu_;
+  double M_value = 0.0;
+
+  // Load-disp info
+  unsigned int step = 0;
+  while (step &lt;= steps)
+  {
+    std::cout &lt;&lt; "step begin: " &lt;&lt; step &lt;&lt; std::endl;
+    std::cout &lt;&lt; "time: " &lt;&lt; t &lt;&lt; std::endl;
+
+    // Solve non-linear problem
+    nonlinear_solver.solve(nonlinear_problem, *u.vector());
+
+    // Update variables
+    constitutive_update-&gt;update_history();
+
+    // Write output to files
+    file1 &lt;&lt; u;
+
+    // Gtheta
+    M_value = assemble(M);
+    info("M = %.3e\n", M_value);
+
+    t += dt;
+    step++;
+  }
+
+  return 0;
+}
+</code></pre>
+
+<p>Note that the displacement field found with this C++ code gives the correct result. However the total elastic energy functional is incorrectly evaluated. Through an output of the stress in the <code>ConstitutiveUpdate.cpp</code></p>
+
+<pre><code>_w_stress[num_ip_per_cell*0  + ip] = trial_stress(0);
+_w_stress[num_ip_per_cell*1  + ip] = trial_stress(1);
+_w_stress[num_ip_per_cell*2  + ip] = trial_stress(3);
+std::cout &lt;&lt; "stress(0): " &lt;&lt; trial_stress(0) &lt;&lt; std::endl;
+std::cout &lt;&lt; "stress(1): " &lt;&lt; trial_stress(1) &lt;&lt; std::endl;
+std::cout &lt;&lt; "stress(3): " &lt;&lt; trial_stress(3) &lt;&lt; std::endl;
+</code></pre>
+
+<p>I found</p>
+
+<pre><code>step begin: 0
+time: 0
+stress(0): 0
+stress(1): 0
+stress(3): 0
+stress(0): 0
+stress(1): 0
+stress(3): 0
+Newton iteration 0: r (abs) = 1.000e+00 (tol = 1.000e-15) r (rel) = 1.000e+00 (tol = 1.000e-06)
+stress(0): 1
+stress(1): 0
+stress(3): -0.5
+stress(0): 0
+stress(1): 0
+stress(3): 0
+Newton iteration 1: r (abs) = 0.000e+00 (tol = 1.000e-15) r (rel) = 0.000e+00 (tol = 1.000e-06)
+Newton solver finished in 1 iterations and 1 linear solver iterations.
+M = 0.000e+00
+</code></pre>
+
+<p>The stress is well calculated in both elements. However the non-zero stress values are overwritten by the zero ones, producing thus a zero elastic energy.</p>
+</div>
+											</div>
+											<span class="qa-a-item-avatar-meta">
+												<span class="qa-a-item-avatar">
+													<a href="../../user/tianyikillua" class="qa-avatar-link"><img src="https://www.gravatar.com/avatar/72b6ccce5b06f5d0100be95bf9fc8d1c?s=40" width="40" height="40" class="qa-avatar-image" alt=""></a>
+												</span>
+												<span class="qa-a-item-meta">
+													<a href="../../8024/incorrect-functional-evaluation-involving-quadraturefunction?show=8041#a8041" class="qa-a-item-what">answered</a>
+													<span class="qa-a-item-when">
+														<span class="qa-a-item-when-data"><span class="published"><span class="value-title" title="2015-09-05T12:44:43+0000"></span>Sep 5, 2015</span></span>
+													</span>
+													<span class="qa-a-item-who">
+														<span class="qa-a-item-who-pad">by </span>
+														<span class="qa-a-item-who-data"><span class="vcard author"><a href="../../user/tianyikillua" class="qa-user-link url nickname">tianyikillua</a></span></span>
+														<span class="qa-a-item-who-title">FEniCS User</span>
+														<span class="qa-a-item-who-points">
+															<span class="qa-a-item-who-points-pad">(</span><span class="qa-a-item-who-points-data">1,620</span><span class="qa-a-item-who-points-pad"> points)</span>
+														</span>
+													</span>
+												</span>
+											</span>
+											<div class="qa-a-item-buttons">
+												</div>
+											
+											<div class="qa-a-item-c-list" style="display:none;" id="c8041_list">
+											</div> <!-- END qa-c-list -->
+											
+											<input type="hidden" name="code" value="0-1516468153-aec7767bcd29fd1855eae7be1383404312b20190">
+											<input type="hidden" name="qa_click" value="">
+										</form>
+										<div class="qa-c-form">
+										</div> <!-- END qa-c-form -->
+										
+									</div> <!-- END qa-a-item-main -->
+									<div class="qa-a-item-clear">
+									</div>
+								</div> <!-- END qa-a-list-item -->
+								
+							</div> <!-- END qa-a-list -->
+							
+						</div>
+					</div> <!-- END qa-main -->
+					
+				</div> <!-- END main-wrapper -->
+			</div> <!-- END main-shadow -->
+		</div> <!-- END body-wrapper -->
+		<!-- END footer-bottom-group -->
+		
+		<div style="position:absolute; left:-9999px; top:-9999px;">
+			<span id="qa-waiting-template" class="qa-waiting">...</span>
+		</div>
+	
+	
+
+</body><!-- Powered by Question2Answer - http://www.question2answer.org/ --></html>

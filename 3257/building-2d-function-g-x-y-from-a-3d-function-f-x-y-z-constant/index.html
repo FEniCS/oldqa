@@ -1,0 +1,329 @@
+<html><!-- Powered by Question2Answer - http://www.question2answer.org/ --><head>
+		<meta http-equiv="content-type" content="text/html; charset=utf-8">
+		<title>Building 2D function g(x,y) from a 3D function f(x,y; z=constant) - FEniCS Q&amp;A</title>
+		<meta name="description" content="Hi, If I have a function on a 3D space u=Function(V), can I use it to build a function  ... .5) w.vector().set_local(w_array) plot(w,interactive=True)">
+		<meta name="keywords" content="function,functionspace,assign">
+		<link rel="stylesheet" type="text/css" href="../../qa-theme/Snow/qa-styles.css">
+		<link rel="canonical" href="http://fenicsproject.org/qa/3257/building-2d-function-g-x-y-from-a-3d-function-f-x-y-z-constant">
+		<script type="text/x-mathjax-config">
+  MathJax.Hub.Config({
+    extensions: ["tex2jax.js"],
+    jax: ["input/TeX","output/HTML-CSS"],
+    tex2jax: {inlineMath: [["$","$"],["\\(","\\)"]]},
+    TeX: { extensions: ["AMSmath.js","AMSsymbols.js"]}
+  });
+</script>
+<script type="text/javascript" src="../../mathjax/MathJax.js"></script>
+		<script src="../../jquery-1.7.2.min.js" type="text/javascript"></script>
+		<script src="../../highlight.min.js"></script>
+<script type="text/javascript">
+$(function(){
+	$('.wmd-input').keypress(function(){
+		window.clearTimeout(hljs.Timeout);
+		hljs.Timeout = window.setTimeout(function() {
+			hljs.initHighlighting.called = false;
+			hljs.initHighlighting();
+		}, 500);
+	});
+	window.setTimeout(function() {
+		hljs.initHighlighting.called = false;
+		hljs.initHighlighting();
+	}, 500);
+});
+</script>
+
+
+	</head>
+	<body class="qa-template-question qa-body-js-off">
+		<div class="qa-body-wrapper">
+			
+			<div class="qa-header">
+				<div class="qa-logo">
+					<a href="../../" class="qa-logo-link" title="FEniCS Q&amp;A"><img src="../../qa-theme/fenics_qa.png" border="0" alt="FEniCS Q&amp;A"></a>
+				</div>
+				<div class="qa-header-clear">
+				</div>
+			</div> <!-- END qa-header -->
+			
+			<div class="qa-main-shadow">
+				
+				<div class="qa-main-wrapper">
+					
+					<div class="qa-sidepanel">
+						<div class="qa-sidebar">
+							This is a read only copy of the old FEniCS QA forum. Please visit the <a href="https://www.allanswered.com/community/s/fenics-project/">new QA forum</a> to ask questions
+						</div>
+						
+					</div>
+					
+					<div class="qa-main">
+						<h1>
+							<span class="entry-title">Building 2D function g(x,y) from a 3D function f(x,y; z=constant)</span>
+						</h1>
+						<div class="qa-part-q-view">
+							<div class="qa-q-view  hentry question" id="q3257">
+								<form method="post" action="../../3257/building-2d-function-g-x-y-from-a-3d-function-f-x-y-z-constant">
+									<div class="qa-q-view-stats">
+										<div class="qa-voting qa-voting-net" id="voting_3257">
+											<div class="qa-vote-count qa-vote-count-net">
+												<span class="qa-netvote-count">
+													<span class="qa-netvote-count-data">+2<span class="votes-up"><span class="value-title" title="2"></span></span><span class="votes-down"><span class="value-title" title="0"></span></span></span><span class="qa-netvote-count-pad"> votes</span>
+												</span>
+											</div>
+											<div class="qa-vote-clear">
+											</div>
+										</div>
+									</div>
+									<input type="hidden" name="code" value="0-1516467963-39a41dcf56acfebf7ed9c78e5c32fadf02c7a340">
+								</form>
+								<div class="qa-q-view-main">
+									<form method="post" action="../../3257/building-2d-function-g-x-y-from-a-3d-function-f-x-y-z-constant">
+										<div class="qa-q-view-content">
+											<a name="3257"></a><div class="entry-content"><p>Hi,</p>
+
+<p>If I have a function on a 3D space u=Function(V), can I use it to build a function on a 2D space that would represent a slice of the 3D function?  For example, I can easily build a 2D grid by doing something like</p>
+
+<pre><code>for x in range(nx):
+    for y in range(ny):
+        print h*x, h*y, u(h*x,h*y,5.)
+</code></pre>
+
+<p>but it would be much handier if I had a dolfin Function to manipulate.  The fact that some interpolation occurs is not a problem.</p>
+
+<p>Thanks</p>
+
+<p>[edit] - In addition to the answer given below, the following solution works: </p>
+
+<pre><code>from dolfin import *
+parameters["reorder_dofs_serial"] = False
+
+
+#3D FE space
+mesh = UnitCubeMesh(20,20,20)
+V = FunctionSpace(mesh,"Lagrange",1)
+
+
+#solve 3D poisson equation on cube
+def u0_boundary(x,on_boundary):
+    return on_boundary
+
+bc = DirichletBC(V,Constant(0.0) , u0_boundary)
+
+u = TestFunction(V)
+v = TrialFunction(V)
+a = inner(grad(u),grad(v))*dx
+L = Constant("1.0")*v*dx
+
+u = Function(V)
+solve(a==L,u,bc)
+
+#Assign slice at z=.5 to 2D function
+
+#2D FE space w/ function
+mesh2 = UnitSquareMesh(20,20)
+W = FunctionSpace(mesh2,"Lagrange",1)
+w = Function(W)
+
+
+coor = mesh2.coordinates()
+w_array = w.vector().array()
+if mesh2.num_vertices() == len(w_array):
+    for i in range(mesh2.num_vertices()):
+        w_array[i] = u(coor[i][0],coor[i][1],.5)
+
+w.vector().set_local(w_array)
+
+plot(w,interactive=True)
+</code></pre>
+</div>
+										</div>
+										<div class="qa-q-view-tags">
+											<ul class="qa-q-view-tag-list">
+												<li class="qa-q-view-tag-item"><a href="../../tag/function" rel="tag" class="qa-tag-link">function</a></li>
+												<li class="qa-q-view-tag-item"><a href="../../tag/functionspace" rel="tag" class="qa-tag-link">functionspace</a></li>
+												<li class="qa-q-view-tag-item"><a href="../../tag/assign" rel="tag" class="qa-tag-link">assign</a></li>
+											</ul>
+										</div>
+										<span class="qa-q-view-avatar-meta">
+											<span class="qa-q-view-meta">
+												<a href="../../3257/building-2d-function-g-x-y-from-a-3d-function-f-x-y-z-constant" class="qa-q-view-what">asked</a>
+												<span class="qa-q-view-when">
+													<span class="qa-q-view-when-data"><span class="published"><span class="value-title" title="2014-04-12T19:12:59+0000"></span>Apr 12, 2014</span></span>
+												</span>
+												<span class="qa-q-view-who">
+													<span class="qa-q-view-who-pad">by </span>
+													<span class="qa-q-view-who-data"><span class="vcard author"><a href="../../user/sixtysymbols" class="qa-user-link url nickname">sixtysymbols</a></span></span>
+													<span class="qa-q-view-who-title">FEniCS User</span>
+													<span class="qa-q-view-who-points">
+														<span class="qa-q-view-who-points-pad">(</span><span class="qa-q-view-who-points-data">2,280</span><span class="qa-q-view-who-points-pad"> points)</span>
+													</span>
+												</span>
+												<br>
+												<span class="qa-q-view-what">edited</span>
+												<span class="qa-q-view-when">
+													<span class="qa-q-view-when-data"><span class="updated"><span class="value-title" title="2014-04-14T11:13:30+0000"></span>Apr 14, 2014</span></span>
+												</span>
+												<span class="qa-q-view-who">
+													<span class="qa-q-view-who-pad">by </span><span class="qa-q-view-who-data"><a href="../../user/sixtysymbols" class="qa-user-link url nickname">sixtysymbols</a></span>
+												</span>
+											</span>
+										</span>
+										<div class="qa-q-view-buttons">
+										</div>
+										
+										<div class="qa-q-view-c-list" style="display:none;" id="c3257_list">
+										</div> <!-- END qa-c-list -->
+										
+										<input type="hidden" name="code" value="0-1516467963-6a1e366105bcde2b6cb380e61f1841bc43e35528">
+										<input type="hidden" name="qa_click" value="">
+									</form>
+									<div class="qa-c-form">
+									</div> <!-- END qa-c-form -->
+									
+								</div> <!-- END qa-q-view-main -->
+								<div class="qa-q-view-clear">
+								</div>
+							</div> <!-- END qa-q-view -->
+							
+						</div>
+						<div class="qa-part-a-list">
+							<h2 id="a_list_title">1 Answer</h2>
+							<div class="qa-a-list" id="a_list">
+								
+								<div class="qa-a-list-item  hentry answer answer-selected qa-a-list-item-selected" id="a3261">
+									<form method="post" action="../../3257/building-2d-function-g-x-y-from-a-3d-function-f-x-y-z-constant">
+										<div class="qa-voting qa-voting-net" id="voting_3261">
+											<div class="qa-vote-count qa-vote-count-net">
+												<span class="qa-netvote-count">
+													<span class="qa-netvote-count-data">+5<span class="votes-up"><span class="value-title" title="5"></span></span><span class="votes-down"><span class="value-title" title="0"></span></span></span><span class="qa-netvote-count-pad"> votes</span>
+												</span>
+											</div>
+											<div class="qa-vote-clear">
+											</div>
+										</div>
+										<input type="hidden" name="code" value="0-1516467963-39a41dcf56acfebf7ed9c78e5c32fadf02c7a340">
+									</form>
+									<div class="qa-a-item-main">
+										<form method="post" action="../../3257/building-2d-function-g-x-y-from-a-3d-function-f-x-y-z-constant">
+											<div class="qa-a-item-selected">
+												<div class="qa-a-selection">
+													<div class="qa-a-selected">&#160;</div>
+													<div class="qa-a-selected-text">Best answer</div>
+												</div>
+												<div class="qa-a-item-content">
+													<a name="3261"></a><div class="entry-content"><p>The <a rel="nofollow" href="https://github.com/mikaem/fenicstools">fenicstools</a> package was originally developed with this exact purpose. You can use it to slice your 3D mesh as follows </p>
+
+<pre><code>from dolfin import *
+from fenicstools import StructuredGrid, interpolate_nonmatching_mesh
+
+mesh = UnitCubeMesh(30, 30, 30)
+V = FunctionSpace(mesh, "CG", 1)
+
+# Create some Function on 3D mesh to be sliced
+u = interpolate(Expression("x[0]*x[1]"), V)
+
+# Create a structured grid in x-y plane at z=0.5
+dims = (20, 20)
+directions = [[1, 0, 0], [0, 1, 0]]
+lengths = (1.0, 1.0)
+origin = (0, 0, 0.5)
+sl = StructuredGrid(V, dims, origin, directions, lengths)
+
+# interpolate u on slice
+sl(u)
+
+# Dump result to vtk
+sl.tovtk(0, "slice.vtk")
+</code></pre>
+
+<p>I also have an alternative approach that works without fenicstools. It works by creating a dolfin mesh of topology 2 in 3 dimensions. It goes like this</p>
+
+<pre><code># Create boundary mesh consisting of the 6 sides of the cube
+bmesh = BoundaryMesh(mesh, "exterior")
+
+# Create SubMesh for side at z=0
+# This will be a UnitSquareMesh with topology dimension 2 in 3 space dimensions
+cc = CellFunction('size_t', bmesh, 0)
+xyplane = AutoSubDomain(lambda x: x[2] &lt; 1e-8)
+xyplane.mark(cc, 1)
+submesh = SubMesh(bmesh, cc, 1)
+
+# Move slice/submesh to z=0.5
+x = submesh.coordinates()
+x[:, 2] += 0.5
+
+# Create a FunctionSpace on the submesh
+Vs = FunctionSpace(submesh, "CG", 1)
+
+# interpolate_nonmatching_mesh required in parallel, 
+# interpolate works in series
+#us = interpolate_nonmatching_mesh(u, Vs)
+us = interpolate(u, Vs)
+
+plot(us)
+interactive()
+</code></pre>
+</div>
+												</div>
+												<span class="qa-a-item-avatar-meta">
+													<span class="qa-a-item-avatar">
+														<a href="../../user/mikael-mortensen" class="qa-avatar-link"><img src="https://www.gravatar.com/avatar/d5614112a2818f1800a461e49ac229df?s=40" width="40" height="40" class="qa-avatar-image" alt=""></a>
+													</span>
+													<span class="qa-a-item-meta">
+														<a href="../../3257/building-2d-function-g-x-y-from-a-3d-function-f-x-y-z-constant?show=3261#a3261" class="qa-a-item-what">answered</a>
+														<span class="qa-a-item-when">
+															<span class="qa-a-item-when-data"><span class="published"><span class="value-title" title="2014-04-13T16:12:12+0000"></span>Apr 13, 2014</span></span>
+														</span>
+														<span class="qa-a-item-who">
+															<span class="qa-a-item-who-pad">by </span>
+															<span class="qa-a-item-who-data"><span class="vcard author"><a href="../../user/mikael-mortensen" class="qa-user-link url nickname">mikael-mortensen</a></span></span>
+															<span class="qa-a-item-who-title">FEniCS Expert</span>
+															<span class="qa-a-item-who-points">
+																<span class="qa-a-item-who-points-pad">(</span><span class="qa-a-item-who-points-data">29,340</span><span class="qa-a-item-who-points-pad"> points)</span>
+															</span>
+														</span>
+														<br>
+														<span class="qa-a-item-what">selected</span>
+														<span class="qa-a-item-when">
+															<span class="qa-a-item-when-data"><span class="updated"><span class="value-title" title="2014-04-14T11:13:03+0000"></span>Apr 14, 2014</span></span>
+														</span>
+														<span class="qa-a-item-who">
+															<span class="qa-a-item-who-pad">by </span><span class="qa-a-item-who-data"><a href="../../user/sixtysymbols" class="qa-user-link url nickname">sixtysymbols</a></span>
+														</span>
+													</span>
+												</span>
+											</div>
+											<div class="qa-a-item-buttons">
+												</div>
+											
+											<div class="qa-a-item-c-list" style="display:none;" id="c3261_list">
+											</div> <!-- END qa-c-list -->
+											
+											<input type="hidden" name="code" value="0-1516467963-e88f0dde02b1d1aa9247132f28df649541d405b8">
+											<input type="hidden" name="qa_click" value="">
+										</form>
+										<div class="qa-c-form">
+										</div> <!-- END qa-c-form -->
+										
+									</div> <!-- END qa-a-item-main -->
+									<div class="qa-a-item-clear">
+									</div>
+								</div> <!-- END qa-a-list-item -->
+								
+							</div> <!-- END qa-a-list -->
+							
+						</div>
+					</div> <!-- END qa-main -->
+					
+				</div> <!-- END main-wrapper -->
+			</div> <!-- END main-shadow -->
+		</div> <!-- END body-wrapper -->
+		<!-- END footer-bottom-group -->
+		
+		<div style="position:absolute; left:-9999px; top:-9999px;">
+			<span id="qa-waiting-template" class="qa-waiting">...</span>
+		</div>
+	
+	
+
+</body><!-- Powered by Question2Answer - http://www.question2answer.org/ --></html>

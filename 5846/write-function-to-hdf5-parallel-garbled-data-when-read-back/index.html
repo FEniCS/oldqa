@@ -1,0 +1,500 @@
+<html><!-- Powered by Question2Answer - http://www.question2answer.org/ --><head>
+		<meta http-equiv="content-type" content="text/html; charset=utf-8">
+		<title>Write a function to HDF5 in parallel - garbled data when read back in? - FEniCS Q&amp;A</title>
+		<meta name="description" content="I'm trying to write a function to an hdf5 file viz Johan's example in: [here][ ... qa/5435/how-use-timeserieshdf-store-and-retrieve-functions-parallel">
+		<meta name="keywords" content="parallel,hdf5">
+		<link rel="stylesheet" type="text/css" href="../../qa-theme/Snow/qa-styles.css">
+		<link rel="canonical" href="http://fenicsproject.org/qa/5846/write-function-to-hdf5-parallel-garbled-data-when-read-back">
+		<script type="text/x-mathjax-config">
+  MathJax.Hub.Config({
+    extensions: ["tex2jax.js"],
+    jax: ["input/TeX","output/HTML-CSS"],
+    tex2jax: {inlineMath: [["$","$"],["\\(","\\)"]]},
+    TeX: { extensions: ["AMSmath.js","AMSsymbols.js"]}
+  });
+</script>
+<script type="text/javascript" src="../../mathjax/MathJax.js"></script>
+		<script src="../../jquery-1.7.2.min.js" type="text/javascript"></script>
+		<script src="../../highlight.min.js"></script>
+<script type="text/javascript">
+$(function(){
+	$('.wmd-input').keypress(function(){
+		window.clearTimeout(hljs.Timeout);
+		hljs.Timeout = window.setTimeout(function() {
+			hljs.initHighlighting.called = false;
+			hljs.initHighlighting();
+		}, 500);
+	});
+	window.setTimeout(function() {
+		hljs.initHighlighting.called = false;
+		hljs.initHighlighting();
+	}, 500);
+});
+</script>
+
+
+	</head>
+	<body class="qa-template-question qa-body-js-off">
+		<div class="qa-body-wrapper">
+			
+			<div class="qa-header">
+				<div class="qa-logo">
+					<a href="../../" class="qa-logo-link" title="FEniCS Q&amp;A"><img src="../../qa-theme/fenics_qa.png" border="0" alt="FEniCS Q&amp;A"></a>
+				</div>
+				<div class="qa-header-clear">
+				</div>
+			</div> <!-- END qa-header -->
+			
+			<div class="qa-main-shadow">
+				
+				<div class="qa-main-wrapper">
+					
+					<div class="qa-sidepanel">
+						<div class="qa-sidebar">
+							This is a read only copy of the old FEniCS QA forum. Please visit the <a href="https://www.allanswered.com/community/s/fenics-project/">new QA forum</a> to ask questions
+						</div>
+						
+					</div>
+					
+					<div class="qa-main">
+						<h1>
+							<span class="entry-title">Write a function to HDF5 in parallel - garbled data when read back in?</span>
+						</h1>
+						<div class="qa-part-q-view">
+							<div class="qa-q-view  hentry question" id="q5846">
+								<form method="post" action="../../5846/write-function-to-hdf5-parallel-garbled-data-when-read-back">
+									<div class="qa-q-view-stats">
+										<div class="qa-voting qa-voting-net" id="voting_5846">
+											<div class="qa-vote-count qa-vote-count-net">
+												<span class="qa-netvote-count">
+													<span class="qa-netvote-count-data">0<span class="votes-up"><span class="value-title" title="0"></span></span><span class="votes-down"><span class="value-title" title="0"></span></span></span><span class="qa-netvote-count-pad"> votes</span>
+												</span>
+											</div>
+											<div class="qa-vote-clear">
+											</div>
+										</div>
+									</div>
+									<input type="hidden" name="code" value="0-1516468045-1f052ce79fc4df42101e6659f674f107c26f22da">
+								</form>
+								<div class="qa-q-view-main">
+									<form method="post" action="../../5846/write-function-to-hdf5-parallel-garbled-data-when-read-back">
+										<div class="qa-q-view-content">
+											<a name="5846"></a><div class="entry-content"><p>I'm trying to write a function to an hdf5 file viz Johan's example in:<br>
+<a rel="nofollow" href="http://fenicsproject.org/qa/5435/how-use-timeserieshdf-store-and-retrieve-functions-parallel">here</a></p>
+
+<p>When I try this in 1.4.0 I still get garbled data if I run the first program with more than one core. <br>
+With the first with one core, I can run the second, reading program with as many cores as I want. </p>
+
+<p>(Code copied from above link)</p>
+
+<pre><code>from dolfin import *
+import cPickle
+
+mesh = UnitSquareMesh(12,12)
+V = FunctionSpace(mesh, "CG", 1)
+e = Expression("x[0]*(t*0.1+1)", t=0., degree=1)
+u = project(e, V)
+f = HDF5File(mesh.mpi_comm(), "u.h5", "w")
+f.write(u, "/initial")
+times = []
+t = 0; dt=0.5
+while t &lt; 5:
+    t += dt
+    e.t = t
+    u.interpolate(e)
+    times.append(t)
+    f.write(u.vector(), "/values_{}".format(len(times)))
+cPickle.dump(times, open("times.cpickle", "w"))
+</code></pre>
+
+<p>Then when I load the values I do something like:</p>
+
+<pre><code>from dolfin import *
+import cPickle
+
+mesh = UnitSquareMesh(12,12)
+V = FunctionSpace(mesh, "CG", 1)
+u = Function(V)
+
+times  = cPickle.load(open("times.cpickle"))
+f = HDF5File(mesh.mpi_comm(), "u.h5", "r")
+f.read(u, "/initial")
+plot(u, title="u_{}".format(0))
+for ind, t in enumerate(times):
+    f.read(u.vector(), "/values_{}".format(ind+1), True)
+    plot(u, title="u_{}".format(t))
+</code></pre>
+</div>
+										</div>
+										<div class="qa-q-view-tags">
+											<ul class="qa-q-view-tag-list">
+												<li class="qa-q-view-tag-item"><a href="../../tag/parallel" rel="tag" class="qa-tag-link">parallel</a></li>
+												<li class="qa-q-view-tag-item"><a href="../../tag/hdf5" rel="tag" class="qa-tag-link">hdf5</a></li>
+											</ul>
+										</div>
+										<span class="qa-q-view-avatar-meta">
+											<span class="qa-q-view-avatar">
+												<a href="../../user/mwelland" class="qa-avatar-link"><img src="https://www.gravatar.com/avatar/af936799ea3fe5bd1cb6abb922ebbe83?s=50" width="50" height="50" class="qa-avatar-image" alt=""></a>
+											</span>
+											<span class="qa-q-view-meta">
+												<a href="../../5846/write-function-to-hdf5-parallel-garbled-data-when-read-back" class="qa-q-view-what">asked</a>
+												<span class="qa-q-view-when">
+													<span class="qa-q-view-when-data"><span class="published"><span class="value-title" title="2014-10-24T21:30:43+0000"></span>Oct 24, 2014</span></span>
+												</span>
+												<span class="qa-q-view-who">
+													<span class="qa-q-view-who-pad">by </span>
+													<span class="qa-q-view-who-data"><span class="vcard author"><a href="../../user/mwelland" class="qa-user-link url nickname">mwelland</a></span></span>
+													<span class="qa-q-view-who-title">FEniCS User</span>
+													<span class="qa-q-view-who-points">
+														<span class="qa-q-view-who-points-pad">(</span><span class="qa-q-view-who-points-data">8,410</span><span class="qa-q-view-who-points-pad"> points)</span>
+													</span>
+												</span>
+											</span>
+										</span>
+										<div class="qa-q-view-buttons">
+										</div>
+										
+										<div class="qa-q-view-c-list" style="display:none;" id="c5846_list">
+										</div> <!-- END qa-c-list -->
+										
+										<input type="hidden" name="code" value="0-1516468045-913097737e0107a2e3c54e9c09bdb86a8c7b1089">
+										<input type="hidden" name="qa_click" value="">
+									</form>
+									<div class="qa-c-form">
+									</div> <!-- END qa-c-form -->
+									
+								</div> <!-- END qa-q-view-main -->
+								<div class="qa-q-view-clear">
+								</div>
+							</div> <!-- END qa-q-view -->
+							
+						</div>
+						<div class="qa-part-a-list">
+							<h2 id="a_list_title">2 Answers</h2>
+							<div class="qa-a-list" id="a_list">
+								
+								<div class="qa-a-list-item  hentry answer answer-selected qa-a-list-item-selected" id="a5847">
+									<form method="post" action="../../5846/write-function-to-hdf5-parallel-garbled-data-when-read-back">
+										<div class="qa-voting qa-voting-net" id="voting_5847">
+											<div class="qa-vote-count qa-vote-count-net">
+												<span class="qa-netvote-count">
+													<span class="qa-netvote-count-data">+1<span class="votes-up"><span class="value-title" title="1"></span></span><span class="votes-down"><span class="value-title" title="0"></span></span></span><span class="qa-netvote-count-pad"> vote</span>
+												</span>
+											</div>
+											<div class="qa-vote-clear">
+											</div>
+										</div>
+										<input type="hidden" name="code" value="0-1516468045-1f052ce79fc4df42101e6659f674f107c26f22da">
+									</form>
+									<div class="qa-a-item-main">
+										<form method="post" action="../../5846/write-function-to-hdf5-parallel-garbled-data-when-read-back">
+											<div class="qa-a-item-selected">
+												<div class="qa-a-selection">
+													<div class="qa-a-selected">&#160;</div>
+													<div class="qa-a-selected-text">Best answer</div>
+												</div>
+												<div class="qa-a-item-content">
+													<a name="5847"></a><div class="entry-content"><p>Doing it this way assumes the mapping from Vector to dof does not change.<br>
+Try using the hdf5 function read.In your example, for instance,  the initial Function should be ok </p>
+</div>
+												</div>
+												<span class="qa-a-item-avatar-meta">
+													<span class="qa-a-item-avatar">
+														<a href="../../user/chris_richardson" class="qa-avatar-link"><img src="https://www.gravatar.com/avatar/d779daeb727bcec8f6b2c505810042db?s=40" width="40" height="40" class="qa-avatar-image" alt=""></a>
+													</span>
+													<span class="qa-a-item-meta">
+														<a href="../../5846/write-function-to-hdf5-parallel-garbled-data-when-read-back?show=5847#a5847" class="qa-a-item-what">answered</a>
+														<span class="qa-a-item-when">
+															<span class="qa-a-item-when-data"><span class="published"><span class="value-title" title="2014-10-25T02:10:53+0000"></span>Oct 25, 2014</span></span>
+														</span>
+														<span class="qa-a-item-who">
+															<span class="qa-a-item-who-pad">by </span>
+															<span class="qa-a-item-who-data"><span class="vcard author"><a href="../../user/chris_richardson" class="qa-user-link url nickname">chris_richardson</a></span></span>
+															<span class="qa-a-item-who-title">FEniCS Expert</span>
+															<span class="qa-a-item-who-points">
+																<span class="qa-a-item-who-points-pad">(</span><span class="qa-a-item-who-points-data">31,740</span><span class="qa-a-item-who-points-pad"> points)</span>
+															</span>
+														</span>
+														<br>
+														<span class="qa-a-item-what">selected</span>
+														<span class="qa-a-item-when">
+															<span class="qa-a-item-when-data"><span class="updated"><span class="value-title" title="2014-10-27T03:17:02+0000"></span>Oct 27, 2014</span></span>
+														</span>
+														<span class="qa-a-item-who">
+															<span class="qa-a-item-who-pad">by </span><span class="qa-a-item-who-data"><a href="../../user/mwelland" class="qa-user-link url nickname">mwelland</a></span>
+														</span>
+													</span>
+												</span>
+											</div>
+											<div class="qa-a-item-buttons">
+												</div>
+											
+											<div class="qa-a-item-c-list" id="c5847_list">
+												<div class="qa-c-list-item  hentry comment" id="c5854">
+													<div class="qa-c-item-content">
+														<a name="5854"></a><div class="entry-content"><p>Thanks Chris, you are right, the initial function does look correct. I tried your suggestion on the same link (writing the function to the file with a time index) but couldn't work out how to access other time steps. Specifically, my attempt to read the 3rd result vector with:</p>
+
+<pre><code>f.read(u, "/test/vector_3")
+</code></pre>
+
+<p>came up with an error:</p>
+
+<pre><code>RuntimeError: *** Error: Group with name "/test/vector_3" does not exist
+</code></pre>
+
+<p>My h5ls -r returns:</p>
+
+<pre><code>/                        Group
+/mesh                    Group
+/mesh/cell_indices       Dataset {288}
+/mesh/coordinates        Dataset {169, 2}
+/mesh/topology           Dataset {288, 3}
+/test                    Group
+/test/cell_dofs          Dataset {864}
+/test/cells              Dataset {288}
+/test/vector             Dataset {169}
+/test/vector_1           Dataset {169}
+/test/vector_10          Dataset {169}
+/test/vector_2           Dataset {169}
+/test/vector_3           Dataset {169}
+/test/vector_4           Dataset {169}
+/test/vector_5           Dataset {169}
+/test/vector_6           Dataset {169}
+/test/vector_7           Dataset {169}
+/test/vector_8           Dataset {169}
+/test/vector_9           Dataset {169}
+/test/x_cell_dofs        Dataset {289}
+</code></pre>
+
+<p>It seems like in trying to read to a function, it is looking for a group with that name (and only getting a vector). As is, it seems like my best option is to combine the techniques and write new functions for each timestep. Unless you have another suggestion?<br>
+Thanks</p>
+</div>
+													</div>
+													<div class="qa-c-item-footer">
+														<span class="qa-c-item-avatar-meta">
+															<span class="qa-c-item-avatar">
+																<a href="../../user/mwelland" class="qa-avatar-link"><img src="https://www.gravatar.com/avatar/af936799ea3fe5bd1cb6abb922ebbe83?s=20" width="20" height="20" class="qa-avatar-image" alt=""></a>
+															</span>
+															<span class="qa-c-item-meta">
+																<a href="../../5846/write-function-to-hdf5-parallel-garbled-data-when-read-back?show=5854#c5854" class="qa-c-item-what">commented</a>
+																<span class="qa-c-item-when">
+																	<span class="qa-c-item-when-data"><span class="published"><span class="value-title" title="2014-10-27T03:23:37+0000"></span>Oct 27, 2014</span></span>
+																</span>
+																<span class="qa-c-item-who">
+																	<span class="qa-c-item-who-pad">by </span>
+																	<span class="qa-c-item-who-data"><span class="vcard author"><a href="../../user/mwelland" class="qa-user-link url nickname">mwelland</a></span></span>
+																	<span class="qa-c-item-who-title">FEniCS User</span>
+																	<span class="qa-c-item-who-points">
+																		<span class="qa-c-item-who-points-pad">(</span><span class="qa-c-item-who-points-data">8,410</span><span class="qa-c-item-who-points-pad"> points)</span>
+																	</span>
+																</span>
+															</span>
+														</span>
+														<div class="qa-c-item-buttons">
+														</div>
+													</div>
+													<div class="qa-c-item-clear">
+													</div>
+												</div> <!-- END qa-c-item -->
+												<div class="qa-c-list-item  hentry comment" id="c5855">
+													<div class="qa-c-item-content">
+														<a name="5855"></a><div class="entry-content"><p>For those interested, my current working files are:</p>
+
+<pre><code>from dolfin import *
+import cPickle
+
+mesh = UnitSquareMesh(12,12)
+V = FunctionSpace(mesh, "CG", 1)
+e = Expression("x[0]*(t*0.1+1)", t=0., degree=1)
+u = project(e, V)
+f = HDF5File(mesh.mpi_comm(), "u.h5", "w")
+f.write(u, "/initial")
+times = []
+t = 0; dt=0.5
+while t &lt; 5:
+    t += dt
+    e.t = t
+    u.interpolate(e)
+    times.append(t)
+    f.write(u, "/values_{}".format(len(times)))
+cPickle.dump(times, open("times.cpickle", "w"))
+</code></pre>
+
+<p>and</p>
+
+<pre><code>from dolfin import *
+import cPickle
+
+mesh = UnitSquareMesh(12,12)
+V = FunctionSpace(mesh, "CG", 1)
+u = Function(V)
+
+times  = cPickle.load(open("times.cpickle"))
+f = HDF5File(mesh.mpi_comm(), "u.h5", "r")
+f.read(u, "/initial")
+file = File('test.pvd')
+file &lt;&lt; (u,0.)
+#plot(u, title="u_{}".format(0))
+for ind, t in enumerate(times):
+    f.read(u, "/values_{}".format(ind+1))
+    file &lt;&lt; (u,t)
+    #plot(u, title="u_{}".format(t))
+</code></pre>
+
+<p>The increase in file size is 34kB (vectors only) vs 134kB (functions: current examples). Works as a stopgap on multiple cores writing and reading. </p>
+</div>
+													</div>
+													<div class="qa-c-item-footer">
+														<span class="qa-c-item-avatar-meta">
+															<span class="qa-c-item-avatar">
+																<a href="../../user/mwelland" class="qa-avatar-link"><img src="https://www.gravatar.com/avatar/af936799ea3fe5bd1cb6abb922ebbe83?s=20" width="20" height="20" class="qa-avatar-image" alt=""></a>
+															</span>
+															<span class="qa-c-item-meta">
+																<a href="../../5846/write-function-to-hdf5-parallel-garbled-data-when-read-back?show=5855#c5855" class="qa-c-item-what">commented</a>
+																<span class="qa-c-item-when">
+																	<span class="qa-c-item-when-data"><span class="published"><span class="value-title" title="2014-10-27T14:23:53+0000"></span>Oct 27, 2014</span></span>
+																</span>
+																<span class="qa-c-item-who">
+																	<span class="qa-c-item-who-pad">by </span>
+																	<span class="qa-c-item-who-data"><span class="vcard author"><a href="../../user/mwelland" class="qa-user-link url nickname">mwelland</a></span></span>
+																	<span class="qa-c-item-who-title">FEniCS User</span>
+																	<span class="qa-c-item-who-points">
+																		<span class="qa-c-item-who-points-pad">(</span><span class="qa-c-item-who-points-data">8,410</span><span class="qa-c-item-who-points-pad"> points)</span>
+																	</span>
+																</span>
+															</span>
+														</span>
+														<div class="qa-c-item-buttons">
+														</div>
+													</div>
+													<div class="qa-c-item-clear">
+													</div>
+												</div> <!-- END qa-c-item -->
+												<div class="qa-c-list-item  hentry comment" id="c5878">
+													<div class="qa-c-item-content">
+														<a name="5878"></a><div class="entry-content"><p>I thought the functionality of reading a vector as a Function (as above) worked, but as it turns out, there is a typo in the source code... I'll raise an issue to get it fixed for the next release...</p>
+</div>
+													</div>
+													<div class="qa-c-item-footer">
+														<span class="qa-c-item-avatar-meta">
+															<span class="qa-c-item-avatar">
+																<a href="../../user/chris_richardson" class="qa-avatar-link"><img src="https://www.gravatar.com/avatar/d779daeb727bcec8f6b2c505810042db?s=20" width="20" height="20" class="qa-avatar-image" alt=""></a>
+															</span>
+															<span class="qa-c-item-meta">
+																<a href="../../5846/write-function-to-hdf5-parallel-garbled-data-when-read-back?show=5878#c5878" class="qa-c-item-what">commented</a>
+																<span class="qa-c-item-when">
+																	<span class="qa-c-item-when-data"><span class="published"><span class="value-title" title="2014-10-30T16:51:44+0000"></span>Oct 30, 2014</span></span>
+																</span>
+																<span class="qa-c-item-who">
+																	<span class="qa-c-item-who-pad">by </span>
+																	<span class="qa-c-item-who-data"><span class="vcard author"><a href="../../user/chris_richardson" class="qa-user-link url nickname">chris_richardson</a></span></span>
+																	<span class="qa-c-item-who-title">FEniCS Expert</span>
+																	<span class="qa-c-item-who-points">
+																		<span class="qa-c-item-who-points-pad">(</span><span class="qa-c-item-who-points-data">31,740</span><span class="qa-c-item-who-points-pad"> points)</span>
+																	</span>
+																</span>
+																<br>
+																<span class="qa-c-item-what">edited</span>
+																<span class="qa-c-item-when">
+																	<span class="qa-c-item-when-data"><span class="updated"><span class="value-title" title="2014-11-02T21:40:18+0000"></span>Nov 2, 2014</span></span>
+																</span>
+																<span class="qa-c-item-who">
+																	<span class="qa-c-item-who-pad">by </span><span class="qa-c-item-who-data"><a href="../../user/chris_richardson" class="qa-user-link url nickname">chris_richardson</a></span>
+																</span>
+															</span>
+														</span>
+														<div class="qa-c-item-buttons">
+														</div>
+													</div>
+													<div class="qa-c-item-clear">
+													</div>
+												</div> <!-- END qa-c-item -->
+											</div> <!-- END qa-c-list -->
+											
+											<input type="hidden" name="code" value="0-1516468045-2cc98d6f58748d5b5b67a58a41d2a8b5aa5c1d40">
+											<input type="hidden" name="qa_click" value="">
+										</form>
+										<div class="qa-c-form">
+										</div> <!-- END qa-c-form -->
+										
+									</div> <!-- END qa-a-item-main -->
+									<div class="qa-a-item-clear">
+									</div>
+								</div> <!-- END qa-a-list-item -->
+								
+								<div class="qa-a-list-item  hentry answer" id="a5882">
+									<form method="post" action="../../5846/write-function-to-hdf5-parallel-garbled-data-when-read-back">
+										<div class="qa-voting qa-voting-net" id="voting_5882">
+											<div class="qa-vote-count qa-vote-count-net">
+												<span class="qa-netvote-count">
+													<span class="qa-netvote-count-data">+1<span class="votes-up"><span class="value-title" title="1"></span></span><span class="votes-down"><span class="value-title" title="0"></span></span></span><span class="qa-netvote-count-pad"> vote</span>
+												</span>
+											</div>
+											<div class="qa-vote-clear">
+											</div>
+										</div>
+										<input type="hidden" name="code" value="0-1516468045-1f052ce79fc4df42101e6659f674f107c26f22da">
+									</form>
+									<div class="qa-a-item-main">
+										<form method="post" action="../../5846/write-function-to-hdf5-parallel-garbled-data-when-read-back">
+											<div class="qa-a-selection">
+											</div>
+											<div class="qa-a-item-content">
+												<a name="5882"></a><div class="entry-content"><p>You could consider trying cbcpost (that's what I ended up doing): </p>
+
+<p><a rel="nofollow" href="http://cbcpost.readthedocs.org/en/latest/">http://cbcpost.readthedocs.org/en/latest/</a></p>
+</div>
+											</div>
+											<span class="qa-a-item-avatar-meta">
+												<span class="qa-a-item-avatar">
+													<a href="../../user/Marie+E.+Rognes" class="qa-avatar-link"><img src="https://www.gravatar.com/avatar/3fe6d56fa31612bacc6320b6a19b0ba5?s=40" width="40" height="40" class="qa-avatar-image" alt=""></a>
+												</span>
+												<span class="qa-a-item-meta">
+													<a href="../../5846/write-function-to-hdf5-parallel-garbled-data-when-read-back?show=5882#a5882" class="qa-a-item-what">answered</a>
+													<span class="qa-a-item-when">
+														<span class="qa-a-item-when-data"><span class="published"><span class="value-title" title="2014-10-30T20:46:27+0000"></span>Oct 30, 2014</span></span>
+													</span>
+													<span class="qa-a-item-who">
+														<span class="qa-a-item-who-pad">by </span>
+														<span class="qa-a-item-who-data"><span class="vcard author"><a href="../../user/Marie+E.+Rognes" class="qa-user-link url nickname">Marie E. Rognes</a></span></span>
+														<span class="qa-a-item-who-title">FEniCS User</span>
+														<span class="qa-a-item-who-points">
+															<span class="qa-a-item-who-points-pad">(</span><span class="qa-a-item-who-points-data">5,380</span><span class="qa-a-item-who-points-pad"> points)</span>
+														</span>
+													</span>
+												</span>
+											</span>
+											<div class="qa-a-item-buttons">
+												</div>
+											
+											<div class="qa-a-item-c-list" style="display:none;" id="c5882_list">
+											</div> <!-- END qa-c-list -->
+											
+											<input type="hidden" name="code" value="0-1516468045-0dfcac5f07771558d09a4c3bd63bf72744c49dd3">
+											<input type="hidden" name="qa_click" value="">
+										</form>
+										<div class="qa-c-form">
+										</div> <!-- END qa-c-form -->
+										
+									</div> <!-- END qa-a-item-main -->
+									<div class="qa-a-item-clear">
+									</div>
+								</div> <!-- END qa-a-list-item -->
+								
+							</div> <!-- END qa-a-list -->
+							
+						</div>
+					</div> <!-- END qa-main -->
+					
+				</div> <!-- END main-wrapper -->
+			</div> <!-- END main-shadow -->
+		</div> <!-- END body-wrapper -->
+		<!-- END footer-bottom-group -->
+		
+		<div style="position:absolute; left:-9999px; top:-9999px;">
+			<span id="qa-waiting-template" class="qa-waiting">...</span>
+		</div>
+	
+	
+
+</body><!-- Powered by Question2Answer - http://www.question2answer.org/ --></html>

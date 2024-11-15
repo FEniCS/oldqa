@@ -1,0 +1,466 @@
+<html><!-- Powered by Question2Answer - http://www.question2answer.org/ --><head>
+		<meta http-equiv="content-type" content="text/html; charset=utf-8">
+		<title>sin_dad-py plot problem - FEniCS Q&amp;A</title>
+		<meta name="description" content='Hey. I have problems with to see the end plot in this code: """Temperature variations in the ground.""" from  ... T), n)*ds t = dt counter = 0 while t'>
+		<link rel="stylesheet" type="text/css" href="../../qa-theme/Snow/qa-styles.css">
+		<link rel="canonical" href="http://fenicsproject.org/qa/8221/sin_dad-py-plot-problem">
+		<script type="text/x-mathjax-config">
+  MathJax.Hub.Config({
+    extensions: ["tex2jax.js"],
+    jax: ["input/TeX","output/HTML-CSS"],
+    tex2jax: {inlineMath: [["$","$"],["\\(","\\)"]]},
+    TeX: { extensions: ["AMSmath.js","AMSsymbols.js"]}
+  });
+</script>
+<script type="text/javascript" src="../../mathjax/MathJax.js"></script>
+		<script src="../../jquery-1.7.2.min.js" type="text/javascript"></script>
+		<script src="../../highlight.min.js"></script>
+<script type="text/javascript">
+$(function(){
+	$('.wmd-input').keypress(function(){
+		window.clearTimeout(hljs.Timeout);
+		hljs.Timeout = window.setTimeout(function() {
+			hljs.initHighlighting.called = false;
+			hljs.initHighlighting();
+		}, 500);
+	});
+	window.setTimeout(function() {
+		hljs.initHighlighting.called = false;
+		hljs.initHighlighting();
+	}, 500);
+});
+</script>
+
+
+	</head>
+	<body class="qa-template-question qa-body-js-off">
+		<div class="qa-body-wrapper">
+			
+			<div class="qa-header">
+				<div class="qa-logo">
+					<a href="../../" class="qa-logo-link" title="FEniCS Q&amp;A"><img src="../../qa-theme/fenics_qa.png" border="0" alt="FEniCS Q&amp;A"></a>
+				</div>
+				<div class="qa-header-clear">
+				</div>
+			</div> <!-- END qa-header -->
+			
+			<div class="qa-main-shadow">
+				
+				<div class="qa-main-wrapper">
+					
+					<div class="qa-sidepanel">
+						<div class="qa-sidebar">
+							This is a read only copy of the old FEniCS QA forum. Please visit the <a href="https://www.allanswered.com/community/s/fenics-project/">new QA forum</a> to ask questions
+						</div>
+						
+					</div>
+					
+					<div class="qa-main">
+						<h1>
+							<span class="entry-title">sin_dad-py plot problem</span>
+						</h1>
+						<div class="qa-part-q-view">
+							<div class="qa-q-view  hentry question" id="q8221">
+								<form method="post" action="../../8221/sin_dad-py-plot-problem">
+									<div class="qa-q-view-stats">
+										<div class="qa-voting qa-voting-net" id="voting_8221">
+											<div class="qa-vote-count qa-vote-count-net">
+												<span class="qa-netvote-count">
+													<span class="qa-netvote-count-data">0<span class="votes-up"><span class="value-title" title="0"></span></span><span class="votes-down"><span class="value-title" title="0"></span></span></span><span class="qa-netvote-count-pad"> votes</span>
+												</span>
+											</div>
+											<div class="qa-vote-clear">
+											</div>
+										</div>
+									</div>
+									<input type="hidden" name="code" value="0-1516468162-44dce62971be93c0618e1d7534cd37c06cdef4c2">
+								</form>
+								<div class="qa-q-view-main">
+									<form method="post" action="../../8221/sin_dad-py-plot-problem">
+										<div class="qa-q-view-content">
+											<a name="8221"></a><div class="entry-content"><p>Hey. I have problems with to see the end plot in this code:</p>
+
+<pre><code>"""Temperature variations in the ground."""
+
+from dolfin import *
+import sys, numpy, time
+
+# Usage:   sin_daD.py degree D   nx ny nz
+# Example: sin_daD.py   1   1.5  4  40
+
+# Create mesh and define function space
+degree = int(sys.argv[1])
+D = float(sys.argv[2])
+W = D/2.0
+divisions = [int(arg) for arg in sys.argv[3:]]
+print 'degree=%d, D=%g, W=%g, %s cells' % \
+      (degree, D, W, 'x'.join(sys.argv[3:]))
+
+d = len(divisions)  # no of space dimensions
+if d == 1:
+    mesh = Interval(divisions[0], -D, 0)
+elif d == 2:
+    mesh = RectangleMesh(Point(-W/2, -D), Point(W/2, 0), divisions[0], divisions
+[1]) 
+
+elif d == 3:
+    mesh = Box(-W/2, -W/2, -D, W/2, W/2, 0,
+               divisions[0], divisions[1], divisions[2])
+V = FunctionSpace(mesh, 'Lagrange', degree)
+
+# Define boundary conditions
+
+T_R = 0
+T_A = 1.0
+omega = 2*pi
+# soil:
+T_R = 10
+T_A = 10
+omega = 7.27E-5
+
+T_0 = Expression('T_R + T_A*sin(omega*t)',
+                 T_R=T_R, T_A=T_A, omega=omega, t=0.0)
+
+def surface(x, on_boundary):
+    return on_boundary and abs(x[d-1]) &lt; 1E-14
+
+bc = DirichletBC(V, T_0, surface)
+
+period = 2*pi/omega
+t_stop = 5*period
+#t_stop = period/4
+dt = period/14
+theta = 1
+
+kappa_0 = 2.3  # KN/s (K=Kelvin, temp. unit), for soil
+kappa_0 = 12.3  # KN/s (K=Kelvin, temp. unit)
+kappa_1 = 1E+4
+kappa_1 = kappa_0
+
+kappa_str = {}
+kappa_str[1] = 'x[0] &gt; -D/2 &amp;&amp; x[0] &lt; -D/2 + D/4 ? kappa_1 : kappa_0'
+kappa_str[2] = 'x[0] &gt; -W/4 &amp;&amp; x[0] &lt; W/4 '\
+               '&amp;&amp; x[1] &gt; -D/2 &amp;&amp; x[1] &lt; -D/2 + D/4 ? '\
+               'kappa_1 : kappa_0'
+kappa_str[3] = 'x[0] &gt; -W/4 &amp;&amp; x[0] &lt; W/4 '\
+               'x[1] &gt; -W/4 &amp;&amp; x[1] &lt; W/4 '\
+               '&amp;&amp; x[2] &gt; -D/2 &amp;&amp; x[2] &lt; -D/2 + D/4 ?'\
+               'kappa_1 : kappa_0'
+period = 2*pi/omega
+t_stop = 5*period
+# Alternative way of defining the kappa function
+class Kappa(Expression):
+    def eval(self, value, x):
+        """x: spatial point, value[0]: function value."""
+        d = len(x)  # no of space dimensions
+        material = 0  # 0: outside, 1: inside
+        if d == 1:
+            if -D/2. &lt; x[d-1] &lt; -D/2. + D/4.:
+                material = 1
+        elif d == 2:
+            if -D/2. &lt; x[d-1] &lt; -D/2. + D/4. and \
+               -W/4. &lt; x[0] &lt; W/4.:
+                material = 1
+        elif d == 3:
+            if -D/2. &lt; x[d-1] &lt; -D/2. + D/4. and \
+               -W/4. &lt; x[0] &lt; W/4. and -W/4. &lt; x[1] &lt; W/4.:
+                material = 1
+        value[0] = kappa_0 if material == 0 else kappa_1
+
+# Physical parameters
+kappa = Expression(kappa_str[d],
+                   D=D, W=W, kappa_0=kappa_0, kappa_1=kappa_1)
+#kappa = Kappa(V)
+
+# soil:
+rho = 1500
+c = 1600
+
+print 'Thermal diffusivity:', kappa_0/rho/c
+
+# Define initial condition
+T_1 = interpolate(Constant(T_R), V)
+
+# Define variational problem
+T = TrialFunction(V)
+v = TestFunction(V)
+f = Constant(0)
+a = rho*c*T*v*dx + theta*dt*kappa*\
+    inner(nabla_grad(v), nabla_grad(T))*dx
+L = (rho*c*T_1*v + dt*f*v -
+     (1-theta)*dt*kappa*inner(nabla_grad(v), nabla_grad(T)))*dx
+
+A = assemble(a)
+b = None  # variable used for memory savings in assemble calls
+
+# Compute solution
+T = Function(V)   # unknown at the new time level
+
+# hack for plotting (first surface must span all values (?))
+dummy = Expression('T_R - T_A/2.0 + 2*T_A*(x[%g]+D)' % (d-1),
+                   T_R=T_R, T_A=T_A, D=D)
+
+# Make all plot commands inctive
+import scitools.misc
+plot = scitools.misc.DoNothing(silent=True)
+# Need initial dummy plot
+viz = plot(dummy, axes=True,
+           title='Temperature', wireframe=True)
+viz.elevate(-65)
+#time.sleep(1)
+viz.update(T_1)
+
+import scitools.BoxField
+start_pt = [0]*d; start_pt[-1] = -D  # start pt for line plot
+import scitools.easyviz as ev
+
+def line_plot():
+    """Make a line plot of T along the vertical direction."""
+    if T.ufl_element().degree() != 1:
+        T2 = interpolate(T, FunctionSpace(mesh, 'Lagrange', 1))
+    else:
+        T2 = T
+    T_box = scitools.BoxField.dolfin_function2BoxField(
+            T2, mesh, divisions, uniform_mesh=True)
+    #T_box = scitools.BoxField.update_from_dolfin_array(
+    #        T.vector().array(), T_box)
+    coor, Tval, fixed, snapped = \
+            T_box.gridline(start_pt, direction=d-1)
+
+    # Use just one ev.plot command, not hold('on') and two ev.plot
+    # etc for smooth movie on the screen
+    if kappa_0 == kappa_1:  # analytical solution?
+        ev.plot(coor, Tval, 'r-',
+                coor, T_exact(coor), 'b-',
+                axis=[-D, 0, T_R-T_A, T_R+T_A],
+                xlabel='depth', ylabel='temperature',
+                legend=['numerical', 'exact, const kappa=%g' % kappa_0],
+                legend_loc='upper left',
+                title='t=%.4f' % t)
+    else:
+        ev.plot(coor, Tval, 'r-',
+                axis=[-D, 0, T_R-T_A, T_R+T_A],
+                xlabel='depth', ylabel='temperature',
+                title='t=%.4f' % t)
+
+    ev.savefig('tmp_%04d.png' % counter)
+    time.sleep(0.1)
+
+def T_exact(x):
+    a = sqrt(omega*rho*c/(2*kappa_0))
+    return T_R + T_A*numpy.exp(a*x)*numpy.sin(omega*t + a*x)
+
+n = FacetNormal(mesh)  # for flux computation at the top boundary
+flux = -kappa*dot(nabla_grad(T), n)*ds
+
+t = dt
+counter = 0
+while t &lt;= t_stop:
+    print ('time =', t)
+    b = assemble(L, tensor=b)
+    T_0.t = t
+    help = interpolate(T_0, V)
+    print ('T_0:', help.vector().array()[0])
+    bc.apply(A, b)
+    solve(A, T.vector(), b)
+    viz.update(T)
+    #viz.write_ps('diff2_%04d' % counter)
+    line_plot()
+
+    total_flux = assemble(flux)
+    print 'Total flux:', total_flux
+
+    t += dt
+    T_1.assign(T)
+    counter += 1
+
+viz=plot(T, title='Final solution')
+viz.elevate(-65)
+viz.azimuth(-40)
+viz.update(T)
+
+interactive()
+</code></pre>
+
+<p>It is viz=plot(T, title='Final solution') I can't see. The terminal write *** Warning: No plots have been shown yet. Ignoring call to interactive().</p>
+
+<p>The line plot and the printed values can I see, but why can I not see the plot I make in the last five lines in the code? I hope somone can help me. Regards stargirl5 </p>
+</div>
+										</div>
+										<span class="qa-q-view-avatar-meta">
+											<span class="qa-q-view-meta">
+												<a href="../../8221/sin_dad-py-plot-problem" class="qa-q-view-what">asked</a>
+												<span class="qa-q-view-when">
+													<span class="qa-q-view-when-data"><span class="published"><span class="value-title" title="2015-09-27T14:13:36+0000"></span>Sep 27, 2015</span></span>
+												</span>
+												<span class="qa-q-view-who">
+													<span class="qa-q-view-who-pad">by </span>
+													<span class="qa-q-view-who-data"><span class="vcard author"><a href="../../user/stargirl5" class="qa-user-link url nickname">stargirl5</a></span></span>
+													<span class="qa-q-view-who-title">FEniCS Novice</span>
+													<span class="qa-q-view-who-points">
+														<span class="qa-q-view-who-points-pad">(</span><span class="qa-q-view-who-points-data">160</span><span class="qa-q-view-who-points-pad"> points)</span>
+													</span>
+												</span>
+												<br>
+												<span class="qa-q-view-what">edited</span>
+												<span class="qa-q-view-when">
+													<span class="qa-q-view-when-data"><span class="updated"><span class="value-title" title="2015-09-29T10:47:14+0000"></span>Sep 29, 2015</span></span>
+												</span>
+												<span class="qa-q-view-who">
+													<span class="qa-q-view-who-pad">by </span><span class="qa-q-view-who-data"><a href="../../user/stargirl5" class="qa-user-link url nickname">stargirl5</a></span>
+												</span>
+											</span>
+										</span>
+										<div class="qa-q-view-buttons">
+										</div>
+										
+										<div class="qa-q-view-c-list" id="c8221_list">
+											<div class="qa-c-list-item  hentry comment" id="c8222">
+												<div class="qa-c-item-content">
+													<a name="8222"></a><div class="entry-content"><p>Please format your code properly (4 spaces indentation, or use Ctrl+K). Check that it's runnable, that way it will be much easier to help.</p>
+</div>
+												</div>
+												<div class="qa-c-item-footer">
+													<span class="qa-c-item-avatar-meta">
+														<span class="qa-c-item-meta">
+															<a href="../../8221/sin_dad-py-plot-problem?show=8222#c8222" class="qa-c-item-what">commented</a>
+															<span class="qa-c-item-when">
+																<span class="qa-c-item-when-data"><span class="published"><span class="value-title" title="2015-09-28T07:58:13+0000"></span>Sep 28, 2015</span></span>
+															</span>
+															<span class="qa-c-item-who">
+																<span class="qa-c-item-who-pad">by </span>
+																<span class="qa-c-item-who-data"><span class="vcard author"><a href="../../user/%C3%98yvind+Evju" class="qa-user-link url nickname">&#216;yvind Evju</a></span></span>
+																<span class="qa-c-item-who-title">FEniCS Expert</span>
+																<span class="qa-c-item-who-points">
+																	<span class="qa-c-item-who-points-pad">(</span><span class="qa-c-item-who-points-data">17,700</span><span class="qa-c-item-who-points-pad"> points)</span>
+																</span>
+															</span>
+														</span>
+													</span>
+													<div class="qa-c-item-buttons">
+													</div>
+												</div>
+												<div class="qa-c-item-clear">
+												</div>
+											</div> <!-- END qa-c-item -->
+											<div class="qa-c-list-item  hentry comment" id="c8243">
+												<div class="qa-c-item-content">
+													<a name="8243"></a><div class="entry-content"><p>I have format my code correct now. Can you help me? </p>
+</div>
+												</div>
+												<div class="qa-c-item-footer">
+													<span class="qa-c-item-avatar-meta">
+														<span class="qa-c-item-meta">
+															<a href="../../8221/sin_dad-py-plot-problem?show=8243#c8243" class="qa-c-item-what">commented</a>
+															<span class="qa-c-item-when">
+																<span class="qa-c-item-when-data"><span class="published"><span class="value-title" title="2015-09-29T10:47:53+0000"></span>Sep 29, 2015</span></span>
+															</span>
+															<span class="qa-c-item-who">
+																<span class="qa-c-item-who-pad">by </span>
+																<span class="qa-c-item-who-data"><span class="vcard author"><a href="../../user/stargirl5" class="qa-user-link url nickname">stargirl5</a></span></span>
+																<span class="qa-c-item-who-title">FEniCS Novice</span>
+																<span class="qa-c-item-who-points">
+																	<span class="qa-c-item-who-points-pad">(</span><span class="qa-c-item-who-points-data">160</span><span class="qa-c-item-who-points-pad"> points)</span>
+																</span>
+															</span>
+														</span>
+													</span>
+													<div class="qa-c-item-buttons">
+													</div>
+												</div>
+												<div class="qa-c-item-clear">
+												</div>
+											</div> <!-- END qa-c-item -->
+										</div> <!-- END qa-c-list -->
+										
+										<input type="hidden" name="code" value="0-1516468162-e6e9a42929ea70a0657069cc89bf6fd53aa38485">
+										<input type="hidden" name="qa_click" value="">
+									</form>
+									<div class="qa-c-form">
+									</div> <!-- END qa-c-form -->
+									
+								</div> <!-- END qa-q-view-main -->
+								<div class="qa-q-view-clear">
+								</div>
+							</div> <!-- END qa-q-view -->
+							
+						</div>
+						<div class="qa-part-a-list">
+							<h2 id="a_list_title">1 Answer</h2>
+							<div class="qa-a-list" id="a_list">
+								
+								<div class="qa-a-list-item  hentry answer" id="a8245">
+									<form method="post" action="../../8221/sin_dad-py-plot-problem">
+										<div class="qa-voting qa-voting-net" id="voting_8245">
+											<div class="qa-vote-count qa-vote-count-net">
+												<span class="qa-netvote-count">
+													<span class="qa-netvote-count-data">0<span class="votes-up"><span class="value-title" title="0"></span></span><span class="votes-down"><span class="value-title" title="0"></span></span></span><span class="qa-netvote-count-pad"> votes</span>
+												</span>
+											</div>
+											<div class="qa-vote-clear">
+											</div>
+										</div>
+										<input type="hidden" name="code" value="0-1516468162-44dce62971be93c0618e1d7534cd37c06cdef4c2">
+									</form>
+									<div class="qa-a-item-main">
+										<form method="post" action="../../8221/sin_dad-py-plot-problem">
+											<div class="qa-a-selection">
+											</div>
+											<div class="qa-a-item-content">
+												<a name="8245"></a><div class="entry-content"><p>The <em>interactive</em> you are calling here is part of <em>dolfin</em>. I am not familiar with scitools, which you are using for plotting here. Either find the interactive call to scittols, e.g. viz.interactive(), or plot with dolfin plot like this at the end of the code:</p>
+
+<pre><code>from dolfin import plot as dplot
+dplot(T, interactive=True)
+</code></pre>
+</div>
+											</div>
+											<span class="qa-a-item-avatar-meta">
+												<span class="qa-a-item-meta">
+													<a href="../../8221/sin_dad-py-plot-problem?show=8245#a8245" class="qa-a-item-what">answered</a>
+													<span class="qa-a-item-when">
+														<span class="qa-a-item-when-data"><span class="published"><span class="value-title" title="2015-09-29T11:09:53+0000"></span>Sep 29, 2015</span></span>
+													</span>
+													<span class="qa-a-item-who">
+														<span class="qa-a-item-who-pad">by </span>
+														<span class="qa-a-item-who-data"><span class="vcard author"><a href="../../user/%C3%98yvind+Evju" class="qa-user-link url nickname">&#216;yvind Evju</a></span></span>
+														<span class="qa-a-item-who-title">FEniCS Expert</span>
+														<span class="qa-a-item-who-points">
+															<span class="qa-a-item-who-points-pad">(</span><span class="qa-a-item-who-points-data">17,700</span><span class="qa-a-item-who-points-pad"> points)</span>
+														</span>
+													</span>
+												</span>
+											</span>
+											<div class="qa-a-item-buttons">
+												</div>
+											
+											<div class="qa-a-item-c-list" style="display:none;" id="c8245_list">
+											</div> <!-- END qa-c-list -->
+											
+											<input type="hidden" name="code" value="0-1516468162-0179e80e352b8e661b8b9362ea6103104e34b8f1">
+											<input type="hidden" name="qa_click" value="">
+										</form>
+										<div class="qa-c-form">
+										</div> <!-- END qa-c-form -->
+										
+									</div> <!-- END qa-a-item-main -->
+									<div class="qa-a-item-clear">
+									</div>
+								</div> <!-- END qa-a-list-item -->
+								
+							</div> <!-- END qa-a-list -->
+							
+						</div>
+					</div> <!-- END qa-main -->
+					
+				</div> <!-- END main-wrapper -->
+			</div> <!-- END main-shadow -->
+		</div> <!-- END body-wrapper -->
+		<!-- END footer-bottom-group -->
+		
+		<div style="position:absolute; left:-9999px; top:-9999px;">
+			<span id="qa-waiting-template" class="qa-waiting">...</span>
+		</div>
+	
+	
+
+</body><!-- Powered by Question2Answer - http://www.question2answer.org/ --></html>

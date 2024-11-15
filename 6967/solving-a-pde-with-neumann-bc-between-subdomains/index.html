@@ -1,0 +1,274 @@
+<html><!-- Powered by Question2Answer - http://www.question2answer.org/ --><head>
+		<meta http-equiv="content-type" content="text/html; charset=utf-8">
+		<title>Solving a PDE with Neumann BC between subdomains - FEniCS Q&amp;A</title>
+		<meta name="description" content="Hello, I am trying to model a pressure-temperature PDE system, where the pressure variable is defined  ... way to impose a Neumann BC over $\Gamma$?">
+		<meta name="keywords" content="subdomains,neumann">
+		<link rel="stylesheet" type="text/css" href="../../qa-theme/Snow/qa-styles.css">
+		<link rel="canonical" href="http://fenicsproject.org/qa/6967/solving-a-pde-with-neumann-bc-between-subdomains">
+		<script type="text/x-mathjax-config">
+  MathJax.Hub.Config({
+    extensions: ["tex2jax.js"],
+    jax: ["input/TeX","output/HTML-CSS"],
+    tex2jax: {inlineMath: [["$","$"],["\\(","\\)"]]},
+    TeX: { extensions: ["AMSmath.js","AMSsymbols.js"]}
+  });
+</script>
+<script type="text/javascript" src="../../mathjax/MathJax.js"></script>
+		<script src="../../jquery-1.7.2.min.js" type="text/javascript"></script>
+		<script src="../../highlight.min.js"></script>
+<script type="text/javascript">
+$(function(){
+	$('.wmd-input').keypress(function(){
+		window.clearTimeout(hljs.Timeout);
+		hljs.Timeout = window.setTimeout(function() {
+			hljs.initHighlighting.called = false;
+			hljs.initHighlighting();
+		}, 500);
+	});
+	window.setTimeout(function() {
+		hljs.initHighlighting.called = false;
+		hljs.initHighlighting();
+	}, 500);
+});
+</script>
+
+
+	</head>
+	<body class="qa-template-question qa-body-js-off">
+		<div class="qa-body-wrapper">
+			
+			<div class="qa-header">
+				<div class="qa-logo">
+					<a href="../" class="qa-logo-link" title="FEniCS Q&amp;A"><img src="../../qa-theme/fenics_qa.png" border="0" alt="FEniCS Q&amp;A"></a>
+				</div>
+				<div class="qa-header-clear">
+				</div>
+			</div> <!-- END qa-header -->
+			
+			<div class="qa-main-shadow">
+				
+				<div class="qa-main-wrapper">
+					
+					<div class="qa-sidepanel">
+						<div class="qa-sidebar">
+							This is a read only copy of the old FEniCS QA forum. Please visit the <a href="https://www.allanswered.com/community/s/fenics-project/">new QA forum</a> to ask questions
+						</div>
+						
+					</div>
+					
+					<div class="qa-main">
+						<h1>
+							<span class="entry-title">Solving a PDE with Neumann BC between subdomains</span>
+						</h1>
+						<div class="qa-part-q-view">
+							<div class="qa-q-view qa-q-closed hentry question" id="q6967">
+								<form method="post" action="../6967">
+									<div class="qa-q-view-stats">
+										<div class="qa-voting qa-voting-net" id="voting_6967">
+											<div class="qa-vote-count qa-vote-count-net">
+												<span class="qa-netvote-count">
+													<span class="qa-netvote-count-data">+2<span class="votes-up"><span class="value-title" title="2"></span></span><span class="votes-down"><span class="value-title" title="0"></span></span></span><span class="qa-netvote-count-pad"> votes</span>
+												</span>
+											</div>
+											<div class="qa-vote-clear">
+											</div>
+										</div>
+									</div>
+									<input type="hidden" name="code" value="0-1516477775-fc0c49781a7f7dff6474ca65ddd1aedf23b247b3">
+								</form>
+								<div class="qa-q-view-main">
+									<form method="post" action="../6967">
+										<div class="qa-q-view-content">
+											<a name="6967"></a><div class="entry-content"><p>Hello,</p>
+
+<p>I am trying to model a pressure-temperature PDE system, where the pressure variable is defined only on part of the domain. In order to understand how to solve it with FEniCS, I wrote a simplified test problem that should be similar to my system. The domains are:</p>
+
+<p>$$\Omega_2 = \left[\tfrac{1}{4},\tfrac{3}{4}\right]\times \left[\tfrac{1}{4},\tfrac{3}{4}\right], \Omega_1=[0,1]\times[0,1]-\Omega_2$$</p>
+
+<p>Domain and boundaries: <a rel="nofollow" href="http://imgur.com/DXf6qNM">http://imgur.com/DXf6qNM</a></p>
+
+<p>The equations:</p>
+
+<p>$$\Omega_1:\left\{\begin{array}{l}<br>
+\Delta P + P - T = f(x)\\<br>
+\Delta T + T + P = g(x)<br>
+\end{array}\right.$$</p>
+
+<p>$$\Omega_2:\{\Delta T + 2T = 0$$</p>
+
+<p>with Dirichlet boundary conditions on the edges of the unit square, and Neumann boundary condition for $P$ between $\Omega_1$ and $\Omega_2$ ($\nabla P\cdot n=0$ on $\Gamma_2$, $\nabla P\cdot n=1$ on $\Gamma_3$, and $\nabla P\cdot n=-1$ on $\Gamma_4$). The solutions should be</p>
+
+<p>$$P(x,y)=\left(x-\tfrac{1}{4}\right)^2\left(x-\tfrac{3}{4}\right)^2+y$$</p>
+
+<p>$$T(x,y)=\sin(x+y)$$</p>
+
+<p>This is my attempt at the solution:</p>
+
+<pre><code>from dolfin import *
+import numpy as np
+import scipy.io as IO
+
+mesh = RectangleMesh(0, 0, 1, 1, 20, 20, "crossed")
+
+# Boundaries
+class OuterBoundary(SubDomain):
+    def inside(self, x, on_boundary):
+        return on_boundary
+
+# East and West boundaries
+class Internal_WE_Boundary(SubDomain):
+    def inside(self, x, on_boundary):
+        return  between(x[1], (0.25,0.75)) and \
+            (near(x[0], 0.75) or near(x[0], 0.25))
+
+# North boundary
+class Internal_N_Boundary(SubDomain):
+    def inside(self, x, on_boundary):
+        return between(x[0], (0.25,0.75)) and near(x[1], 0.75)
+
+# South boundary
+class Internal_S_Boundary(SubDomain):
+    def inside(self, x, on_boundary):
+        return between(x[0], (0.25,0.75)) and near(x[1], 0.25)
+
+# Create subdomains
+class Omega2Domain(SubDomain):
+    def inside(self, x, on_boundary):
+        return  between(x[0],(0.25,0.75)) and \
+            between(x[1],(0.25,0.75))
+
+# Mark subdomains
+subdomains = CellFunction("size_t", mesh)
+subdomains.set_all(0)       # Omega_0
+Omega2Domain().mark(subdomains, 1)  # Omega_1
+
+# Mark boundaries
+boundaries = FacetFunction("size_t", mesh)
+boundaries.set_all(0)
+OuterBoundary().mark(boundaries, 1)
+Internal_WE_Boundary().mark(boundaries, 2)
+Internal_N_Boundary().mark(boundaries, 3)
+Internal_S_Boundary().mark(boundaries, 4)
+
+# Initialize spaces &amp; functions
+V = FunctionSpace(mesh, "CG", 1)
+W = MixedFunctionSpace([V, V])
+[T, P] = TrialFunction(W)
+[v1, v2] = TestFunction(W)
+
+P_Exact = Expression("pow((x[0]-0.25)*(x[0]-0.75),2) + x[1]")
+P_Lapl_Exact = Expression("12*x[0]*x[0] - 12*x[0]+2.75")
+T_Exact = Expression("sin(x[0]+x[1])")
+T_Lapl_Exact = Expression("-2*sin(x[0]+x[1])")
+
+bc_T = DirichletBC(W.sub(0), T_Exact, boundaries, 1)
+bc_P = DirichletBC(W.sub(1), P_Exact, boundaries, 1)
+
+dx = Measure("dx")[subdomains]
+ds = Measure("ds")[boundaries]
+
+a_form = (-inner(grad(P),grad(v2)) + inner(P,v2) - inner(T,v2)) * dx(0) \
+    +(-inner(grad(T),grad(v1)) + inner(T,v1) + inner(P,v1)) * dx(0) \
+    +(-inner(grad(T),grad(v1)) + 2*inner(T,v1)) * dx(1)
+
+b_form = (P_Lapl_Exact + P_Exact - T_Exact) * v2 * dx(0) \
+    + (T_Lapl_Exact + T_Exact + P_Exact) * v1 * dx(0)
+    + Constant(-1.0) * v2 * ds(3) + Constant(1.0) * v2 * ds(4)
+
+u = Function(W)
+solve(a_form == b_form, u, [bc_T, bc_P])
+
+(T, P) = u.split(deepcopy = True)
+plot(P)
+interactive()
+</code></pre>
+
+<p>However, the line (in definition of b_form)</p>
+
+<pre><code>    + Constant(-1.0) * v2 * ds(3) + Constant(1.0) * v2 * ds(4)
+</code></pre>
+
+<p>seems to have no effect on the solution, and thus I am unable to impose any Neumann BC's between $\Omega_1$ and $\Omega_2$. I would appreciate any help in dealing with this issue.</p>
+
+<p>Thanks in advance,</p>
+
+<p>safinenko</p>
+
+<p>EDIT: a short version of the question: Let's say I have mesh defined over union of two subdomains, $\Omega=\Omega_1\cup\Omega_2$. Let $\Gamma$ be the boundary between the two subdomains. If I want to solve a PDE only on $\Omega_1$, is there a way to impose a Neumann BC over $\Gamma$?</p>
+</div>
+										</div>
+										<div class="qa-q-view-closed">
+											closed with the note:
+											<span class="qa-q-view-closed-content">
+												This does not seem to implement in Fenics very well. I've moved on to the deal.ii package, which has (in my opinion) better support for such problems.
+											</span>
+										</div>
+										<div class="qa-q-view-tags">
+											<ul class="qa-q-view-tag-list">
+												<li class="qa-q-view-tag-item"><a href="../tag/subdomains" rel="tag" class="qa-tag-link">subdomains</a></li>
+												<li class="qa-q-view-tag-item"><a href="../tag/neumann" rel="tag" class="qa-tag-link">neumann</a></li>
+											</ul>
+										</div>
+										<span class="qa-q-view-avatar-meta">
+											<span class="qa-q-view-meta">
+												<a href="../6967/solving-a-pde-with-neumann-bc-between-subdomains" class="qa-q-view-what">asked</a>
+												<span class="qa-q-view-when">
+													<span class="qa-q-view-when-data"><span class="published"><span class="value-title" title="2015-04-17T22:31:36+0000"></span>Apr 18, 2015</span></span>
+												</span>
+												<span class="qa-q-view-who">
+													<span class="qa-q-view-who-pad">by </span>
+													<span class="qa-q-view-who-data"><span class="vcard author"><a href="../../user/safinenko" class="qa-user-link url nickname">safinenko</a></span></span>
+													<span class="qa-q-view-who-title">FEniCS Novice</span>
+													<span class="qa-q-view-who-points">
+														<span class="qa-q-view-who-points-pad">(</span><span class="qa-q-view-who-points-data">560</span><span class="qa-q-view-who-points-pad"> points)</span>
+													</span>
+												</span>
+												<br>
+												<span class="qa-q-view-what">closed</span>
+												<span class="qa-q-view-when">
+													<span class="qa-q-view-when-data"><span class="updated"><span class="value-title" title="2015-12-26T19:42:16+0000"></span>Dec 26, 2015</span></span>
+												</span>
+												<span class="qa-q-view-who">
+													<span class="qa-q-view-who-pad">by </span><span class="qa-q-view-who-data"><a href="../../user/safinenko" class="qa-user-link url nickname">safinenko</a></span>
+												</span>
+											</span>
+										</span>
+										<div class="qa-q-view-buttons">
+										</div>
+										
+										<div class="qa-q-view-c-list" style="display:none;" id="c6967_list">
+										</div> <!-- END qa-c-list -->
+										
+										<input type="hidden" name="code" value="0-1516477775-16a11d1a39541524ede302b949e486203cf4891c">
+										<input type="hidden" name="qa_click" value="">
+									</form>
+									<div class="qa-c-form">
+									</div> <!-- END qa-c-form -->
+									
+								</div> <!-- END qa-q-view-main -->
+								<div class="qa-q-view-clear">
+								</div>
+							</div> <!-- END qa-q-view -->
+							
+						</div>
+						<div class="qa-part-a-list">
+							<h2 id="a_list_title" style="display:none;"></h2>
+							<div class="qa-a-list" id="a_list">
+								
+							</div> <!-- END qa-a-list -->
+							
+						</div>
+					</div> <!-- END qa-main -->
+					
+				</div> <!-- END main-wrapper -->
+			</div> <!-- END main-shadow -->
+		</div> <!-- END body-wrapper -->
+		<!-- END footer-bottom-group -->
+		
+		<div style="position:absolute; left:-9999px; top:-9999px;">
+			<span id="qa-waiting-template" class="qa-waiting">...</span>
+		</div>
+	
+	
+
+</body><!-- Powered by Question2Answer - http://www.question2answer.org/ --></html>

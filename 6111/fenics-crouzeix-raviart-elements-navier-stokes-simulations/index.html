@@ -1,0 +1,624 @@
+<html><!-- Powered by Question2Answer - http://www.question2answer.org/ --><head>
+		<meta http-equiv="content-type" content="text/html; charset=utf-8">
+		<title>Fenics' Crouzeix-Raviart Elements for Navier-Stokes Simulations - FEniCS Q&amp;A</title>
+		<meta name="description" content='Are there some experiences with using the `Crouzeix-Raviart` / `DG0` for mixed finite element simulation ... ", rescale=True) # Save to file ufile'>
+		<meta name="keywords" content="navier-stokes,mixed-formulation">
+		<link rel="stylesheet" type="text/css" href="../../qa-theme/Snow/qa-styles.css">
+		<link rel="canonical" href="http://fenicsproject.org/qa/6111/fenics-crouzeix-raviart-elements-navier-stokes-simulations">
+		<script type="text/x-mathjax-config">
+  MathJax.Hub.Config({
+    extensions: ["tex2jax.js"],
+    jax: ["input/TeX","output/HTML-CSS"],
+    tex2jax: {inlineMath: [["$","$"],["\\(","\\)"]]},
+    TeX: { extensions: ["AMSmath.js","AMSsymbols.js"]}
+  });
+</script>
+<script type="text/javascript" src="../../mathjax/MathJax.js"></script>
+		<script src="../../jquery-1.7.2.min.js" type="text/javascript"></script>
+		<script src="../../highlight.min.js"></script>
+<script type="text/javascript">
+$(function(){
+	$('.wmd-input').keypress(function(){
+		window.clearTimeout(hljs.Timeout);
+		hljs.Timeout = window.setTimeout(function() {
+			hljs.initHighlighting.called = false;
+			hljs.initHighlighting();
+		}, 500);
+	});
+	window.setTimeout(function() {
+		hljs.initHighlighting.called = false;
+		hljs.initHighlighting();
+	}, 500);
+});
+</script>
+
+
+	</head>
+	<body class="qa-template-question qa-body-js-off">
+		<div class="qa-body-wrapper">
+			
+			<div class="qa-header">
+				<div class="qa-logo">
+					<a href="../../" class="qa-logo-link" title="FEniCS Q&amp;A"><img src="../../qa-theme/fenics_qa.png" border="0" alt="FEniCS Q&amp;A"></a>
+				</div>
+				<div class="qa-header-clear">
+				</div>
+			</div> <!-- END qa-header -->
+			
+			<div class="qa-main-shadow">
+				
+				<div class="qa-main-wrapper">
+					
+					<div class="qa-sidepanel">
+						<div class="qa-sidebar">
+							This is a read only copy of the old FEniCS QA forum. Please visit the <a href="https://www.allanswered.com/community/s/fenics-project/">new QA forum</a> to ask questions
+						</div>
+						
+					</div>
+					
+					<div class="qa-main">
+						<h1>
+							<span class="entry-title">Fenics' Crouzeix-Raviart Elements for Navier-Stokes Simulations</span>
+						</h1>
+						<div class="qa-part-q-view">
+							<div class="qa-q-view  hentry question" id="q6111">
+								<form method="post" action="../../6111/fenics-crouzeix-raviart-elements-navier-stokes-simulations">
+									<div class="qa-q-view-stats">
+										<div class="qa-voting qa-voting-net" id="voting_6111">
+											<div class="qa-vote-count qa-vote-count-net">
+												<span class="qa-netvote-count">
+													<span class="qa-netvote-count-data">+2<span class="votes-up"><span class="value-title" title="2"></span></span><span class="votes-down"><span class="value-title" title="0"></span></span></span><span class="qa-netvote-count-pad"> votes</span>
+												</span>
+											</div>
+											<div class="qa-vote-clear">
+											</div>
+										</div>
+									</div>
+									<input type="hidden" name="code" value="0-1516468058-6ff85b0cfb0d23d990cb71aed400f1ba52fa2c13">
+								</form>
+								<div class="qa-q-view-main">
+									<form method="post" action="../../6111/fenics-crouzeix-raviart-elements-navier-stokes-simulations">
+										<div class="qa-q-view-content">
+											<a name="6111"></a><div class="entry-content"><p>Are there some experiences with using the <code>Crouzeix-Raviart</code> / <code>DG0</code> for mixed finite element simulation of Navier-Stokes equations in Fenics?</p>
+
+<p>I am asking because I had some strange behavior in my particular implementations. And then I found that the <a rel="nofollow" href="http://fenicsproject.org/documentation/dolfin/dev/python/demo/pde/navier-stokes/python/documentation.html">tutorial example</a> for the incompressible Navier-Stokes equations does not work with <code>CR</code>/<code>DG0</code> mixed FEM either.</p>
+
+<p>The code for the example is below. Comment out the respective lines in the <code>FunctionSpace</code> definitions to switch between the schemes. (<a rel="nofollow" href="http://fenicsproject.org/pub/data/meshes/lshape.xml.gz">Link to the mesh file</a>)</p>
+
+<p>For <code>Taylor-Hood</code>, I get the expected solutions. For <code>CR</code>, the solution gets stucked at the zero state.</p>
+
+<p><img src="http://i.imgur.com/keLzWDy.png" alt="image">Pressure with Taylor-Hood"&gt;<br>
+<img src="http://i.imgur.com/2CDhWHO.png" alt="image">Pressure with CR"&gt;</p>
+
+<pre><code>from dolfin import *
+
+# Print log messages only from the root process in parallel
+parameters["std_out_all_processes"] = False;
+
+# Load mesh from file
+mesh = Mesh("lshape.xml.gz")
+
+# # Define function spaces (P2-P1)
+# V = VectorFunctionSpace(mesh, "Lagrange", 2)
+# Q = FunctionSpace(mesh, "Lagrange", 1)
+
+# Define function spaces (Crouzeix-Raviart)
+V = VectorFunctionSpace(mesh, "CR", 1)
+Q = FunctionSpace(mesh, "DG", 0)
+
+# Define trial and test functions
+u = TrialFunction(V)
+p = TrialFunction(Q)
+v = TestFunction(V)
+q = TestFunction(Q)
+
+# Set parameter values
+dt = 0.01
+T = 3
+nu = 0.01
+
+# Define time-dependent pressure boundary condition
+p_in = Expression("sin(3.0*t)", t=0.0)
+
+# Define boundary conditions
+noslip  = DirichletBC(V, (0, 0),
+                      "on_boundary &amp;&amp; \
+                       (x[0] &lt; DOLFIN_EPS | x[1] &lt; DOLFIN_EPS | \
+                       (x[0] &gt; 0.5 - DOLFIN_EPS &amp;&amp; x[1] &gt; 0.5 - DOLFIN_EPS))")
+inflow  = DirichletBC(Q, p_in, "x[1] &gt; 1.0 - DOLFIN_EPS")
+outflow = DirichletBC(Q, 0, "x[0] &gt; 1.0 - DOLFIN_EPS")
+bcu = [noslip]
+bcp = [inflow, outflow]
+
+# Create functions
+u0 = Function(V)
+u1 = Function(V)
+p1 = Function(Q)
+
+# Define coefficients
+k = Constant(dt)
+f = Constant((0, 0))
+
+# Tentative velocity step
+F1 = (1/k)*inner(u - u0, v)*dx + inner(grad(u0)*u0, v)*dx + \
+     nu*inner(grad(u), grad(v))*dx - inner(f, v)*dx
+a1 = lhs(F1)
+L1 = rhs(F1)
+
+# Pressure update
+a2 = inner(grad(p), grad(q))*dx
+L2 = -(1/k)*div(u1)*q*dx
+
+# Velocity update
+a3 = inner(u, v)*dx
+L3 = inner(u1, v)*dx - k*inner(grad(p1), v)*dx
+
+# Assemble matrices
+A1 = assemble(a1)
+A2 = assemble(a2)
+A3 = assemble(a3)
+
+# Use amg preconditioner if available
+prec = "amg" if has_krylov_solver_preconditioner("amg") else "default"
+
+# Create files for storing solution
+ufile = File("results/velocity.pvd")
+pfile = File("results/pressure.pvd")
+
+# Time-stepping
+t = dt
+while t &lt; T + DOLFIN_EPS:
+
+    # Update pressure boundary condition
+    p_in.t = t
+
+    # Compute tentative velocity step
+    begin("Computing tentative velocity")
+    b1 = assemble(L1)
+    [bc.apply(A1, b1) for bc in bcu]
+    solve(A1, u1.vector(), b1, "gmres", "default")
+    end()
+
+    # Pressure correction
+    begin("Computing pressure correction")
+    b2 = assemble(L2)
+    [bc.apply(A2, b2) for bc in bcp]
+    solve(A2, p1.vector(), b2, "gmres", prec)
+    end()
+
+    # Velocity correction
+    begin("Computing velocity correction")
+    b3 = assemble(L3)
+    [bc.apply(A3, b3) for bc in bcu]
+    solve(A3, u1.vector(), b3, "gmres", "default")
+    end()
+
+    # Plot solution
+    plot(p1, title="Pressure", rescale=True)
+    plot(u1, title="Velocity", rescale=True)
+
+    # Save to file
+    ufile &lt;&lt; u1
+    pfile &lt;&lt; p1
+
+    # Move to next time step
+    u0.assign(u1)
+    t += dt
+    print "t =", t
+
+# Hold plot
+interactive()
+</code></pre>
+</div>
+										</div>
+										<div class="qa-q-view-tags">
+											<ul class="qa-q-view-tag-list">
+												<li class="qa-q-view-tag-item"><a href="../../tag/navier-stokes" rel="tag" class="qa-tag-link">navier-stokes</a></li>
+												<li class="qa-q-view-tag-item"><a href="../../tag/mixed-formulation" rel="tag" class="qa-tag-link">mixed-formulation</a></li>
+											</ul>
+										</div>
+										<span class="qa-q-view-avatar-meta">
+											<span class="qa-q-view-avatar">
+												<a href="../../user/Jan" class="qa-avatar-link"><img src="https://www.gravatar.com/avatar/c71e1343e533ab01bcce8649718574fa?s=50" width="50" height="50" class="qa-avatar-image" alt=""></a>
+											</span>
+											<span class="qa-q-view-meta">
+												<a href="../../6111/fenics-crouzeix-raviart-elements-navier-stokes-simulations" class="qa-q-view-what">asked</a>
+												<span class="qa-q-view-when">
+													<span class="qa-q-view-when-data"><span class="published"><span class="value-title" title="2014-11-28T11:30:49+0000"></span>Nov 28, 2014</span></span>
+												</span>
+												<span class="qa-q-view-who">
+													<span class="qa-q-view-who-pad">by </span>
+													<span class="qa-q-view-who-data"><span class="vcard author"><a href="../../user/Jan" class="qa-user-link url nickname">Jan</a></span></span>
+													<span class="qa-q-view-who-title">FEniCS User</span>
+													<span class="qa-q-view-who-points">
+														<span class="qa-q-view-who-points-pad">(</span><span class="qa-q-view-who-points-data">8,290</span><span class="qa-q-view-who-points-pad"> points)</span>
+													</span>
+												</span>
+												<br>
+												<span class="qa-q-view-what">edited</span>
+												<span class="qa-q-view-when">
+													<span class="qa-q-view-when-data"><span class="updated"><span class="value-title" title="2014-11-28T13:17:33+0000"></span>Nov 28, 2014</span></span>
+												</span>
+												<span class="qa-q-view-who">
+													<span class="qa-q-view-who-pad">by </span><span class="qa-q-view-who-data"><a href="../../user/Jan" class="qa-user-link url nickname">Jan</a></span>
+												</span>
+											</span>
+										</span>
+										<div class="qa-q-view-buttons">
+										</div>
+										
+										<div class="qa-q-view-c-list" style="display:none;" id="c6111_list">
+										</div> <!-- END qa-c-list -->
+										
+										<input type="hidden" name="code" value="0-1516468058-93a2576313a78e69e05dfacc7eba8e6440852b78">
+										<input type="hidden" name="qa_click" value="">
+									</form>
+									<div class="qa-c-form">
+									</div> <!-- END qa-c-form -->
+									
+								</div> <!-- END qa-q-view-main -->
+								<div class="qa-q-view-clear">
+								</div>
+							</div> <!-- END qa-q-view -->
+							
+						</div>
+						<div class="qa-part-a-list">
+							<h2 id="a_list_title">2 Answers</h2>
+							<div class="qa-a-list" id="a_list">
+								
+								<div class="qa-a-list-item  hentry answer answer-selected qa-a-list-item-selected" id="a6114">
+									<form method="post" action="../../6111/fenics-crouzeix-raviart-elements-navier-stokes-simulations">
+										<div class="qa-voting qa-voting-net" id="voting_6114">
+											<div class="qa-vote-count qa-vote-count-net">
+												<span class="qa-netvote-count">
+													<span class="qa-netvote-count-data">+2<span class="votes-up"><span class="value-title" title="2"></span></span><span class="votes-down"><span class="value-title" title="0"></span></span></span><span class="qa-netvote-count-pad"> votes</span>
+												</span>
+											</div>
+											<div class="qa-vote-clear">
+											</div>
+										</div>
+										<input type="hidden" name="code" value="0-1516468058-6ff85b0cfb0d23d990cb71aed400f1ba52fa2c13">
+									</form>
+									<div class="qa-a-item-main">
+										<form method="post" action="../../6111/fenics-crouzeix-raviart-elements-navier-stokes-simulations">
+											<div class="qa-a-item-selected">
+												<div class="qa-a-selection">
+													<div class="qa-a-selected">&#160;</div>
+													<div class="qa-a-selected-text">Best answer</div>
+												</div>
+												<div class="qa-a-item-content">
+													<a name="6114"></a><div class="entry-content"><p>CR will not work for a split (fractional step) NS solver, only a coupled. The reason is that the pressure is DG0 and <code>a2=inner(grad(p), grad(q))*dx</code> will assemble to zero (gradient of DG0 is zero).</p>
+</div>
+												</div>
+												<span class="qa-a-item-avatar-meta">
+													<span class="qa-a-item-avatar">
+														<a href="../../user/mikael-mortensen" class="qa-avatar-link"><img src="https://www.gravatar.com/avatar/d5614112a2818f1800a461e49ac229df?s=40" width="40" height="40" class="qa-avatar-image" alt=""></a>
+													</span>
+													<span class="qa-a-item-meta">
+														<a href="../../6111/fenics-crouzeix-raviart-elements-navier-stokes-simulations?show=6114#a6114" class="qa-a-item-what">answered</a>
+														<span class="qa-a-item-when">
+															<span class="qa-a-item-when-data"><span class="published"><span class="value-title" title="2014-11-28T14:06:58+0000"></span>Nov 28, 2014</span></span>
+														</span>
+														<span class="qa-a-item-who">
+															<span class="qa-a-item-who-pad">by </span>
+															<span class="qa-a-item-who-data"><span class="vcard author"><a href="../../user/mikael-mortensen" class="qa-user-link url nickname">mikael-mortensen</a></span></span>
+															<span class="qa-a-item-who-title">FEniCS Expert</span>
+															<span class="qa-a-item-who-points">
+																<span class="qa-a-item-who-points-pad">(</span><span class="qa-a-item-who-points-data">29,340</span><span class="qa-a-item-who-points-pad"> points)</span>
+															</span>
+														</span>
+														<br>
+														<span class="qa-a-item-what">selected</span>
+														<span class="qa-a-item-when">
+															<span class="qa-a-item-when-data"><span class="updated"><span class="value-title" title="2014-11-28T14:48:12+0000"></span>Nov 28, 2014</span></span>
+														</span>
+														<span class="qa-a-item-who">
+															<span class="qa-a-item-who-pad">by </span><span class="qa-a-item-who-data"><a href="../../user/Jan" class="qa-user-link url nickname">Jan</a></span>
+														</span>
+													</span>
+												</span>
+											</div>
+											<div class="qa-a-item-buttons">
+												</div>
+											
+											<div class="qa-a-item-c-list" id="c6114_list">
+												<div class="qa-c-list-item  hentry comment" id="c6115">
+													<div class="qa-c-item-content">
+														<a name="6115"></a><div class="entry-content"><p>Thank you for pointing this out. As I have a coupled solver - basically <code>implicit Euler</code> - I need to find the error elsewhere.</p>
+</div>
+													</div>
+													<div class="qa-c-item-footer">
+														<span class="qa-c-item-avatar-meta">
+															<span class="qa-c-item-avatar">
+																<a href="../../user/Jan" class="qa-avatar-link"><img src="https://www.gravatar.com/avatar/c71e1343e533ab01bcce8649718574fa?s=20" width="20" height="20" class="qa-avatar-image" alt=""></a>
+															</span>
+															<span class="qa-c-item-meta">
+																<a href="../../6111/fenics-crouzeix-raviart-elements-navier-stokes-simulations?show=6115#c6115" class="qa-c-item-what">commented</a>
+																<span class="qa-c-item-when">
+																	<span class="qa-c-item-when-data"><span class="published"><span class="value-title" title="2014-11-28T14:48:09+0000"></span>Nov 28, 2014</span></span>
+																</span>
+																<span class="qa-c-item-who">
+																	<span class="qa-c-item-who-pad">by </span>
+																	<span class="qa-c-item-who-data"><span class="vcard author"><a href="../../user/Jan" class="qa-user-link url nickname">Jan</a></span></span>
+																	<span class="qa-c-item-who-title">FEniCS User</span>
+																	<span class="qa-c-item-who-points">
+																		<span class="qa-c-item-who-points-pad">(</span><span class="qa-c-item-who-points-data">8,290</span><span class="qa-c-item-who-points-pad"> points)</span>
+																	</span>
+																</span>
+															</span>
+														</span>
+														<div class="qa-c-item-buttons">
+														</div>
+													</div>
+													<div class="qa-c-item-clear">
+													</div>
+												</div> <!-- END qa-c-item -->
+												<div class="qa-c-list-item  hentry comment" id="c6116">
+													<div class="qa-c-item-content">
+														<a name="6116"></a><div class="entry-content"><p>I have a steady coupled NS solver that works with CR. It should be really straight forward, I just changed the function spaces of a working Taylor-Hood implementation.</p>
+</div>
+													</div>
+													<div class="qa-c-item-footer">
+														<span class="qa-c-item-avatar-meta">
+															<span class="qa-c-item-avatar">
+																<a href="../../user/mikael-mortensen" class="qa-avatar-link"><img src="https://www.gravatar.com/avatar/d5614112a2818f1800a461e49ac229df?s=20" width="20" height="20" class="qa-avatar-image" alt=""></a>
+															</span>
+															<span class="qa-c-item-meta">
+																<a href="../../6111/fenics-crouzeix-raviart-elements-navier-stokes-simulations?show=6116#c6116" class="qa-c-item-what">commented</a>
+																<span class="qa-c-item-when">
+																	<span class="qa-c-item-when-data"><span class="published"><span class="value-title" title="2014-11-28T15:09:20+0000"></span>Nov 28, 2014</span></span>
+																</span>
+																<span class="qa-c-item-who">
+																	<span class="qa-c-item-who-pad">by </span>
+																	<span class="qa-c-item-who-data"><span class="vcard author"><a href="../../user/mikael-mortensen" class="qa-user-link url nickname">mikael-mortensen</a></span></span>
+																	<span class="qa-c-item-who-title">FEniCS Expert</span>
+																	<span class="qa-c-item-who-points">
+																		<span class="qa-c-item-who-points-pad">(</span><span class="qa-c-item-who-points-data">29,340</span><span class="qa-c-item-who-points-pad"> points)</span>
+																	</span>
+																</span>
+															</span>
+														</span>
+														<div class="qa-c-item-buttons">
+														</div>
+													</div>
+													<div class="qa-c-item-clear">
+													</div>
+												</div> <!-- END qa-c-item -->
+												<div class="qa-c-list-item  hentry comment" id="c6117">
+													<div class="qa-c-item-content">
+														<a name="6117"></a><div class="entry-content"><p>That is good to hear. Means that with the <code>CR</code> scheme everything is alright. I have managed to solve an internal time dependent, namely <code>driven-cavity</code>, problem with <code>CR</code>. But when solving the <code>cylinder wake</code> I couldn't simply replace the FEM scheme. </p>
+
+<p>How do you treat the boundary conditions in your simulation? Do you use the built in methods for that?</p>
+</div>
+													</div>
+													<div class="qa-c-item-footer">
+														<span class="qa-c-item-avatar-meta">
+															<span class="qa-c-item-avatar">
+																<a href="../../user/Jan" class="qa-avatar-link"><img src="https://www.gravatar.com/avatar/c71e1343e533ab01bcce8649718574fa?s=20" width="20" height="20" class="qa-avatar-image" alt=""></a>
+															</span>
+															<span class="qa-c-item-meta">
+																<a href="../../6111/fenics-crouzeix-raviart-elements-navier-stokes-simulations?show=6117#c6117" class="qa-c-item-what">commented</a>
+																<span class="qa-c-item-when">
+																	<span class="qa-c-item-when-data"><span class="published"><span class="value-title" title="2014-11-28T15:24:13+0000"></span>Nov 28, 2014</span></span>
+																</span>
+																<span class="qa-c-item-who">
+																	<span class="qa-c-item-who-pad">by </span>
+																	<span class="qa-c-item-who-data"><span class="vcard author"><a href="../../user/Jan" class="qa-user-link url nickname">Jan</a></span></span>
+																	<span class="qa-c-item-who-title">FEniCS User</span>
+																	<span class="qa-c-item-who-points">
+																		<span class="qa-c-item-who-points-pad">(</span><span class="qa-c-item-who-points-data">8,290</span><span class="qa-c-item-who-points-pad"> points)</span>
+																	</span>
+																</span>
+															</span>
+														</span>
+														<div class="qa-c-item-buttons">
+														</div>
+													</div>
+													<div class="qa-c-item-clear">
+													</div>
+												</div> <!-- END qa-c-item -->
+												<div class="qa-c-list-item  hentry comment" id="c6118">
+													<div class="qa-c-item-content">
+														<a name="6118"></a><div class="entry-content"><p>I can confirm that there is nothing wrong with the CR/DG0-pairing for incompressible flow. What kind of BCs do you have? I think the pressure-BCs in the above example will not work for the DG0 space. You may be able to incorporate those BCs weakly, but I have no idea if there are good methods for this.</p>
+</div>
+													</div>
+													<div class="qa-c-item-footer">
+														<span class="qa-c-item-avatar-meta">
+															<span class="qa-c-item-meta">
+																<a href="../../6111/fenics-crouzeix-raviart-elements-navier-stokes-simulations?show=6118#c6118" class="qa-c-item-what">commented</a>
+																<span class="qa-c-item-when">
+																	<span class="qa-c-item-when-data"><span class="published"><span class="value-title" title="2014-11-28T19:09:17+0000"></span>Nov 28, 2014</span></span>
+																</span>
+																<span class="qa-c-item-who">
+																	<span class="qa-c-item-who-pad">by </span>
+																	<span class="qa-c-item-who-data"><span class="vcard author"><a href="../../user/Christian+Waluga" class="qa-user-link url nickname">Christian Waluga</a></span></span>
+																	<span class="qa-c-item-who-title">FEniCS Expert</span>
+																	<span class="qa-c-item-who-points">
+																		<span class="qa-c-item-who-points-pad">(</span><span class="qa-c-item-who-points-data">12,310</span><span class="qa-c-item-who-points-pad"> points)</span>
+																	</span>
+																</span>
+															</span>
+														</span>
+														<div class="qa-c-item-buttons">
+														</div>
+													</div>
+													<div class="qa-c-item-clear">
+													</div>
+												</div> <!-- END qa-c-item -->
+												<div class="qa-c-list-item  hentry comment" id="c6121">
+													<div class="qa-c-item-content">
+														<a name="6121"></a><div class="entry-content"><p>For the cylinder, I have nonzero Dirichlet conditions for the velocities at the inlet, no conditions at the outlet (i.e. zero Neumann), and <code>noslip</code> elsewhere. </p>
+
+<p>However, I don't use the built in dolfin function to apply them. But I export the "inner nodes", do the time integration in <code>scipy</code> and add the boundary values on demand.</p>
+</div>
+													</div>
+													<div class="qa-c-item-footer">
+														<span class="qa-c-item-avatar-meta">
+															<span class="qa-c-item-avatar">
+																<a href="../../user/Jan" class="qa-avatar-link"><img src="https://www.gravatar.com/avatar/c71e1343e533ab01bcce8649718574fa?s=20" width="20" height="20" class="qa-avatar-image" alt=""></a>
+															</span>
+															<span class="qa-c-item-meta">
+																<a href="../../6111/fenics-crouzeix-raviart-elements-navier-stokes-simulations?show=6121#c6121" class="qa-c-item-what">commented</a>
+																<span class="qa-c-item-when">
+																	<span class="qa-c-item-when-data"><span class="published"><span class="value-title" title="2014-11-28T21:32:20+0000"></span>Nov 28, 2014</span></span>
+																</span>
+																<span class="qa-c-item-who">
+																	<span class="qa-c-item-who-pad">by </span>
+																	<span class="qa-c-item-who-data"><span class="vcard author"><a href="../../user/Jan" class="qa-user-link url nickname">Jan</a></span></span>
+																	<span class="qa-c-item-who-title">FEniCS User</span>
+																	<span class="qa-c-item-who-points">
+																		<span class="qa-c-item-who-points-pad">(</span><span class="qa-c-item-who-points-data">8,290</span><span class="qa-c-item-who-points-pad"> points)</span>
+																	</span>
+																</span>
+															</span>
+														</span>
+														<div class="qa-c-item-buttons">
+														</div>
+													</div>
+													<div class="qa-c-item-clear">
+													</div>
+												</div> <!-- END qa-c-item -->
+											</div> <!-- END qa-c-list -->
+											
+											<input type="hidden" name="code" value="0-1516468058-b9afb65b657d37e2bae4fcbfb949a9418c5f1095">
+											<input type="hidden" name="qa_click" value="">
+										</form>
+										<div class="qa-c-form">
+										</div> <!-- END qa-c-form -->
+										
+									</div> <!-- END qa-a-item-main -->
+									<div class="qa-a-item-clear">
+									</div>
+								</div> <!-- END qa-a-list-item -->
+								
+								<div class="qa-a-list-item  hentry answer" id="a6135">
+									<form method="post" action="../../6111/fenics-crouzeix-raviart-elements-navier-stokes-simulations">
+										<div class="qa-voting qa-voting-net" id="voting_6135">
+											<div class="qa-vote-count qa-vote-count-net">
+												<span class="qa-netvote-count">
+													<span class="qa-netvote-count-data">+1<span class="votes-up"><span class="value-title" title="1"></span></span><span class="votes-down"><span class="value-title" title="0"></span></span></span><span class="qa-netvote-count-pad"> vote</span>
+												</span>
+											</div>
+											<div class="qa-vote-clear">
+											</div>
+										</div>
+										<input type="hidden" name="code" value="0-1516468058-6ff85b0cfb0d23d990cb71aed400f1ba52fa2c13">
+									</form>
+									<div class="qa-a-item-main">
+										<form method="post" action="../../6111/fenics-crouzeix-raviart-elements-navier-stokes-simulations">
+											<div class="qa-a-selection">
+											</div>
+											<div class="qa-a-item-content">
+												<a name="6135"></a><div class="entry-content"><p>To apply Laplace to DG functions you would need to have jump terms etc, like<br>
+<a rel="nofollow" href="https://bitbucket.org/fenics-project/dolfin/src/12a8c744503fb50a51e7444bd23d22bb0de4ef7e/demo/undocumented/dg-poisson/python/?at=master">https://bitbucket.org/fenics-project/dolfin/src/12a8c744503fb50a51e7444bd23d22bb0de4ef7e/demo/undocumented/dg-poisson/python/?at=master</a></p>
+</div>
+											</div>
+											<span class="qa-a-item-avatar-meta">
+												<span class="qa-a-item-meta">
+													<a href="../../6111/fenics-crouzeix-raviart-elements-navier-stokes-simulations?show=6135#a6135" class="qa-a-item-what">answered</a>
+													<span class="qa-a-item-when">
+														<span class="qa-a-item-when-data"><span class="published"><span class="value-title" title="2014-12-03T20:47:40+0000"></span>Dec 3, 2014</span></span>
+													</span>
+													<span class="qa-a-item-who">
+														<span class="qa-a-item-who-pad">by </span>
+														<span class="qa-a-item-who-data"><span class="vcard author"><a href="../../user/Kent-Andre+Mardal" class="qa-user-link url nickname">Kent-Andre Mardal</a></span></span>
+														<span class="qa-a-item-who-title">FEniCS Expert</span>
+														<span class="qa-a-item-who-points">
+															<span class="qa-a-item-who-points-pad">(</span><span class="qa-a-item-who-points-data">14,380</span><span class="qa-a-item-who-points-pad"> points)</span>
+														</span>
+													</span>
+												</span>
+											</span>
+											<div class="qa-a-item-buttons">
+												</div>
+											
+											<div class="qa-a-item-c-list" id="c6135_list">
+												<div class="qa-c-list-item  hentry comment" id="c6138">
+													<div class="qa-c-item-content">
+														<a name="6138"></a><div class="entry-content"><p>Well, right. But I don't have a coupled solver, so I will not apply the Laplacian to the pressure. However, I wonder whether I have to consider 'jump terms' when using the 'CR' discretization for the velocity.</p>
+</div>
+													</div>
+													<div class="qa-c-item-footer">
+														<span class="qa-c-item-avatar-meta">
+															<span class="qa-c-item-avatar">
+																<a href="../../user/Jan" class="qa-avatar-link"><img src="https://www.gravatar.com/avatar/c71e1343e533ab01bcce8649718574fa?s=20" width="20" height="20" class="qa-avatar-image" alt=""></a>
+															</span>
+															<span class="qa-c-item-meta">
+																<a href="../../6111/fenics-crouzeix-raviart-elements-navier-stokes-simulations?show=6138#c6138" class="qa-c-item-what">commented</a>
+																<span class="qa-c-item-when">
+																	<span class="qa-c-item-when-data"><span class="published"><span class="value-title" title="2014-12-04T14:24:39+0000"></span>Dec 4, 2014</span></span>
+																</span>
+																<span class="qa-c-item-who">
+																	<span class="qa-c-item-who-pad">by </span>
+																	<span class="qa-c-item-who-data"><span class="vcard author"><a href="../../user/Jan" class="qa-user-link url nickname">Jan</a></span></span>
+																	<span class="qa-c-item-who-title">FEniCS User</span>
+																	<span class="qa-c-item-who-points">
+																		<span class="qa-c-item-who-points-pad">(</span><span class="qa-c-item-who-points-data">8,290</span><span class="qa-c-item-who-points-pad"> points)</span>
+																	</span>
+																</span>
+															</span>
+														</span>
+														<div class="qa-c-item-buttons">
+														</div>
+													</div>
+													<div class="qa-c-item-clear">
+													</div>
+												</div> <!-- END qa-c-item -->
+												<div class="qa-c-list-item  hentry comment" id="c6139">
+													<div class="qa-c-item-content">
+														<a name="6139"></a><div class="entry-content"><p>Jump terms are not needed for the velocity, when using CR. </p>
+</div>
+													</div>
+													<div class="qa-c-item-footer">
+														<span class="qa-c-item-avatar-meta">
+															<span class="qa-c-item-meta">
+																<a href="../../6111/fenics-crouzeix-raviart-elements-navier-stokes-simulations?show=6139#c6139" class="qa-c-item-what">commented</a>
+																<span class="qa-c-item-when">
+																	<span class="qa-c-item-when-data"><span class="published"><span class="value-title" title="2014-12-04T14:28:18+0000"></span>Dec 4, 2014</span></span>
+																</span>
+																<span class="qa-c-item-who">
+																	<span class="qa-c-item-who-pad">by </span>
+																	<span class="qa-c-item-who-data"><span class="vcard author"><a href="../../user/Kent-Andre+Mardal" class="qa-user-link url nickname">Kent-Andre Mardal</a></span></span>
+																	<span class="qa-c-item-who-title">FEniCS Expert</span>
+																	<span class="qa-c-item-who-points">
+																		<span class="qa-c-item-who-points-pad">(</span><span class="qa-c-item-who-points-data">14,380</span><span class="qa-c-item-who-points-pad"> points)</span>
+																	</span>
+																</span>
+															</span>
+														</span>
+														<div class="qa-c-item-buttons">
+														</div>
+													</div>
+													<div class="qa-c-item-clear">
+													</div>
+												</div> <!-- END qa-c-item -->
+											</div> <!-- END qa-c-list -->
+											
+											<input type="hidden" name="code" value="0-1516468058-d89393925b9124d0883380d3b9f52e33c0f5953a">
+											<input type="hidden" name="qa_click" value="">
+										</form>
+										<div class="qa-c-form">
+										</div> <!-- END qa-c-form -->
+										
+									</div> <!-- END qa-a-item-main -->
+									<div class="qa-a-item-clear">
+									</div>
+								</div> <!-- END qa-a-list-item -->
+								
+							</div> <!-- END qa-a-list -->
+							
+						</div>
+					</div> <!-- END qa-main -->
+					
+				</div> <!-- END main-wrapper -->
+			</div> <!-- END main-shadow -->
+		</div> <!-- END body-wrapper -->
+		<!-- END footer-bottom-group -->
+		
+		<div style="position:absolute; left:-9999px; top:-9999px;">
+			<span id="qa-waiting-template" class="qa-waiting">...</span>
+		</div>
+	
+	
+
+</body><!-- Powered by Question2Answer - http://www.question2answer.org/ --></html>

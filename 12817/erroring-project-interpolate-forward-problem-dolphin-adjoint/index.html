@@ -1,0 +1,313 @@
+<html><!-- Powered by Question2Answer - http://www.question2answer.org/ --><head>
+		<meta http-equiv="content-type" content="text/html; charset=utf-8">
+		<title>JIT erroring when using project or interpolate inside forward problem in dolphin-adjoint - FEniCS Q&amp;A</title>
+		<meta name="description" content='Topology optimization example (http://www.dolfin-adjoint.org/en/latest/documentation/poisson-topology/poisson- ... .solve() File("output/a_opt.pvd")'>
+		<meta name="keywords" content="jit,interpolate,project">
+		<link rel="stylesheet" type="text/css" href="../../qa-theme/Snow/qa-styles.css">
+		<link rel="canonical" href="http://fenicsproject.org/qa/12817/erroring-project-interpolate-forward-problem-dolphin-adjoint">
+		<script type="text/x-mathjax-config">
+  MathJax.Hub.Config({
+    extensions: ["tex2jax.js"],
+    jax: ["input/TeX","output/HTML-CSS"],
+    tex2jax: {inlineMath: [["$","$"],["\\(","\\)"]]},
+    TeX: { extensions: ["AMSmath.js","AMSsymbols.js"]}
+  });
+</script>
+<script type="text/javascript" src="../../mathjax/MathJax.js"></script>
+		<script src="../../jquery-1.7.2.min.js" type="text/javascript"></script>
+		<script src="../../highlight.min.js"></script>
+<script type="text/javascript">
+$(function(){
+	$('.wmd-input').keypress(function(){
+		window.clearTimeout(hljs.Timeout);
+		hljs.Timeout = window.setTimeout(function() {
+			hljs.initHighlighting.called = false;
+			hljs.initHighlighting();
+		}, 500);
+	});
+	window.setTimeout(function() {
+		hljs.initHighlighting.called = false;
+		hljs.initHighlighting();
+	}, 500);
+});
+</script>
+
+
+	</head>
+	<body class="qa-template-question qa-body-js-off">
+		<div class="qa-body-wrapper">
+			
+			<div class="qa-header">
+				<div class="qa-logo">
+					<a href="../../" class="qa-logo-link" title="FEniCS Q&amp;A"><img src="../../qa-theme/fenics_qa.png" border="0" alt="FEniCS Q&amp;A"></a>
+				</div>
+				<div class="qa-header-clear">
+				</div>
+			</div> <!-- END qa-header -->
+			
+			<div class="qa-main-shadow">
+				
+				<div class="qa-main-wrapper">
+					
+					<div class="qa-sidepanel">
+						<div class="qa-sidebar">
+							This is a read only copy of the old FEniCS QA forum. Please visit the <a href="https://www.allanswered.com/community/s/fenics-project/">new QA forum</a> to ask questions
+						</div>
+						
+					</div>
+					
+					<div class="qa-main">
+						<h1>
+							<span class="entry-title">JIT erroring when using project or interpolate inside forward problem in dolphin-adjoint</span>
+						</h1>
+						<div class="qa-part-q-view">
+							<div class="qa-q-view  hentry question" id="q12817">
+								<form method="post" action="../../12817/erroring-project-interpolate-forward-problem-dolphin-adjoint">
+									<div class="qa-q-view-stats">
+										<div class="qa-voting qa-voting-net" id="voting_12817">
+											<div class="qa-vote-count qa-vote-count-net">
+												<span class="qa-netvote-count">
+													<span class="qa-netvote-count-data">0<span class="votes-up"><span class="value-title" title="0"></span></span><span class="votes-down"><span class="value-title" title="0"></span></span></span><span class="qa-netvote-count-pad"> votes</span>
+												</span>
+											</div>
+											<div class="qa-vote-clear">
+											</div>
+										</div>
+									</div>
+									<input type="hidden" name="code" value="0-1516467840-a46a6a2792a7ce9308ff807d47b41d4561bc2d53">
+								</form>
+								<div class="qa-q-view-main">
+									<form method="post" action="../../12817/erroring-project-interpolate-forward-problem-dolphin-adjoint">
+										<div class="qa-q-view-content">
+											<a name="12817"></a><div class="entry-content"><p>Topology optimization example (<a rel="nofollow" href="http://www.dolfin-adjoint.org/en/latest/documentation/poisson-topology/poisson-topology.html#poisson-topology-example)">http://www.dolfin-adjoint.org/en/latest/documentation/poisson-topology/poisson-topology.html#poisson-topology-example)</a> is working fine, but then I try to modify it by using project or interpolate I'm getting JIT errors during optimization phase. The following code provides minimal not working example (it is based to topology optimization code from the examples): <br>
+In case I'm using interpolate inside forward problem it says</p>
+
+<blockquote>
+  <p>libadjoint.exceptions.LibadjointErrorHashFailed: Hash failed:<br>
+  Control:0:0:Forward has no entry.</p>
+</blockquote>
+
+<p>and in case of project it says     </p>
+
+<blockquote>
+  <p>return ("Mesh", renumbering[self], self._ufl_coordinate_element)<br>
+  KeyError: Mesh(VectorElement(FiniteElement('Lagrange', triangle, 1),<br>
+  dim=2), 4)</p>
+</blockquote>
+
+<p>I've tired to ask on dolphin-adjoint issues page, but got no answers, so I'm asking here. Would be glad to receive any help.</p>
+
+<pre><code>from __future__ import print_function
+from dolfin import *
+from dolfin_adjoint import *
+import numpy as np
+import pickle
+from collections import defaultdict
+import sys
+import pyipopt
+
+parameters["std_out_all_processes"] = False
+
+V = Constant(0.4)      
+p = Constant(5)        
+
+eps = Constant(1.0e-3) 
+alpha = Constant(1.0e-8) 
+
+def k(a):
+    return eps + (1 - eps) * a**p
+
+n = 250
+mesh  = UnitSquareMesh(n, n)
+mesh2 = UnitSquareMesh(2*n, 2*n)
+
+A = FunctionSpace(mesh, "CG", 1)
+A2 = FunctionSpace(mesh2, "CG", 1)
+
+class WestNorth(SubDomain):
+    def inside(self, x, on_boundary):
+        return (x[0] == 0.0 or x[1] == 1.0) and on_boundary
+
+bc = [DirichletBC(A2, 0.0, WestNorth())]
+f = interpolate(Constant(1.0e-2), A2, name="SourceTerm")
+
+def forward(a):
+    T = Function(A2, name="Temperature")
+    v = TestFunction(A2)
+    #aa = interpolate(a, A2) 
+    aa = project(a, A2) 
+    F = inner(grad(v), k(aa)*grad(T))*dx - f*v*dx
+    solve(F == 0, T, bc, solver_parameters={"newton_solver": {"absolute_tolerance": 1.0e-7,
+                                                              "maximum_iterations": 20}})
+    return T
+
+if __name__ == "__main__":
+    a = interpolate(V, A, name="Control")
+    T = forward(a)                  
+
+    J = Functional(f*T*dx)
+    m = Control(a)
+    Jhat = ReducedFunctional(J, m)
+
+    lb = 0.0
+    ub = 1.0
+
+    class VolumeConstraint(InequalityConstraint):
+        def __init__(self, V):
+            self.V  = float(V)
+            self.smass  = assemble(TestFunction(A) * Constant(1) * dx)
+            self.tmpvec = Function(A)
+
+        def function(self, m):
+            reduced_functional_numpy.set_local(self.tmpvec, m)
+            integral = self.smass.inner(self.tmpvec.vector())
+            if MPI.rank(mpi_comm_world()) == 0:
+                print("Current control integral: ", integral)
+            return [self.V - integral]
+
+        def jacobian(self, m):
+            return [-self.smass]
+
+        def output_workspace(self):
+            return [0.0]
+
+        def length(self):
+            return 1
+
+    problem = MinimizationProblem(Jhat, bounds=(lb, ub), constraints=VolumeConstraint(V))
+    parameters = {"acceptable_tol": 1.0e-3, "maximum_iterations": 100, "print_level":0}
+    solver = IPOPTSolver(problem, parameters=parameters)
+    a_opt = solver.solve()
+    File("output/a_opt.pvd") &lt;&lt; a_opt
+</code></pre>
+</div>
+										</div>
+										<div class="qa-q-view-tags">
+											<ul class="qa-q-view-tag-list">
+												<li class="qa-q-view-tag-item"><a href="../../tag/jit" rel="tag" class="qa-tag-link">jit</a></li>
+												<li class="qa-q-view-tag-item"><a href="../../tag/interpolate" rel="tag" class="qa-tag-link">interpolate</a></li>
+												<li class="qa-q-view-tag-item"><a href="../../tag/project" rel="tag" class="qa-tag-link">project</a></li>
+											</ul>
+										</div>
+										<span class="qa-q-view-avatar-meta">
+											<span class="qa-q-view-meta">
+												<a href="../../12817/erroring-project-interpolate-forward-problem-dolphin-adjoint" class="qa-q-view-what">asked</a>
+												<span class="qa-q-view-when">
+													<span class="qa-q-view-when-data"><span class="published"><span class="value-title" title="2017-03-26T11:44:22+0000"></span>Mar 26, 2017</span></span>
+												</span>
+												<span class="qa-q-view-who">
+													<span class="qa-q-view-who-pad">by </span>
+													<span class="qa-q-view-who-data"><span class="vcard author"><a href="../../user/gtt" class="qa-user-link url nickname">gtt</a></span></span>
+													<span class="qa-q-view-who-title">FEniCS Novice</span>
+													<span class="qa-q-view-who-points">
+														<span class="qa-q-view-who-points-pad">(</span><span class="qa-q-view-who-points-data">630</span><span class="qa-q-view-who-points-pad"> points)</span>
+													</span>
+												</span>
+											</span>
+										</span>
+										<div class="qa-q-view-buttons">
+										</div>
+										
+										<div class="qa-q-view-c-list" style="display:none;" id="c12817_list">
+										</div> <!-- END qa-c-list -->
+										
+										<input type="hidden" name="code" value="0-1516467840-77b9445ff23b370222a8273abe2b460987ae9deb">
+										<input type="hidden" name="qa_click" value="">
+									</form>
+									<div class="qa-c-form">
+									</div> <!-- END qa-c-form -->
+									
+								</div> <!-- END qa-q-view-main -->
+								<div class="qa-q-view-clear">
+								</div>
+							</div> <!-- END qa-q-view -->
+							
+						</div>
+						<div class="qa-part-a-list">
+							<h2 id="a_list_title">1 Answer</h2>
+							<div class="qa-a-list" id="a_list">
+								
+								<div class="qa-a-list-item  hentry answer" id="a12823">
+									<form method="post" action="../../12817/erroring-project-interpolate-forward-problem-dolphin-adjoint">
+										<div class="qa-voting qa-voting-net" id="voting_12823">
+											<div class="qa-vote-count qa-vote-count-net">
+												<span class="qa-netvote-count">
+													<span class="qa-netvote-count-data">0<span class="votes-up"><span class="value-title" title="0"></span></span><span class="votes-down"><span class="value-title" title="0"></span></span></span><span class="qa-netvote-count-pad"> votes</span>
+												</span>
+											</div>
+											<div class="qa-vote-clear">
+											</div>
+										</div>
+										<input type="hidden" name="code" value="0-1516467840-a46a6a2792a7ce9308ff807d47b41d4561bc2d53">
+									</form>
+									<div class="qa-a-item-main">
+										<form method="post" action="../../12817/erroring-project-interpolate-forward-problem-dolphin-adjoint">
+											<div class="qa-a-selection">
+											</div>
+											<div class="qa-a-item-content">
+												<a name="12823"></a><div class="entry-content"><p>What if you write out the projection as a linear system and project using the solve function?</p>
+
+<p>Alternatively, you should be able to do the projection as part of the forward problem, if you apply a mixed formulation.</p>
+
+<p>In any case, you risk getting negative design variables, so you should use</p>
+
+<pre><code>def k(a):
+  return eps + (1 - eps) * conditional(lt(0,a),0,a)**p
+</code></pre>
+
+<p>Furthermore you need some type of length scale control. I suggest looking towards the Helmholtz type filter of Lazarov.</p>
+</div>
+											</div>
+											<span class="qa-a-item-avatar-meta">
+												<span class="qa-a-item-avatar">
+													<a href="../../user/KristianE" class="qa-avatar-link"><img src="https://www.gravatar.com/avatar/8e8c30d82e263e44bd8fe50055a60421?s=40" width="40" height="40" class="qa-avatar-image" alt=""></a>
+												</span>
+												<span class="qa-a-item-meta">
+													<a href="../../12817/erroring-project-interpolate-forward-problem-dolphin-adjoint?show=12823#a12823" class="qa-a-item-what">answered</a>
+													<span class="qa-a-item-when">
+														<span class="qa-a-item-when-data"><span class="published"><span class="value-title" title="2017-03-27T12:25:12+0000"></span>Mar 27, 2017</span></span>
+													</span>
+													<span class="qa-a-item-who">
+														<span class="qa-a-item-who-pad">by </span>
+														<span class="qa-a-item-who-data"><span class="vcard author"><a href="../../user/KristianE" class="qa-user-link url nickname">KristianE</a></span></span>
+														<span class="qa-a-item-who-title">FEniCS Expert</span>
+														<span class="qa-a-item-who-points">
+															<span class="qa-a-item-who-points-pad">(</span><span class="qa-a-item-who-points-data">12,900</span><span class="qa-a-item-who-points-pad"> points)</span>
+														</span>
+													</span>
+												</span>
+											</span>
+											<div class="qa-a-item-buttons">
+												</div>
+											
+											<div class="qa-a-item-c-list" style="display:none;" id="c12823_list">
+											</div> <!-- END qa-c-list -->
+											
+											<input type="hidden" name="code" value="0-1516467840-0b13c65cf07f290dda9eb3045464d53d530fce72">
+											<input type="hidden" name="qa_click" value="">
+										</form>
+										<div class="qa-c-form">
+										</div> <!-- END qa-c-form -->
+										
+									</div> <!-- END qa-a-item-main -->
+									<div class="qa-a-item-clear">
+									</div>
+								</div> <!-- END qa-a-list-item -->
+								
+							</div> <!-- END qa-a-list -->
+							
+						</div>
+					</div> <!-- END qa-main -->
+					
+				</div> <!-- END main-wrapper -->
+			</div> <!-- END main-shadow -->
+		</div> <!-- END body-wrapper -->
+		<!-- END footer-bottom-group -->
+		
+		<div style="position:absolute; left:-9999px; top:-9999px;">
+			<span id="qa-waiting-template" class="qa-waiting">...</span>
+		</div>
+	
+	
+
+</body><!-- Powered by Question2Answer - http://www.question2answer.org/ --></html>

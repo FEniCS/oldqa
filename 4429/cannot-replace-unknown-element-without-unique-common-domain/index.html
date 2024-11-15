@@ -1,0 +1,484 @@
+<html><!-- Powered by Question2Answer - http://www.question2answer.org/ --><head>
+		<meta http-equiv="content-type" content="text/html; charset=utf-8">
+		<title>Error: cannot replace unknown element domain without unique common domain - FEniCS Q&amp;A</title>
+		<meta name="description" content="Hi there, I followed the Cahn-Hilliard tutorial to solve a system of two PDEs, but met some  ... vector() solver.solve(problem, w.vector()) file">
+		<meta name="keywords" content="error,pdesys">
+		<link rel="stylesheet" type="text/css" href="../../qa-theme/Snow/qa-styles.css">
+		<link rel="canonical" href="http://fenicsproject.org/qa/4429/cannot-replace-unknown-element-without-unique-common-domain">
+		<script type="text/x-mathjax-config">
+  MathJax.Hub.Config({
+    extensions: ["tex2jax.js"],
+    jax: ["input/TeX","output/HTML-CSS"],
+    tex2jax: {inlineMath: [["$","$"],["\\(","\\)"]]},
+    TeX: { extensions: ["AMSmath.js","AMSsymbols.js"]}
+  });
+</script>
+<script type="text/javascript" src="../../mathjax/MathJax.js"></script>
+		<script src="../../jquery-1.7.2.min.js" type="text/javascript"></script>
+		<script src="../../highlight.min.js"></script>
+<script type="text/javascript">
+$(function(){
+	$('.wmd-input').keypress(function(){
+		window.clearTimeout(hljs.Timeout);
+		hljs.Timeout = window.setTimeout(function() {
+			hljs.initHighlighting.called = false;
+			hljs.initHighlighting();
+		}, 500);
+	});
+	window.setTimeout(function() {
+		hljs.initHighlighting.called = false;
+		hljs.initHighlighting();
+	}, 500);
+});
+</script>
+
+
+	</head>
+	<body class="qa-template-question qa-body-js-off">
+		<div class="qa-body-wrapper">
+			
+			<div class="qa-header">
+				<div class="qa-logo">
+					<a href="../../" class="qa-logo-link" title="FEniCS Q&amp;A"><img src="../../qa-theme/fenics_qa.png" border="0" alt="FEniCS Q&amp;A"></a>
+				</div>
+				<div class="qa-header-clear">
+				</div>
+			</div> <!-- END qa-header -->
+			
+			<div class="qa-main-shadow">
+				
+				<div class="qa-main-wrapper">
+					
+					<div class="qa-sidepanel">
+						<div class="qa-sidebar">
+							This is a read only copy of the old FEniCS QA forum. Please visit the <a href="https://www.allanswered.com/community/s/fenics-project/">new QA forum</a> to ask questions
+						</div>
+						
+					</div>
+					
+					<div class="qa-main">
+						<h1>
+							<span class="entry-title">Error: cannot replace unknown element domain without unique common domain</span>
+						</h1>
+						<div class="qa-part-q-view">
+							<div class="qa-q-view  hentry question" id="q4429">
+								<form method="post" action="../../4429/cannot-replace-unknown-element-without-unique-common-domain">
+									<div class="qa-q-view-stats">
+										<div class="qa-voting qa-voting-net" id="voting_4429">
+											<div class="qa-vote-count qa-vote-count-net">
+												<span class="qa-netvote-count">
+													<span class="qa-netvote-count-data">0<span class="votes-up"><span class="value-title" title="0"></span></span><span class="votes-down"><span class="value-title" title="0"></span></span></span><span class="qa-netvote-count-pad"> votes</span>
+												</span>
+											</div>
+											<div class="qa-vote-clear">
+											</div>
+										</div>
+									</div>
+									<input type="hidden" name="code" value="0-1516468012-9e190eb5cd25f2cf415da77da989460ff6b804b0">
+								</form>
+								<div class="qa-q-view-main">
+									<form method="post" action="../../4429/cannot-replace-unknown-element-without-unique-common-domain">
+										<div class="qa-q-view-content">
+											<a name="4429"></a><div class="entry-content"><p>Hi there,<br>
+I followed the Cahn-Hilliard tutorial to solve a system of two PDEs, but met some problem. I don't quite understand this error message. Could you please help me find which part of the code is wrong? The main difference from the tutorial is that I use two <code>assign</code> commands to initialise  function. Is it correct here?<br>
+I post the complete code here:</p>
+
+<pre><code>import random
+from dolfin import *
+
+# Class representing the intial conditions
+#  initial conditon for unknown u
+class InitialConditions_u(Expression):
+    def eval(self, values, x):
+        values[0] = 2*x[0]
+        values[1] = 2*x[1]
+    def value_shape(self):
+        return (2,)
+ # initial condition for unknown p
+class InitialConditions_p(Expression):
+    def eval(self, values, x):
+        values[0] = 1 + x[0]*x[0] + x[1]*x[1]
+
+# Class for interfacing with the Newton solver
+class MyNonlinear(NonlinearProblem):
+    def __init__(self, L, a, bc):
+        NonlinearProblem.__init__(self)
+        self.L = L
+        self.a = a
+        self.bc= bc
+    def F(self, b, x):
+        assemble(self.L, tensor=b)
+        self.bc.apply(b,x)
+    def J(self, A, x):
+        assemble(self.a, tensor=A)
+        self.bc.apply(A)
+
+# Model parameters
+dt     = 5.0e-06  # time step
+t      = 0
+
+# Form compiler options
+parameters["form_compiler"]["optimize"]     = True
+parameters["form_compiler"]["cpp_optimize"] = True
+parameters["form_compiler"]["representation"] = "quadrature"
+
+# Create mesh and define function spaces
+mesh = UnitSquareMesh(32, 32)
+V = VectorFunctionSpace(mesh, "Lagrange", 1)
+Q = FunctionSpace(mesh, "DG", 0)
+W = V*Q
+
+# Define trial and test functions
+dw    = TrialFunction(W)
+v, q  = TestFunctions(W)
+
+
+# functions to initialise w and w0
+ui = Function(V)
+pi = Function(Q)
+
+# Create intial conditions and interpolate
+u_init = InitialConditions_u()
+ui.interpolate(u_init)
+
+# Create intial conditions and interpolate
+p_init = InitialConditions_p()
+pi.interpolate(p_init)
+
+# Define functions
+w   = Function(W)  # current solution
+w0  = Function(W)  # solution from previous converged step
+
+# assign and split
+assign(w,[ui,pi])
+assign(w0,[ui,pi])
+du, dq  = split(dw)
+(u,p) = w.split()
+(u0,p0) = w0.split()
+
+# plot subclass for test
+plot(p0,title ="Initial pressure")
+plot(u0,title ="Initial velocity")
+interactive()
+
+# define boudary
+def boundaries(x, on_boundary):
+    return on_boundary
+# define normal vector on boundary
+normal = FacetNormal(mesh)
+
+# define p expression on boundary (essential boundary condtion)
+u_boundary_expression = Expression("1 + x[0]*x[0] + x[1]*x[1] + t", t = t)
+
+# define boundary condition
+bc = DirichletBC(W.sub(1), u_boundary_expression, boundaries)
+
+# define f expression
+f = Expression("5 + 8*x[0]*x[0] + 8*x[1]*x[1] + 4*t", t = t)
+
+# Weak statement of the equations
+L0 = p*q*dx - p0*q*dx - dt*p*inner(u, nabla_grad(q))*dx - f*q*dx
+L1 = inner(u, v)*dx + p*inner(v, normal)*ds - p*div(v)*dx
+L = L0 + L1
+
+# Compute directional derivative about u in the direction of du (Jacobian)
+a = derivative(L, w, dw)
+
+# Create nonlinear problem and Newton solver
+problem = MyNonlinear(a, L, bc)
+solver = NewtonSolver()
+solver.parameters["linear_solver"] = "lu"
+solver.parameters["convergence_criterion"] = "incremental"
+solver.parameters["relative_tolerance"] = 1e-6
+
+# Output file
+file = File("output.pvd", "compressed")
+
+# Step in time
+t = 0.0
+T = 50*dt
+while (t &lt; T):
+    t += dt
+    f.t = t
+    w0.vector()[:] = w.vector()
+    solver.solve(problem, w.vector())
+    file &lt;&lt; (w.split()[0], t)
+
+plot(w.split()[0])
+interactive()
+</code></pre>
+
+<p>And the error message I got is:</p>
+
+<pre><code>Cannot replace unknown element domain without unique common domain in form.
+Traceback (most recent call last):
+File "MyProblem_updated.py", line 119, in &lt;module&gt;
+  solver.solve(problem, w.vector())
+File "MyProblem_updated.py", line 25, in F
+  assemble(self.L, tensor=b)
+File "/usr/lib/python2.7/dist-packages/dolfin/fem/assembling.py", line 230, in assemble
+  cell_domains, exterior_facet_domains, interior_facet_domains)
+File "/usr/lib/python2.7/dist-packages/dolfin/fem/assembling.py", line 80, in _create_dolfin_form
+  mesh=mesh)
+File "/usr/lib/python2.7/dist-packages/dolfin/fem/form.py", line 98, in __init__
+  = jit(form, form_compiler_parameters)
+File "/usr/lib/python2.7/dist-packages/dolfin/compilemodules/jit.py", line 62, in mpi_jit
+  return local_jit(*args, **kwargs)
+File "/usr/lib/python2.7/dist-packages/dolfin/compilemodules/jit.py", line 126, in jit
+  return jit_compile(form, parameters=p)
+File "/usr/lib/python2.7/dist-packages/ffc/jitcompiler.py", line 77, in jit
+  return jit_form(ufl_object, parameters)
+File "/usr/lib/python2.7/dist-packages/ffc/jitcompiler.py", line 103, in jit_form
+  form_data = form.compute_form_data()
+File "/usr/lib/python2.7/dist-packages/ufl/form.py", line 169, in compute_form_data
+  self._form_data = preprocess(self, object_names=object_names)
+File "/usr/lib/python2.7/dist-packages/ufl/algorithms/preprocess.py", line 188, in preprocess
+  element_mapping = _compute_element_mapping(extract_elements(original_form), common_domain)
+File "/usr/lib/python2.7/dist-packages/ufl/algorithms/preprocess.py", line 348, in _compute_element_mapping
+  "Cannot replace unknown element domain without unique common domain in form.")
+File "/usr/lib/python2.7/dist-packages/ufl/assertions.py", line 37, in ufl_assert
+  if not condition: error(*message)
+File "/usr/lib/python2.7/dist-packages/ufl/log.py", line 151, in error
+  raise self._exception_type(self._format_raw(*message))
+ufl.log.UFLException: Cannot replace unknown element domain without unique common domain in form.
+</code></pre>
+</div>
+										</div>
+										<div class="qa-q-view-tags">
+											<ul class="qa-q-view-tag-list">
+												<li class="qa-q-view-tag-item"><a href="../../tag/error" rel="tag" class="qa-tag-link">error</a></li>
+												<li class="qa-q-view-tag-item"><a href="../../tag/pdesys" rel="tag" class="qa-tag-link">pdesys</a></li>
+											</ul>
+										</div>
+										<span class="qa-q-view-avatar-meta">
+											<span class="qa-q-view-avatar">
+												<a href="../../user/Chao+Zhang" class="qa-avatar-link"><img src="https://www.gravatar.com/avatar/a50d81c60676e9ac40552912720d7b96?s=50" width="50" height="50" class="qa-avatar-image" alt=""></a>
+											</span>
+											<span class="qa-q-view-meta">
+												<a href="../../4429/cannot-replace-unknown-element-without-unique-common-domain" class="qa-q-view-what">asked</a>
+												<span class="qa-q-view-when">
+													<span class="qa-q-view-when-data"><span class="published"><span class="value-title" title="2014-08-18T01:50:45+0000"></span>Aug 18, 2014</span></span>
+												</span>
+												<span class="qa-q-view-who">
+													<span class="qa-q-view-who-pad">by </span>
+													<span class="qa-q-view-who-data"><span class="vcard author"><a href="../../user/Chao+Zhang" class="qa-user-link url nickname">Chao Zhang</a></span></span>
+													<span class="qa-q-view-who-title">FEniCS User</span>
+													<span class="qa-q-view-who-points">
+														<span class="qa-q-view-who-points-pad">(</span><span class="qa-q-view-who-points-data">1,180</span><span class="qa-q-view-who-points-pad"> points)</span>
+													</span>
+												</span>
+												<br>
+												<span class="qa-q-view-what">edited</span>
+												<span class="qa-q-view-when">
+													<span class="qa-q-view-when-data"><span class="updated"><span class="value-title" title="2014-08-18T02:11:44+0000"></span>Aug 18, 2014</span></span>
+												</span>
+												<span class="qa-q-view-who">
+													<span class="qa-q-view-who-pad">by </span><span class="qa-q-view-who-data"><a href="../../user/Chao+Zhang" class="qa-user-link url nickname">Chao Zhang</a></span>
+												</span>
+											</span>
+										</span>
+										<div class="qa-q-view-buttons">
+										</div>
+										
+										<div class="qa-q-view-c-list" style="display:none;" id="c4429_list">
+										</div> <!-- END qa-c-list -->
+										
+										<input type="hidden" name="code" value="0-1516468012-627726e9d68699886383a491be6bf5aaf9e28fa6">
+										<input type="hidden" name="qa_click" value="">
+									</form>
+									<div class="qa-c-form">
+									</div> <!-- END qa-c-form -->
+									
+								</div> <!-- END qa-q-view-main -->
+								<div class="qa-q-view-clear">
+								</div>
+							</div> <!-- END qa-q-view -->
+							
+						</div>
+						<div class="qa-part-a-list">
+							<h2 id="a_list_title">1 Answer</h2>
+							<div class="qa-a-list" id="a_list">
+								
+								<div class="qa-a-list-item  hentry answer answer-selected qa-a-list-item-selected" id="a4456">
+									<form method="post" action="../../4429/cannot-replace-unknown-element-without-unique-common-domain">
+										<div class="qa-voting qa-voting-net" id="voting_4456">
+											<div class="qa-vote-count qa-vote-count-net">
+												<span class="qa-netvote-count">
+													<span class="qa-netvote-count-data">0<span class="votes-up"><span class="value-title" title="0"></span></span><span class="votes-down"><span class="value-title" title="0"></span></span></span><span class="qa-netvote-count-pad"> votes</span>
+												</span>
+											</div>
+											<div class="qa-vote-clear">
+											</div>
+										</div>
+										<input type="hidden" name="code" value="0-1516468012-9e190eb5cd25f2cf415da77da989460ff6b804b0">
+									</form>
+									<div class="qa-a-item-main">
+										<form method="post" action="../../4429/cannot-replace-unknown-element-without-unique-common-domain">
+											<div class="qa-a-item-selected">
+												<div class="qa-a-selection">
+													<div class="qa-a-selected">&#160;</div>
+													<div class="qa-a-selected-text">Best answer</div>
+												</div>
+												<div class="qa-a-item-content">
+													<a name="4456"></a><div class="entry-content"><p>Seems like you have mixed a and L in <code>MyNonlinear</code>. And try </p>
+
+<pre><code>u, p = split(w)    # not u, p = w.split()
+u0, p0 = split(w0) # not u0, p0 = w0.split()
+</code></pre>
+</div>
+												</div>
+												<span class="qa-a-item-avatar-meta">
+													<span class="qa-a-item-avatar">
+														<a href="../../user/mikael-mortensen" class="qa-avatar-link"><img src="https://www.gravatar.com/avatar/d5614112a2818f1800a461e49ac229df?s=40" width="40" height="40" class="qa-avatar-image" alt=""></a>
+													</span>
+													<span class="qa-a-item-meta">
+														<a href="../../4429/cannot-replace-unknown-element-without-unique-common-domain?show=4456#a4456" class="qa-a-item-what">answered</a>
+														<span class="qa-a-item-when">
+															<span class="qa-a-item-when-data"><span class="published"><span class="value-title" title="2014-08-18T20:37:31+0000"></span>Aug 18, 2014</span></span>
+														</span>
+														<span class="qa-a-item-who">
+															<span class="qa-a-item-who-pad">by </span>
+															<span class="qa-a-item-who-data"><span class="vcard author"><a href="../../user/mikael-mortensen" class="qa-user-link url nickname">mikael-mortensen</a></span></span>
+															<span class="qa-a-item-who-title">FEniCS Expert</span>
+															<span class="qa-a-item-who-points">
+																<span class="qa-a-item-who-points-pad">(</span><span class="qa-a-item-who-points-data">29,340</span><span class="qa-a-item-who-points-pad"> points)</span>
+															</span>
+														</span>
+														<br>
+														<span class="qa-a-item-what">selected</span>
+														<span class="qa-a-item-when">
+															<span class="qa-a-item-when-data"><span class="updated"><span class="value-title" title="2014-08-18T22:12:51+0000"></span>Aug 19, 2014</span></span>
+														</span>
+														<span class="qa-a-item-who">
+															<span class="qa-a-item-who-pad">by </span><span class="qa-a-item-who-data"><a href="../../user/Chao+Zhang" class="qa-user-link url nickname">Chao Zhang</a></span>
+														</span>
+													</span>
+												</span>
+											</div>
+											<div class="qa-a-item-buttons">
+												</div>
+											
+											<div class="qa-a-item-c-list" id="c4456_list">
+												<div class="qa-c-list-item  hentry comment" id="c4459">
+													<div class="qa-c-item-content">
+														<a name="4459"></a><div class="entry-content"><p>Yes. It's a mixed function space of one vector and one scalar. Does this influence the way to define the nonlinear problem?</p>
+</div>
+													</div>
+													<div class="qa-c-item-footer">
+														<span class="qa-c-item-avatar-meta">
+															<span class="qa-c-item-avatar">
+																<a href="../../user/Chao+Zhang" class="qa-avatar-link"><img src="https://www.gravatar.com/avatar/a50d81c60676e9ac40552912720d7b96?s=20" width="20" height="20" class="qa-avatar-image" alt=""></a>
+															</span>
+															<span class="qa-c-item-meta">
+																<a href="../../4429/cannot-replace-unknown-element-without-unique-common-domain?show=4459#c4459" class="qa-c-item-what">commented</a>
+																<span class="qa-c-item-when">
+																	<span class="qa-c-item-when-data"><span class="published"><span class="value-title" title="2014-08-18T20:52:16+0000"></span>Aug 18, 2014</span></span>
+																</span>
+																<span class="qa-c-item-who">
+																	<span class="qa-c-item-who-pad">by </span>
+																	<span class="qa-c-item-who-data"><span class="vcard author"><a href="../../user/Chao+Zhang" class="qa-user-link url nickname">Chao Zhang</a></span></span>
+																	<span class="qa-c-item-who-title">FEniCS User</span>
+																	<span class="qa-c-item-who-points">
+																		<span class="qa-c-item-who-points-pad">(</span><span class="qa-c-item-who-points-data">1,180</span><span class="qa-c-item-who-points-pad"> points)</span>
+																	</span>
+																</span>
+															</span>
+														</span>
+														<div class="qa-c-item-buttons">
+														</div>
+													</div>
+													<div class="qa-c-item-clear">
+													</div>
+												</div> <!-- END qa-c-item -->
+												<div class="qa-c-list-item  hentry comment" id="c4460">
+													<div class="qa-c-item-content">
+														<a name="4460"></a><div class="entry-content"><p>I mean, MyNonlinear takes (L, a, bc) in that order in the signature and you are creating in with (a, L, bc). Could be the problem...</p>
+</div>
+													</div>
+													<div class="qa-c-item-footer">
+														<span class="qa-c-item-avatar-meta">
+															<span class="qa-c-item-avatar">
+																<a href="../../user/mikael-mortensen" class="qa-avatar-link"><img src="https://www.gravatar.com/avatar/d5614112a2818f1800a461e49ac229df?s=20" width="20" height="20" class="qa-avatar-image" alt=""></a>
+															</span>
+															<span class="qa-c-item-meta">
+																<a href="../../4429/cannot-replace-unknown-element-without-unique-common-domain?show=4460#c4460" class="qa-c-item-what">commented</a>
+																<span class="qa-c-item-when">
+																	<span class="qa-c-item-when-data"><span class="published"><span class="value-title" title="2014-08-18T20:54:51+0000"></span>Aug 18, 2014</span></span>
+																</span>
+																<span class="qa-c-item-who">
+																	<span class="qa-c-item-who-pad">by </span>
+																	<span class="qa-c-item-who-data"><span class="vcard author"><a href="../../user/mikael-mortensen" class="qa-user-link url nickname">mikael-mortensen</a></span></span>
+																	<span class="qa-c-item-who-title">FEniCS Expert</span>
+																	<span class="qa-c-item-who-points">
+																		<span class="qa-c-item-who-points-pad">(</span><span class="qa-c-item-who-points-data">29,340</span><span class="qa-c-item-who-points-pad"> points)</span>
+																	</span>
+																</span>
+															</span>
+														</span>
+														<div class="qa-c-item-buttons">
+														</div>
+													</div>
+													<div class="qa-c-item-clear">
+													</div>
+												</div> <!-- END qa-c-item -->
+												<div class="qa-c-list-item  hentry comment" id="c4464">
+													<div class="qa-c-item-content">
+														<a name="4464"></a><div class="entry-content"><p>Thank you very much. It works now.</p>
+</div>
+													</div>
+													<div class="qa-c-item-footer">
+														<span class="qa-c-item-avatar-meta">
+															<span class="qa-c-item-avatar">
+																<a href="../../user/Chao+Zhang" class="qa-avatar-link"><img src="https://www.gravatar.com/avatar/a50d81c60676e9ac40552912720d7b96?s=20" width="20" height="20" class="qa-avatar-image" alt=""></a>
+															</span>
+															<span class="qa-c-item-meta">
+																<a href="../../4429/cannot-replace-unknown-element-without-unique-common-domain?show=4464#c4464" class="qa-c-item-what">commented</a>
+																<span class="qa-c-item-when">
+																	<span class="qa-c-item-when-data"><span class="published"><span class="value-title" title="2014-08-18T22:13:59+0000"></span>Aug 19, 2014</span></span>
+																</span>
+																<span class="qa-c-item-who">
+																	<span class="qa-c-item-who-pad">by </span>
+																	<span class="qa-c-item-who-data"><span class="vcard author"><a href="../../user/Chao+Zhang" class="qa-user-link url nickname">Chao Zhang</a></span></span>
+																	<span class="qa-c-item-who-title">FEniCS User</span>
+																	<span class="qa-c-item-who-points">
+																		<span class="qa-c-item-who-points-pad">(</span><span class="qa-c-item-who-points-data">1,180</span><span class="qa-c-item-who-points-pad"> points)</span>
+																	</span>
+																</span>
+															</span>
+														</span>
+														<div class="qa-c-item-buttons">
+														</div>
+													</div>
+													<div class="qa-c-item-clear">
+													</div>
+												</div> <!-- END qa-c-item -->
+											</div> <!-- END qa-c-list -->
+											
+											<input type="hidden" name="code" value="0-1516468012-61ea05c9b903042cfbe2d7678bddc641b8108f10">
+											<input type="hidden" name="qa_click" value="">
+										</form>
+										<div class="qa-c-form">
+										</div> <!-- END qa-c-form -->
+										
+									</div> <!-- END qa-a-item-main -->
+									<div class="qa-a-item-clear">
+									</div>
+								</div> <!-- END qa-a-list-item -->
+								
+							</div> <!-- END qa-a-list -->
+							
+						</div>
+					</div> <!-- END qa-main -->
+					
+				</div> <!-- END main-wrapper -->
+			</div> <!-- END main-shadow -->
+		</div> <!-- END body-wrapper -->
+		<!-- END footer-bottom-group -->
+		
+		<div style="position:absolute; left:-9999px; top:-9999px;">
+			<span id="qa-waiting-template" class="qa-waiting">...</span>
+		</div>
+	
+	
+
+</body><!-- Powered by Question2Answer - http://www.question2answer.org/ --></html>

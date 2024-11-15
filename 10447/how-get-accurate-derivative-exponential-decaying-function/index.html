@@ -1,0 +1,332 @@
+<html><!-- Powered by Question2Answer - http://www.question2answer.org/ --><head>
+		<meta http-equiv="content-type" content="text/html; charset=utf-8">
+		<title>How to get accurate derivative of a exponential decaying function? - FEniCS Q&amp;A</title>
+		<meta name="description" content='Hi, I am trying to find the first derivative to an exponential decaying function `exp(-|r|)`. I am ... file in VTK format file = File("grad.pvd") file'>
+		<meta name="keywords" content="derivative">
+		<link rel="stylesheet" type="text/css" href="../../qa-theme/Snow/qa-styles.css">
+		<link rel="canonical" href="http://fenicsproject.org/qa/10447/how-get-accurate-derivative-exponential-decaying-function">
+		<script type="text/x-mathjax-config">
+  MathJax.Hub.Config({
+    extensions: ["tex2jax.js"],
+    jax: ["input/TeX","output/HTML-CSS"],
+    tex2jax: {inlineMath: [["$","$"],["\\(","\\)"]]},
+    TeX: { extensions: ["AMSmath.js","AMSsymbols.js"]}
+  });
+</script>
+<script type="text/javascript" src="../../mathjax/MathJax.js"></script>
+		<script src="../../jquery-1.7.2.min.js" type="text/javascript"></script>
+		<script src="../../highlight.min.js"></script>
+<script type="text/javascript">
+$(function(){
+	$('.wmd-input').keypress(function(){
+		window.clearTimeout(hljs.Timeout);
+		hljs.Timeout = window.setTimeout(function() {
+			hljs.initHighlighting.called = false;
+			hljs.initHighlighting();
+		}, 500);
+	});
+	window.setTimeout(function() {
+		hljs.initHighlighting.called = false;
+		hljs.initHighlighting();
+	}, 500);
+});
+</script>
+
+
+	</head>
+	<body class="qa-template-question qa-body-js-off">
+		<div class="qa-body-wrapper">
+			
+			<div class="qa-header">
+				<div class="qa-logo">
+					<a href="../../" class="qa-logo-link" title="FEniCS Q&amp;A"><img src="../../qa-theme/fenics_qa.png" border="0" alt="FEniCS Q&amp;A"></a>
+				</div>
+				<div class="qa-header-clear">
+				</div>
+			</div> <!-- END qa-header -->
+			
+			<div class="qa-main-shadow">
+				
+				<div class="qa-main-wrapper">
+					
+					<div class="qa-sidepanel">
+						<div class="qa-sidebar">
+							This is a read only copy of the old FEniCS QA forum. Please visit the <a href="https://www.allanswered.com/community/s/fenics-project/">new QA forum</a> to ask questions
+						</div>
+						
+					</div>
+					
+					<div class="qa-main">
+						<h1>
+							<span class="entry-title">How to get accurate derivative of a exponential decaying function?</span>
+						</h1>
+						<div class="qa-part-q-view">
+							<div class="qa-q-view  hentry question" id="q10447">
+								<form method="post" action="../../10447/how-get-accurate-derivative-exponential-decaying-function">
+									<div class="qa-q-view-stats">
+										<div class="qa-voting qa-voting-net" id="voting_10447">
+											<div class="qa-vote-count qa-vote-count-net">
+												<span class="qa-netvote-count">
+													<span class="qa-netvote-count-data">0<span class="votes-up"><span class="value-title" title="0"></span></span><span class="votes-down"><span class="value-title" title="0"></span></span></span><span class="qa-netvote-count-pad"> votes</span>
+												</span>
+											</div>
+											<div class="qa-vote-clear">
+											</div>
+										</div>
+									</div>
+									<input type="hidden" name="code" value="0-1516467058-5593e0e381d3459d72c979987d2627b477dae6e5">
+								</form>
+								<div class="qa-q-view-main">
+									<form method="post" action="../../10447/how-get-accurate-derivative-exponential-decaying-function">
+										<div class="qa-q-view-content">
+											<a name="10447"></a><div class="entry-content"><p>Hi,</p>
+
+<p>I am trying to find the first derivative to an exponential decaying function <code>exp(-|r|)</code>. I am only looking for the scalar field to this function, not the vector field. I have modified the example in FEniCS tutorial 1.1.9 Computing derivatives to find the scalar field. I also added a Dirichlet boundary condition to handle the cusp at origo.</p>
+
+<p>The code:</p>
+
+<pre><code>from dolfin import *
+
+# mesh
+point1 = Point(-2.5,-2.5)
+point2 = Point(2.5,2.5)
+mesh = RectangleMesh(point1,point2,16,16, 'crossed')
+V_g = FunctionSpace(mesh, 'CG', 1)
+
+# function to derivative
+f0 = Expression('exp(-sqrt(x[0]*x[0] + x[1]*x[1]))')
+u_k = interpolate(f0, V_g)
+
+# exact derivative
+f_exact = Expression('exp(-2*(sqrt(x[0]*x[0] + x[1]*x[1])))')
+grad_exact = interpolate(f_exact, V_g)
+
+# plotting function to derivative
+plot(u_k, title="u_k")
+
+# boundary conditions, setting cusp point to 1
+def u0_boundary(x):
+    tol = 1E-15
+    return abs(x[0]) &lt; tol and abs(x[1]) &lt; tol
+
+u0 = Expression("1")
+bc = DirichletBC(V_g,u0,u0_boundary,method='pointwise')
+
+# finding derivative 
+w = TrialFunction(V_g)
+v = TestFunction(V_g)
+a = inner(w, v)*dx
+L = inner(u_k.dx(0)*u_k.dx(0)+u_k.dx(1)*u_k.dx(1), v)*dx
+grad_u = Function(V_g)
+solve(a == L, grad_u,bc)
+
+# Plot derivative
+plot(grad_u, title="grad(u)")
+
+# Dump solution to file in VTK format
+file = File("grad.pvd")
+file &lt;&lt; grad_u  
+
+# Hold plot
+interactive()
+
+# error plot
+error = abs(grad_exact - grad_u)
+plot(error, title="error")  
+interactive()
+</code></pre>
+
+<p>I am not sure that the error plot is working as I expected. I am trying to see where the biggest error occurs and not just the total error for the entire field. But If I am reading this right, the projection gets better with higher order element like CG3 and beyond. Is correct or have I done some errors in my code?</p>
+
+<p>Is this the correct way of finding the most accurate derivative as possible or is there a better way?</p>
+</div>
+										</div>
+										<div class="qa-q-view-tags">
+											<ul class="qa-q-view-tag-list">
+												<li class="qa-q-view-tag-item"><a href="../../tag/derivative" rel="tag" class="qa-tag-link">derivative</a></li>
+											</ul>
+										</div>
+										<span class="qa-q-view-avatar-meta">
+											<span class="qa-q-view-meta">
+												<a href="../../10447/how-get-accurate-derivative-exponential-decaying-function" class="qa-q-view-what">asked</a>
+												<span class="qa-q-view-when">
+													<span class="qa-q-view-when-data"><span class="published"><span class="value-title" title="2016-06-21T14:21:13+0000"></span>Jun 21, 2016</span></span>
+												</span>
+												<span class="qa-q-view-who">
+													<span class="qa-q-view-who-pad">by </span>
+													<span class="qa-q-view-who-data"><span class="vcard author"><a href="../../user/jeuler" class="qa-user-link url nickname">jeuler</a></span></span>
+													<span class="qa-q-view-who-title">FEniCS Novice</span>
+													<span class="qa-q-view-who-points">
+														<span class="qa-q-view-who-points-pad">(</span><span class="qa-q-view-who-points-data">120</span><span class="qa-q-view-who-points-pad"> points)</span>
+													</span>
+												</span>
+											</span>
+										</span>
+										<div class="qa-q-view-buttons">
+										</div>
+										
+										<div class="qa-q-view-c-list" style="display:none;" id="c10447_list">
+										</div> <!-- END qa-c-list -->
+										
+										<input type="hidden" name="code" value="0-1516467058-768322a39b299443a732e9e2ad68732808f761d4">
+										<input type="hidden" name="qa_click" value="">
+									</form>
+									<div class="qa-c-form">
+									</div> <!-- END qa-c-form -->
+									
+								</div> <!-- END qa-q-view-main -->
+								<div class="qa-q-view-clear">
+								</div>
+							</div> <!-- END qa-q-view -->
+							
+						</div>
+						<div class="qa-part-a-list">
+							<h2 id="a_list_title">1 Answer</h2>
+							<div class="qa-a-list" id="a_list">
+								
+								<div class="qa-a-list-item  hentry answer" id="a10474">
+									<form method="post" action="../../10447/how-get-accurate-derivative-exponential-decaying-function">
+										<div class="qa-voting qa-voting-net" id="voting_10474">
+											<div class="qa-vote-count qa-vote-count-net">
+												<span class="qa-netvote-count">
+													<span class="qa-netvote-count-data">0<span class="votes-up"><span class="value-title" title="0"></span></span><span class="votes-down"><span class="value-title" title="0"></span></span></span><span class="qa-netvote-count-pad"> votes</span>
+												</span>
+											</div>
+											<div class="qa-vote-clear">
+											</div>
+										</div>
+										<input type="hidden" name="code" value="0-1516467058-5593e0e381d3459d72c979987d2627b477dae6e5">
+									</form>
+									<div class="qa-a-item-main">
+										<form method="post" action="../../10447/how-get-accurate-derivative-exponential-decaying-function">
+											<div class="qa-a-selection">
+											</div>
+											<div class="qa-a-item-content">
+												<a name="10474"></a><div class="entry-content"><p>You can use the following approach.</p>
+
+<pre><code>x = SpatialCoordinate(mesh)
+r = (x[0]**2 + x[1]**2)**.5
+f = exp(-r)
+g = grad(f)**2
+</code></pre>
+
+<p>This results in a function g that can be used in variational forms.</p>
+
+<p>To obtain a Function, use projection.</p>
+
+<pre><code>g_h = project(g, V)
+</code></pre>
+</div>
+											</div>
+											<span class="qa-a-item-avatar-meta">
+												<span class="qa-a-item-meta">
+													<a href="../../10447/how-get-accurate-derivative-exponential-decaying-function?show=10474#a10474" class="qa-a-item-what">answered</a>
+													<span class="qa-a-item-when">
+														<span class="qa-a-item-when-data"><span class="published"><span class="value-title" title="2016-06-23T07:05:16+0000"></span>Jun 23, 2016</span></span>
+													</span>
+													<span class="qa-a-item-who">
+														<span class="qa-a-item-who-pad">by </span>
+														<span class="qa-a-item-who-data"><span class="vcard author"><a href="../../user/Magne+Nordaas" class="qa-user-link url nickname">Magne Nordaas</a></span></span>
+														<span class="qa-a-item-who-title">FEniCS Expert</span>
+														<span class="qa-a-item-who-points">
+															<span class="qa-a-item-who-points-pad">(</span><span class="qa-a-item-who-points-data">13,820</span><span class="qa-a-item-who-points-pad"> points)</span>
+														</span>
+													</span>
+												</span>
+											</span>
+											<div class="qa-a-item-buttons">
+												</div>
+											
+											<div class="qa-a-item-c-list" id="c10474_list">
+												<div class="qa-c-list-item  hentry comment" id="c10498">
+													<div class="qa-c-item-content">
+														<a name="10498"></a><div class="entry-content"><p>Thank Magne for our answer, I do not fully understand the difference between the two solutions. It seems like we are doing the same thing but using different function, or am I wrong.</p>
+
+<p>Could this also be used to find the second derivate, i.e., the laplacian of exp(-r)?</p>
+</div>
+													</div>
+													<div class="qa-c-item-footer">
+														<span class="qa-c-item-avatar-meta">
+															<span class="qa-c-item-meta">
+																<a href="../../10447/how-get-accurate-derivative-exponential-decaying-function?show=10498#c10498" class="qa-c-item-what">commented</a>
+																<span class="qa-c-item-when">
+																	<span class="qa-c-item-when-data"><span class="published"><span class="value-title" title="2016-06-28T06:37:04+0000"></span>Jun 28, 2016</span></span>
+																</span>
+																<span class="qa-c-item-who">
+																	<span class="qa-c-item-who-pad">by </span>
+																	<span class="qa-c-item-who-data"><span class="vcard author"><a href="../../user/jeuler" class="qa-user-link url nickname">jeuler</a></span></span>
+																	<span class="qa-c-item-who-title">FEniCS Novice</span>
+																	<span class="qa-c-item-who-points">
+																		<span class="qa-c-item-who-points-pad">(</span><span class="qa-c-item-who-points-data">120</span><span class="qa-c-item-who-points-pad"> points)</span>
+																	</span>
+																</span>
+															</span>
+														</span>
+														<div class="qa-c-item-buttons">
+														</div>
+													</div>
+													<div class="qa-c-item-clear">
+													</div>
+												</div> <!-- END qa-c-item -->
+												<div class="qa-c-list-item  hentry comment" id="c10505">
+													<div class="qa-c-item-content">
+														<a name="10505"></a><div class="entry-content"><p>It's not the same thing. </p>
+
+<p>The approach you've outlined first approximates $\exp(-\lvert r\rvert)$ with a finite element function, then evaluates the derivative of this FE function.</p>
+
+<p>The approach in the answer provides a ufl object that can be evaluated at quadrature points without any interpolation into a FE space. You can also evaluate higher order derivatives this way.</p>
+</div>
+													</div>
+													<div class="qa-c-item-footer">
+														<span class="qa-c-item-avatar-meta">
+															<span class="qa-c-item-meta">
+																<a href="../../10447/how-get-accurate-derivative-exponential-decaying-function?show=10505#c10505" class="qa-c-item-what">commented</a>
+																<span class="qa-c-item-when">
+																	<span class="qa-c-item-when-data"><span class="published"><span class="value-title" title="2016-06-28T17:19:11+0000"></span>Jun 28, 2016</span></span>
+																</span>
+																<span class="qa-c-item-who">
+																	<span class="qa-c-item-who-pad">by </span>
+																	<span class="qa-c-item-who-data"><span class="vcard author"><a href="../../user/Magne+Nordaas" class="qa-user-link url nickname">Magne Nordaas</a></span></span>
+																	<span class="qa-c-item-who-title">FEniCS Expert</span>
+																	<span class="qa-c-item-who-points">
+																		<span class="qa-c-item-who-points-pad">(</span><span class="qa-c-item-who-points-data">13,820</span><span class="qa-c-item-who-points-pad"> points)</span>
+																	</span>
+																</span>
+															</span>
+														</span>
+														<div class="qa-c-item-buttons">
+														</div>
+													</div>
+													<div class="qa-c-item-clear">
+													</div>
+												</div> <!-- END qa-c-item -->
+											</div> <!-- END qa-c-list -->
+											
+											<input type="hidden" name="code" value="0-1516467058-0e0c23aee2e9f35297c397699069f3c1063e9004">
+											<input type="hidden" name="qa_click" value="">
+										</form>
+										<div class="qa-c-form">
+										</div> <!-- END qa-c-form -->
+										
+									</div> <!-- END qa-a-item-main -->
+									<div class="qa-a-item-clear">
+									</div>
+								</div> <!-- END qa-a-list-item -->
+								
+							</div> <!-- END qa-a-list -->
+							
+						</div>
+					</div> <!-- END qa-main -->
+					
+				</div> <!-- END main-wrapper -->
+			</div> <!-- END main-shadow -->
+		</div> <!-- END body-wrapper -->
+		<!-- END footer-bottom-group -->
+		
+		<div style="position:absolute; left:-9999px; top:-9999px;">
+			<span id="qa-waiting-template" class="qa-waiting">...</span>
+		</div>
+	
+	
+
+</body><!-- Powered by Question2Answer - http://www.question2answer.org/ --></html>

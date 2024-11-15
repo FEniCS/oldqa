@@ -1,0 +1,318 @@
+<html><!-- Powered by Question2Answer - http://www.question2answer.org/ --><head>
+		<meta http-equiv="content-type" content="text/html; charset=utf-8">
+		<title>Error doing Virtual Displacements in MatSetValues - FEniCS Q&amp;A</title>
+		<meta name="description" content="Hi, I am trying to solve a hyperelasticity problem on a 2D domain using the virtual displacements  ... coordinates()[np.where(mesh.coordinates()[:,1]">
+		<meta name="keywords" content="matsetvalueslocal,hyperelasticity,geometric-nonlinearity">
+		<link rel="stylesheet" type="text/css" href="../../qa-theme/Snow/qa-styles.css">
+		<link rel="canonical" href="http://fenicsproject.org/qa/13812/error-doing-virtual-displacements-in-matsetvalues">
+		<script type="text/x-mathjax-config">
+  MathJax.Hub.Config({
+    extensions: ["tex2jax.js"],
+    jax: ["input/TeX","output/HTML-CSS"],
+    tex2jax: {inlineMath: [["$","$"],["\\(","\\)"]]},
+    TeX: { extensions: ["AMSmath.js","AMSsymbols.js"]}
+  });
+</script>
+<script type="text/javascript" src="../../mathjax/MathJax.js"></script>
+		<script src="../../jquery-1.7.2.min.js" type="text/javascript"></script>
+		<script src="../../highlight.min.js"></script>
+<script type="text/javascript">
+$(function(){
+	$('.wmd-input').keypress(function(){
+		window.clearTimeout(hljs.Timeout);
+		hljs.Timeout = window.setTimeout(function() {
+			hljs.initHighlighting.called = false;
+			hljs.initHighlighting();
+		}, 500);
+	});
+	window.setTimeout(function() {
+		hljs.initHighlighting.called = false;
+		hljs.initHighlighting();
+	}, 500);
+});
+</script>
+
+
+	</head>
+	<body class="qa-template-question qa-body-js-off">
+		<div class="qa-body-wrapper">
+			
+			<div class="qa-header">
+				<div class="qa-logo">
+					<a href="../../" class="qa-logo-link" title="FEniCS Q&amp;A"><img src="../../qa-theme/fenics_qa.png" border="0" alt="FEniCS Q&amp;A"></a>
+				</div>
+				<div class="qa-header-clear">
+				</div>
+			</div> <!-- END qa-header -->
+			
+			<div class="qa-main-shadow">
+				
+				<div class="qa-main-wrapper">
+					
+					<div class="qa-sidepanel">
+						<div class="qa-sidebar">
+							This is a read only copy of the old FEniCS QA forum. Please visit the <a href="https://www.allanswered.com/community/s/fenics-project/">new QA forum</a> to ask questions
+						</div>
+						
+					</div>
+					
+					<div class="qa-main">
+						<h1>
+							<span class="entry-title">Error doing Virtual Displacements in MatSetValues</span>
+						</h1>
+						<div class="qa-part-q-view">
+							<div class="qa-q-view  hentry question" id="q13812">
+								<form method="post" action="../../13812/error-doing-virtual-displacements-in-matsetvalues">
+									<div class="qa-q-view-stats">
+										<div class="qa-voting qa-voting-net" id="voting_13812">
+											<div class="qa-vote-count qa-vote-count-net">
+												<span class="qa-netvote-count">
+													<span class="qa-netvote-count-data">0<span class="votes-up"><span class="value-title" title="0"></span></span><span class="votes-down"><span class="value-title" title="0"></span></span></span><span class="qa-netvote-count-pad"> votes</span>
+												</span>
+											</div>
+											<div class="qa-vote-clear">
+											</div>
+										</div>
+									</div>
+									<input type="hidden" name="code" value="0-1516466496-863bd89db4ed10d217b3d62d4ba42071e5e54caa">
+								</form>
+								<div class="qa-q-view-main">
+									<form method="post" action="../../13812/error-doing-virtual-displacements-in-matsetvalues">
+										<div class="qa-q-view-content">
+											<a name="13812"></a><div class="entry-content"><p>Hi,</p>
+
+<p>I am trying to solve a hyperelasticity problem on a 2D domain using the virtual displacements form<br>
+PK1:F *dx</p>
+
+<pre><code># Modules Used
+from dolfin import *
+import numpy as np
+import matplotlib.pyplot as plt
+
+set_log_active(False)
+
+
+# Number of Steps for Analytical Solution
+n_steps = 21;
+lam2 = np.linspace(1.0, 0.5, n_steps)
+
+
+# Optimization options for the form compiler
+parameters["form_compiler"]["representation"] = 'uflacs'
+
+
+# Generate Mesh and function spaces
+mesh = UnitSquareMesh(4,4);
+
+x_corner = np.min(mesh.coordinates()[np.where(mesh.coordinates()[:,1]&lt;1e-3),0])
+
+class North(SubDomain):
+    def inside(self,x,on_boundary):
+        return near(x[1],1.0) and on_boundary
+
+class South(SubDomain):
+    def inside(self,x,on_boundary):
+        return near(x[1],0.0) and on_boundary
+
+class East(SubDomain):
+    def inside(self,x,on_boundary):
+        return near(x[0],1.0) and on_boundary
+
+class West(SubDomain):
+    def inside(self,x,on_boundary):
+        return near(x[0],0.0) and on_boundary
+
+def corner(x,on_boundary):
+    return near(x[0],x_corner) and near(x[1],0.0)
+
+
+p_order = 2             # Polynomial Order with each element
+V  = VectorFunctionSpace(mesh,'CG', p_order) 
+T = TensorFunctionSpace(mesh, 'DG', p_order)
+v = TestFunction(V)     # Test Function
+du = TrialFunction(V)   # Incremental Displacement using 2D strain Energy
+u= Function(V)         # Displacement Control Solution
+
+du2 = TrialFunction(V)   # Incremental Displacement using 2D strain Energy
+u2= Function(V)         # Force Contorl Solution
+
+# Initialize Domains
+north=North()
+south=South()
+east =East()
+west =West()
+
+boundaries = FacetFunction("size_t",mesh)
+boundaries.set_all(0);
+
+# Label our boundaries
+north.mark(boundaries,1);
+east.mark(boundaries,2);
+south.mark(boundaries,3);
+west.mark(boundaries,4);
+
+
+
+ds=Measure("ds", domain=mesh,subdomain_data = boundaries)
+
+
+# Elasticity Parameters
+E,nu =10.0, 0.499
+C1,D1= Constant(E/(2*(1+nu))), Constant(E/(3*(1-2*nu)))
+
+
+def strain_energy(u):
+    # Kinematics
+    d = len(u)
+    I = Identity(d)
+    F = I + grad(u)
+    C = F.T*F
+    Ic = tr(C)+1.0
+    J  = det(F)
+    psi = 0.5*C1*(J**(-2.0/3)*Ic-3)+0.5*D1*(J-1)**2 
+    return psi
+
+
+def PK1(u):
+    d = len(u)
+    I = Identity(d)
+    F = variable(I + grad(u))
+    C = F.T*F
+    Ic=variable(tr(C))+1
+    J = variable(det(F))
+    C = variable(C) 
+    psi = 0.5*C1*(J**(-2.0/3)*Ic-3)+0.5*D1*(J-1)**2 
+    #s = diff(psi,F)
+    P = F*PK2(u)
+    return P
+
+def PK2(u):
+    d = len(u)
+    I = Identity(d)
+    F = variable(I + grad(u))
+    C = F.T*F
+    E = variable(0.5*(C-I))
+    Ic=variable(tr(C))+1
+    J = variable(det(F))
+    C = variable(C) 
+    psi = 0.5*C1*(J**(-2.0/3)*Ic-3)+0.5*D1*(J-1)**2 
+    S = diff(psi,E)
+    return S
+
+def GreenLagrange(u):
+    d = len(u)
+    I = Identity(d)
+    F = variable(I + grad(u))
+    C = F.T*F
+    E = variable(0.5*(C-I))
+    return E
+
+
+
+
+# Initialize Arrays for plotting
+
+R_d = np.zeros([n_steps,4]) # displacement control reaction forces in the 1,2,3,4,direction
+l1_d = np.zeros(n_steps)
+psi_d = np.zeros(n_steps)
+du_h  = 1-lam2 # increment
+
+n =FacetNormal(mesh)
+def extract_traction(u,i):
+    s = PK1(u);
+    return s[i,0]*n[0]+s[i,1]*n[1]
+
+# Time Step
+for i in range(n_steps):
+    # Dirichlet Boundary Conditions
+    bc1 = DirichletBC(V.sub(1), Constant(0.0),south) # Roller Bottom
+    bc2 = DirichletBC(V, Constant((0.0,0.0)),corner, method='pointwise')  # pin at a single point
+    bc3 = DirichletBC(V.sub(1), Constant(-du_h[i]), north) # Displacement Top
+
+    # Displacement Boundary Conditions for Disp Control
+    bcs1= [bc1,bc2,bc3];
+
+    # Solve
+    Res = inner(PK1(u),grad(v))*dx
+    Jac = derivative(Res,u,du); # Jacobian
+    solve(Res == 0,u, bcs1, J = Jac) 
+
+plot(u, mode='displacement', interactive=True)
+</code></pre>
+
+<p>Error message:</p>
+
+<pre><code>*** -------------------------------------------------------------------------
+*** Error:   Unable to successfully call PETSc function 'MatSetValuesLocal'.
+*** Reason:  PETSc error code is: 63 (Argument out of range).
+*** Where:   This error was encountered inside /build/dolfin-2bgr9b/dolfin-2017.1.0/dolfin/la/PETScMatrix.cpp.
+*** Process: 0
+*** 
+*** DOLFIN version: 2017.1.0
+*** Git changeset:  unknown
+*** -------------------------------------------------------------------------
+</code></pre>
+</div>
+										</div>
+										<div class="qa-q-view-tags">
+											<ul class="qa-q-view-tag-list">
+												<li class="qa-q-view-tag-item"><a href="../../tag/matsetvalueslocal" rel="tag" class="qa-tag-link">matsetvalueslocal</a></li>
+												<li class="qa-q-view-tag-item"><a href="../../tag/hyperelasticity" rel="tag" class="qa-tag-link">hyperelasticity</a></li>
+												<li class="qa-q-view-tag-item"><a href="../../tag/geometric-nonlinearity" rel="tag" class="qa-tag-link">geometric-nonlinearity</a></li>
+											</ul>
+										</div>
+										<span class="qa-q-view-avatar-meta">
+											<span class="qa-q-view-meta">
+												<a href="../../13812/error-doing-virtual-displacements-in-matsetvalues" class="qa-q-view-what">asked</a>
+												<span class="qa-q-view-when">
+													<span class="qa-q-view-when-data"><span class="published"><span class="value-title" title="2017-06-05T15:09:22+0000"></span>Jun 5, 2017</span></span>
+												</span>
+												<span class="qa-q-view-who">
+													<span class="qa-q-view-who-pad">by </span>
+													<span class="qa-q-view-who-data"><span class="vcard author"><a href="../../user/emedina" class="qa-user-link url nickname">emedina</a></span></span>
+													<span class="qa-q-view-who-title">FEniCS Novice</span>
+													<span class="qa-q-view-who-points">
+														<span class="qa-q-view-who-points-pad">(</span><span class="qa-q-view-who-points-data">120</span><span class="qa-q-view-who-points-pad"> points)</span>
+													</span>
+												</span>
+											</span>
+										</span>
+										<div class="qa-q-view-buttons">
+										</div>
+										
+										<div class="qa-q-view-c-list" style="display:none;" id="c13812_list">
+										</div> <!-- END qa-c-list -->
+										
+										<input type="hidden" name="code" value="0-1516466496-2f1f5a9855380c027dfc4d0a69330df443031095">
+										<input type="hidden" name="qa_click" value="">
+									</form>
+									<div class="qa-c-form">
+									</div> <!-- END qa-c-form -->
+									
+								</div> <!-- END qa-q-view-main -->
+								<div class="qa-q-view-clear">
+								</div>
+							</div> <!-- END qa-q-view -->
+							
+						</div>
+						<div class="qa-part-a-list">
+							<h2 id="a_list_title" style="display:none;"></h2>
+							<div class="qa-a-list" id="a_list">
+								
+							</div> <!-- END qa-a-list -->
+							
+						</div>
+					</div> <!-- END qa-main -->
+					
+				</div> <!-- END main-wrapper -->
+			</div> <!-- END main-shadow -->
+		</div> <!-- END body-wrapper -->
+		<!-- END footer-bottom-group -->
+		
+		<div style="position:absolute; left:-9999px; top:-9999px;">
+			<span id="qa-waiting-template" class="qa-waiting">...</span>
+		</div>
+	
+	
+
+</body><!-- Powered by Question2Answer - http://www.question2answer.org/ --></html>

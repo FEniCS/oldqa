@@ -1,0 +1,314 @@
+<html><!-- Powered by Question2Answer - http://www.question2answer.org/ --><head>
+		<meta http-equiv="content-type" content="text/html; charset=utf-8">
+		<title>Interpolation on mixed functionspace - shapes not matching - FEniCS Q&amp;A</title>
+		<meta name="description" content="I have encountered a weird problem with shapes of the mixed function space not matching the &quot;original&quot; function  ... .0', el), V).vector().array()">
+		<meta name="keywords" content="interpolation,mixed-function-space">
+		<link rel="stylesheet" type="text/css" href="../../qa-theme/Snow/qa-styles.css">
+		<link rel="canonical" href="http://fenicsproject.org/qa/9444/interpolation-on-mixed-functionspace-shapes-not-matching">
+		<script type="text/x-mathjax-config">
+  MathJax.Hub.Config({
+    extensions: ["tex2jax.js"],
+    jax: ["input/TeX","output/HTML-CSS"],
+    tex2jax: {inlineMath: [["$","$"],["\\(","\\)"]]},
+    TeX: { extensions: ["AMSmath.js","AMSsymbols.js"]}
+  });
+</script>
+<script type="text/javascript" src="../../mathjax/MathJax.js"></script>
+		<script src="../../jquery-1.7.2.min.js" type="text/javascript"></script>
+		<script src="../../highlight.min.js"></script>
+<script type="text/javascript">
+$(function(){
+	$('.wmd-input').keypress(function(){
+		window.clearTimeout(hljs.Timeout);
+		hljs.Timeout = window.setTimeout(function() {
+			hljs.initHighlighting.called = false;
+			hljs.initHighlighting();
+		}, 500);
+	});
+	window.setTimeout(function() {
+		hljs.initHighlighting.called = false;
+		hljs.initHighlighting();
+	}, 500);
+});
+</script>
+
+
+	</head>
+	<body class="qa-template-question qa-body-js-off">
+		<div class="qa-body-wrapper">
+			
+			<div class="qa-header">
+				<div class="qa-logo">
+					<a href="../../" class="qa-logo-link" title="FEniCS Q&amp;A"><img src="../../qa-theme/fenics_qa.png" border="0" alt="FEniCS Q&amp;A"></a>
+				</div>
+				<div class="qa-header-clear">
+				</div>
+			</div> <!-- END qa-header -->
+			
+			<div class="qa-main-shadow">
+				
+				<div class="qa-main-wrapper">
+					
+					<div class="qa-sidepanel">
+						<div class="qa-sidebar">
+							This is a read only copy of the old FEniCS QA forum. Please visit the <a href="https://www.allanswered.com/community/s/fenics-project/">new QA forum</a> to ask questions
+						</div>
+						
+					</div>
+					
+					<div class="qa-main">
+						<h1>
+							<span class="entry-title">Interpolation on mixed functionspace - shapes not matching</span>
+						</h1>
+						<div class="qa-part-q-view">
+							<div class="qa-q-view  hentry question" id="q9444">
+								<form method="post" action="../../9444/interpolation-on-mixed-functionspace-shapes-not-matching">
+									<div class="qa-q-view-stats">
+										<div class="qa-voting qa-voting-net" id="voting_9444">
+											<div class="qa-vote-count qa-vote-count-net">
+												<span class="qa-netvote-count">
+													<span class="qa-netvote-count-data">+1<span class="votes-up"><span class="value-title" title="1"></span></span><span class="votes-down"><span class="value-title" title="0"></span></span></span><span class="qa-netvote-count-pad"> vote</span>
+												</span>
+											</div>
+											<div class="qa-vote-clear">
+											</div>
+										</div>
+									</div>
+									<input type="hidden" name="code" value="0-1516468222-3cd300f2ac13b823c12320dbaa0f90ae3341c86d">
+								</form>
+								<div class="qa-q-view-main">
+									<form method="post" action="../../9444/interpolation-on-mixed-functionspace-shapes-not-matching">
+										<div class="qa-q-view-content">
+											<a name="9444"></a><div class="entry-content"><p>I have encountered a weird problem with shapes of the mixed function space not matching the "original" function space. The problem only arises, when i apply periodic boundary conditions. I have setup a small MWE where</p>
+
+<p>1) Meshes and spaces are created.<br>
+2) A dummy problem is solved.<br>
+3) A constant is added to the obtained solution.</p>
+
+<p>It is in step (3) that my problem arises. When i try to add a constant (interpolated on the relevant sub space) i get the following error</p>
+
+<p><em>ValueError: operands could not be broadcast together with shapes (441,) (420,)</em> </p>
+
+<p>From the error message it is clear that length of the solution vector (u1) is different from the length of the interpolated expression. However, i can't figure out <em>why</em> this happens. Can anyone enlighten me and/or suggest a fix to the problem? </p>
+
+<pre><code>from fenics import *
+
+class PeriodicDomain(SubDomain):
+    def __init__(self, ly):
+        self.ly = ly
+        SubDomain.__init__(self)
+
+    def inside(self, x, on_boundary):
+        # return True if on bottom boundary
+        return near(x[1], 0) and on_boundary
+
+    def map(self, x, y):
+        # return Map top boundary to bottom boundary
+        y[0] = x[0]
+        y[1] = x[1] - self.ly
+
+# Create mesh and function spaces.
+mesh = UnitSquareMesh(10, 10)
+el = FiniteElement("CG", triangle, 2)
+V = FunctionSpace(mesh, el, constrained_domain=PeriodicDomain(1.0))
+W = FunctionSpace(mesh, MixedElement([el, el]), constrained_domain=PeriodicDomain(1.0))
+# Solve dummy problem.
+u1, u2 = split(TrialFunction(W))
+v1, v2 = split(TestFunction(W))
+a = inner(grad(u1), grad(v1))*dx() + inner(grad(u2), grad(v2))*dx()
+L = v1*dx()
+u = Function(W)
+solve(a == L, u)
+# Try to add something to the solution.
+u1, u2 = u.split(True)
+u1.vector()[:] = u1.vector().array() + interpolate(Expression('1.0', el), V).vector().array()
+</code></pre>
+</div>
+										</div>
+										<div class="qa-q-view-tags">
+											<ul class="qa-q-view-tag-list">
+												<li class="qa-q-view-tag-item"><a href="../../tag/interpolation" rel="tag" class="qa-tag-link">interpolation</a></li>
+												<li class="qa-q-view-tag-item"><a href="../../tag/mixed-function-space" rel="tag" class="qa-tag-link">mixed-function-space</a></li>
+											</ul>
+										</div>
+										<span class="qa-q-view-avatar-meta">
+											<span class="qa-q-view-meta">
+												<a href="../../9444/interpolation-on-mixed-functionspace-shapes-not-matching" class="qa-q-view-what">asked</a>
+												<span class="qa-q-view-when">
+													<span class="qa-q-view-when-data"><span class="published"><span class="value-title" title="2016-03-01T06:43:17+0000"></span>Mar 1, 2016</span></span>
+												</span>
+												<span class="qa-q-view-who">
+													<span class="qa-q-view-who-pad">by </span>
+													<span class="qa-q-view-who-data"><span class="vcard author"><a href="../../user/emher" class="qa-user-link url nickname">emher</a></span></span>
+													<span class="qa-q-view-who-title">FEniCS User</span>
+													<span class="qa-q-view-who-points">
+														<span class="qa-q-view-who-points-pad">(</span><span class="qa-q-view-who-points-data">1,290</span><span class="qa-q-view-who-points-pad"> points)</span>
+													</span>
+												</span>
+												<br>
+												<span class="qa-q-view-what">edited</span>
+												<span class="qa-q-view-when">
+													<span class="qa-q-view-when-data"><span class="updated"><span class="value-title" title="2016-03-01T06:52:10+0000"></span>Mar 1, 2016</span></span>
+												</span>
+												<span class="qa-q-view-who">
+													<span class="qa-q-view-who-pad">by </span><span class="qa-q-view-who-data"><a href="../../user/emher" class="qa-user-link url nickname">emher</a></span>
+												</span>
+											</span>
+										</span>
+										<div class="qa-q-view-buttons">
+										</div>
+										
+										<div class="qa-q-view-c-list" style="display:none;" id="c9444_list">
+										</div> <!-- END qa-c-list -->
+										
+										<input type="hidden" name="code" value="0-1516468222-ca99396f1ffb9e35b689a545965aa716a40dca7c">
+										<input type="hidden" name="qa_click" value="">
+									</form>
+									<div class="qa-c-form">
+									</div> <!-- END qa-c-form -->
+									
+								</div> <!-- END qa-q-view-main -->
+								<div class="qa-q-view-clear">
+								</div>
+							</div> <!-- END qa-q-view -->
+							
+						</div>
+						<div class="qa-part-a-list">
+							<h2 id="a_list_title">1 Answer</h2>
+							<div class="qa-a-list" id="a_list">
+								
+								<div class="qa-a-list-item  hentry answer answer-selected qa-a-list-item-selected" id="a9447">
+									<form method="post" action="../../9444/interpolation-on-mixed-functionspace-shapes-not-matching">
+										<div class="qa-voting qa-voting-net" id="voting_9447">
+											<div class="qa-vote-count qa-vote-count-net">
+												<span class="qa-netvote-count">
+													<span class="qa-netvote-count-data">0<span class="votes-up"><span class="value-title" title="0"></span></span><span class="votes-down"><span class="value-title" title="0"></span></span></span><span class="qa-netvote-count-pad"> votes</span>
+												</span>
+											</div>
+											<div class="qa-vote-clear">
+											</div>
+										</div>
+										<input type="hidden" name="code" value="0-1516468222-3cd300f2ac13b823c12320dbaa0f90ae3341c86d">
+									</form>
+									<div class="qa-a-item-main">
+										<form method="post" action="../../9444/interpolation-on-mixed-functionspace-shapes-not-matching">
+											<div class="qa-a-item-selected">
+												<div class="qa-a-selection">
+													<div class="qa-a-selected">&#160;</div>
+													<div class="qa-a-selected-text">Best answer</div>
+												</div>
+												<div class="qa-a-item-content">
+													<a name="9447"></a><div class="entry-content"><p>On the master branch of dolfin the u.split(True) doesn't work, but this works, though:</p>
+
+<pre><code># Split the function
+fa = FunctionAssigner([V, V], W)
+u1, u2 = Function(V), Function(V)
+fa.assign([u1, u2], u)
+
+# Test sizes
+u3 = interpolate(Expression('1.0', el), V)
+print u1.vector().array().shape
+print u2.vector().array().shape
+print u3.vector().array().shape
+</code></pre>
+</div>
+												</div>
+												<span class="qa-a-item-avatar-meta">
+													<span class="qa-a-item-meta">
+														<a href="../../9444/interpolation-on-mixed-functionspace-shapes-not-matching?show=9447#a9447" class="qa-a-item-what">answered</a>
+														<span class="qa-a-item-when">
+															<span class="qa-a-item-when-data"><span class="published"><span class="value-title" title="2016-03-01T10:07:17+0000"></span>Mar 1, 2016</span></span>
+														</span>
+														<span class="qa-a-item-who">
+															<span class="qa-a-item-who-pad">by </span>
+															<span class="qa-a-item-who-data"><span class="vcard author"><a href="../../user/Tormod+Landet" class="qa-user-link url nickname">Tormod Landet</a></span></span>
+															<span class="qa-a-item-who-title">FEniCS User</span>
+															<span class="qa-a-item-who-points">
+																<span class="qa-a-item-who-points-pad">(</span><span class="qa-a-item-who-points-data">5,130</span><span class="qa-a-item-who-points-pad"> points)</span>
+															</span>
+														</span>
+														<br>
+														<span class="qa-a-item-what">selected</span>
+														<span class="qa-a-item-when">
+															<span class="qa-a-item-when-data"><span class="updated"><span class="value-title" title="2016-03-01T10:15:26+0000"></span>Mar 1, 2016</span></span>
+														</span>
+														<span class="qa-a-item-who">
+															<span class="qa-a-item-who-pad">by </span><span class="qa-a-item-who-data"><a href="../../user/emher" class="qa-user-link url nickname">emher</a></span>
+														</span>
+													</span>
+												</span>
+											</div>
+											<div class="qa-a-item-buttons">
+												</div>
+											
+											<div class="qa-a-item-c-list" id="c9447_list">
+												<div class="qa-c-list-item  hentry comment" id="c9448">
+													<div class="qa-c-item-content">
+														<a name="9448"></a><div class="entry-content"><p>Sorry, i forgot to note that i am on the 1.7.0dev branch. Here </p>
+
+<pre><code>u1, u2 = u.split(True)
+</code></pre>
+
+<p>has worked for me so far, but in this special case it apparently causes problems. Replacing the line with your suggestion, e.g.</p>
+
+<pre><code>fa = FunctionAssigner([V, V], W)
+u1, u2 = Function(V), Function(V)
+fa.assign([u1, u2], u)
+</code></pre>
+
+<p>fixed the problem. </p>
+</div>
+													</div>
+													<div class="qa-c-item-footer">
+														<span class="qa-c-item-avatar-meta">
+															<span class="qa-c-item-meta">
+																<a href="../../9444/interpolation-on-mixed-functionspace-shapes-not-matching?show=9448#c9448" class="qa-c-item-what">commented</a>
+																<span class="qa-c-item-when">
+																	<span class="qa-c-item-when-data"><span class="published"><span class="value-title" title="2016-03-01T10:18:41+0000"></span>Mar 1, 2016</span></span>
+																</span>
+																<span class="qa-c-item-who">
+																	<span class="qa-c-item-who-pad">by </span>
+																	<span class="qa-c-item-who-data"><span class="vcard author"><a href="../../user/emher" class="qa-user-link url nickname">emher</a></span></span>
+																	<span class="qa-c-item-who-title">FEniCS User</span>
+																	<span class="qa-c-item-who-points">
+																		<span class="qa-c-item-who-points-pad">(</span><span class="qa-c-item-who-points-data">1,290</span><span class="qa-c-item-who-points-pad"> points)</span>
+																	</span>
+																</span>
+															</span>
+														</span>
+														<div class="qa-c-item-buttons">
+														</div>
+													</div>
+													<div class="qa-c-item-clear">
+													</div>
+												</div> <!-- END qa-c-item -->
+											</div> <!-- END qa-c-list -->
+											
+											<input type="hidden" name="code" value="0-1516468222-07d03b0731953464773a0684bc022f6da34f0753">
+											<input type="hidden" name="qa_click" value="">
+										</form>
+										<div class="qa-c-form">
+										</div> <!-- END qa-c-form -->
+										
+									</div> <!-- END qa-a-item-main -->
+									<div class="qa-a-item-clear">
+									</div>
+								</div> <!-- END qa-a-list-item -->
+								
+							</div> <!-- END qa-a-list -->
+							
+						</div>
+					</div> <!-- END qa-main -->
+					
+				</div> <!-- END main-wrapper -->
+			</div> <!-- END main-shadow -->
+		</div> <!-- END body-wrapper -->
+		<!-- END footer-bottom-group -->
+		
+		<div style="position:absolute; left:-9999px; top:-9999px;">
+			<span id="qa-waiting-template" class="qa-waiting">...</span>
+		</div>
+	
+	
+
+</body><!-- Powered by Question2Answer - http://www.question2answer.org/ --></html>

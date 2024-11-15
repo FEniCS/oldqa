@@ -1,0 +1,454 @@
+<html><!-- Powered by Question2Answer - http://www.question2answer.org/ --><head>
+		<meta http-equiv="content-type" content="text/html; charset=utf-8">
+		<title>Solver did not converge. - FEniCS Q&amp;A</title>
+		<meta name="description" content='Hi, everyone. I need to solve a simple electroelastic problem but have NaN errors. The problem is of ... .split() file = File("displacement.pvd") file'>
+		<link rel="stylesheet" type="text/css" href="../../qa-theme/Snow/qa-styles.css">
+		<link rel="canonical" href="http://fenicsproject.org/qa/5720/solver-did-not-converge">
+		<script type="text/x-mathjax-config">
+  MathJax.Hub.Config({
+    extensions: ["tex2jax.js"],
+    jax: ["input/TeX","output/HTML-CSS"],
+    tex2jax: {inlineMath: [["$","$"],["\\(","\\)"]]},
+    TeX: { extensions: ["AMSmath.js","AMSsymbols.js"]}
+  });
+</script>
+<script type="text/javascript" src="../../mathjax/MathJax.js"></script>
+		<script src="../../jquery-1.7.2.min.js" type="text/javascript"></script>
+		<script src="../../highlight.min.js"></script>
+<script type="text/javascript">
+$(function(){
+	$('.wmd-input').keypress(function(){
+		window.clearTimeout(hljs.Timeout);
+		hljs.Timeout = window.setTimeout(function() {
+			hljs.initHighlighting.called = false;
+			hljs.initHighlighting();
+		}, 500);
+	});
+	window.setTimeout(function() {
+		hljs.initHighlighting.called = false;
+		hljs.initHighlighting();
+	}, 500);
+});
+</script>
+
+
+	</head>
+	<body class="qa-template-question qa-body-js-off">
+		<div class="qa-body-wrapper">
+			
+			<div class="qa-header">
+				<div class="qa-logo">
+					<a href="../../" class="qa-logo-link" title="FEniCS Q&amp;A"><img src="../../qa-theme/fenics_qa.png" border="0" alt="FEniCS Q&amp;A"></a>
+				</div>
+				<div class="qa-header-clear">
+				</div>
+			</div> <!-- END qa-header -->
+			
+			<div class="qa-main-shadow">
+				
+				<div class="qa-main-wrapper">
+					
+					<div class="qa-sidepanel">
+						<div class="qa-sidebar">
+							This is a read only copy of the old FEniCS QA forum. Please visit the <a href="https://www.allanswered.com/community/s/fenics-project/">new QA forum</a> to ask questions
+						</div>
+						
+					</div>
+					
+					<div class="qa-main">
+						<h1>
+							<span class="entry-title">Solver did not converge.</span>
+						</h1>
+						<div class="qa-part-q-view">
+							<div class="qa-q-view  hentry question" id="q5720">
+								<form method="post" action="../../5720/solver-did-not-converge">
+									<div class="qa-q-view-stats">
+										<div class="qa-voting qa-voting-net" id="voting_5720">
+											<div class="qa-vote-count qa-vote-count-net">
+												<span class="qa-netvote-count">
+													<span class="qa-netvote-count-data">0<span class="votes-up"><span class="value-title" title="0"></span></span><span class="votes-down"><span class="value-title" title="0"></span></span></span><span class="qa-netvote-count-pad"> votes</span>
+												</span>
+											</div>
+											<div class="qa-vote-clear">
+											</div>
+										</div>
+									</div>
+									<input type="hidden" name="code" value="0-1516468039-f23cf5abaea6f789c9ee472b36e410cd63dea497">
+								</form>
+								<div class="qa-q-view-main">
+									<form method="post" action="../../5720/solver-did-not-converge">
+										<div class="qa-q-view-content">
+											<a name="5720"></a><div class="entry-content"><p>Hi, everyone.</p>
+
+<p>I need to solve a simple electroelastic problem but have NaN errors. The problem is of finding the displacement $u$ of hyperelastic material subjected to electric potential. The unknowns are the displacement $u$ and the potential $\phi$. I don't know what went wrong. <br>
+Thank you.</p>
+
+<p>I've got the error message:</p>
+
+<pre><code> 1 SNES Function norm            nan    *** Warning: PETSc SNES solver diverged in 1 iterations with divergence reason DIVERGED_FNORM_NAN. Traceback (most recent call last):   File "/home/dave/Documents/Research/ElectroElasto/electroelasto_mine_axi_1002.py", line 152, in &lt;module&gt;
+    solver.solve() RuntimeError: 
+
+*** -------------------------------------------------------------------------
+*** DOLFIN encountered an error. If you are not able to resolve this issue
+*** using the information listed below, you can ask for help at
+***
+***     fenics@fenicsproject.org
+***
+*** Remember to include the error message listed below and, if possible,
+*** include a *minimal* running example to reproduce the error.
+***
+*** -------------------------------------------------------------------------
+*** Error:   Unable to solve nonlinear system with PETScSNESSolver.
+*** Reason:  Solver did not converge.
+*** Where:   This error was encountered inside PETScSNESSolver.cpp.
+*** Process: unknown
+*** 
+*** DOLFIN version: 1.4.0
+*** Git changeset:  unknown
+*** ------------------------------
+</code></pre>
+
+<p>=========================================================Soruce==========</p>
+
+<pre><code>from dolfin import *
+import numpy as np
+
+# Optimization options for the form compiler
+parameters["form_compiler"]["cpp_optimize"] = True
+ffc_options = {"optimize": True, \
+               "eliminate_zeros": True, \
+               "precompute_basis_const": True, \
+               "precompute_ip_const": True}
+
+# Geometry 
+ri=10.0
+ro=20.0
+zb=0.0
+zt=1.0
+
+domain = Rectangle(ri,zb,ro,zt)
+# Generate and plot mesh
+mesh = Mesh(domain,20)
+
+# Create classes for defining parts of the boundaries and the interior
+# of the domain
+
+class Left(SubDomain):
+    def inside(self, x, on_boundary):
+        return near(x[0],ri) and on_boundary
+
+class Right(SubDomain):
+    def inside(self, x, on_boundary):
+        return near(x[0],ro) and on_boundary        
+
+
+# Initialize sub-domain instances
+left = Left()
+right=Right()
+
+
+# Initialize mesh function for boundary domains
+boundaries = FacetFunction("size_t", mesh)
+boundaries.set_all(0)
+left.mark(boundaries,1)
+right.mark(boundaries,2)
+
+
+# Create mesh and define function space
+
+
+V1 = FunctionSpace(mesh, "Lagrange",2)
+V2 = FunctionSpace(mesh,"Lagrange",1)
+V= MixedFunctionSpace([V1,V2])
+
+u=TrialFunction(V1)
+phi=TrialFunction(V2)
+vq=TestFunction(V)
+(v,q)=TestFunctions(V)
+dup=TrialFunction(V)
+
+up=Function(V)
+(u,phi)=split(up)
+
+#v_u1=V1.sub(0)
+#v_u2=V1.sub(1)
+
+plot(mesh)
+
+# Define Dirichlet boundary (x = 0 or x = 1)
+
+zero=Constant(0.0)
+zero_vector=Constant((0.0,0.0))
+volt=Constant(5.0)
+bcul = DirichletBC(V1,zero,left) 
+#bcur = DirichletBC(V1,zero,right) 
+bcpl = DirichletBC(V2,volt,left)
+bcpr = DirichletBC(V2,-volt,right)
+bcs = [bcul,bcpl,bcpr]
+
+# Define functions
+B  = Constant((0.0,0.0))  # Body force per unit volume
+T  = Constant((0.0,0.0))  # Traction force on the boundary
+Q  = Constant(0.0)  # Traction force on the boundary
+
+r=Expression("x[0]")
+
+# Kinematics
+d = u.geometric_dimension()
+I = Identity(d)             # Identity tensor
+#F = I + grad(u)             # Deformation gradient
+
+F=as_matrix([[1.0+u.dx(0),0.0],[0.0,1.0]])
+
+C = F.T*F                   # Right Cauchy-Green tensor
+
+# Invariants of deformation tensors
+Ic = tr(C)
+Jf  = det(F)
+
+# Elasticity parameters
+mu, k = 5.0, 10.0
+lmbda = Constant(k-2.0*mu/3.0)
+c1, c2 = 10.0,6.0
+
+#EE=-grad(phi)
+
+EE=as_vector([-phi.dx(0),0.0])
+
+
+# Stored strain energy density (compressible neo-Hookean model)
+psi = (mu/2)*(Ic - d) - mu*ln(Jf) + (lmbda/2)*(ln(Jf))**2\
+        +c1*inner(I,outer(EE,EE))+c2*inner(C,outer(EE,EE))
+
+# Total potential energy
+
+Pi=2.0*np.pi*r*psi*dx
+#Pi=psi*dx    
+
+# Compute first variation of Pi (directional derivative about u in the direction of v)
+Func = derivative(Pi, up, vq)
+
+# Compute Jacobian of F
+J = derivative(Func, up, dup)
+
+# Solve variational problem
+#solve(Func == 0, up, bcs, J=J,form_compiler_parameters=#ffc_options)
+
+problem=NonlinearVariationalProblem(Func,up,bcs=bcs,J=J,\
+    form_compiler_parameters=ffc_options)
+
+solver=NonlinearVariationalSolver(problem)
+
+prm=solver.parameters
+prm["nonlinear_solver"]="snes" # "snes"
+#prm["newton_solver"]["absolute_tolerance"]=1e-8
+#prm["newton_solver"]["relative_tolerance"]=1e-7
+prm["newton_solver"]["linear_solver"]="gmres" # "cg" "gmres"
+prm["newton_solver"]["krylov_solver"]["relative_tolerance"]=1e-6
+prm["newton_solver"]["krylov_solver"]["maximum_iterations"]=1000
+#prm["newton_solver"]["krylov_solver"]["monitor_convergence"]=True
+prm["newton_solver"]["krylov_solver"]["nonzero_initial_guess"]=False
+#prm["newton_solver"]["krylov_solver"]["gmres"]["restart"]=40
+prm["newton_solver"]["preconditioner"]="ilu" # "ilu" "jacobi"
+prm["newton_solver"]["krylov_solver"]["preconditioner"]["structure"]\
+    ="same_nonzero_pattern"
+#prm["newton_solver"]["krylov_solver"]["preconditioner"]["ilu"]["fill_level"]=0
+#solver.parameters["linear_solver"]="cg"
+#solver.parameters["preconditioner"]="ilu"
+#solver.parameters["krylov_solver"]["absolute_tolerance"]
+#solver.parameters["krylov_solver"]["relative_tolerance"]
+set_log_level(PROGRESS)
+
+
+solver.solve()
+
+
+# Save solution in VTK format
+(u,phi)=up.split()
+file = File("displacement.pvd")
+file &lt;&lt; u
+file = File("potential.pvd")
+file &lt;&lt; phi
+
+
+# Plot and hold solution
+plot(u,title="displacement",mode="displacement")
+#plot(u.sub(1),title="y-displacement")
+plot(phi,title="potential")
+interactive()
+</code></pre>
+</div>
+										</div>
+										<span class="qa-q-view-avatar-meta">
+											<span class="qa-q-view-meta">
+												<a href="../../5720/solver-did-not-converge" class="qa-q-view-what">asked</a>
+												<span class="qa-q-view-when">
+													<span class="qa-q-view-when-data"><span class="published"><span class="value-title" title="2014-10-07T12:35:55+0000"></span>Oct 7, 2014</span></span>
+												</span>
+												<span class="qa-q-view-who">
+													<span class="qa-q-view-who-pad">by </span>
+													<span class="qa-q-view-who-data"><span class="vcard author"><a href="../../user/dave" class="qa-user-link url nickname">dave</a></span></span>
+													<span class="qa-q-view-who-title">FEniCS Novice</span>
+													<span class="qa-q-view-who-points">
+														<span class="qa-q-view-who-points-pad">(</span><span class="qa-q-view-who-points-data">220</span><span class="qa-q-view-who-points-pad"> points)</span>
+													</span>
+												</span>
+												<br>
+												<span class="qa-q-view-what">edited</span>
+												<span class="qa-q-view-when">
+													<span class="qa-q-view-when-data"><span class="updated"><span class="value-title" title="2014-10-07T14:43:00+0000"></span>Oct 7, 2014</span></span>
+												</span>
+												<span class="qa-q-view-who">
+													<span class="qa-q-view-who-pad">by </span><span class="qa-q-view-who-data"><a href="../../user/chris_richardson" class="qa-user-link url nickname">chris_richardson</a></span>
+												</span>
+											</span>
+										</span>
+										<div class="qa-q-view-buttons">
+										</div>
+										
+										<div class="qa-q-view-c-list" style="display:none;" id="c5720_list">
+										</div> <!-- END qa-c-list -->
+										
+										<input type="hidden" name="code" value="0-1516468039-2a843403e479eb37710d03bd4dd0c84026e6557e">
+										<input type="hidden" name="qa_click" value="">
+									</form>
+									<div class="qa-c-form">
+									</div> <!-- END qa-c-form -->
+									
+								</div> <!-- END qa-q-view-main -->
+								<div class="qa-q-view-clear">
+								</div>
+							</div> <!-- END qa-q-view -->
+							
+						</div>
+						<div class="qa-part-a-list">
+							<h2 id="a_list_title">1 Answer</h2>
+							<div class="qa-a-list" id="a_list">
+								
+								<div class="qa-a-list-item  hentry answer" id="a5899">
+									<form method="post" action="../../5720/solver-did-not-converge">
+										<div class="qa-voting qa-voting-net" id="voting_5899">
+											<div class="qa-vote-count qa-vote-count-net">
+												<span class="qa-netvote-count">
+													<span class="qa-netvote-count-data">0<span class="votes-up"><span class="value-title" title="0"></span></span><span class="votes-down"><span class="value-title" title="0"></span></span></span><span class="qa-netvote-count-pad"> votes</span>
+												</span>
+											</div>
+											<div class="qa-vote-clear">
+											</div>
+										</div>
+										<input type="hidden" name="code" value="0-1516468039-f23cf5abaea6f789c9ee472b36e410cd63dea497">
+									</form>
+									<div class="qa-a-item-main">
+										<form method="post" action="../../5720/solver-did-not-converge">
+											<div class="qa-a-selection">
+											</div>
+											<div class="qa-a-item-content">
+												<a name="5899"></a><div class="entry-content"><p>Try simplifying your problem first. Make it linear and use a direct solver.</p>
+</div>
+											</div>
+											<span class="qa-a-item-avatar-meta">
+												<span class="qa-a-item-meta">
+													<a href="../../5720/solver-did-not-converge?show=5899#a5899" class="qa-a-item-what">answered</a>
+													<span class="qa-a-item-when">
+														<span class="qa-a-item-when-data"><span class="published"><span class="value-title" title="2014-11-05T12:24:38+0000"></span>Nov 5, 2014</span></span>
+													</span>
+													<span class="qa-a-item-who">
+														<span class="qa-a-item-who-pad">by </span>
+														<span class="qa-a-item-who-data"><span class="vcard author"><a href="../../user/Garth+N.+Wells" class="qa-user-link url nickname">Garth N. Wells</a></span></span>
+														<span class="qa-a-item-who-title">FEniCS Expert</span>
+														<span class="qa-a-item-who-points">
+															<span class="qa-a-item-who-points-pad">(</span><span class="qa-a-item-who-points-data">35,930</span><span class="qa-a-item-who-points-pad"> points)</span>
+														</span>
+													</span>
+												</span>
+											</span>
+											<div class="qa-a-item-buttons">
+												</div>
+											
+											<div class="qa-a-item-c-list" id="c5899_list">
+												<div class="qa-c-list-item  hentry comment" id="c5955">
+													<div class="qa-c-item-content">
+														<a name="5955"></a><div class="entry-content"><p>Thank you for the input. BTW, any suggestions picking up linear and direct solver? Thanks. </p>
+</div>
+													</div>
+													<div class="qa-c-item-footer">
+														<span class="qa-c-item-avatar-meta">
+															<span class="qa-c-item-meta">
+																<a href="../../5720/solver-did-not-converge?show=5955#c5955" class="qa-c-item-what">commented</a>
+																<span class="qa-c-item-when">
+																	<span class="qa-c-item-when-data"><span class="published"><span class="value-title" title="2014-11-11T01:07:28+0000"></span>Nov 11, 2014</span></span>
+																</span>
+																<span class="qa-c-item-who">
+																	<span class="qa-c-item-who-pad">by </span>
+																	<span class="qa-c-item-who-data"><span class="vcard author"><a href="../../user/dave" class="qa-user-link url nickname">dave</a></span></span>
+																	<span class="qa-c-item-who-title">FEniCS Novice</span>
+																	<span class="qa-c-item-who-points">
+																		<span class="qa-c-item-who-points-pad">(</span><span class="qa-c-item-who-points-data">220</span><span class="qa-c-item-who-points-pad"> points)</span>
+																	</span>
+																</span>
+															</span>
+														</span>
+														<div class="qa-c-item-buttons">
+														</div>
+													</div>
+													<div class="qa-c-item-clear">
+													</div>
+												</div> <!-- END qa-c-item -->
+												<div class="qa-c-list-item  hentry comment" id="c5960">
+													<div class="qa-c-item-content">
+														<a name="5960"></a><div class="entry-content"><p>You need to make your equations linear yourself. For the solver, configure PETSc with a direct solver (e.g. add --download-suitesparse to the PETSc configure options). The DOLFIN solver should use a direct solver by default if one is available.</p>
+</div>
+													</div>
+													<div class="qa-c-item-footer">
+														<span class="qa-c-item-avatar-meta">
+															<span class="qa-c-item-meta">
+																<a href="../../5720/solver-did-not-converge?show=5960#c5960" class="qa-c-item-what">commented</a>
+																<span class="qa-c-item-when">
+																	<span class="qa-c-item-when-data"><span class="published"><span class="value-title" title="2014-11-11T08:55:37+0000"></span>Nov 11, 2014</span></span>
+																</span>
+																<span class="qa-c-item-who">
+																	<span class="qa-c-item-who-pad">by </span>
+																	<span class="qa-c-item-who-data"><span class="vcard author"><a href="../../user/Garth+N.+Wells" class="qa-user-link url nickname">Garth N. Wells</a></span></span>
+																	<span class="qa-c-item-who-title">FEniCS Expert</span>
+																	<span class="qa-c-item-who-points">
+																		<span class="qa-c-item-who-points-pad">(</span><span class="qa-c-item-who-points-data">35,930</span><span class="qa-c-item-who-points-pad"> points)</span>
+																	</span>
+																</span>
+															</span>
+														</span>
+														<div class="qa-c-item-buttons">
+														</div>
+													</div>
+													<div class="qa-c-item-clear">
+													</div>
+												</div> <!-- END qa-c-item -->
+											</div> <!-- END qa-c-list -->
+											
+											<input type="hidden" name="code" value="0-1516468039-e1d049a0bc9dc5844255af2257ef2ced0827e1d1">
+											<input type="hidden" name="qa_click" value="">
+										</form>
+										<div class="qa-c-form">
+										</div> <!-- END qa-c-form -->
+										
+									</div> <!-- END qa-a-item-main -->
+									<div class="qa-a-item-clear">
+									</div>
+								</div> <!-- END qa-a-list-item -->
+								
+							</div> <!-- END qa-a-list -->
+							
+						</div>
+					</div> <!-- END qa-main -->
+					
+				</div> <!-- END main-wrapper -->
+			</div> <!-- END main-shadow -->
+		</div> <!-- END body-wrapper -->
+		<!-- END footer-bottom-group -->
+		
+		<div style="position:absolute; left:-9999px; top:-9999px;">
+			<span id="qa-waiting-template" class="qa-waiting">...</span>
+		</div>
+	
+	
+
+</body><!-- Powered by Question2Answer - http://www.question2answer.org/ --></html>

@@ -1,0 +1,276 @@
+<html><!-- Powered by Question2Answer - http://www.question2answer.org/ --><head>
+		<meta http-equiv="content-type" content="text/html; charset=utf-8">
+		<title>Periodic BC's fail with TypeError - FEniCS Q&amp;A</title>
+		<meta name="description" content="When I create a simple demo of periodic BC's, it works. However, when I  ... self.constrained_domain) Any help would be greatly appreciated!">
+		<link rel="stylesheet" type="text/css" href="../../qa-theme/Snow/qa-styles.css">
+		<link rel="canonical" href="http://fenicsproject.org/qa/2949/periodic-bcs-fail-with-typeerror">
+		<script type="text/x-mathjax-config">
+  MathJax.Hub.Config({
+    extensions: ["tex2jax.js"],
+    jax: ["input/TeX","output/HTML-CSS"],
+    tex2jax: {inlineMath: [["$","$"],["\\(","\\)"]]},
+    TeX: { extensions: ["AMSmath.js","AMSsymbols.js"]}
+  });
+</script>
+<script type="text/javascript" src="../../mathjax/MathJax.js"></script>
+		<script src="../../jquery-1.7.2.min.js" type="text/javascript"></script>
+		<script src="../../highlight.min.js"></script>
+<script type="text/javascript">
+$(function(){
+	$('.wmd-input').keypress(function(){
+		window.clearTimeout(hljs.Timeout);
+		hljs.Timeout = window.setTimeout(function() {
+			hljs.initHighlighting.called = false;
+			hljs.initHighlighting();
+		}, 500);
+	});
+	window.setTimeout(function() {
+		hljs.initHighlighting.called = false;
+		hljs.initHighlighting();
+	}, 500);
+});
+</script>
+
+
+	</head>
+	<body class="qa-template-question qa-body-js-off">
+		<div class="qa-body-wrapper">
+			
+			<div class="qa-header">
+				<div class="qa-logo">
+					<a href="../../" class="qa-logo-link" title="FEniCS Q&amp;A"><img src="../../qa-theme/fenics_qa.png" border="0" alt="FEniCS Q&amp;A"></a>
+				</div>
+				<div class="qa-header-clear">
+				</div>
+			</div> <!-- END qa-header -->
+			
+			<div class="qa-main-shadow">
+				
+				<div class="qa-main-wrapper">
+					
+					<div class="qa-sidepanel">
+						<div class="qa-sidebar">
+							This is a read only copy of the old FEniCS QA forum. Please visit the <a href="https://www.allanswered.com/community/s/fenics-project/">new QA forum</a> to ask questions
+						</div>
+						
+					</div>
+					
+					<div class="qa-main">
+						<h1>
+							<span class="entry-title">Periodic BC's fail with TypeError</span>
+						</h1>
+						<div class="qa-part-q-view">
+							<div class="qa-q-view  hentry question" id="q2949">
+								<form method="post" action="../../2949/periodic-bcs-fail-with-typeerror">
+									<div class="qa-q-view-stats">
+										<div class="qa-voting qa-voting-net" id="voting_2949">
+											<div class="qa-vote-count qa-vote-count-net">
+												<span class="qa-netvote-count">
+													<span class="qa-netvote-count-data">0<span class="votes-up"><span class="value-title" title="0"></span></span><span class="votes-down"><span class="value-title" title="0"></span></span></span><span class="qa-netvote-count-pad"> votes</span>
+												</span>
+											</div>
+											<div class="qa-vote-clear">
+											</div>
+										</div>
+									</div>
+									<input type="hidden" name="code" value="0-1516467950-fb376326117b26328ac49d843b2418826720cbaf">
+								</form>
+								<div class="qa-q-view-main">
+									<form method="post" action="../../2949/periodic-bcs-fail-with-typeerror">
+										<div class="qa-q-view-content">
+											<a name="2949"></a><div class="entry-content"><p>When I create a simple demo of periodic BC's, it works.  However, when I incorporate this into my main code, I get the following error:</p>
+
+<p>Traceback (most recent call last):<br>
+...<br>
+    fs = dolfin.FunctionSpace(self, "Lagrange", 1, constrained_domain=self.constrained_domain)<br>
+  File "/Applications/FEniCS.app/Contents/Resources/lib/python2.7/site-packages/dolfin/functions/functionspace.py", line 403, in <strong>init</strong><br>
+    FunctionSpaceBase.<strong>init</strong>(self, mesh, element, constrained_domain)<br>
+  File "/Applications/FEniCS.app/Contents/Resources/lib/python2.7/site-packages/dolfin/functions/functionspace.py", line 93, in <strong>init</strong><br>
+    dolfin_dofmap  = cpp.DofMap(ufc_dofmap, mesh, constrained_domain)<br>
+  File "/Applications/FEniCS.app/Contents/Resources/lib/python2.7/site-packages/dolfin/cpp/fem.py", line 656, in <strong>init</strong><br>
+    _fem.DofMap_swiginit(self,_fem.new_DofMap(*args))<br>
+<strong>TypeError: in method 'new_DofMap', argument 3 of type 'boost::shared_ptr&lt; dolfin::SubDomain const &gt;'</strong></p>
+
+<p>I am using a 2D periodic domain with a UnitSquareMesh.  My SubDomain for the boundary is this:</p>
+
+<pre><code>class unitSquareMeshPeriodicBoundary(dolfin.SubDomain):
+    """ Sub domain for Periodic boundary condition """
+    def __init__(self, Lx=1.0, Ly=1.0):
+        self.Lx = Lx
+        self.Ly = Ly
+
+    def inside(self, x, on_boundary):
+        """ Left boundary is "target domain" G """
+        # return True if on left or bottom boundary AND NOT on one of the two corners (0, 1) and (1, 0)
+        return bool((dolfin.near(x[0], 0) or dolfin.near(x[1], 0)) and
+                (not ((dolfin.near(x[0], 0) and dolfin.near(x[1], 1)) or
+                        (dolfin.near(x[0], 1) and dolfin.near(x[1], 0)))) and on_boundary)
+
+    def map(self, x, y):
+        ''' # Map right boundary G (x) to left boundary H (y) '''
+        if dolfin.near(x[0], self.Lx) and dolfin.near(x[1], self.Ly):
+            y[0] = x[0] - self.Lx
+            y[1] = x[1] - self.Ly
+        elif dolfin.near(x[0], self.Lx):
+            y[0] = x[0] - self.Lx
+            y[1] = x[1]
+        else:   # near(x[1], 1)
+            y[0] = x[0]
+            y[1] = x[1] - self.Ly
+</code></pre>
+
+<p>My call to FunctionSpace is as follows:</p>
+
+<pre><code>        self.mesh.constrained_domain =  unitSquareMeshPeriodicBoundary()
+ ...
+        fs = dolfin.FunctionSpace(self, "Lagrange", 1, constrained_domain=self.constrained_domain)
+</code></pre>
+
+<p>Any help would be greatly appreciated!</p>
+</div>
+										</div>
+										<span class="qa-q-view-avatar-meta">
+											<span class="qa-q-view-meta">
+												<a href="../../2949/periodic-bcs-fail-with-typeerror" class="qa-q-view-what">asked</a>
+												<span class="qa-q-view-when">
+													<span class="qa-q-view-when-data"><span class="published"><span class="value-title" title="2014-03-11T19:10:41+0000"></span>Mar 11, 2014</span></span>
+												</span>
+												<span class="qa-q-view-who">
+													<span class="qa-q-view-who-pad">by </span>
+													<span class="qa-q-view-who-data"><span class="vcard author"><a href="../../user/briandrawert" class="qa-user-link url nickname">briandrawert</a></span></span>
+													<span class="qa-q-view-who-title">FEniCS Novice</span>
+													<span class="qa-q-view-who-points">
+														<span class="qa-q-view-who-points-pad">(</span><span class="qa-q-view-who-points-data">120</span><span class="qa-q-view-who-points-pad"> points)</span>
+													</span>
+												</span>
+											</span>
+										</span>
+										<div class="qa-q-view-buttons">
+										</div>
+										
+										<div class="qa-q-view-c-list" style="display:none;" id="c2949_list">
+										</div> <!-- END qa-c-list -->
+										
+										<input type="hidden" name="code" value="0-1516467950-640a507b1ecb86bce2c68dbf3e3c6f2bcdc742b5">
+										<input type="hidden" name="qa_click" value="">
+									</form>
+									<div class="qa-c-form">
+									</div> <!-- END qa-c-form -->
+									
+								</div> <!-- END qa-q-view-main -->
+								<div class="qa-q-view-clear">
+								</div>
+							</div> <!-- END qa-q-view -->
+							
+						</div>
+						<div class="qa-part-a-list">
+							<h2 id="a_list_title">1 Answer</h2>
+							<div class="qa-a-list" id="a_list">
+								
+								<div class="qa-a-list-item  hentry answer" id="a2950">
+									<form method="post" action="../../2949/periodic-bcs-fail-with-typeerror">
+										<div class="qa-voting qa-voting-net" id="voting_2950">
+											<div class="qa-vote-count qa-vote-count-net">
+												<span class="qa-netvote-count">
+													<span class="qa-netvote-count-data">0<span class="votes-up"><span class="value-title" title="0"></span></span><span class="votes-down"><span class="value-title" title="0"></span></span></span><span class="qa-netvote-count-pad"> votes</span>
+												</span>
+											</div>
+											<div class="qa-vote-clear">
+											</div>
+										</div>
+										<input type="hidden" name="code" value="0-1516467950-fb376326117b26328ac49d843b2418826720cbaf">
+									</form>
+									<div class="qa-a-item-main">
+										<form method="post" action="../../2949/periodic-bcs-fail-with-typeerror">
+											<div class="qa-a-selection">
+											</div>
+											<div class="qa-a-item-content">
+												<a name="2950"></a><div class="entry-content"><p>You need to put this</p>
+
+<pre><code>    dolfin.SubDomain.__init__(self)
+</code></pre>
+
+<p>inside your <code>__init__</code> method.</p>
+</div>
+											</div>
+											<span class="qa-a-item-avatar-meta">
+												<span class="qa-a-item-avatar">
+													<a href="../../user/mikael-mortensen" class="qa-avatar-link"><img src="https://www.gravatar.com/avatar/d5614112a2818f1800a461e49ac229df?s=40" width="40" height="40" class="qa-avatar-image" alt=""></a>
+												</span>
+												<span class="qa-a-item-meta">
+													<a href="../../2949/periodic-bcs-fail-with-typeerror?show=2950#a2950" class="qa-a-item-what">answered</a>
+													<span class="qa-a-item-when">
+														<span class="qa-a-item-when-data"><span class="published"><span class="value-title" title="2014-03-11T19:56:47+0000"></span>Mar 11, 2014</span></span>
+													</span>
+													<span class="qa-a-item-who">
+														<span class="qa-a-item-who-pad">by </span>
+														<span class="qa-a-item-who-data"><span class="vcard author"><a href="../../user/mikael-mortensen" class="qa-user-link url nickname">mikael-mortensen</a></span></span>
+														<span class="qa-a-item-who-title">FEniCS Expert</span>
+														<span class="qa-a-item-who-points">
+															<span class="qa-a-item-who-points-pad">(</span><span class="qa-a-item-who-points-data">29,340</span><span class="qa-a-item-who-points-pad"> points)</span>
+														</span>
+													</span>
+												</span>
+											</span>
+											<div class="qa-a-item-buttons">
+												</div>
+											
+											<div class="qa-a-item-c-list" id="c2950_list">
+												<div class="qa-c-list-item  hentry comment" id="c2963">
+													<div class="qa-c-item-content">
+														<a name="2963"></a><div class="entry-content"><p>This worked, thanks!  Simple, obvious solution.</p>
+</div>
+													</div>
+													<div class="qa-c-item-footer">
+														<span class="qa-c-item-avatar-meta">
+															<span class="qa-c-item-meta">
+																<a href="../../2949/periodic-bcs-fail-with-typeerror?show=2963#c2963" class="qa-c-item-what">commented</a>
+																<span class="qa-c-item-when">
+																	<span class="qa-c-item-when-data"><span class="published"><span class="value-title" title="2014-03-12T22:28:19+0000"></span>Mar 12, 2014</span></span>
+																</span>
+																<span class="qa-c-item-who">
+																	<span class="qa-c-item-who-pad">by </span>
+																	<span class="qa-c-item-who-data"><span class="vcard author"><a href="../../user/briandrawert" class="qa-user-link url nickname">briandrawert</a></span></span>
+																	<span class="qa-c-item-who-title">FEniCS Novice</span>
+																	<span class="qa-c-item-who-points">
+																		<span class="qa-c-item-who-points-pad">(</span><span class="qa-c-item-who-points-data">120</span><span class="qa-c-item-who-points-pad"> points)</span>
+																	</span>
+																</span>
+															</span>
+														</span>
+														<div class="qa-c-item-buttons">
+														</div>
+													</div>
+													<div class="qa-c-item-clear">
+													</div>
+												</div> <!-- END qa-c-item -->
+											</div> <!-- END qa-c-list -->
+											
+											<input type="hidden" name="code" value="0-1516467950-5d1b0ef5a5a702e2b1eb65ab406c46603100c0b2">
+											<input type="hidden" name="qa_click" value="">
+										</form>
+										<div class="qa-c-form">
+										</div> <!-- END qa-c-form -->
+										
+									</div> <!-- END qa-a-item-main -->
+									<div class="qa-a-item-clear">
+									</div>
+								</div> <!-- END qa-a-list-item -->
+								
+							</div> <!-- END qa-a-list -->
+							
+						</div>
+					</div> <!-- END qa-main -->
+					
+				</div> <!-- END main-wrapper -->
+			</div> <!-- END main-shadow -->
+		</div> <!-- END body-wrapper -->
+		<!-- END footer-bottom-group -->
+		
+		<div style="position:absolute; left:-9999px; top:-9999px;">
+			<span id="qa-waiting-template" class="qa-waiting">...</span>
+		</div>
+	
+	
+
+</body><!-- Powered by Question2Answer - http://www.question2answer.org/ --></html>

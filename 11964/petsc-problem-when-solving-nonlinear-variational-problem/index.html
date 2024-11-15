@@ -1,0 +1,302 @@
+<html><!-- Powered by Question2Answer - http://www.question2answer.org/ --><head>
+		<meta http-equiv="content-type" content="text/html; charset=utf-8">
+		<title>PETSc problem when solving nonlinear variational problem - FEniCS Q&amp;A</title>
+		<meta name="description" content="I'm solving a mixed nonlinear variational problem and the iteration stops after the very  ... 3793/jacobian-of-nonlinear-problem-in-mixed-formulation">
+		<meta name="keywords" content="nonlinearvariationalsolver,petsc">
+		<link rel="stylesheet" type="text/css" href="../../qa-theme/Snow/qa-styles.css">
+		<link rel="canonical" href="http://fenicsproject.org/qa/11964/petsc-problem-when-solving-nonlinear-variational-problem">
+		<script type="text/x-mathjax-config">
+  MathJax.Hub.Config({
+    extensions: ["tex2jax.js"],
+    jax: ["input/TeX","output/HTML-CSS"],
+    tex2jax: {inlineMath: [["$","$"],["\\(","\\)"]]},
+    TeX: { extensions: ["AMSmath.js","AMSsymbols.js"]}
+  });
+</script>
+<script type="text/javascript" src="../../mathjax/MathJax.js"></script>
+		<script src="../../jquery-1.7.2.min.js" type="text/javascript"></script>
+		<script src="../../highlight.min.js"></script>
+<script type="text/javascript">
+$(function(){
+	$('.wmd-input').keypress(function(){
+		window.clearTimeout(hljs.Timeout);
+		hljs.Timeout = window.setTimeout(function() {
+			hljs.initHighlighting.called = false;
+			hljs.initHighlighting();
+		}, 500);
+	});
+	window.setTimeout(function() {
+		hljs.initHighlighting.called = false;
+		hljs.initHighlighting();
+	}, 500);
+});
+</script>
+
+
+	</head>
+	<body class="qa-template-question qa-body-js-off">
+		<div class="qa-body-wrapper">
+			
+			<div class="qa-header">
+				<div class="qa-logo">
+					<a href="../../" class="qa-logo-link" title="FEniCS Q&amp;A"><img src="../../qa-theme/fenics_qa.png" border="0" alt="FEniCS Q&amp;A"></a>
+				</div>
+				<div class="qa-header-clear">
+				</div>
+			</div> <!-- END qa-header -->
+			
+			<div class="qa-main-shadow">
+				
+				<div class="qa-main-wrapper">
+					
+					<div class="qa-sidepanel">
+						<div class="qa-sidebar">
+							This is a read only copy of the old FEniCS QA forum. Please visit the <a href="https://www.allanswered.com/community/s/fenics-project/">new QA forum</a> to ask questions
+						</div>
+						
+					</div>
+					
+					<div class="qa-main">
+						<h1>
+							<span class="entry-title">PETSc problem when solving nonlinear variational problem</span>
+						</h1>
+						<div class="qa-part-q-view">
+							<div class="qa-q-view  hentry question" id="q11964">
+								<form method="post" action="../../11964/petsc-problem-when-solving-nonlinear-variational-problem">
+									<div class="qa-q-view-stats">
+										<div class="qa-voting qa-voting-net" id="voting_11964">
+											<div class="qa-vote-count qa-vote-count-net">
+												<span class="qa-netvote-count">
+													<span class="qa-netvote-count-data">0<span class="votes-up"><span class="value-title" title="0"></span></span><span class="votes-down"><span class="value-title" title="0"></span></span></span><span class="qa-netvote-count-pad"> votes</span>
+												</span>
+											</div>
+											<div class="qa-vote-clear">
+											</div>
+										</div>
+									</div>
+									<input type="hidden" name="code" value="0-1516467800-c080c7c1e4eb66358dba704125f9d547ba9fabcf">
+								</form>
+								<div class="qa-q-view-main">
+									<form method="post" action="../../11964/petsc-problem-when-solving-nonlinear-variational-problem">
+										<div class="qa-q-view-content">
+											<a name="11964"></a><div class="entry-content"><p>I'm solving a mixed nonlinear variational problem and the iteration stops after the very first one, giving the following output:</p>
+
+<p>Solving nonlinear variational problem.<br>
+  Newton iteration 0: r (abs) = 7.503e+01 (tol = 1.000e-10) r (rel) = 1.000e+00 (tol = 1.000e-09)<br>
+Traceback (most recent call last):<br>
+  File "lmain.py", line 28, in <br>
+    solver.solve()<br>
+RuntimeError:<br>
+*** Error:   Unable to successfully call PETSc function 'MatSetValuesLocal'.<br>
+*** Reason:  PETSc error code is: 63 (Argument out of range).<br>
+*** Where:   This error was encountered inside /build/dolfin-4SStI2/dolfin-2016.2.0/dolfin/la/PETScMatrix.cpp.</p>
+
+<p>Below is the minimal working code snippet. </p>
+
+<pre><code>from dolfin import *
+import numpy as np
+
+mesh = UnitSquareMesh(32,32)
+U = VectorElement("Lagrange",mesh.ufl_cell(), 1, dim=2) # displacement
+M = FiniteElement("Lagrange",mesh.ufl_cell(), 1)       # mu
+W = VectorElement("Lagrange",mesh.ufl_cell(), 1, dim=2) # Lagrangian multipliers
+S = FunctionSpace(mesh, MixedElement([U,M,W]))
+
+s = Function(S)
+s = interpolate(Constant((1.0,1.0,1.0,1.0,1.0)), S)
+u, mu, lamd = s.split()
+L = inner(u,u)*dx + inner(grad(mu),grad(mu))*dx + \
+inner(mu*(grad(lamd)+grad(lamd).T), grad(u)+grad(u).T)*dx + inner(div(lamd),div(u))*dx
+
+ds = TestFunction(S)
+du = TrialFunction(S)
+F = derivative(L, s, ds)
+JF = derivative(F, s, du)
+
+bc0 = DirichletBC(S.sub(0), Constant([0.0,0.0]), "on_boundary")
+bc1 = DirichletBC(S.sub(1), Constant(0.0), "on_boundary")
+bc2 = DirichletBC(S.sub(2), Constant([0.0,0.0]), "on_boundary")
+bc=[bc0, bc1, bc2];
+
+problem = NonlinearVariationalProblem(F,s,bc,JF)
+solver = NonlinearVariationalSolver(problem)
+solver.solve()
+u_s, mu_s, lamd_s = s.split()
+</code></pre>
+
+<p>Now the only related message I'm able to locate is <a rel="nofollow" href="https://fenicsproject.org/qa/3793/jacobian-of-nonlinear-problem-in-mixed-formulation">this one</a>, yet it's still not clear to me how to apply that solution to my problem. Currently I'm not even sure how to approach or comprehend this error message. Any help is greatly appreciated!</p>
+</div>
+										</div>
+										<div class="qa-q-view-tags">
+											<ul class="qa-q-view-tag-list">
+												<li class="qa-q-view-tag-item"><a href="../../tag/nonlinearvariationalsolver" rel="tag" class="qa-tag-link">nonlinearvariationalsolver</a></li>
+												<li class="qa-q-view-tag-item"><a href="../../tag/petsc" rel="tag" class="qa-tag-link">petsc</a></li>
+											</ul>
+										</div>
+										<span class="qa-q-view-avatar-meta">
+											<span class="qa-q-view-meta">
+												<a href="../../11964/petsc-problem-when-solving-nonlinear-variational-problem" class="qa-q-view-what">asked</a>
+												<span class="qa-q-view-when">
+													<span class="qa-q-view-when-data"><span class="published"><span class="value-title" title="2016-12-15T03:32:27+0000"></span>Dec 15, 2016</span></span>
+												</span>
+												<span class="qa-q-view-who">
+													<span class="qa-q-view-who-pad">by </span>
+													<span class="qa-q-view-who-data"><span class="vcard author"><a href="../../user/ldong87" class="qa-user-link url nickname">ldong87</a></span></span>
+													<span class="qa-q-view-who-title">FEniCS Novice</span>
+													<span class="qa-q-view-who-points">
+														<span class="qa-q-view-who-points-pad">(</span><span class="qa-q-view-who-points-data">580</span><span class="qa-q-view-who-points-pad"> points)</span>
+													</span>
+												</span>
+												<br>
+												<span class="qa-q-view-what">edited</span>
+												<span class="qa-q-view-when">
+													<span class="qa-q-view-when-data"><span class="updated"><span class="value-title" title="2016-12-15T03:37:29+0000"></span>Dec 15, 2016</span></span>
+												</span>
+												<span class="qa-q-view-who">
+													<span class="qa-q-view-who-pad">by </span><span class="qa-q-view-who-data"><a href="../../user/ldong87" class="qa-user-link url nickname">ldong87</a></span>
+												</span>
+											</span>
+										</span>
+										<div class="qa-q-view-buttons">
+										</div>
+										
+										<div class="qa-q-view-c-list" style="display:none;" id="c11964_list">
+										</div> <!-- END qa-c-list -->
+										
+										<input type="hidden" name="code" value="0-1516467800-9a8f1c2654eee828b462e5e364e1e23e0dd212e2">
+										<input type="hidden" name="qa_click" value="">
+									</form>
+									<div class="qa-c-form">
+									</div> <!-- END qa-c-form -->
+									
+								</div> <!-- END qa-q-view-main -->
+								<div class="qa-q-view-clear">
+								</div>
+							</div> <!-- END qa-q-view -->
+							
+						</div>
+						<div class="qa-part-a-list">
+							<h2 id="a_list_title">1 Answer</h2>
+							<div class="qa-a-list" id="a_list">
+								
+								<div class="qa-a-list-item  hentry answer answer-selected qa-a-list-item-selected" id="a11970">
+									<form method="post" action="../../11964/petsc-problem-when-solving-nonlinear-variational-problem">
+										<div class="qa-voting qa-voting-net" id="voting_11970">
+											<div class="qa-vote-count qa-vote-count-net">
+												<span class="qa-netvote-count">
+													<span class="qa-netvote-count-data">+3<span class="votes-up"><span class="value-title" title="3"></span></span><span class="votes-down"><span class="value-title" title="0"></span></span></span><span class="qa-netvote-count-pad"> votes</span>
+												</span>
+											</div>
+											<div class="qa-vote-clear">
+											</div>
+										</div>
+										<input type="hidden" name="code" value="0-1516467800-c080c7c1e4eb66358dba704125f9d547ba9fabcf">
+									</form>
+									<div class="qa-a-item-main">
+										<form method="post" action="../../11964/petsc-problem-when-solving-nonlinear-variational-problem">
+											<div class="qa-a-item-selected">
+												<div class="qa-a-selection">
+													<div class="qa-a-selected">&#160;</div>
+													<div class="qa-a-selected-text">Best answer</div>
+												</div>
+												<div class="qa-a-item-content">
+													<a name="11970"></a><div class="entry-content"><p>The error is due to the line </p>
+
+<pre><code>u, mu, lamd = s.split()
+</code></pre>
+
+<p>The unfortunate naming of the two functions <code>s.split()</code> and <code>split(s)</code> suggests they are the same, but this not the case. Here, it is <code>split(s)</code> that should be used, i.e. </p>
+
+<pre><code>u, mu, lamd = split(s)
+</code></pre>
+
+<p>Generally, you want to use <code>split(s)</code> to get subfunctions  for use in variational forms, and use <code>s.split()</code> to get subfunctions for plotting or other postprocessing.</p>
+</div>
+												</div>
+												<span class="qa-a-item-avatar-meta">
+													<span class="qa-a-item-meta">
+														<a href="../../11964/petsc-problem-when-solving-nonlinear-variational-problem?show=11970#a11970" class="qa-a-item-what">answered</a>
+														<span class="qa-a-item-when">
+															<span class="qa-a-item-when-data"><span class="published"><span class="value-title" title="2016-12-15T19:14:16+0000"></span>Dec 15, 2016</span></span>
+														</span>
+														<span class="qa-a-item-who">
+															<span class="qa-a-item-who-pad">by </span>
+															<span class="qa-a-item-who-data"><span class="vcard author"><a href="../../user/Magne+Nordaas" class="qa-user-link url nickname">Magne Nordaas</a></span></span>
+															<span class="qa-a-item-who-title">FEniCS Expert</span>
+															<span class="qa-a-item-who-points">
+																<span class="qa-a-item-who-points-pad">(</span><span class="qa-a-item-who-points-data">13,820</span><span class="qa-a-item-who-points-pad"> points)</span>
+															</span>
+														</span>
+														<br>
+														<span class="qa-a-item-what">selected</span>
+														<span class="qa-a-item-when">
+															<span class="qa-a-item-when-data"><span class="updated"><span class="value-title" title="2016-12-15T19:38:32+0000"></span>Dec 15, 2016</span></span>
+														</span>
+														<span class="qa-a-item-who">
+															<span class="qa-a-item-who-pad">by </span><span class="qa-a-item-who-data"><a href="../../user/ldong87" class="qa-user-link url nickname">ldong87</a></span>
+														</span>
+													</span>
+												</span>
+											</div>
+											<div class="qa-a-item-buttons">
+												</div>
+											
+											<div class="qa-a-item-c-list" id="c11970_list">
+												<div class="qa-c-list-item  hentry comment" id="c11971">
+													<div class="qa-c-item-content">
+														<a name="11971"></a><div class="entry-content"><p>Thanks so much for your suggestion! It works now. This could take me forever to find out...</p>
+</div>
+													</div>
+													<div class="qa-c-item-footer">
+														<span class="qa-c-item-avatar-meta">
+															<span class="qa-c-item-meta">
+																<a href="../../11964/petsc-problem-when-solving-nonlinear-variational-problem?show=11971#c11971" class="qa-c-item-what">commented</a>
+																<span class="qa-c-item-when">
+																	<span class="qa-c-item-when-data"><span class="published"><span class="value-title" title="2016-12-15T19:40:34+0000"></span>Dec 15, 2016</span></span>
+																</span>
+																<span class="qa-c-item-who">
+																	<span class="qa-c-item-who-pad">by </span>
+																	<span class="qa-c-item-who-data"><span class="vcard author"><a href="../../user/ldong87" class="qa-user-link url nickname">ldong87</a></span></span>
+																	<span class="qa-c-item-who-title">FEniCS Novice</span>
+																	<span class="qa-c-item-who-points">
+																		<span class="qa-c-item-who-points-pad">(</span><span class="qa-c-item-who-points-data">580</span><span class="qa-c-item-who-points-pad"> points)</span>
+																	</span>
+																</span>
+															</span>
+														</span>
+														<div class="qa-c-item-buttons">
+														</div>
+													</div>
+													<div class="qa-c-item-clear">
+													</div>
+												</div> <!-- END qa-c-item -->
+											</div> <!-- END qa-c-list -->
+											
+											<input type="hidden" name="code" value="0-1516467800-efb20168b43dfb5b9c7d38aac79f1097a947fd1f">
+											<input type="hidden" name="qa_click" value="">
+										</form>
+										<div class="qa-c-form">
+										</div> <!-- END qa-c-form -->
+										
+									</div> <!-- END qa-a-item-main -->
+									<div class="qa-a-item-clear">
+									</div>
+								</div> <!-- END qa-a-list-item -->
+								
+							</div> <!-- END qa-a-list -->
+							
+						</div>
+					</div> <!-- END qa-main -->
+					
+				</div> <!-- END main-wrapper -->
+			</div> <!-- END main-shadow -->
+		</div> <!-- END body-wrapper -->
+		<!-- END footer-bottom-group -->
+		
+		<div style="position:absolute; left:-9999px; top:-9999px;">
+			<span id="qa-waiting-template" class="qa-waiting">...</span>
+		</div>
+	
+	
+
+</body><!-- Powered by Question2Answer - http://www.question2answer.org/ --></html>

@@ -1,0 +1,287 @@
+<html><!-- Powered by Question2Answer - http://www.question2answer.org/ --><head>
+		<meta http-equiv="content-type" content="text/html; charset=utf-8">
+		<title>Correctly updating solutions and imposing Lagrange multiplier constraints in a Mixed Formulation - FEniCS Q&amp;A</title>
+		<meta name="description" content="Hello, In response to a comment to my previous question on operator splitting  ... /qa/6380/correctly-solutions-mixedfunctionspace-operator-splitting">
+		<meta name="keywords" content="mixed-function-space,mixed-formulation,lagrange-multiplier">
+		<link rel="stylesheet" type="text/css" href="../../qa-theme/Snow/qa-styles.css">
+		<link rel="canonical" href="http://fenicsproject.org/qa/6390/correctly-solutions-multiplier-constraints-formulation">
+		<script type="text/x-mathjax-config">
+  MathJax.Hub.Config({
+    extensions: ["tex2jax.js"],
+    jax: ["input/TeX","output/HTML-CSS"],
+    tex2jax: {inlineMath: [["$","$"],["\\(","\\)"]]},
+    TeX: { extensions: ["AMSmath.js","AMSsymbols.js"]}
+  });
+</script>
+<script type="text/javascript" src="../../mathjax/MathJax.js"></script>
+		<script src="../../jquery-1.7.2.min.js" type="text/javascript"></script>
+		<script src="../../highlight.min.js"></script>
+<script type="text/javascript">
+$(function(){
+	$('.wmd-input').keypress(function(){
+		window.clearTimeout(hljs.Timeout);
+		hljs.Timeout = window.setTimeout(function() {
+			hljs.initHighlighting.called = false;
+			hljs.initHighlighting();
+		}, 500);
+	});
+	window.setTimeout(function() {
+		hljs.initHighlighting.called = false;
+		hljs.initHighlighting();
+	}, 500);
+});
+</script>
+
+
+	</head>
+	<body class="qa-template-question qa-body-js-off">
+		<div class="qa-body-wrapper">
+			
+			<div class="qa-header">
+				<div class="qa-logo">
+					<a href="../" class="qa-logo-link" title="FEniCS Q&amp;A"><img src="../../qa-theme/fenics_qa.png" border="0" alt="FEniCS Q&amp;A"></a>
+				</div>
+				<div class="qa-header-clear">
+				</div>
+			</div> <!-- END qa-header -->
+			
+			<div class="qa-main-shadow">
+				
+				<div class="qa-main-wrapper">
+					
+					<div class="qa-sidepanel">
+						<div class="qa-sidebar">
+							This is a read only copy of the old FEniCS QA forum. Please visit the <a href="https://www.allanswered.com/community/s/fenics-project/">new QA forum</a> to ask questions
+						</div>
+						
+					</div>
+					
+					<div class="qa-main">
+						<h1>
+							<span class="entry-title">Correctly updating solutions and imposing Lagrange multiplier constraints in a Mixed Formulation</span>
+						</h1>
+						<div class="qa-part-q-view">
+							<div class="qa-q-view qa-q-closed hentry question" id="q6390">
+								<form method="post" action="../6390">
+									<div class="qa-q-view-stats">
+										<div class="qa-voting qa-voting-net" id="voting_6390">
+											<div class="qa-vote-count qa-vote-count-net">
+												<span class="qa-netvote-count">
+													<span class="qa-netvote-count-data">&#8211;1<span class="votes-up"><span class="value-title" title="0"></span></span><span class="votes-down"><span class="value-title" title="1"></span></span></span><span class="qa-netvote-count-pad"> vote</span>
+												</span>
+											</div>
+											<div class="qa-vote-clear">
+											</div>
+										</div>
+									</div>
+									<input type="hidden" name="code" value="0-1516477720-84979fdbaf8ae13bfb464df9b46f43336be3cad2">
+								</form>
+								<div class="qa-q-view-main">
+									<form method="post" action="../6390">
+										<div class="qa-q-view-content">
+											<a name="6390"></a><div class="entry-content"><p>Hello,</p>
+
+<p>In response to a comment to my previous question on operator splitting on mixed function spaces (link <a rel="nofollow" href="http://fenicsproject.org/qa/6380/correctly-solutions-mixedfunctionspace-operator-splitting">here</a>) - I tried to break down the issue to further detail. I realized that I was trying to impose a distributed lagrange multiplier to impose a constraint over a domain - and doing that within the mixed formulation could be where I am getting stuck. I have attached here in a simpler code with Stokes flow in 2D around a circular patch where a specific fixed velocity <code>V0</code> is to be imposed using Lagrange multipliers. <em>I have placed here the code from after mesh generation to make the code sample shorter</em></p>
+
+<pre><code># - derive a class for the side-walls for boundary conditions:
+class SideWalls(SubDomain):
+    def inside(self, x, on_boundary):
+        checkVar = on_boundary and ( near(x[0],0.0) or near(x[0], boxW) )
+        return checkVar
+
+# - derive a class for the top-wall for boundary conditions:
+class TopWall(SubDomain):
+    def inside(self, x, on_boundary):
+        checkVar = on_boundary and near(x[1], boxH)
+        return checkVar
+
+# - derive a class for the bottom-wall for boundary conditions:
+class BottomWall(SubDomain):
+    def inside(self, x, on_boundary):
+        checkVar = on_boundary and near(x[1], 0.0)
+        return checkVar
+
+# - derive a class for the circle:
+class CircleBall(SubDomain):
+    def inside(self, x, on_boundary):
+        checkVar = insideParticle(Xp_old, Yp_old, radP, x[0], x[1])
+        return checkVar
+
+Xp_old = xp0
+Yp_old = yp0
+Vx_old = 0.1
+Vy_old = 0.1
+
+# Define function spaces
+V   = VectorFunctionSpace(mesh, "CG", 2)  # 2D velocity
+Q   = FunctionSpace(mesh, "CG", 1)        # pressure
+Lp  = VectorFunctionSpace(mesh, "CG", 1)  # Lagrange multiplier field
+
+solutionSpace   = MixedFunctionSpace([V, Q, Lp])      # combined mixed function space
+(U, P, L) = TrialFunctions(solutionSpace)
+(W, Q, M) = TestFunctions(solutionSpace)
+
+# the specified velocity over the domain
+V0  = Function(V)                           
+V0  = interpolate(Constant((0.01, 0.01)), V)
+
+# - we will now mark the mesh boundaries:
+boundaries = FacetFunction("size_t", mesh)
+
+boundaries.set_all(0)
+
+sidewalls = SideWalls()
+sidewalls.mark(boundaries, 1)
+
+topwall = TopWall() 
+topwall.mark(boundaries, 2)
+
+bottomwall = BottomWall() 
+bottomwall.mark(boundaries, 3)
+
+# - then we will mark the mesh domain interiors:
+domains = CellFunction("size_t", mesh)
+domains.set_all(0)
+circleBall = CircleBall()
+circleBall = circleBall.mark(domains, 1)
+
+# - create the appropriate measures for the domains for 
+# - assembling the integrals
+dx = Measure("dx")[domains]
+ds = Measure("ds")[boundaries]
+
+# - construct all Dirichlet boundary conditions:
+noslip  = Constant((0.0,0.0))
+zero    = Constant(0.0)
+gravity = Constant((0.0, -gValue))
+delP    = radP
+
+# - all dirichlet boundary conditions
+bc0 = DirichletBC(solutionSpace.sub(0), noslip, sidewalls)
+bc1 = DirichletBC(solutionSpace.sub(0), noslip, topwall)
+bc2 = DirichletBC(solutionSpace.sub(0), noslip, bottomwall)
+bcD = [bc0, bc1, bc2]
+
+# - define the variational forms for the stokes problem 
+# - with a distributed lagrange multiplier inside the circle
+B1 = Nu*inner(nabla_grad(U), nabla_grad(W))*dx \
+        - P*nabla_div(W)*dx \
+        + rhoF*dot(gravity, W)*dx \
+        - dot(L, W)*dx(1) \
+        - (delP**2)*inner(nabla_grad(L), nabla_grad(W))*dx(1)
+
+B2 = Q*nabla_div(U - V0)*dx
+
+B3 = dot(M, U - V0)*dx(1) \
+        + (delP**2)*inner(nabla_grad(M), nabla_grad(U - V0))*dx(1)
+
+variationalForm = B1 + B2 + B3
+
+# - now solve the linear variational problem
+a = rhs(variationalForm)
+b = lhs(variationalForm)
+
+solution = Function(solutionSpace)
+
+problem = LinearVariationalProblem(a, b, solution, bcD)
+solver  = LinearVariationalSolver(problem)
+
+solver.solve()
+
+(Usol, Psol, Lsol) = solution.split(deepcopy=True)
+</code></pre>
+
+<p>If i run this, I get the following error message:</p>
+
+<pre><code>*** -------------------------------------------------------------------------
+*** Error:   Unable to define linear variational problem a(u, v) == L(v) for all v.
+*** Reason:  Expecting the left-hand side to be a bilinear form (not rank 1).
+*** Where:   This error was encountered inside LinearVariationalProblem.cpp.
+*** Process: unknown
+*** 
+*** DOLFIN version: 1.4.0
+*** Git changeset:  3b6582dfb45139c906c13b9ad57395632a2090f4
+*** -------------------------------------------------------------------------
+</code></pre>
+
+<p>Any suggestions, tips, or advice will be very helpful.</p>
+
+<p>Thanks</p>
+</div>
+										</div>
+										<div class="qa-q-view-closed">
+											closed with the note:
+											<span class="qa-q-view-closed-content">
+												It was a very silly coding bug that was causing the error - and once fixed, the formulation worked like charm. My apologies to the community if anyone landed up here to check this question out. My original question on operator splitting is still open.
+											</span>
+										</div>
+										<div class="qa-q-view-tags">
+											<ul class="qa-q-view-tag-list">
+												<li class="qa-q-view-tag-item"><a href="../tag/mixed-function-space" rel="tag" class="qa-tag-link">mixed-function-space</a></li>
+												<li class="qa-q-view-tag-item"><a href="../tag/mixed-formulation" rel="tag" class="qa-tag-link">mixed-formulation</a></li>
+												<li class="qa-q-view-tag-item"><a href="../tag/lagrange-multiplier" rel="tag" class="qa-tag-link">lagrange-multiplier</a></li>
+											</ul>
+										</div>
+										<span class="qa-q-view-avatar-meta">
+											<span class="qa-q-view-meta">
+												<a href="../6390/correctly-solutions-multiplier-constraints-formulation" class="qa-q-view-what">asked</a>
+												<span class="qa-q-view-when">
+													<span class="qa-q-view-when-data"><span class="published"><span class="value-title" title="2015-01-27T19:38:28+0000"></span>Jan 27, 2015</span></span>
+												</span>
+												<span class="qa-q-view-who">
+													<span class="qa-q-view-who-pad">by </span>
+													<span class="qa-q-view-who-data"><span class="vcard author"><a href="../../user/debmukh" class="qa-user-link url nickname">debmukh</a></span></span>
+													<span class="qa-q-view-who-title">FEniCS Novice</span>
+													<span class="qa-q-view-who-points">
+														<span class="qa-q-view-who-points-pad">(</span><span class="qa-q-view-who-points-data">880</span><span class="qa-q-view-who-points-pad"> points)</span>
+													</span>
+												</span>
+												<br>
+												<span class="qa-q-view-what">closed</span>
+												<span class="qa-q-view-when">
+													<span class="qa-q-view-when-data"><span class="updated"><span class="value-title" title="2015-01-27T20:09:10+0000"></span>Jan 27, 2015</span></span>
+												</span>
+												<span class="qa-q-view-who">
+													<span class="qa-q-view-who-pad">by </span><span class="qa-q-view-who-data"><a href="../../user/debmukh" class="qa-user-link url nickname">debmukh</a></span>
+												</span>
+											</span>
+										</span>
+										<div class="qa-q-view-buttons">
+										</div>
+										
+										<div class="qa-q-view-c-list" style="display:none;" id="c6390_list">
+										</div> <!-- END qa-c-list -->
+										
+										<input type="hidden" name="code" value="0-1516477720-8a72793448a5f63a04567d79f32a044775b87940">
+										<input type="hidden" name="qa_click" value="">
+									</form>
+									<div class="qa-c-form">
+									</div> <!-- END qa-c-form -->
+									
+								</div> <!-- END qa-q-view-main -->
+								<div class="qa-q-view-clear">
+								</div>
+							</div> <!-- END qa-q-view -->
+							
+						</div>
+						<div class="qa-part-a-list">
+							<h2 id="a_list_title" style="display:none;"></h2>
+							<div class="qa-a-list" id="a_list">
+								
+							</div> <!-- END qa-a-list -->
+							
+						</div>
+					</div> <!-- END qa-main -->
+					
+				</div> <!-- END main-wrapper -->
+			</div> <!-- END main-shadow -->
+		</div> <!-- END body-wrapper -->
+		<!-- END footer-bottom-group -->
+		
+		<div style="position:absolute; left:-9999px; top:-9999px;">
+			<span id="qa-waiting-template" class="qa-waiting">...</span>
+		</div>
+	
+	
+
+</body><!-- Powered by Question2Answer - http://www.question2answer.org/ --></html>

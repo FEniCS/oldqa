@@ -1,0 +1,206 @@
+<html><!-- Powered by Question2Answer - http://www.question2answer.org/ --><head>
+		<meta http-equiv="content-type" content="text/html; charset=utf-8">
+		<title>Coupled linear system as a workaround to complex numbers. - FEniCS Q&amp;A</title>
+		<meta name="description" content="Hi, I got a problem concerning the implementation of complex number and how to use the workaround by building  ...  U ,d) Thanks for any type of help.">
+		<meta name="keywords" content="complex,coupled-equations,linear-problem">
+		<link rel="stylesheet" type="text/css" href="../../qa-theme/Snow/qa-styles.css">
+		<link rel="canonical" href="http://fenicsproject.org/qa/11922/coupled-linear-system-as-a-workaround-to-complex-numbers">
+		<script type="text/x-mathjax-config">
+  MathJax.Hub.Config({
+    extensions: ["tex2jax.js"],
+    jax: ["input/TeX","output/HTML-CSS"],
+    tex2jax: {inlineMath: [["$","$"],["\\(","\\)"]]},
+    TeX: { extensions: ["AMSmath.js","AMSsymbols.js"]}
+  });
+</script>
+<script type="text/javascript" src="../../mathjax/MathJax.js"></script>
+		<script src="../../jquery-1.7.2.min.js" type="text/javascript"></script>
+		<script src="../../highlight.min.js"></script>
+<script type="text/javascript">
+$(function(){
+	$('.wmd-input').keypress(function(){
+		window.clearTimeout(hljs.Timeout);
+		hljs.Timeout = window.setTimeout(function() {
+			hljs.initHighlighting.called = false;
+			hljs.initHighlighting();
+		}, 500);
+	});
+	window.setTimeout(function() {
+		hljs.initHighlighting.called = false;
+		hljs.initHighlighting();
+	}, 500);
+});
+</script>
+
+
+	</head>
+	<body class="qa-template-question qa-body-js-off">
+		<div class="qa-body-wrapper">
+			
+			<div class="qa-header">
+				<div class="qa-logo">
+					<a href="../" class="qa-logo-link" title="FEniCS Q&amp;A"><img src="../../qa-theme/fenics_qa.png" border="0" alt="FEniCS Q&amp;A"></a>
+				</div>
+				<div class="qa-header-clear">
+				</div>
+			</div> <!-- END qa-header -->
+			
+			<div class="qa-main-shadow">
+				
+				<div class="qa-main-wrapper">
+					
+					<div class="qa-sidepanel">
+						<div class="qa-sidebar">
+							This is a read only copy of the old FEniCS QA forum. Please visit the <a href="https://www.allanswered.com/community/s/fenics-project/">new QA forum</a> to ask questions
+						</div>
+						
+					</div>
+					
+					<div class="qa-main">
+						<h1>
+							<span class="entry-title">Coupled linear system as a workaround to complex numbers.</span>
+						</h1>
+						<div class="qa-part-q-view">
+							<div class="qa-q-view qa-q-closed hentry question" id="q11922">
+								<form method="post" action="../11922">
+									<div class="qa-q-view-stats">
+										<div class="qa-voting qa-voting-net" id="voting_11922">
+											<div class="qa-vote-count qa-vote-count-net">
+												<span class="qa-netvote-count">
+													<span class="qa-netvote-count-data">0<span class="votes-up"><span class="value-title" title="0"></span></span><span class="votes-down"><span class="value-title" title="0"></span></span></span><span class="qa-netvote-count-pad"> votes</span>
+												</span>
+											</div>
+											<div class="qa-vote-clear">
+											</div>
+										</div>
+									</div>
+									<input type="hidden" name="code" value="0-1516478223-08b08b2dda15cf33bcff40a7a05a9eb134d5ab75">
+								</form>
+								<div class="qa-q-view-main">
+									<form method="post" action="../11922">
+										<div class="qa-q-view-content">
+											<a name="11922"></a><div class="entry-content"><p>Hi,<br>
+I got a problem concerning the implementation of complex number and how to use the workaround by building a coupled equations system. In fact, when I use basic operations to build my matrices (stiffness and mass matrix) like with dot product or grad, I can't find a method that actually works for every type of system. In the following answer, found in the Q&amp;A, the dot product is define this way:</p>
+
+<pre><code>  r_r=dot( u_r, v_r ) + dot( u_i, v_i )
+  r_i=dot( u_i, v_r ) - dot( u_r, v_i ) 
+</code></pre>
+
+<p><a rel="nofollow" href="https://fenicsproject.org/qa/9136/complex-inner-product">https://fenicsproject.org/qa/9136/complex-inner-product</a><br>
+And my dot product is slightly different but it actually gives the good result(I compared with Comsol). For the following example , the system to solve is :</p>
+
+<p>$$   [K-\frac{\omega^2}{c_f^2} M +j\frac{\omega}{c_f*\rho}C] U= d$$</p>
+
+<p>That I transform into a system where the j 'complex' is placed into the C matrix forming an iC matrix and I change the sign during the building of the iC matrix(<code>ic=r_r*ds2-r_i*ds2</code> ). The system is now: <br>
+$$  [K-\frac{\omega^2}{c_f^2} M +\frac{\omega}{c_f*\rho}C_i] U= d $$ </p>
+
+<p>My problem is, for other type of linear system I don't observe correct results when I keep that philosophy of putting the 'j' in the matrices. Is there an example somewhere of the coupled system as a workaround for complex number?</p>
+
+<pre><code>sourcevalue =1.
+omg=2*pi*f
+cf = 343.8
+
+u_r, u_i= TrialFunction(Vcomplex)
+v_r, v_i = TestFunction(Vcomplex)
+
+k= + (inner(grad(u_r), grad(v_r)) - inner(grad(u_i), grad(v_i))) * dx \
+    + (inner(grad(u_r), grad(v_i)) + inner(grad(u_i), grad(v_r))) * dx
+# for the stiffness matrix
+r_r=dot( u_r, v_r ) - dot( u_i, v_i )
+r_i=dot( u_i, v_r ) + dot( u_r, v_i ) 
+m=r_r*dx +r_i*dx # for the mass matrix
+c_i=r_r*ds2-r_i*ds2 #for the damping matrix
+K=Matrix()
+M=Matrix()
+C_i=Matrix()
+assemble(k, tensor=K)
+assemble(m, tensor=M)
+assemble(c_i, tensor=C_i)
+
+L = ((v_r*sourcevalue)*ds1 + (v_i*sourcevalue)*ds1)
+d=assemble(L)
+Atot=K+(-((pow(omg,2))/(pow(cf,2)))*M)+(omg/(cf*rhof)*C_i)
+u= Function(Vcomplex)
+U=u.vector()
+solve(Atot, U ,d)
+</code></pre>
+
+<p>Thanks for any type of help.</p>
+</div>
+										</div>
+										<div class="qa-q-view-closed">
+											closed with the note:
+											<span class="qa-q-view-closed-content">
+												the question is not accurate
+											</span>
+										</div>
+										<div class="qa-q-view-tags">
+											<ul class="qa-q-view-tag-list">
+												<li class="qa-q-view-tag-item"><a href="../tag/complex" rel="tag" class="qa-tag-link">complex</a></li>
+												<li class="qa-q-view-tag-item"><a href="../tag/coupled-equations" rel="tag" class="qa-tag-link">coupled-equations</a></li>
+												<li class="qa-q-view-tag-item"><a href="../tag/linear-problem" rel="tag" class="qa-tag-link">linear-problem</a></li>
+											</ul>
+										</div>
+										<span class="qa-q-view-avatar-meta">
+											<span class="qa-q-view-meta">
+												<a href="../11922/coupled-linear-system-as-a-workaround-to-complex-numbers" class="qa-q-view-what">asked</a>
+												<span class="qa-q-view-when">
+													<span class="qa-q-view-when-data"><span class="published"><span class="value-title" title="2016-12-12T12:47:31+0000"></span>Dec 12, 2016</span></span>
+												</span>
+												<span class="qa-q-view-who">
+													<span class="qa-q-view-who-pad">by </span>
+													<span class="qa-q-view-who-data"><span class="vcard author"><a href="../../user/custache" class="qa-user-link url nickname">custache</a></span></span>
+													<span class="qa-q-view-who-title">FEniCS Novice</span>
+													<span class="qa-q-view-who-points">
+														<span class="qa-q-view-who-points-pad">(</span><span class="qa-q-view-who-points-data">320</span><span class="qa-q-view-who-points-pad"> points)</span>
+													</span>
+												</span>
+												<br>
+												<span class="qa-q-view-what">closed</span>
+												<span class="qa-q-view-when">
+													<span class="qa-q-view-when-data"><span class="updated"><span class="value-title" title="2017-01-25T17:12:39+0000"></span>Jan 25, 2017</span></span>
+												</span>
+												<span class="qa-q-view-who">
+													<span class="qa-q-view-who-pad">by </span><span class="qa-q-view-who-data"><a href="../../user/custache" class="qa-user-link url nickname">custache</a></span>
+												</span>
+											</span>
+										</span>
+										<div class="qa-q-view-buttons">
+										</div>
+										
+										<div class="qa-q-view-c-list" style="display:none;" id="c11922_list">
+										</div> <!-- END qa-c-list -->
+										
+										<input type="hidden" name="code" value="0-1516478223-575963acdbd48db4fbd6fe891db5de6fc06a3b8f">
+										<input type="hidden" name="qa_click" value="">
+									</form>
+									<div class="qa-c-form">
+									</div> <!-- END qa-c-form -->
+									
+								</div> <!-- END qa-q-view-main -->
+								<div class="qa-q-view-clear">
+								</div>
+							</div> <!-- END qa-q-view -->
+							
+						</div>
+						<div class="qa-part-a-list">
+							<h2 id="a_list_title" style="display:none;"></h2>
+							<div class="qa-a-list" id="a_list">
+								
+							</div> <!-- END qa-a-list -->
+							
+						</div>
+					</div> <!-- END qa-main -->
+					
+				</div> <!-- END main-wrapper -->
+			</div> <!-- END main-shadow -->
+		</div> <!-- END body-wrapper -->
+		<!-- END footer-bottom-group -->
+		
+		<div style="position:absolute; left:-9999px; top:-9999px;">
+			<span id="qa-waiting-template" class="qa-waiting">...</span>
+		</div>
+	
+	
+
+</body><!-- Powered by Question2Answer - http://www.question2answer.org/ --></html>

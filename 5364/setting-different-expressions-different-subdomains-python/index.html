@@ -1,0 +1,495 @@
+<html><!-- Powered by Question2Answer - http://www.question2answer.org/ --><head>
+		<meta http-equiv="content-type" content="text/html; charset=utf-8">
+		<title>Setting different expressions in different subdomains from python code - FEniCS Q&amp;A</title>
+		<meta name="description" content="Say I want two sub domains and a different function to be interpolated in each of these. I  ... assign(interpolate(u,V)) plot(us, interactive=True)">
+		<link rel="stylesheet" type="text/css" href="../../qa-theme/Snow/qa-styles.css">
+		<link rel="canonical" href="http://fenicsproject.org/qa/5364/setting-different-expressions-different-subdomains-python">
+		<script type="text/x-mathjax-config">
+  MathJax.Hub.Config({
+    extensions: ["tex2jax.js"],
+    jax: ["input/TeX","output/HTML-CSS"],
+    tex2jax: {inlineMath: [["$","$"],["\\(","\\)"]]},
+    TeX: { extensions: ["AMSmath.js","AMSsymbols.js"]}
+  });
+</script>
+<script type="text/javascript" src="../../mathjax/MathJax.js"></script>
+		<script src="../../jquery-1.7.2.min.js" type="text/javascript"></script>
+		<script src="../../highlight.min.js"></script>
+<script type="text/javascript">
+$(function(){
+	$('.wmd-input').keypress(function(){
+		window.clearTimeout(hljs.Timeout);
+		hljs.Timeout = window.setTimeout(function() {
+			hljs.initHighlighting.called = false;
+			hljs.initHighlighting();
+		}, 500);
+	});
+	window.setTimeout(function() {
+		hljs.initHighlighting.called = false;
+		hljs.initHighlighting();
+	}, 500);
+});
+</script>
+
+
+	</head>
+	<body class="qa-template-question qa-body-js-off">
+		<div class="qa-body-wrapper">
+			
+			<div class="qa-header">
+				<div class="qa-logo">
+					<a href="../../" class="qa-logo-link" title="FEniCS Q&amp;A"><img src="../../qa-theme/fenics_qa.png" border="0" alt="FEniCS Q&amp;A"></a>
+				</div>
+				<div class="qa-header-clear">
+				</div>
+			</div> <!-- END qa-header -->
+			
+			<div class="qa-main-shadow">
+				
+				<div class="qa-main-wrapper">
+					
+					<div class="qa-sidepanel">
+						<div class="qa-sidebar">
+							This is a read only copy of the old FEniCS QA forum. Please visit the <a href="https://www.allanswered.com/community/s/fenics-project/">new QA forum</a> to ask questions
+						</div>
+						
+					</div>
+					
+					<div class="qa-main">
+						<h1>
+							<span class="entry-title">Setting different expressions in different subdomains from python code</span>
+						</h1>
+						<div class="qa-part-q-view">
+							<div class="qa-q-view  hentry question" id="q5364">
+								<form method="post" action="../../5364/setting-different-expressions-different-subdomains-python">
+									<div class="qa-q-view-stats">
+										<div class="qa-voting qa-voting-net" id="voting_5364">
+											<div class="qa-vote-count qa-vote-count-net">
+												<span class="qa-netvote-count">
+													<span class="qa-netvote-count-data">0<span class="votes-up"><span class="value-title" title="0"></span></span><span class="votes-down"><span class="value-title" title="0"></span></span></span><span class="qa-netvote-count-pad"> votes</span>
+												</span>
+											</div>
+											<div class="qa-vote-clear">
+											</div>
+										</div>
+									</div>
+									<input type="hidden" name="code" value="0-1516468026-aedc1a7e988a9905da1bd37dc49f2b2be2b68171">
+								</form>
+								<div class="qa-q-view-main">
+									<form method="post" action="../../5364/setting-different-expressions-different-subdomains-python">
+										<div class="qa-q-view-content">
+											<a name="5364"></a><div class="entry-content"><p>Say I want two sub domains and a different function to be interpolated in each of these. I want the functions to be solved in the same manner as one of my previous questions "interpolating vector function from python code to fenics". Basically, I want to extract the dofs of each sub domain and compute the expressions in python code, then I want to port these back into the global domain. have attached a code that is as short as I can make it where I try to solve this using submesh. The code is giving the wrong result when compared to hand calculations, and this seems to be something with the dof structure in each submesh that I'm doing wrong. Any method around this or simpler approach is greatly appreciated.</p>
+
+<p>Regards<br>
+Daniel</p>
+
+<pre><code>from dolfin import *
+import scitools.std as sc
+
+# Constants
+L = 1
+H = 2
+l = 2
+m = 4
+ys = 1
+
+# Domains
+mesh = RectangleMesh(0,0,L,H,l,m)
+class Bottom(SubDomain):
+    def inside(self, x, on_boundary):
+        return (between(x[1], (0,ys)))
+
+class Top(SubDomain):
+    def inside(self, x, on_boundary):
+        return (between(x[1], (ys,H)))
+
+bottommesh = Bottom()
+topmesh = Top()
+cf = CellFunction("size_t", mesh)
+cf.set_all(0)
+bottommesh.mark(cf,0)
+topmesh.mark(cf,1)
+bottom = SubMesh(mesh, bottommesh)
+top = SubMesh(mesh, topmesh)
+
+# Functionspaces
+V = VectorFunctionSpace(mesh, "CG", 1)
+Vs = VectorFunctionSpace(bottom, "CG", 1)
+Vf = VectorFunctionSpace(top, "CG", 1)
+
+def extract_nodes(mesh, V):
+    """
+    Extract x and y coordinates of mesh and
+    align with dof structure
+    """
+    dim = V.dim()
+    N = mesh.geometry().dim()
+    coor = V.dofmap().tabulate_all_coordinates(mesh).reshape(dim,N)
+    xdof = V.sub(0).dofmap().dofs()
+    ydof = V.sub(1).dofmap().dofs()
+    x = coor[:,0]
+    y = coor[:,1]
+
+    # x and y values of the vector components 
+    xx, xy = x[xdof], y[xdof]
+    yx, yy = x[ydof], y[ydof]
+
+    return xx, xy, yx, yy, xdof, ydof
+
+def func1(mesh, V):
+    """
+    Function to be solved in bottom layer
+    """
+    xx, xy, yx, yy,xdof, ydof = extract_nodes(mesh, V)
+    fx = 0*xx
+    fy = sc.cos(yy)
+
+    return fx, fy, xdof, ydof
+
+def func2(mesh, V):
+    """
+    Expression to be solved in top layer
+    """
+    xx, xy, yx, yy, xdof, ydof = extract_nodes(mesh, V)
+    fx = 0*xx
+    fy = sc.sin(yy)
+
+    return fx, fy, xdof, ydof
+
+u = Function(V)
+us = Function(V)
+
+# Get function values and dofs from each sub domain
+fx1, fy1, xdof1, ydof1 = func1(bottom, Vs)
+fx2, fy2, xdof2, ydof2 = func2(top, Vf)
+
+# Set function values into vector
+u.vector()[xdof1] = fx1
+u.vector()[ydof1] = fy1
+u.vector()[xdof2] = fx2
+u.vector()[ydof2] = fy2
+
+us.assign(interpolate(u,V))
+plot(us, interactive=True)
+</code></pre>
+</div>
+										</div>
+										<span class="qa-q-view-avatar-meta">
+											<span class="qa-q-view-meta">
+												<a href="../../5364/setting-different-expressions-different-subdomains-python" class="qa-q-view-what">asked</a>
+												<span class="qa-q-view-when">
+													<span class="qa-q-view-when-data"><span class="published"><span class="value-title" title="2014-09-09T09:49:45+0000"></span>Sep 9, 2014</span></span>
+												</span>
+												<span class="qa-q-view-who">
+													<span class="qa-q-view-who-pad">by </span>
+													<span class="qa-q-view-who-data"><span class="vcard author"><a href="../../user/danieljt" class="qa-user-link url nickname">danieljt</a></span></span>
+													<span class="qa-q-view-who-title">FEniCS Novice</span>
+													<span class="qa-q-view-who-points">
+														<span class="qa-q-view-who-points-pad">(</span><span class="qa-q-view-who-points-data">410</span><span class="qa-q-view-who-points-pad"> points)</span>
+													</span>
+												</span>
+											</span>
+										</span>
+										<div class="qa-q-view-buttons">
+										</div>
+										
+										<div class="qa-q-view-c-list" style="display:none;" id="c5364_list">
+										</div> <!-- END qa-c-list -->
+										
+										<input type="hidden" name="code" value="0-1516468026-33ec95ea7153fbd6f0d6bbc82e14ccc7142ad8c4">
+										<input type="hidden" name="qa_click" value="">
+									</form>
+									<div class="qa-c-form">
+									</div> <!-- END qa-c-form -->
+									
+								</div> <!-- END qa-q-view-main -->
+								<div class="qa-q-view-clear">
+								</div>
+							</div> <!-- END qa-q-view -->
+							
+						</div>
+						<div class="qa-part-a-list">
+							<h2 id="a_list_title">1 Answer</h2>
+							<div class="qa-a-list" id="a_list">
+								
+								<div class="qa-a-list-item  hentry answer answer-selected qa-a-list-item-selected" id="a5381">
+									<form method="post" action="../../5364/setting-different-expressions-different-subdomains-python">
+										<div class="qa-voting qa-voting-net" id="voting_5381">
+											<div class="qa-vote-count qa-vote-count-net">
+												<span class="qa-netvote-count">
+													<span class="qa-netvote-count-data">+1<span class="votes-up"><span class="value-title" title="1"></span></span><span class="votes-down"><span class="value-title" title="0"></span></span></span><span class="qa-netvote-count-pad"> vote</span>
+												</span>
+											</div>
+											<div class="qa-vote-clear">
+											</div>
+										</div>
+										<input type="hidden" name="code" value="0-1516468026-aedc1a7e988a9905da1bd37dc49f2b2be2b68171">
+									</form>
+									<div class="qa-a-item-main">
+										<form method="post" action="../../5364/setting-different-expressions-different-subdomains-python">
+											<div class="qa-a-item-selected">
+												<div class="qa-a-selection">
+													<div class="qa-a-selected">&#160;</div>
+													<div class="qa-a-selected-text">Best answer</div>
+												</div>
+												<div class="qa-a-item-content">
+													<a name="5381"></a><div class="entry-content"><p>Hi, you should use the map of <code>submesh</code> cell indices back to the <code>parent mesh</code> indices to extract the dofs correctly. Add something like this to you <code>extact</code> function</p>
+
+<pre><code>from dolfin import *
+import numpy as np
+
+def submesh_dofs(submesh, V):
+    'Return dofs of V that belong to cells in submesh.'
+    mesh = V.mesh()
+    tdim = mesh.topology().dim()
+    dofmap = V.dofmap()
+
+    submesh_dofs = set()
+    parent_cell_indices = submesh.data().array('parent_cell_indices', tdim)
+    for index in range(submesh.num_cells()):
+        cell = parent_cell_indices[index]
+        [submesh_dofs.add(dof) for dof in dofmap.cell_dofs(cell)]
+
+    return np.array(list(submesh_dofs))
+
+mesh = RectangleMesh(-1, -1, 1, 1, 10, 10)
+
+Left = AutoSubDomain(lambda x: x[0] &lt; DOLFIN_EPS) 
+Right = AutoSubDomain(lambda x: x[0] &gt; -DOLFIN_EPS)
+
+cell_f = CellFunction('size_t', mesh, 0)
+Left.mark(cell_f, 1)
+Right.mark(cell_f, 2)
+
+left_mesh = SubMesh(mesh, cell_f, 1)
+right_mesh = SubMesh(mesh, cell_f, 2)
+
+V = FunctionSpace(mesh, 'CG', 1)
+left_dofs = submesh_dofs(left_mesh, V)
+right_dofs = submesh_dofs(right_mesh, V)
+
+f = Function(V)
+F = f.vector()
+gdim = mesh.geometry().dim()
+X = V.dofmap().tabulate_all_coordinates(mesh).reshape((-1, gdim))
+X_l, X_r = X[left_dofs], X[right_dofs]
+
+x_l, y_l = X_l[:, 0], X_l[:, 1]
+x_r, y_r = X_r[:, 0], X_r[:, 1]
+
+F[left_dofs] = x_l + 0
+F[right_dofs] = x_r**2
+
+plot(f, interactive=True) 
+</code></pre>
+</div>
+												</div>
+												<span class="qa-a-item-avatar-meta">
+													<span class="qa-a-item-avatar">
+														<a href="../../user/MiroK" class="qa-avatar-link"><img src="https://www.gravatar.com/avatar/f566be3274ec73e3a6dda27bca11631c?s=40" width="40" height="40" class="qa-avatar-image" alt=""></a>
+													</span>
+													<span class="qa-a-item-meta">
+														<a href="../../5364/setting-different-expressions-different-subdomains-python?show=5381#a5381" class="qa-a-item-what">answered</a>
+														<span class="qa-a-item-when">
+															<span class="qa-a-item-when-data"><span class="published"><span class="value-title" title="2014-09-09T21:17:10+0000"></span>Sep 9, 2014</span></span>
+														</span>
+														<span class="qa-a-item-who">
+															<span class="qa-a-item-who-pad">by </span>
+															<span class="qa-a-item-who-data"><span class="vcard author"><a href="../../user/MiroK" class="qa-user-link url nickname">MiroK</a></span></span>
+															<span class="qa-a-item-who-title">FEniCS Expert</span>
+															<span class="qa-a-item-who-points">
+																<span class="qa-a-item-who-points-pad">(</span><span class="qa-a-item-who-points-data">80,920</span><span class="qa-a-item-who-points-pad"> points)</span>
+															</span>
+														</span>
+														<br>
+														<span class="qa-a-item-what">selected</span>
+														<span class="qa-a-item-when">
+															<span class="qa-a-item-when-data"><span class="updated"><span class="value-title" title="2014-09-10T18:21:07+0000"></span>Sep 10, 2014</span></span>
+														</span>
+														<span class="qa-a-item-who">
+															<span class="qa-a-item-who-pad">by </span><span class="qa-a-item-who-data"><a href="../../user/danieljt" class="qa-user-link url nickname">danieljt</a></span>
+														</span>
+													</span>
+												</span>
+											</div>
+											<div class="qa-a-item-buttons">
+												</div>
+											
+											<div class="qa-a-item-c-list" id="c5381_list">
+												<div class="qa-c-list-item  hentry comment" id="c5401">
+													<div class="qa-c-item-content">
+														<a name="5401"></a><div class="entry-content"><p>Hi Miro. Thank you for your response.<br>
+I'm currently trying to implement your code with V as a vector function space. I need to access each component of the velocity vectors in each sub domain separately. So in a way, after your code snippet:</p>
+
+<pre><code>X = V.dofmap().tabulate_all_coordinates(mesh).reshape((-1, gdim))
+X_l, X_r = X[left_dofs], X[right_dofs]
+</code></pre>
+
+<p>I need the program to extract the values in a way that can look like:</p>
+
+<pre><code>xxl, xyl = X[left_dofs[xdofs]], X[left_dofs[xdofs]] # x component in sub domain 1
+yxl, yyl = X[left_dofs[ydofs]], X[left_dofs[ydofs]] # y component in sub domain 1
+xxr, xyr = X[right_dofs[xdofs]], X[right_dofs[xdofs]] # x component in sub domain 2
+yxr, yyr = X[right_dofs[ydofs]], X[right_dofs[ydofs]] # y component in sub domain 2
+</code></pre>
+
+<p>And then I can define the functions in a way</p>
+
+<pre><code>fxl = xxl*xyl # x component of vector function in layer 1
+fyl = yxl*yyl # y component of vector function in layer 1
+fxr = xxr*xyr # x component of vector function in layer 2
+fyr = yxr*yyr # y component of vector function in layer 2
+</code></pre>
+
+<p>And in the end set these into the function:</p>
+
+<pre><code>u.vector()[left_dofs[xdofs]] = fxl
+u.vector()[left_dofs[ydofs]] = fyl
+u.vector()[right_dofs[xdofs]] = fxr
+u.vector()[right_dofs[ydofs]] = fyr
+</code></pre>
+
+<p>And interpolate this into the domain.</p>
+</div>
+													</div>
+													<div class="qa-c-item-footer">
+														<span class="qa-c-item-avatar-meta">
+															<span class="qa-c-item-meta">
+																<a href="../../5364/setting-different-expressions-different-subdomains-python?show=5401#c5401" class="qa-c-item-what">commented</a>
+																<span class="qa-c-item-when">
+																	<span class="qa-c-item-when-data"><span class="published"><span class="value-title" title="2014-09-10T15:06:45+0000"></span>Sep 10, 2014</span></span>
+																</span>
+																<span class="qa-c-item-who">
+																	<span class="qa-c-item-who-pad">by </span>
+																	<span class="qa-c-item-who-data"><span class="vcard author"><a href="../../user/danieljt" class="qa-user-link url nickname">danieljt</a></span></span>
+																	<span class="qa-c-item-who-title">FEniCS Novice</span>
+																	<span class="qa-c-item-who-points">
+																		<span class="qa-c-item-who-points-pad">(</span><span class="qa-c-item-who-points-data">410</span><span class="qa-c-item-who-points-pad"> points)</span>
+																	</span>
+																</span>
+															</span>
+														</span>
+														<div class="qa-c-item-buttons">
+														</div>
+													</div>
+													<div class="qa-c-item-clear">
+													</div>
+												</div> <!-- END qa-c-item -->
+												<div class="qa-c-list-item  hentry comment" id="c5408">
+													<div class="qa-c-item-content">
+														<a name="5408"></a><div class="entry-content"><p>I figured it out! By using your example I have constructed a code that gets the components in each domain. The code is found below. Thank you again for excellent help Miro!</p>
+
+<pre><code>from dolfin import *
+import scitools.std as sc
+
+def submesh_dofs(mesh, submesh, functionspace):
+    tdim = mesh.topology().dim()
+    dofmap = V.dofmap()
+    xdof = V.sub(0).dofmap()
+    ydof = V.sub(1).dofmap()
+
+    #submesh_dofs = set()
+    submesh_dofx = set()
+    submesh_dofy = set()
+    parent_cell_indices = submesh.data().array('parent_cell_indices', tdim)
+    for index in range(submesh.num_cells()):
+        cell = parent_cell_indices[index]
+        [submesh_dofx.add(dof) for dof in xdof.cell_dofs(cell)]
+        [submesh_dofy.add(dof) for dof in ydof.cell_dofs(cell)]
+
+    return sc.array(list(submesh_dofx)), sc.array(list(submesh_dofy))
+
+mesh = RectangleMesh(0,0,1,1,2,2)
+left = AutoSubDomain(lambda x: x[0] &lt; 0.5 + DOLFIN_EPS)
+righ = AutoSubDomain(lambda x: x[0] &gt; 0.5 - DOLFIN_EPS)
+
+cf = CellFunction("size_t", mesh, 0)
+left.mark(cf, 0)
+righ.mark(cf, 1)
+
+lmesh = SubMesh(mesh, cf, 0)
+rmesh = SubMesh(mesh, cf, 1)
+
+V = VectorFunctionSpace(mesh, "CG", 1)
+
+ldofx, ldofy = submesh_dofs(mesh, lmesh, V)
+rdofx, rdofy = submesh_dofs(mesh, rmesh, V)
+
+gdim = mesh.geometry().dim()
+X = V.dofmap().tabulate_all_coordinates(mesh).reshape((-1, gdim)) 
+x = X[:,0]
+y = X[:,1]
+
+# Vector coordinates in left layer
+xxl, xyl = x[ldofx], y[ldofx]
+yxl, yyl = x[ldofy], y[ldofy]
+
+# Vector coordinates in right layer
+xxr, xyr = x[rdofx], y[rdofx]
+yxr, yyr = x[rdofy], y[rdofy]
+
+u = Function(V)
+u.vector()[ldofx] = xxl
+u.vector()[ldofy] = 0*yyl
+u.vector()[rdofx] = xxr
+u.vector()[rdofy] = 0*yyr
+
+print u.vector().array()
+
+plot(u, interactive=True, range_max=1.0, range_min=-1.0)
+</code></pre>
+</div>
+													</div>
+													<div class="qa-c-item-footer">
+														<span class="qa-c-item-avatar-meta">
+															<span class="qa-c-item-meta">
+																<a href="../../5364/setting-different-expressions-different-subdomains-python?show=5408#c5408" class="qa-c-item-what">commented</a>
+																<span class="qa-c-item-when">
+																	<span class="qa-c-item-when-data"><span class="published"><span class="value-title" title="2014-09-10T18:20:58+0000"></span>Sep 10, 2014</span></span>
+																</span>
+																<span class="qa-c-item-who">
+																	<span class="qa-c-item-who-pad">by </span>
+																	<span class="qa-c-item-who-data"><span class="vcard author"><a href="../../user/danieljt" class="qa-user-link url nickname">danieljt</a></span></span>
+																	<span class="qa-c-item-who-title">FEniCS Novice</span>
+																	<span class="qa-c-item-who-points">
+																		<span class="qa-c-item-who-points-pad">(</span><span class="qa-c-item-who-points-data">410</span><span class="qa-c-item-who-points-pad"> points)</span>
+																	</span>
+																</span>
+															</span>
+														</span>
+														<div class="qa-c-item-buttons">
+														</div>
+													</div>
+													<div class="qa-c-item-clear">
+													</div>
+												</div> <!-- END qa-c-item -->
+											</div> <!-- END qa-c-list -->
+											
+											<input type="hidden" name="code" value="0-1516468026-ea290c78daabfd7cf0982ed248aa9380c8902f43">
+											<input type="hidden" name="qa_click" value="">
+										</form>
+										<div class="qa-c-form">
+										</div> <!-- END qa-c-form -->
+										
+									</div> <!-- END qa-a-item-main -->
+									<div class="qa-a-item-clear">
+									</div>
+								</div> <!-- END qa-a-list-item -->
+								
+							</div> <!-- END qa-a-list -->
+							
+						</div>
+					</div> <!-- END qa-main -->
+					
+				</div> <!-- END main-wrapper -->
+			</div> <!-- END main-shadow -->
+		</div> <!-- END body-wrapper -->
+		<!-- END footer-bottom-group -->
+		
+		<div style="position:absolute; left:-9999px; top:-9999px;">
+			<span id="qa-waiting-template" class="qa-waiting">...</span>
+		</div>
+	
+	
+
+</body><!-- Powered by Question2Answer - http://www.question2answer.org/ --></html>

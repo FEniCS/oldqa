@@ -1,0 +1,331 @@
+<html><!-- Powered by Question2Answer - http://www.question2answer.org/ --><head>
+		<meta http-equiv="content-type" content="text/html; charset=utf-8">
+		<title>Vertex mapping from a SubMesh of a BoundaryMesh back to the actual Mesh! - FEniCS Q&amp;A</title>
+		<meta name="description" content='So we can easily get the vertex mapping from a SubMesh back to a BoundaryMesh, as described [here][1],  ...  # save for viewing : File("output/u.pvd")'>
+		<meta name="keywords" content="boundarymesh,vertex_to_dof_map,vertex,submesh,dofmap">
+		<link rel="stylesheet" type="text/css" href="../../qa-theme/Snow/qa-styles.css">
+		<link rel="canonical" href="http://fenicsproject.org/qa/6810/vertex-mapping-from-submesh-boundarymesh-back-actual-mesh">
+		<script type="text/x-mathjax-config">
+  MathJax.Hub.Config({
+    extensions: ["tex2jax.js"],
+    jax: ["input/TeX","output/HTML-CSS"],
+    tex2jax: {inlineMath: [["$","$"],["\\(","\\)"]]},
+    TeX: { extensions: ["AMSmath.js","AMSsymbols.js"]}
+  });
+</script>
+<script type="text/javascript" src="../../mathjax/MathJax.js"></script>
+		<script src="../../jquery-1.7.2.min.js" type="text/javascript"></script>
+		<script src="../../highlight.min.js"></script>
+<script type="text/javascript">
+$(function(){
+	$('.wmd-input').keypress(function(){
+		window.clearTimeout(hljs.Timeout);
+		hljs.Timeout = window.setTimeout(function() {
+			hljs.initHighlighting.called = false;
+			hljs.initHighlighting();
+		}, 500);
+	});
+	window.setTimeout(function() {
+		hljs.initHighlighting.called = false;
+		hljs.initHighlighting();
+	}, 500);
+});
+</script>
+
+
+	</head>
+	<body class="qa-template-question qa-body-js-off">
+		<div class="qa-body-wrapper">
+			
+			<div class="qa-header">
+				<div class="qa-logo">
+					<a href="../../" class="qa-logo-link" title="FEniCS Q&amp;A"><img src="../../qa-theme/fenics_qa.png" border="0" alt="FEniCS Q&amp;A"></a>
+				</div>
+				<div class="qa-header-clear">
+				</div>
+			</div> <!-- END qa-header -->
+			
+			<div class="qa-main-shadow">
+				
+				<div class="qa-main-wrapper">
+					
+					<div class="qa-sidepanel">
+						<div class="qa-sidebar">
+							This is a read only copy of the old FEniCS QA forum. Please visit the <a href="https://www.allanswered.com/community/s/fenics-project/">new QA forum</a> to ask questions
+						</div>
+						
+					</div>
+					
+					<div class="qa-main">
+						<h1>
+							<span class="entry-title">Vertex mapping from a SubMesh of a BoundaryMesh back to the actual Mesh!</span>
+						</h1>
+						<div class="qa-part-q-view">
+							<div class="qa-q-view  hentry question" id="q6810">
+								<form method="post" action="../../6810/vertex-mapping-from-submesh-boundarymesh-back-actual-mesh">
+									<div class="qa-q-view-stats">
+										<div class="qa-voting qa-voting-net" id="voting_6810">
+											<div class="qa-vote-count qa-vote-count-net">
+												<span class="qa-netvote-count">
+													<span class="qa-netvote-count-data">0<span class="votes-up"><span class="value-title" title="0"></span></span><span class="votes-down"><span class="value-title" title="0"></span></span></span><span class="qa-netvote-count-pad"> votes</span>
+												</span>
+											</div>
+											<div class="qa-vote-clear">
+											</div>
+										</div>
+									</div>
+									<input type="hidden" name="code" value="0-1516468088-fe1abaefb865a4e76874d4ca37ae626931c5366c">
+								</form>
+								<div class="qa-q-view-main">
+									<form method="post" action="../../6810/vertex-mapping-from-submesh-boundarymesh-back-actual-mesh">
+										<div class="qa-q-view-content">
+											<a name="6810"></a><div class="entry-content"><p>So we can easily get the vertex mapping from a SubMesh back to a BoundaryMesh, as described <a rel="nofollow" href="http://fenicsproject.org/qa/1891/vertex-map-from-a-submesh-back-to-parent-mesh">here</a>, utilizing</p>
+
+<pre><code>t = submesh.data().array('parent_vertex_indices', 0)
+</code></pre>
+
+<p>However, if submesh is a SubMesh of a BoundaryMesh, the BoundaryMesh does not have any 'parent_vertex_indices'.  My question is, how do i map back the the original mesh:</p>
+
+<pre><code>from dolfin import *
+from pylab  import *
+
+mesh = UnitCubeMesh(10,10,10)          # original mesh
+mesh.coordinates()[:,0] -= .5          # shift x-coords
+mesh.coordinates()[:,1] -= .5          # shift y-coords
+V    = FunctionSpace(mesh, "CG", 1)
+u    = Function(V)
+
+# apply expression over cube for clearer results :
+u_i  = Expression('sqrt(pow(x[0],2) + pow(x[1], 2))')
+u.interpolate(u_i)
+
+bmesh  = BoundaryMesh(mesh, "exterior")   # surface boundary mesh
+
+# mark the boundary of the bottom surface :
+cellmap = bmesh.entity_map(2)
+vertmap = bmesh.entity_map(0)
+pb      = CellFunction("size_t", bmesh, 0)
+for c in cells(bmesh):
+  if Facet(mesh, cellmap[c.index()]).normal().z() &lt; 0:
+    pb[c] = 1
+
+submesh = SubMesh(bmesh, pb, 1)           # bottom of boundary mesh
+
+Vb  = FunctionSpace(bmesh,   "CG", 1)     # surface function space
+Vs  = FunctionSpace(submesh, "CG", 1)     # submesh function space
+
+ub  = Function(Vb)                        # boundary function
+us  = Function(Vs)                        # surface function
+
+ub.interpolate(u)                         # interpolate u onto boundary
+us.interpolate(u)                         # interpolate u onto surface mesh
+
+unb = Function(Vb)                        # new boundary function
+un  = Function(V)                         # new whole function
+
+
+# mappings we may need :
+m    = vertex_to_dof_map(V)
+b    = vertex_to_dof_map(Vb)
+s    = vertex_to_dof_map(Vs)
+
+mi   = dof_to_vertex_map(V)
+bi   = dof_to_vertex_map(Vb)
+si   = dof_to_vertex_map(Vs)
+
+# mapping from submesh back to bmesh :
+t = submesh.data().array('parent_vertex_indices', 0)
+
+# get vertex-valued arrays :
+us_a  = us.vector().array()
+u_a   = u.vector().array()
+ub_a  = ub.vector().array()
+
+unb_a = unb.vector().array()
+un_a  = un.vector().array()
+
+# update the values of the new functions to be the values of the surface :
+unb_a[b[t]]  = us_a[s]   # works
+
+un_a[m[b[t]]] = us_a[s]  # need something to make this sort of thing work
+
+un.vector().set_local(un_a)
+unb.vector().set_local(unb_a)
+
+# save for viewing :
+File("output/u.pvd")      &lt;&lt; u
+File("output/ub_n.pvd")   &lt;&lt; unb
+File("output/un.pvd")     &lt;&lt; un
+File("output/us.pvd")     &lt;&lt; us
+</code></pre>
+
+<p>so the function 'un' above will have 'us' on it's bottom side, and zero everywhere else.</p>
+
+<p>Here is 'us' plotted on top of a wireframe 'u', for reference :</p>
+
+<p><img src="https://github.com/pf4d/fenics_scripts/blob/master/images/box_surface.png?raw=true" width="600" alt="image"></p>
+
+<p>I know that you can apply a boundary condition to the new function like this:</p>
+
+<pre><code>ff = FacetFunction('size_t', mesh, 0)
+for f in facets(mesh):
+  n = f.normal()
+  if n.z() &lt; 1e-8 and abs(n.x()) &lt; 1e-8 and abs(n.y()) &lt; 1e-8:
+    ff[f] = 1
+
+File("output/ff.pvd") &lt;&lt; ff
+bc = DirichletBC(V, u, ff, 1)
+
+bc.apply(un.vector())
+</code></pre>
+
+<p>but we are working with SubMeshes and would like to efficiently translate to grand-parent meshes.</p>
+</div>
+										</div>
+										<div class="qa-q-view-tags">
+											<ul class="qa-q-view-tag-list">
+												<li class="qa-q-view-tag-item"><a href="../../tag/boundarymesh" rel="tag" class="qa-tag-link">boundarymesh</a></li>
+												<li class="qa-q-view-tag-item"><a href="../../tag/vertex_to_dof_map" rel="tag" class="qa-tag-link">vertex_to_dof_map</a></li>
+												<li class="qa-q-view-tag-item"><a href="../../tag/vertex" rel="tag" class="qa-tag-link">vertex</a></li>
+												<li class="qa-q-view-tag-item"><a href="../../tag/submesh" rel="tag" class="qa-tag-link">submesh</a></li>
+												<li class="qa-q-view-tag-item"><a href="../../tag/dofmap" rel="tag" class="qa-tag-link">dofmap</a></li>
+											</ul>
+										</div>
+										<span class="qa-q-view-avatar-meta">
+											<span class="qa-q-view-avatar">
+												<a href="../../user/pf4d" class="qa-avatar-link"><img src="https://www.gravatar.com/avatar/102105360e5a49a3d555fb320b328a11?s=50" width="50" height="50" class="qa-avatar-image" alt=""></a>
+											</span>
+											<span class="qa-q-view-meta">
+												<a href="../../6810/vertex-mapping-from-submesh-boundarymesh-back-actual-mesh" class="qa-q-view-what">asked</a>
+												<span class="qa-q-view-when">
+													<span class="qa-q-view-when-data"><span class="published"><span class="value-title" title="2015-03-18T20:42:15+0000"></span>Mar 18, 2015</span></span>
+												</span>
+												<span class="qa-q-view-who">
+													<span class="qa-q-view-who-pad">by </span>
+													<span class="qa-q-view-who-data"><span class="vcard author"><a href="../../user/pf4d" class="qa-user-link url nickname">pf4d</a></span></span>
+													<span class="qa-q-view-who-title">FEniCS User</span>
+													<span class="qa-q-view-who-points">
+														<span class="qa-q-view-who-points-pad">(</span><span class="qa-q-view-who-points-data">2,970</span><span class="qa-q-view-who-points-pad"> points)</span>
+													</span>
+												</span>
+												<br>
+												<span class="qa-q-view-what">edited</span>
+												<span class="qa-q-view-when">
+													<span class="qa-q-view-when-data"><span class="updated"><span class="value-title" title="2015-03-18T22:19:27+0000"></span>Mar 18, 2015</span></span>
+												</span>
+												<span class="qa-q-view-who">
+													<span class="qa-q-view-who-pad">by </span><span class="qa-q-view-who-data"><a href="../../user/pf4d" class="qa-user-link url nickname">pf4d</a></span>
+												</span>
+											</span>
+										</span>
+										<div class="qa-q-view-buttons">
+										</div>
+										
+										<div class="qa-q-view-c-list" style="display:none;" id="c6810_list">
+										</div> <!-- END qa-c-list -->
+										
+										<input type="hidden" name="code" value="0-1516468088-cdfca96852b7549c88c6b0a4078b8d6f79a12231">
+										<input type="hidden" name="qa_click" value="">
+									</form>
+									<div class="qa-c-form">
+									</div> <!-- END qa-c-form -->
+									
+								</div> <!-- END qa-q-view-main -->
+								<div class="qa-q-view-clear">
+								</div>
+							</div> <!-- END qa-q-view -->
+							
+						</div>
+						<div class="qa-part-a-list">
+							<h2 id="a_list_title">1 Answer</h2>
+							<div class="qa-a-list" id="a_list">
+								
+								<div class="qa-a-list-item  hentry answer" id="a8110">
+									<form method="post" action="../../6810/vertex-mapping-from-submesh-boundarymesh-back-actual-mesh">
+										<div class="qa-voting qa-voting-net" id="voting_8110">
+											<div class="qa-vote-count qa-vote-count-net">
+												<span class="qa-netvote-count">
+													<span class="qa-netvote-count-data">0<span class="votes-up"><span class="value-title" title="0"></span></span><span class="votes-down"><span class="value-title" title="0"></span></span></span><span class="qa-netvote-count-pad"> votes</span>
+												</span>
+											</div>
+											<div class="qa-vote-clear">
+											</div>
+										</div>
+										<input type="hidden" name="code" value="0-1516468088-fe1abaefb865a4e76874d4ca37ae626931c5366c">
+									</form>
+									<div class="qa-a-item-main">
+										<form method="post" action="../../6810/vertex-mapping-from-submesh-boundarymesh-back-actual-mesh">
+											<div class="qa-a-selection">
+											</div>
+											<div class="qa-a-item-content">
+												<a name="8110"></a><div class="entry-content"><p>I encountered a very similar problem, and I actually used this question and its links to work out a solution. If I understand your question correctly, you can try the following (mesh, bmesh, submesh, V, Vs, u and un defined as in your example):</p>
+
+<pre><code>un = Function(V)
+un.vector().array().fill(0.0)
+for Vs_dof, val in enumerate(us.vector().array()):
+    submesh_vertex = dof_to_vertex_map(Vs)[Vs_dof]
+    boundary_vertex = submesh.data().array('parent_vertex_indices', 0)[submesh_vertex]
+    mesh_vertex = boundarymesh.entity_map(0)[int(boundary_vertex)] # np.uint not accepted
+    V_dof = vertex_to_dof_map(V)[mesh_vertex]
+    un.vector()[V_dof] = val
+</code></pre>
+</div>
+											</div>
+											<span class="qa-a-item-avatar-meta">
+												<span class="qa-a-item-meta">
+													<a href="../../6810/vertex-mapping-from-submesh-boundarymesh-back-actual-mesh?show=8110#a8110" class="qa-a-item-what">answered</a>
+													<span class="qa-a-item-when">
+														<span class="qa-a-item-when-data"><span class="published"><span class="value-title" title="2015-09-11T14:09:09+0000"></span>Sep 11, 2015</span></span>
+													</span>
+													<span class="qa-a-item-who">
+														<span class="qa-a-item-who-pad">by </span>
+														<span class="qa-a-item-who-data"><span class="vcard author"><a href="../../user/maartent" class="qa-user-link url nickname">maartent</a></span></span>
+														<span class="qa-a-item-who-title">FEniCS User</span>
+														<span class="qa-a-item-who-points">
+															<span class="qa-a-item-who-points-pad">(</span><span class="qa-a-item-who-points-data">3,910</span><span class="qa-a-item-who-points-pad"> points)</span>
+														</span>
+													</span>
+													<br>
+													<span class="qa-a-item-what">edited</span>
+													<span class="qa-a-item-when">
+														<span class="qa-a-item-when-data"><span class="updated"><span class="value-title" title="2015-09-11T14:14:24+0000"></span>Sep 11, 2015</span></span>
+													</span>
+													<span class="qa-a-item-who">
+														<span class="qa-a-item-who-pad">by </span><span class="qa-a-item-who-data"><a href="../../user/maartent" class="qa-user-link url nickname">maartent</a></span>
+													</span>
+												</span>
+											</span>
+											<div class="qa-a-item-buttons">
+												</div>
+											
+											<div class="qa-a-item-c-list" style="display:none;" id="c8110_list">
+											</div> <!-- END qa-c-list -->
+											
+											<input type="hidden" name="code" value="0-1516468088-cfd5a66ba7d583fa93a82f089529fd74fe7748b0">
+											<input type="hidden" name="qa_click" value="">
+										</form>
+										<div class="qa-c-form">
+										</div> <!-- END qa-c-form -->
+										
+									</div> <!-- END qa-a-item-main -->
+									<div class="qa-a-item-clear">
+									</div>
+								</div> <!-- END qa-a-list-item -->
+								
+							</div> <!-- END qa-a-list -->
+							
+						</div>
+					</div> <!-- END qa-main -->
+					
+				</div> <!-- END main-wrapper -->
+			</div> <!-- END main-shadow -->
+		</div> <!-- END body-wrapper -->
+		<!-- END footer-bottom-group -->
+		
+		<div style="position:absolute; left:-9999px; top:-9999px;">
+			<span id="qa-waiting-template" class="qa-waiting">...</span>
+		</div>
+	
+	
+
+</body><!-- Powered by Question2Answer - http://www.question2answer.org/ --></html>

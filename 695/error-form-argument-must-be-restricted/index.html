@@ -1,0 +1,282 @@
+<html><!-- Powered by Question2Answer - http://www.question2answer.org/ --><head>
+		<meta http-equiv="content-type" content="text/html; charset=utf-8">
+		<title>Error: Form argument must be restricted. - FEniCS Q&amp;A</title>
+		<meta name="description" content="Hello, Following your advices I have tried to apply the cahn-hilliard demo to my problem with four  ... () solver.solve(problem, u.vector()) file">
+		<link rel="stylesheet" type="text/css" href="../../qa-theme/Snow/qa-styles.css">
+		<link rel="canonical" href="http://fenicsproject.org/qa/695/error-form-argument-must-be-restricted">
+		<script type="text/x-mathjax-config">
+  MathJax.Hub.Config({
+    extensions: ["tex2jax.js"],
+    jax: ["input/TeX","output/HTML-CSS"],
+    tex2jax: {inlineMath: [["$","$"],["\\(","\\)"]]},
+    TeX: { extensions: ["AMSmath.js","AMSsymbols.js"]}
+  });
+</script>
+<script type="text/javascript" src="../../mathjax/MathJax.js"></script>
+		<script src="../../jquery-1.7.2.min.js" type="text/javascript"></script>
+		<script src="../../highlight.min.js"></script>
+<script type="text/javascript">
+$(function(){
+	$('.wmd-input').keypress(function(){
+		window.clearTimeout(hljs.Timeout);
+		hljs.Timeout = window.setTimeout(function() {
+			hljs.initHighlighting.called = false;
+			hljs.initHighlighting();
+		}, 500);
+	});
+	window.setTimeout(function() {
+		hljs.initHighlighting.called = false;
+		hljs.initHighlighting();
+	}, 500);
+});
+</script>
+
+
+	</head>
+	<body class="qa-template-question qa-body-js-off">
+		<div class="qa-body-wrapper">
+			
+			<div class="qa-header">
+				<div class="qa-logo">
+					<a href="../../" class="qa-logo-link" title="FEniCS Q&amp;A"><img src="../../qa-theme/fenics_qa.png" border="0" alt="FEniCS Q&amp;A"></a>
+				</div>
+				<div class="qa-header-clear">
+				</div>
+			</div> <!-- END qa-header -->
+			
+			<div class="qa-main-shadow">
+				
+				<div class="qa-main-wrapper">
+					
+					<div class="qa-sidepanel">
+						<div class="qa-sidebar">
+							This is a read only copy of the old FEniCS QA forum. Please visit the <a href="https://www.allanswered.com/community/s/fenics-project/">new QA forum</a> to ask questions
+						</div>
+						
+					</div>
+					
+					<div class="qa-main">
+						<h1>
+							<span class="entry-title">Error: Form argument must be restricted.</span>
+						</h1>
+						<div class="qa-part-q-view">
+							<div class="qa-q-view  hentry question" id="q695">
+								<form method="post" action="../../695/error-form-argument-must-be-restricted">
+									<div class="qa-q-view-stats">
+										<div class="qa-voting qa-voting-net" id="voting_695">
+											<div class="qa-vote-count qa-vote-count-net">
+												<span class="qa-netvote-count">
+													<span class="qa-netvote-count-data">&#8211;2<span class="votes-up"><span class="value-title" title="0"></span></span><span class="votes-down"><span class="value-title" title="2"></span></span></span><span class="qa-netvote-count-pad"> votes</span>
+												</span>
+											</div>
+											<div class="qa-vote-clear">
+											</div>
+										</div>
+									</div>
+									<input type="hidden" name="code" value="0-1516468095-268a406dd12f8c40190b92dd9bd88540a45bdb23">
+								</form>
+								<div class="qa-q-view-main">
+									<form method="post" action="../../695/error-form-argument-must-be-restricted">
+										<div class="qa-q-view-content">
+											<a name="695"></a><div class="entry-content"><p>Hello,<br>
+Following your advices I have tried to apply the cahn-hilliard demo to my problem with four constitutive variables(the solid displacement, the gas pressure and the temperature fields). I have corrected all the "formulation" errors, but now I have a problem when I launch the program, here is an extract of my code, I have removed the parts where I define my boundary conditions and the constants/parameters in order to reduce it as much as I could:</p>
+
+<pre><code>            import random
+            from dolfin import *
+            import numpy
+
+            cell = triangle
+            mesh = Mesh("bonmesh.xml")
+            V1 = VectorFunctionSpace(mesh, 'CG', 2)
+            V2 = FunctionSpace(mesh, 'CG', 1)
+            V3 = FunctionSpace(mesh, 'CG', 1)
+            V4 = FunctionSpace(mesh, 'CG', 1)
+            W = MixedFunctionSpace([V1, V2, V3, V4])
+
+            [...] define boundary conditions
+
+            # Class representing the intial conditions
+            class InitialConditions(Expression):
+                def __init__(self):
+                    random.seed(2 + MPI.process_number())
+                def eval(self, values, x):
+                    values[0] = 0.0
+                    values[1] = 0.0
+                    values[2] = 1.0
+                    values[3] = 40.0
+                    values[4] = 40.0    
+                def value_shape(self):
+                    return (5,)
+
+            # Class for interfacing with the Newton solver
+            class ECRTCEquation(NonlinearProblem):
+                def __init__(self, a, L):
+                    NonlinearProblem.__init__(self)
+                    self.L = L
+                    self.a = a
+                    self.reset_sparsity = True
+                def F(self, b, x):
+                    assemble(self.L, tensor=b)
+                def J(self, A, x):
+                    assemble(self.a, tensor=A, reset_sparsity=self.reset_sparsity)
+                    self.reset_sparsity = False
+
+            # Form compiler options
+            parameters["form_compiler"]["optimize"]     = True
+            parameters["form_compiler"]["cpp_optimize"] = True
+            parameters["form_compiler"]["representation"] = "quadrature"
+
+            # Define trial and test functions
+            du = TrialFunction(W)
+            v, q, tS, tG = TestFunctions(W)
+
+            # Define functions
+            u  = Function(W)  # current solution
+            u0  = Function(W)  # solution from previous converged step
+
+            # Split mixed functions
+            duS, dpGR, dthetaS, dthetaG = split(du)
+            uS,  pGR, thetaS, thetaG = split(u)
+            uS0, pGR0, thetaS0, thetaG0 = split(u0)
+
+            # Create intial conditions and interpolate
+            u_init = InitialConditions()
+            u.interpolate(u_init)
+            u0.interpolate(u_init)
+
+            [...] define constants/parameters
+
+            # Weak statement of the equations
+
+
+L0 = rhoSR(thetaS)*nS(uS)*inner(b, v)*dx+rhoGR(thetaG, pGR)*nG(uS)*inner(b, v)*dx-\
+inner(sigmaS_E(uS, thetaS), grad(v))*dx+inner(nS(uS)*pGR*(thetaS/thetaG)*I, grad(v))*dx+\
+inner(nG(uS)*pGR*I, grad(v))*dx-inner(TG_E(uS), grad(v))*dx
+
+ L1 = (1/muGR)*rhoGR(thetaG, pGR)*rhoGR(thetaG, pGR)*inner(dot(KS, b), grad(q))*dx-\
+nG(uS)*(1/(RGR*thetaG))*DpGR(uS, pGR)*q*dx+\
+nG(uS)*(1/(RGR*thetaG*thetaG))*pGR*DthetaG(uS, thetaG)*q*dx-\
+(1/muGR)*rhoGR(thetaG, pGR)*inner(dot(KS, grad(pGR)), grad(q))*dx-\
+(1/muGR*nG(uS))*rhoGR(thetaG, pGR)*pGR*(1-thetaS/thetaG)*inner(dot(KS, grad(nS(uS))), grad(q))*dx-\
+nG(uS)*rhoGR(thetaG, pGR)*div((uS-uS0)/dt)*q*dx+\
+DnS_S(uS, thetaS)*rhoGR(thetaG, pGR)*q*dx
+                L2=[...]
+                L3=[...]
+                L = L0+L1+L2+L3
+
+            # Compute directional derivative about u in the direction of du (Jacobian)
+            a = derivative(L, u, du)
+
+
+            # Create nonlinear problem and Newton solver
+            problem = ECRTCEquation(a, L)
+            solver = NewtonSolver("lu")
+            solver.parameters["convergence_criterion"] = "incremental"
+            solver.parameters["relative_tolerance"] = 1e-6
+
+            # Output file
+            file = File("output.pvd", "compressed")
+
+            # Step in time
+            t = 0.0
+            T = 80*dt
+            while (t &lt; T):
+                t += dt
+                u0.vector()[:] = u.vector()
+                solver.solve(problem, u.vector())
+                file &lt;&lt; (u.split()[0], t)
+
+            plot(u.split()[0])
+</code></pre>
+
+<p>L2 and L3 are built the same way as L0 and L1 (they are even longer and more complex).<br>
+If I launch the program like this, I get:</p>
+
+<p>WARNING: The number of integration points for each cell will be: 1156<br>
+           Consider using the option 'quadrature_degree' to reduce the number of points</p>
+
+<p>How could I have 1156 points for each cell? Is there a problem with MixedFunctionSpace? Because if we add the integration points for each functionspace we are only at 15?(6+3+3+3?) </p>
+
+<p>Therefore I have add: parameters["form_compiler"]["quadrature_degree"] = 4, and with that I finally obtain after a long time:</p>
+
+<p>Traceback (most recent call last):<br>
+Form argument must be restricted.<br>
+Traceback (most recent call last):<br>
+  File "mesh.py", line 294, in <br>
+    solver.solve(problem, u.vector())<br>
+  File "mesh.py", line 131, in F<br>
+    assemble(self.L, tensor=b)<br>
+[...]<br>
+Memory error</p>
+
+<p>Where do you think it comes from in my code? Is there an obvious error I have done?</p>
+
+<p>Previously, I am not very entrusted in my initial conditions, because values[0] and values[1] represent uS0=(0,0), but if I put "values[0] = Constant((0.0, 0.0))" and thus "return (4,)" I have:</p>
+
+<p>Traceback (most recent call last):                                                                                   <br>
+  File "mesh.py", line 157, in                                                                                           <br>
+    u.interpolate(u_init) <br>
+Error:   Unable to interpolate function into function space. <br>
+Reason:  Dimension 0 of function (4) does not match dimension 0 of function space (5). </p>
+
+<p>Maybe should I try another solver?<br>
+So I go a bit round in circles, if someone wants more precisions and details about my problem I would be glad to answer, and in any case thank you in advance for any time and effort you will take in looking at my question.</p>
+
+<p>Remi</p>
+</div>
+										</div>
+										<span class="qa-q-view-avatar-meta">
+											<span class="qa-q-view-meta">
+												<a href="../../695/error-form-argument-must-be-restricted" class="qa-q-view-what">asked</a>
+												<span class="qa-q-view-when">
+													<span class="qa-q-view-when-data"><span class="published"><span class="value-title" title="2013-07-23T14:36:20+0000"></span>Jul 23, 2013</span></span>
+												</span>
+												<span class="qa-q-view-who">
+													<span class="qa-q-view-who-pad">by </span>
+													<span class="qa-q-view-who-data"><span class="vcard author"><a href="../../user/Kheldarion" class="qa-user-link url nickname">Kheldarion</a></span></span>
+													<span class="qa-q-view-who-title">FEniCS Novice</span>
+													<span class="qa-q-view-who-points">
+														<span class="qa-q-view-who-points-pad">(</span><span class="qa-q-view-who-points-data">230</span><span class="qa-q-view-who-points-pad"> points)</span>
+													</span>
+												</span>
+											</span>
+										</span>
+										<div class="qa-q-view-buttons">
+										</div>
+										
+										<div class="qa-q-view-c-list" style="display:none;" id="c695_list">
+										</div> <!-- END qa-c-list -->
+										
+										<input type="hidden" name="code" value="0-1516468095-8dae9efcb27e65debf10f2a4a37ffbfd877b3571">
+										<input type="hidden" name="qa_click" value="">
+									</form>
+									<div class="qa-c-form">
+									</div> <!-- END qa-c-form -->
+									
+								</div> <!-- END qa-q-view-main -->
+								<div class="qa-q-view-clear">
+								</div>
+							</div> <!-- END qa-q-view -->
+							
+						</div>
+						<div class="qa-part-a-list">
+							<h2 id="a_list_title" style="display:none;"></h2>
+							<div class="qa-a-list" id="a_list">
+								
+							</div> <!-- END qa-a-list -->
+							
+						</div>
+					</div> <!-- END qa-main -->
+					
+				</div> <!-- END main-wrapper -->
+			</div> <!-- END main-shadow -->
+		</div> <!-- END body-wrapper -->
+		<!-- END footer-bottom-group -->
+		
+		<div style="position:absolute; left:-9999px; top:-9999px;">
+			<span id="qa-waiting-template" class="qa-waiting">...</span>
+		</div>
+	
+	
+
+</body><!-- Powered by Question2Answer - http://www.question2answer.org/ --></html>

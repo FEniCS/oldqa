@@ -1,0 +1,408 @@
+<html><!-- Powered by Question2Answer - http://www.question2answer.org/ --><head>
+		<meta http-equiv="content-type" content="text/html; charset=utf-8">
+		<title>Modeling a conservative flux source term with div - FEniCS Q&amp;A</title>
+		<meta name="description" content="I'd like to model a part of the [comsol coefficient form](http://hpc.mtech.edu/comsol/html/comsol/ ... x): return np.array(x) * np.array(x)">
+		<meta name="keywords" content="ufl,expression">
+		<link rel="stylesheet" type="text/css" href="../../qa-theme/Snow/qa-styles.css">
+		<link rel="canonical" href="http://fenicsproject.org/qa/12666/modeling-a-conservative-flux-source-term-with-div">
+		<script type="text/x-mathjax-config">
+  MathJax.Hub.Config({
+    extensions: ["tex2jax.js"],
+    jax: ["input/TeX","output/HTML-CSS"],
+    tex2jax: {inlineMath: [["$","$"],["\\(","\\)"]]},
+    TeX: { extensions: ["AMSmath.js","AMSsymbols.js"]}
+  });
+</script>
+<script type="text/javascript" src="../../mathjax/MathJax.js"></script>
+		<script src="../../jquery-1.7.2.min.js" type="text/javascript"></script>
+		<script src="../../highlight.min.js"></script>
+<script type="text/javascript">
+$(function(){
+	$('.wmd-input').keypress(function(){
+		window.clearTimeout(hljs.Timeout);
+		hljs.Timeout = window.setTimeout(function() {
+			hljs.initHighlighting.called = false;
+			hljs.initHighlighting();
+		}, 500);
+	});
+	window.setTimeout(function() {
+		hljs.initHighlighting.called = false;
+		hljs.initHighlighting();
+	}, 500);
+});
+</script>
+
+
+	</head>
+	<body class="qa-template-question qa-body-js-off">
+		<div class="qa-body-wrapper">
+			
+			<div class="qa-header">
+				<div class="qa-logo">
+					<a href="../../" class="qa-logo-link" title="FEniCS Q&amp;A"><img src="../../qa-theme/fenics_qa.png" border="0" alt="FEniCS Q&amp;A"></a>
+				</div>
+				<div class="qa-header-clear">
+				</div>
+			</div> <!-- END qa-header -->
+			
+			<div class="qa-main-shadow">
+				
+				<div class="qa-main-wrapper">
+					
+					<div class="qa-sidepanel">
+						<div class="qa-sidebar">
+							This is a read only copy of the old FEniCS QA forum. Please visit the <a href="https://www.allanswered.com/community/s/fenics-project/">new QA forum</a> to ask questions
+						</div>
+						
+					</div>
+					
+					<div class="qa-main">
+						<h1>
+							<span class="entry-title">Modeling a conservative flux source term with div</span>
+						</h1>
+						<div class="qa-part-q-view">
+							<div class="qa-q-view  hentry question" id="q12666">
+								<form method="post" action="../../12666/modeling-a-conservative-flux-source-term-with-div">
+									<div class="qa-q-view-stats">
+										<div class="qa-voting qa-voting-net" id="voting_12666">
+											<div class="qa-vote-count qa-vote-count-net">
+												<span class="qa-netvote-count">
+													<span class="qa-netvote-count-data">0<span class="votes-up"><span class="value-title" title="0"></span></span><span class="votes-down"><span class="value-title" title="0"></span></span></span><span class="qa-netvote-count-pad"> votes</span>
+												</span>
+											</div>
+											<div class="qa-vote-clear">
+											</div>
+										</div>
+									</div>
+									<input type="hidden" name="code" value="0-1516467833-75ac6591749a3173544e953759c59b5d45a8ed2d">
+								</form>
+								<div class="qa-q-view-main">
+									<form method="post" action="../../12666/modeling-a-conservative-flux-source-term-with-div">
+										<div class="qa-q-view-content">
+											<a name="12666"></a><div class="entry-content"><p>I'd like to model a part of the <a rel="nofollow" href="http://hpc.mtech.edu/comsol/html/comsol/comsol_ref_equationbased.25.08.html">comsol coefficient form</a> for PDEs. First equation in eqn. 16-2. Specifically, I am working on the $\nabla \cdot \gamma$ term. To understand this I have the following script:</p>
+
+<pre><code>from dolfin import *                                                               
+
+mesh = UnitIntervalMesh(3)                                                         
+w = FunctionSpace(mesh, 'P', 1)                                                    
+#u = TrialFunction(w)                                                              
+v = TestFunction(w)                                                                
+
+def gamma(x): return x                                                             
+
+x = MeshCoordinates(mesh)                                                          
+f = Constant(1.0, cell = mesh.ufl_cell()) * gamma(x)                               
+R = assemble(inner(f, grad(v))*dx(domain = mesh))                                  
+
+print(R.array())                                                                   
+</code></pre>
+
+<p>Running this returns </p>
+
+<pre><code>[ 0.83333333 -0.33333333 -0.33333333 -0.16666667]
+</code></pre>
+
+<p>What I do not understand is that if I change the def of gamma to, say,</p>
+
+<pre><code>def gamma(x) return x**2
+</code></pre>
+
+<p>I get an error message like:</p>
+
+<pre><code>Shapes do not match: &lt;Product id=139744267574944&gt; and &lt;Grad id=139744267598984&gt;.
+Traceback (most recent call last):
+  File "test_1D_2_grad.py", line 14, in &lt;module&gt;
+    R = assemble(inner(f, grad(v))*dx(domain = mesh))
+</code></pre>
+
+<p>which I can not make sense of since both x and x**2  are scalar. What am I missing?</p>
+
+<p><em>Edit</em></p>
+
+<p>I found that this also works:</p>
+
+<pre><code>R = assemble(inner(gamma(x), grad(v))*dx(domain = mesh))
+</code></pre>
+
+<p>which makes me believe that <code>x</code> gets the entire vector of mesh nodes. How would I operate on that vector to get, say, a <code>x**2</code>? This does not seem to work:</p>
+
+<pre><code>def gamma(x): return np.array(x) * np.array(x)
+</code></pre>
+</div>
+										</div>
+										<div class="qa-q-view-tags">
+											<ul class="qa-q-view-tag-list">
+												<li class="qa-q-view-tag-item"><a href="../../tag/ufl" rel="tag" class="qa-tag-link">ufl</a></li>
+												<li class="qa-q-view-tag-item"><a href="../../tag/expression" rel="tag" class="qa-tag-link">expression</a></li>
+											</ul>
+										</div>
+										<span class="qa-q-view-avatar-meta">
+											<span class="qa-q-view-meta">
+												<a href="../../12666/modeling-a-conservative-flux-source-term-with-div" class="qa-q-view-what">asked</a>
+												<span class="qa-q-view-when">
+													<span class="qa-q-view-when-data"><span class="published"><span class="value-title" title="2017-03-10T07:41:31+0000"></span>Mar 10, 2017</span></span>
+												</span>
+												<span class="qa-q-view-who">
+													<span class="qa-q-view-who-pad">by </span>
+													<span class="qa-q-view-who-data"><span class="vcard author"><a href="../../user/femi" class="qa-user-link url nickname">femi</a></span></span>
+													<span class="qa-q-view-who-title">FEniCS Novice</span>
+													<span class="qa-q-view-who-points">
+														<span class="qa-q-view-who-points-pad">(</span><span class="qa-q-view-who-points-data">130</span><span class="qa-q-view-who-points-pad"> points)</span>
+													</span>
+												</span>
+												<br>
+												<span class="qa-q-view-what">edited</span>
+												<span class="qa-q-view-when">
+													<span class="qa-q-view-when-data"><span class="updated"><span class="value-title" title="2017-03-10T09:29:19+0000"></span>Mar 10, 2017</span></span>
+												</span>
+												<span class="qa-q-view-who">
+													<span class="qa-q-view-who-pad">by </span><span class="qa-q-view-who-data"><a href="../../user/femi" class="qa-user-link url nickname">femi</a></span>
+												</span>
+											</span>
+										</span>
+										<div class="qa-q-view-buttons">
+										</div>
+										
+										<div class="qa-q-view-c-list" id="c12666_list">
+											<div class="qa-c-list-item  hentry comment" id="c12667">
+												<div class="qa-c-item-content">
+													<a name="12667"></a><div class="entry-content"><p>Hi, see by <code>x.ufl_shape</code> that <code>x</code> here is a vector of length one and so is <code>grad(f)</code>. On the other hand <code>x**2</code> is a scalar, cf. <code>(x**2).ufl_shape</code>. The get the form with scalars only consider</p>
+
+<pre><code>gamma(x[0])*v.dx(0)*dx(domain=mesh)
+</code></pre>
+</div>
+												</div>
+												<div class="qa-c-item-footer">
+													<span class="qa-c-item-avatar-meta">
+														<span class="qa-c-item-avatar">
+															<a href="../../user/MiroK" class="qa-avatar-link"><img src="https://www.gravatar.com/avatar/f566be3274ec73e3a6dda27bca11631c?s=20" width="20" height="20" class="qa-avatar-image" alt=""></a>
+														</span>
+														<span class="qa-c-item-meta">
+															<a href="../../12666/modeling-a-conservative-flux-source-term-with-div?show=12667#c12667" class="qa-c-item-what">commented</a>
+															<span class="qa-c-item-when">
+																<span class="qa-c-item-when-data"><span class="published"><span class="value-title" title="2017-03-10T09:40:07+0000"></span>Mar 10, 2017</span></span>
+															</span>
+															<span class="qa-c-item-who">
+																<span class="qa-c-item-who-pad">by </span>
+																<span class="qa-c-item-who-data"><span class="vcard author"><a href="../../user/MiroK" class="qa-user-link url nickname">MiroK</a></span></span>
+																<span class="qa-c-item-who-title">FEniCS Expert</span>
+																<span class="qa-c-item-who-points">
+																	<span class="qa-c-item-who-points-pad">(</span><span class="qa-c-item-who-points-data">80,920</span><span class="qa-c-item-who-points-pad"> points)</span>
+																</span>
+															</span>
+														</span>
+													</span>
+													<div class="qa-c-item-buttons">
+													</div>
+												</div>
+												<div class="qa-c-item-clear">
+												</div>
+											</div> <!-- END qa-c-item -->
+											<div class="qa-c-list-item  hentry comment" id="c12668">
+												<div class="qa-c-item-content">
+													<a name="12668"></a><div class="entry-content"><p>Thanks for looking at this and copying your expression for gamma in assemble does seem to work. I, however, have trouble understanding your comment. What does <code>x</code> contain? I was under the impression it has all coordinates from the mesh. Why is it only length 1 then?</p>
+
+<p>If you make your comment into an answer I could accept it.</p>
+</div>
+												</div>
+												<div class="qa-c-item-footer">
+													<span class="qa-c-item-avatar-meta">
+														<span class="qa-c-item-meta">
+															<a href="../../12666/modeling-a-conservative-flux-source-term-with-div?show=12668#c12668" class="qa-c-item-what">commented</a>
+															<span class="qa-c-item-when">
+																<span class="qa-c-item-when-data"><span class="published"><span class="value-title" title="2017-03-10T09:59:54+0000"></span>Mar 10, 2017</span></span>
+															</span>
+															<span class="qa-c-item-who">
+																<span class="qa-c-item-who-pad">by </span>
+																<span class="qa-c-item-who-data"><span class="vcard author"><a href="../../user/femi" class="qa-user-link url nickname">femi</a></span></span>
+																<span class="qa-c-item-who-title">FEniCS Novice</span>
+																<span class="qa-c-item-who-points">
+																	<span class="qa-c-item-who-points-pad">(</span><span class="qa-c-item-who-points-data">130</span><span class="qa-c-item-who-points-pad"> points)</span>
+																</span>
+															</span>
+														</span>
+													</span>
+													<div class="qa-c-item-buttons">
+													</div>
+												</div>
+												<div class="qa-c-item-clear">
+												</div>
+											</div> <!-- END qa-c-item -->
+											<div class="qa-c-list-item  hentry comment" id="c12669">
+												<div class="qa-c-item-content">
+													<a name="12669"></a><div class="entry-content"><p>The following works with FEniCS 2016.2.0</p>
+
+<pre><code>from dolfin import *                                                               
+
+mesh = UnitIntervalMesh(3)                                                         
+w = FunctionSpace(mesh, 'P', 1)                                                    
+u = TrialFunction(w)                                                              
+v = TestFunction(w)                                                                
+
+def gamma(x): return x**2
+
+x = MeshCoordinates(mesh)                                                          
+f = Constant(1.0, cell = mesh.ufl_cell()) * gamma(x[0])                               
+R = assemble(f*v.dx(0)*dx(domain = mesh))                                  
+
+print(R.array())
+</code></pre>
+
+<p><code>MeshCoordinates(mesh)</code> is an UFL object representing the concept of position vector for the purpose of defining UFL forms. In your case of interval mesh, the length of vector is one (only one coordinate per point). It is not coordinates of mesh vertices.</p>
+</div>
+												</div>
+												<div class="qa-c-item-footer">
+													<span class="qa-c-item-avatar-meta">
+														<span class="qa-c-item-avatar">
+															<a href="../../user/MiroK" class="qa-avatar-link"><img src="https://www.gravatar.com/avatar/f566be3274ec73e3a6dda27bca11631c?s=20" width="20" height="20" class="qa-avatar-image" alt=""></a>
+														</span>
+														<span class="qa-c-item-meta">
+															<a href="../../12666/modeling-a-conservative-flux-source-term-with-div?show=12669#c12669" class="qa-c-item-what">commented</a>
+															<span class="qa-c-item-when">
+																<span class="qa-c-item-when-data"><span class="published"><span class="value-title" title="2017-03-10T10:16:19+0000"></span>Mar 10, 2017</span></span>
+															</span>
+															<span class="qa-c-item-who">
+																<span class="qa-c-item-who-pad">by </span>
+																<span class="qa-c-item-who-data"><span class="vcard author"><a href="../../user/MiroK" class="qa-user-link url nickname">MiroK</a></span></span>
+																<span class="qa-c-item-who-title">FEniCS Expert</span>
+																<span class="qa-c-item-who-points">
+																	<span class="qa-c-item-who-points-pad">(</span><span class="qa-c-item-who-points-data">80,920</span><span class="qa-c-item-who-points-pad"> points)</span>
+																</span>
+															</span>
+														</span>
+													</span>
+													<div class="qa-c-item-buttons">
+													</div>
+												</div>
+												<div class="qa-c-item-clear">
+												</div>
+											</div> <!-- END qa-c-item -->
+											<div class="qa-c-list-item  hentry comment" id="c12670">
+												<div class="qa-c-item-content">
+													<a name="12670"></a><div class="entry-content"><p>OK, I start understand. <code>x</code> is a representation of a coordinate from <code>mesh</code>. And I can also </p>
+
+<pre><code>def gamma(x): return x[0]**2
+</code></pre>
+
+<p>Now, how could I change the <code>def</code> to return a length one vector? That way, I think, I could use it with <code>grad(v)</code> and make the assemble dimension independent.</p>
+
+<p>Once more thanks a lot.</p>
+</div>
+												</div>
+												<div class="qa-c-item-footer">
+													<span class="qa-c-item-avatar-meta">
+														<span class="qa-c-item-meta">
+															<a href="../../12666/modeling-a-conservative-flux-source-term-with-div?show=12670#c12670" class="qa-c-item-what">commented</a>
+															<span class="qa-c-item-when">
+																<span class="qa-c-item-when-data"><span class="published"><span class="value-title" title="2017-03-10T10:36:08+0000"></span>Mar 10, 2017</span></span>
+															</span>
+															<span class="qa-c-item-who">
+																<span class="qa-c-item-who-pad">by </span>
+																<span class="qa-c-item-who-data"><span class="vcard author"><a href="../../user/femi" class="qa-user-link url nickname">femi</a></span></span>
+																<span class="qa-c-item-who-title">FEniCS Novice</span>
+																<span class="qa-c-item-who-points">
+																	<span class="qa-c-item-who-points-pad">(</span><span class="qa-c-item-who-points-data">130</span><span class="qa-c-item-who-points-pad"> points)</span>
+																</span>
+															</span>
+														</span>
+													</span>
+													<div class="qa-c-item-buttons">
+													</div>
+												</div>
+												<div class="qa-c-item-clear">
+												</div>
+											</div> <!-- END qa-c-item -->
+											<div class="qa-c-list-item  hentry comment" id="c12671">
+												<div class="qa-c-item-content">
+													<a name="12671"></a><div class="entry-content"><p>What should gamma be in 2d and 3d? Also, if <code>v</code> is scalar, the length of <code>grad(v)</code> in $R^d$ is d.</p>
+</div>
+												</div>
+												<div class="qa-c-item-footer">
+													<span class="qa-c-item-avatar-meta">
+														<span class="qa-c-item-avatar">
+															<a href="../../user/MiroK" class="qa-avatar-link"><img src="https://www.gravatar.com/avatar/f566be3274ec73e3a6dda27bca11631c?s=20" width="20" height="20" class="qa-avatar-image" alt=""></a>
+														</span>
+														<span class="qa-c-item-meta">
+															<a href="../../12666/modeling-a-conservative-flux-source-term-with-div?show=12671#c12671" class="qa-c-item-what">commented</a>
+															<span class="qa-c-item-when">
+																<span class="qa-c-item-when-data"><span class="published"><span class="value-title" title="2017-03-10T10:41:46+0000"></span>Mar 10, 2017</span></span>
+															</span>
+															<span class="qa-c-item-who">
+																<span class="qa-c-item-who-pad">by </span>
+																<span class="qa-c-item-who-data"><span class="vcard author"><a href="../../user/MiroK" class="qa-user-link url nickname">MiroK</a></span></span>
+																<span class="qa-c-item-who-title">FEniCS Expert</span>
+																<span class="qa-c-item-who-points">
+																	<span class="qa-c-item-who-points-pad">(</span><span class="qa-c-item-who-points-data">80,920</span><span class="qa-c-item-who-points-pad"> points)</span>
+																</span>
+															</span>
+														</span>
+													</span>
+													<div class="qa-c-item-buttons">
+													</div>
+												</div>
+												<div class="qa-c-item-clear">
+												</div>
+											</div> <!-- END qa-c-item -->
+											<div class="qa-c-list-item  hentry comment" id="c12672">
+												<div class="qa-c-item-content">
+													<a name="12672"></a><div class="entry-content"><p>I'd say gamma is a vector of length d then - but I'd need to think a bit more about this. Thanks once more.</p>
+</div>
+												</div>
+												<div class="qa-c-item-footer">
+													<span class="qa-c-item-avatar-meta">
+														<span class="qa-c-item-meta">
+															<a href="../../12666/modeling-a-conservative-flux-source-term-with-div?show=12672#c12672" class="qa-c-item-what">commented</a>
+															<span class="qa-c-item-when">
+																<span class="qa-c-item-when-data"><span class="published"><span class="value-title" title="2017-03-10T11:54:49+0000"></span>Mar 10, 2017</span></span>
+															</span>
+															<span class="qa-c-item-who">
+																<span class="qa-c-item-who-pad">by </span>
+																<span class="qa-c-item-who-data"><span class="vcard author"><a href="../../user/femi" class="qa-user-link url nickname">femi</a></span></span>
+																<span class="qa-c-item-who-title">FEniCS Novice</span>
+																<span class="qa-c-item-who-points">
+																	<span class="qa-c-item-who-points-pad">(</span><span class="qa-c-item-who-points-data">130</span><span class="qa-c-item-who-points-pad"> points)</span>
+																</span>
+															</span>
+														</span>
+													</span>
+													<div class="qa-c-item-buttons">
+													</div>
+												</div>
+												<div class="qa-c-item-clear">
+												</div>
+											</div> <!-- END qa-c-item -->
+										</div> <!-- END qa-c-list -->
+										
+										<input type="hidden" name="code" value="0-1516467833-1c187c195041f86b50e1de3836c5bda233baf992">
+										<input type="hidden" name="qa_click" value="">
+									</form>
+									<div class="qa-c-form">
+									</div> <!-- END qa-c-form -->
+									
+								</div> <!-- END qa-q-view-main -->
+								<div class="qa-q-view-clear">
+								</div>
+							</div> <!-- END qa-q-view -->
+							
+						</div>
+						<div class="qa-part-a-list">
+							<h2 id="a_list_title" style="display:none;"></h2>
+							<div class="qa-a-list" id="a_list">
+								
+							</div> <!-- END qa-a-list -->
+							
+						</div>
+					</div> <!-- END qa-main -->
+					
+				</div> <!-- END main-wrapper -->
+			</div> <!-- END main-shadow -->
+		</div> <!-- END body-wrapper -->
+		<!-- END footer-bottom-group -->
+		
+		<div style="position:absolute; left:-9999px; top:-9999px;">
+			<span id="qa-waiting-template" class="qa-waiting">...</span>
+		</div>
+	
+	
+
+</body><!-- Powered by Question2Answer - http://www.question2answer.org/ --></html>

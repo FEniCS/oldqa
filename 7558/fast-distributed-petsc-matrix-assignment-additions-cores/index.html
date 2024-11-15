@@ -1,0 +1,323 @@
+<html><!-- Powered by Question2Answer - http://www.question2answer.org/ --><head>
+		<meta http-equiv="content-type" content="text/html; charset=utf-8">
+		<title>Fast distributed PETSc Matrix assignment and additions (256 cores) - FEniCS Q&amp;A</title>
+		<meta name="description" content="I've been finding my Matrix assignment and addition operations are becoming the bottleneck when I  ... of the values with no update across workers.">
+		<meta name="keywords" content="petscmatrix,petsc,matrix,matrix-multiply">
+		<link rel="stylesheet" type="text/css" href="../../qa-theme/Snow/qa-styles.css">
+		<link rel="canonical" href="http://fenicsproject.org/qa/7558/fast-distributed-petsc-matrix-assignment-additions-cores">
+		<script type="text/x-mathjax-config">
+  MathJax.Hub.Config({
+    extensions: ["tex2jax.js"],
+    jax: ["input/TeX","output/HTML-CSS"],
+    tex2jax: {inlineMath: [["$","$"],["\\(","\\)"]]},
+    TeX: { extensions: ["AMSmath.js","AMSsymbols.js"]}
+  });
+</script>
+<script type="text/javascript" src="../../mathjax/MathJax.js"></script>
+		<script src="../../jquery-1.7.2.min.js" type="text/javascript"></script>
+		<script src="../../highlight.min.js"></script>
+<script type="text/javascript">
+$(function(){
+	$('.wmd-input').keypress(function(){
+		window.clearTimeout(hljs.Timeout);
+		hljs.Timeout = window.setTimeout(function() {
+			hljs.initHighlighting.called = false;
+			hljs.initHighlighting();
+		}, 500);
+	});
+	window.setTimeout(function() {
+		hljs.initHighlighting.called = false;
+		hljs.initHighlighting();
+	}, 500);
+});
+</script>
+
+
+	</head>
+	<body class="qa-template-question qa-body-js-off">
+		<div class="qa-body-wrapper">
+			
+			<div class="qa-header">
+				<div class="qa-logo">
+					<a href="../../" class="qa-logo-link" title="FEniCS Q&amp;A"><img src="../../qa-theme/fenics_qa.png" border="0" alt="FEniCS Q&amp;A"></a>
+				</div>
+				<div class="qa-header-clear">
+				</div>
+			</div> <!-- END qa-header -->
+			
+			<div class="qa-main-shadow">
+				
+				<div class="qa-main-wrapper">
+					
+					<div class="qa-sidepanel">
+						<div class="qa-sidebar">
+							This is a read only copy of the old FEniCS QA forum. Please visit the <a href="https://www.allanswered.com/community/s/fenics-project/">new QA forum</a> to ask questions
+						</div>
+						
+					</div>
+					
+					<div class="qa-main">
+						<h1>
+							<span class="entry-title">Fast distributed PETSc Matrix assignment and additions (256 cores)</span>
+						</h1>
+						<div class="qa-part-q-view">
+							<div class="qa-q-view  hentry question" id="q7558">
+								<form method="post" action="../../7558/fast-distributed-petsc-matrix-assignment-additions-cores">
+									<div class="qa-q-view-stats">
+										<div class="qa-voting qa-voting-net" id="voting_7558">
+											<div class="qa-vote-count qa-vote-count-net">
+												<span class="qa-netvote-count">
+													<span class="qa-netvote-count-data">+1<span class="votes-up"><span class="value-title" title="1"></span></span><span class="votes-down"><span class="value-title" title="0"></span></span></span><span class="qa-netvote-count-pad"> vote</span>
+												</span>
+											</div>
+											<div class="qa-vote-clear">
+											</div>
+										</div>
+									</div>
+									<input type="hidden" name="code" value="0-1516468126-aeefec7d2b6257cc7797b918377bec1329ddd13e">
+								</form>
+								<div class="qa-q-view-main">
+									<form method="post" action="../../7558/fast-distributed-petsc-matrix-assignment-additions-cores">
+										<div class="qa-q-view-content">
+											<a name="7558"></a><div class="entry-content"><p>I've been finding my Matrix assignment and addition operations are becoming the bottleneck when I start scaling out, with 256 cores being my test.  It's enough that the performance goes from 60ms per DOF in a shared memory mpirun to 700ms per DOF in a infiniband mpirun.</p>
+
+<p>The Matrix assignment and addition operations are the result of breaking apart my bilinear forms so that I avoid their assembly during integration - so I'm happy to be at this point.  At each iteration I am doing A = A_part1 + dt*A_part2.</p>
+
+<p>I'm using C++ to interface with DOLFIN, using PETSc as my LA backend.  I did notice something that appears inconsistent between Matrix and Vector assignment operator implementations.  The PETScMatrix assignment operator throws an error if the Matrix has already been initialized:</p>
+
+<pre><code>const PETScMatrix&amp; PETScMatrix::operator= (const PETScMatrix&amp; A)
+{
+  if (!A.mat())
+  {
+    if (_matA)
+    {
+      dolfin_error("PETScMatrix.cpp",
+                   "assign to PETSc matrix",
+                   "PETScMatrix may not be initialized more than once.");
+      MatDestroy(&amp;_matA);
+    }
+    _matA = NULL;
+  }
+  else if (this != &amp;A) // Check for self-assignment
+  {
+    if (_matA)
+    {
+      // Get reference count to _matA
+      PetscInt ref_count = 0;
+      PetscObjectGetReference((PetscObject)_matA, &amp;ref_count);
+      if (ref_count &gt; 1)
+      {
+        dolfin_error("PETScMatrix.cpp",
+                     "assign to PETSc matrix",
+                     "More than one object points to the underlying PETSc object");
+      }
+      dolfin_error("PETScMatrix.cpp",
+                   "assign to PETSc matrix",
+                   "PETScMatrix may not be initialized more than once.");
+      MatDestroy(&amp;_matA);
+    }
+
+    // Duplicate with the same pattern as A.A
+    PetscErrorCode ierr = MatDuplicate(A.mat(), MAT_COPY_VALUES, &amp;_matA);
+    if (ierr != 0) petsc_error(ierr, __FILE__, "MatDuplicate");
+  }
+  return *this;
+}
+</code></pre>
+
+<p>But what I need, at least I think I need, is this PETSc operation on my existing Matrix (a copy not duplicate would be ideal)</p>
+
+<pre><code>PetscErrorCode ierr = MatDuplicate(A.mat(), MAT_COPY_VALUES, &amp;_matA);
+</code></pre>
+
+<p>Interestingly the PETScVector assignment operator has a different behavior:</p>
+
+<pre><code>const PETScVector&amp; PETScVector::operator= (const PETScVector&amp; v)
+{
+  // Check that vector lengths are equal
+  if (size() != v.size())
+  {
+    dolfin_error("PETScVector.cpp",
+                 "assign one vector to another",
+                 "Vectors must be of the same length when assigning. "
+                 "Consider using the copy constructor instead");
+  }
+
+  // Check that vector local ranges are equal (relevant in parallel)
+  if (local_range() != v.local_range())
+  {
+    dolfin_error("PETScVector.cpp",
+                 "assign one vector to another",
+                 "Vectors must have the same parallel layout when assigning. "
+                 "Consider using the copy constructor instead");
+  }
+
+  // Check for self-assignment
+  if (this != &amp;v)
+  {
+    // Copy data (local operation)
+    dolfin_assert(v._x);
+    dolfin_assert(_x);
+    PetscErrorCode ierr = VecCopy(v._x, _x);
+    if (ierr != 0) petsc_error(ierr, __FILE__, "VecCopy");
+
+    // Update ghost values
+    update_ghost_values();
+  }
+  return *this;
+}
+</code></pre>
+
+<p>Where there is no error if the Vector has already been initialized, instead you get a nice PETSc copy from:</p>
+
+<pre><code>PetscErrorCode ierr = VecCopy(v._x, _x);
+</code></pre>
+
+<p>That aside, how can I implement A = A_part1 + dt*A_part2 as a nice copy + axpy?</p>
+
+<p><em>Edit</em> For vectors I can do the operations locally on each worker like so:</p>
+
+<pre><code>std::dynamic_pointer_cast&lt;PETScVector&gt;(other.c-&gt;vector())-&gt;apply("");
+other.c-&gt;vector()-&gt;get_local(temp_val);
+c-&gt;vector()-&gt;set_local(temp_val);
+std::dynamic_pointer_cast&lt;PETScVector&gt;(c-&gt;vector())-&gt;apply("");
+</code></pre>
+
+<p>There is a set_local for a Matrix, but no get_local?</p>
+
+<p><em>Edit2</em></p>
+
+<p>Just wanted to note that these should be all local copies... I just need to do a purely local copy of the values with no update across workers.</p>
+</div>
+										</div>
+										<div class="qa-q-view-tags">
+											<ul class="qa-q-view-tag-list">
+												<li class="qa-q-view-tag-item"><a href="../../tag/petscmatrix" rel="tag" class="qa-tag-link">petscmatrix</a></li>
+												<li class="qa-q-view-tag-item"><a href="../../tag/petsc" rel="tag" class="qa-tag-link">petsc</a></li>
+												<li class="qa-q-view-tag-item"><a href="../../tag/matrix" rel="tag" class="qa-tag-link">matrix</a></li>
+												<li class="qa-q-view-tag-item"><a href="../../tag/matrix-multiply" rel="tag" class="qa-tag-link">matrix-multiply</a></li>
+											</ul>
+										</div>
+										<span class="qa-q-view-avatar-meta">
+											<span class="qa-q-view-avatar">
+												<a href="../../user/Charles" class="qa-avatar-link"><img src="https://www.gravatar.com/avatar/22e56480a5d5f76ee11abebe5dc8d5a6?s=50" width="50" height="50" class="qa-avatar-image" alt=""></a>
+											</span>
+											<span class="qa-q-view-meta">
+												<a href="../../7558/fast-distributed-petsc-matrix-assignment-additions-cores" class="qa-q-view-what">asked</a>
+												<span class="qa-q-view-when">
+													<span class="qa-q-view-when-data"><span class="published"><span class="value-title" title="2015-07-13T13:10:51+0000"></span>Jul 13, 2015</span></span>
+												</span>
+												<span class="qa-q-view-who">
+													<span class="qa-q-view-who-pad">by </span>
+													<span class="qa-q-view-who-data"><span class="vcard author"><a href="../../user/Charles" class="qa-user-link url nickname">Charles</a></span></span>
+													<span class="qa-q-view-who-title">FEniCS User</span>
+													<span class="qa-q-view-who-points">
+														<span class="qa-q-view-who-points-pad">(</span><span class="qa-q-view-who-points-data">4,220</span><span class="qa-q-view-who-points-pad"> points)</span>
+													</span>
+												</span>
+												<br>
+												<span class="qa-q-view-what">edited</span>
+												<span class="qa-q-view-when">
+													<span class="qa-q-view-when-data"><span class="updated"><span class="value-title" title="2015-07-13T15:49:08+0000"></span>Jul 13, 2015</span></span>
+												</span>
+												<span class="qa-q-view-who">
+													<span class="qa-q-view-who-pad">by </span><span class="qa-q-view-who-data"><a href="../../user/Charles" class="qa-user-link url nickname">Charles</a></span>
+												</span>
+											</span>
+										</span>
+										<div class="qa-q-view-buttons">
+										</div>
+										
+										<div class="qa-q-view-c-list" style="display:none;" id="c7558_list">
+										</div> <!-- END qa-c-list -->
+										
+										<input type="hidden" name="code" value="0-1516468126-a5e2bb31b5cb79f3b11f06d1dab32156684446dd">
+										<input type="hidden" name="qa_click" value="">
+									</form>
+									<div class="qa-c-form">
+									</div> <!-- END qa-c-form -->
+									
+								</div> <!-- END qa-q-view-main -->
+								<div class="qa-q-view-clear">
+								</div>
+							</div> <!-- END qa-q-view -->
+							
+						</div>
+						<div class="qa-part-a-list">
+							<h2 id="a_list_title">1 Answer</h2>
+							<div class="qa-a-list" id="a_list">
+								
+								<div class="qa-a-list-item  hentry answer" id="a7576">
+									<form method="post" action="../../7558/fast-distributed-petsc-matrix-assignment-additions-cores">
+										<div class="qa-voting qa-voting-net" id="voting_7576">
+											<div class="qa-vote-count qa-vote-count-net">
+												<span class="qa-netvote-count">
+													<span class="qa-netvote-count-data">0<span class="votes-up"><span class="value-title" title="0"></span></span><span class="votes-down"><span class="value-title" title="0"></span></span></span><span class="qa-netvote-count-pad"> votes</span>
+												</span>
+											</div>
+											<div class="qa-vote-clear">
+											</div>
+										</div>
+										<input type="hidden" name="code" value="0-1516468126-aeefec7d2b6257cc7797b918377bec1329ddd13e">
+									</form>
+									<div class="qa-a-item-main">
+										<form method="post" action="../../7558/fast-distributed-petsc-matrix-assignment-additions-cores">
+											<div class="qa-a-selection">
+											</div>
+											<div class="qa-a-item-content">
+												<a name="7576"></a><div class="entry-content"><p>My solution, which seems to scale okay, is to simply destroy the old Matrix and create a new one which is a PETSc duplicate.</p>
+</div>
+											</div>
+											<span class="qa-a-item-avatar-meta">
+												<span class="qa-a-item-avatar">
+													<a href="../../user/Charles" class="qa-avatar-link"><img src="https://www.gravatar.com/avatar/22e56480a5d5f76ee11abebe5dc8d5a6?s=40" width="40" height="40" class="qa-avatar-image" alt=""></a>
+												</span>
+												<span class="qa-a-item-meta">
+													<a href="../../7558/fast-distributed-petsc-matrix-assignment-additions-cores?show=7576#a7576" class="qa-a-item-what">answered</a>
+													<span class="qa-a-item-when">
+														<span class="qa-a-item-when-data"><span class="published"><span class="value-title" title="2015-07-14T17:09:14+0000"></span>Jul 14, 2015</span></span>
+													</span>
+													<span class="qa-a-item-who">
+														<span class="qa-a-item-who-pad">by </span>
+														<span class="qa-a-item-who-data"><span class="vcard author"><a href="../../user/Charles" class="qa-user-link url nickname">Charles</a></span></span>
+														<span class="qa-a-item-who-title">FEniCS User</span>
+														<span class="qa-a-item-who-points">
+															<span class="qa-a-item-who-points-pad">(</span><span class="qa-a-item-who-points-data">4,220</span><span class="qa-a-item-who-points-pad"> points)</span>
+														</span>
+													</span>
+												</span>
+											</span>
+											<div class="qa-a-item-buttons">
+												</div>
+											
+											<div class="qa-a-item-c-list" style="display:none;" id="c7576_list">
+											</div> <!-- END qa-c-list -->
+											
+											<input type="hidden" name="code" value="0-1516468126-059f099607a32311054f5427e9f4384bb735a39e">
+											<input type="hidden" name="qa_click" value="">
+										</form>
+										<div class="qa-c-form">
+										</div> <!-- END qa-c-form -->
+										
+									</div> <!-- END qa-a-item-main -->
+									<div class="qa-a-item-clear">
+									</div>
+								</div> <!-- END qa-a-list-item -->
+								
+							</div> <!-- END qa-a-list -->
+							
+						</div>
+					</div> <!-- END qa-main -->
+					
+				</div> <!-- END main-wrapper -->
+			</div> <!-- END main-shadow -->
+		</div> <!-- END body-wrapper -->
+		<!-- END footer-bottom-group -->
+		
+		<div style="position:absolute; left:-9999px; top:-9999px;">
+			<span id="qa-waiting-template" class="qa-waiting">...</span>
+		</div>
+	
+	
+
+</body><!-- Powered by Question2Answer - http://www.question2answer.org/ --></html>

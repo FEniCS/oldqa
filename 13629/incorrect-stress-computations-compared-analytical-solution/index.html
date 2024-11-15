@@ -1,0 +1,478 @@
+<html><!-- Powered by Question2Answer - http://www.question2answer.org/ --><head>
+		<meta http-equiv="content-type" content="text/html; charset=utf-8">
+		<title>Incorrect wall shear stress computations compared to analytical solution - FEniCS Q&amp;A</title>
+		<meta name="description" content="Dear FEniCS comunity, I want to compute the wall shear stresses resulting from CFD problems in  ...  solver-library: https://github.com/mikaem/Oasis">
+		<meta name="keywords" content="wall-shear-stress,cfd,fluid-mechanics,newtonian,wss">
+		<link rel="stylesheet" type="text/css" href="../../qa-theme/Snow/qa-styles.css">
+		<link rel="canonical" href="http://fenicsproject.org/qa/13629/incorrect-stress-computations-compared-analytical-solution">
+		<script type="text/x-mathjax-config">
+  MathJax.Hub.Config({
+    extensions: ["tex2jax.js"],
+    jax: ["input/TeX","output/HTML-CSS"],
+    tex2jax: {inlineMath: [["$","$"],["\\(","\\)"]]},
+    TeX: { extensions: ["AMSmath.js","AMSsymbols.js"]}
+  });
+</script>
+<script type="text/javascript" src="../../mathjax/MathJax.js"></script>
+		<script src="../../jquery-1.7.2.min.js" type="text/javascript"></script>
+		<script src="../../highlight.min.js"></script>
+<script type="text/javascript">
+$(function(){
+	$('.wmd-input').keypress(function(){
+		window.clearTimeout(hljs.Timeout);
+		hljs.Timeout = window.setTimeout(function() {
+			hljs.initHighlighting.called = false;
+			hljs.initHighlighting();
+		}, 500);
+	});
+	window.setTimeout(function() {
+		hljs.initHighlighting.called = false;
+		hljs.initHighlighting();
+	}, 500);
+});
+</script>
+
+
+	</head>
+	<body class="qa-template-question qa-body-js-off">
+		<div class="qa-body-wrapper">
+			
+			<div class="qa-header">
+				<div class="qa-logo">
+					<a href="../../" class="qa-logo-link" title="FEniCS Q&amp;A"><img src="../../qa-theme/fenics_qa.png" border="0" alt="FEniCS Q&amp;A"></a>
+				</div>
+				<div class="qa-header-clear">
+				</div>
+			</div> <!-- END qa-header -->
+			
+			<div class="qa-main-shadow">
+				
+				<div class="qa-main-wrapper">
+					
+					<div class="qa-sidepanel">
+						<div class="qa-sidebar">
+							This is a read only copy of the old FEniCS QA forum. Please visit the <a href="https://www.allanswered.com/community/s/fenics-project/">new QA forum</a> to ask questions
+						</div>
+						
+					</div>
+					
+					<div class="qa-main">
+						<h1>
+							<span class="entry-title">Incorrect wall shear stress computations compared to analytical solution</span>
+						</h1>
+						<div class="qa-part-q-view">
+							<div class="qa-q-view  hentry question" id="q13629">
+								<form method="post" action="../../13629/incorrect-stress-computations-compared-analytical-solution">
+									<div class="qa-q-view-stats">
+										<div class="qa-voting qa-voting-net" id="voting_13629">
+											<div class="qa-vote-count qa-vote-count-net">
+												<span class="qa-netvote-count">
+													<span class="qa-netvote-count-data">0<span class="votes-up"><span class="value-title" title="0"></span></span><span class="votes-down"><span class="value-title" title="0"></span></span></span><span class="qa-netvote-count-pad"> votes</span>
+												</span>
+											</div>
+											<div class="qa-vote-clear">
+											</div>
+										</div>
+									</div>
+									<input type="hidden" name="code" value="0-1516467874-4a3bb3910693ca49a9327842098bf5bb51d51a17">
+								</form>
+								<div class="qa-q-view-main">
+									<form method="post" action="../../13629/incorrect-stress-computations-compared-analytical-solution">
+										<div class="qa-q-view-content">
+											<a name="13629"></a><div class="entry-content"><p>Dear FEniCS comunity,</p>
+
+<p>I want to compute the wall shear stresses resulting from CFD problems in FEniCS. For this I use:</p>
+
+<pre><code># Define vectorspace for computing the wall shear stress
+vector = VectorFunctionSpace(mesh, 'CG', velocity_degree - 1)
+w = TestFunction(vector)
+shear_stress = Function(vector)
+
+# Define the stress tensor and vector
+sigma = 2 * nu * sym(grad(uv_tmp))
+T = sigma * n
+
+# Define the wall shear stress
+Tt = T - inner(T, n) * n
+Lt = (1 / FacetArea(mesh)) * inner(w, Tt) * ds
+
+assemble(Lt, tensor=shear_stress.vector())
+</code></pre>
+
+<p>Where shear_stress holds the final result. To my understanding the physics underlying this code should be correct for Newtonian fluids.</p>
+
+<p>For benchmarking I compute the wall shear stress in a straight tube with a radius of 0.0105 [m]. The viscosity of the fluid is 8.4E-7 [Pa*s] (Because the density is scaled to 1 [kg/m3]). I simulate Poiseuille flow by prescribing a parabolic flow profile at the inlet:</p>
+
+<pre><code>vel_x_in = Constant(0.)
+vel_y_in = Constant(0.)
+vel_z_in = Expression(
+    (pow(x[0], 2) + pow(x[1], 2) - ' +
+    'pow(diameter / 2, 2)) * 2 * velocity / pow(diameter / 2, 2)',
+    velocity=0.1, diameter=D, degree=2)
+</code></pre>
+
+<p>Here, velocity, is the mean velocity of the Poiseuille profile = 0.1 [m/s] = 0.5 * v_max. </p>
+
+<p>Given the problem characteristics, the analytic value of the wall shear stress should be equal to: nu * du/dr = nu *  (4 * v) / R = 8.4E-7 * 0.4/0.0105 = 3.2E-5 Pa (Note: the numerical value of the kinematic and dynamic viscosity are the same as the density = 1). However, my code returns a wall shear stress of around 6.7E-5 Pa. </p>
+
+<p>When estimating the wall shear stress from the output files by hand (by estimating the term du/dr in paraview), I get wall shear stress values that are very close to the analytical solutions, indicating the simulations themselves are correct. Hence, I believe there is something wrong in my wall shear stress computations.</p>
+
+<p>I cannot explain this discrepancy between analytical and numerical wall shear stress. Can anybody help me solve this problem?</p>
+
+<p>Thank you in advance!<br>
+Sjeng</p>
+
+<p>P.S. I do not know if it is relevant: I use fenics 2017.1 in combination with the oasis solver-library: <a rel="nofollow" href="https://github.com/mikaem/Oasis">https://github.com/mikaem/Oasis</a></p>
+</div>
+										</div>
+										<div class="qa-q-view-tags">
+											<ul class="qa-q-view-tag-list">
+												<li class="qa-q-view-tag-item"><a href="../../tag/wall-shear-stress" rel="tag" class="qa-tag-link">wall-shear-stress</a></li>
+												<li class="qa-q-view-tag-item"><a href="../../tag/cfd" rel="tag" class="qa-tag-link">cfd</a></li>
+												<li class="qa-q-view-tag-item"><a href="../../tag/fluid-mechanics" rel="tag" class="qa-tag-link">fluid-mechanics</a></li>
+												<li class="qa-q-view-tag-item"><a href="../../tag/newtonian" rel="tag" class="qa-tag-link">newtonian</a></li>
+												<li class="qa-q-view-tag-item"><a href="../../tag/wss" rel="tag" class="qa-tag-link">wss</a></li>
+											</ul>
+										</div>
+										<span class="qa-q-view-avatar-meta">
+											<span class="qa-q-view-meta">
+												<a href="../../13629/incorrect-stress-computations-compared-analytical-solution" class="qa-q-view-what">asked</a>
+												<span class="qa-q-view-when">
+													<span class="qa-q-view-when-data"><span class="published"><span class="value-title" title="2017-05-24T09:18:22+0000"></span>May 24, 2017</span></span>
+												</span>
+												<span class="qa-q-view-who">
+													<span class="qa-q-view-who-pad">by </span>
+													<span class="qa-q-view-who-data"><span class="vcard author"><a href="../../user/SQ" class="qa-user-link url nickname">SQ</a></span></span>
+													<span class="qa-q-view-who-title">FEniCS Novice</span>
+													<span class="qa-q-view-who-points">
+														<span class="qa-q-view-who-points-pad">(</span><span class="qa-q-view-who-points-data">320</span><span class="qa-q-view-who-points-pad"> points)</span>
+													</span>
+												</span>
+											</span>
+										</span>
+										<div class="qa-q-view-buttons">
+										</div>
+										
+										<div class="qa-q-view-c-list" style="display:none;" id="c13629_list">
+										</div> <!-- END qa-c-list -->
+										
+										<input type="hidden" name="code" value="0-1516467874-31ff8e2df113d6e86b26b82aa9923d2ead8ab505">
+										<input type="hidden" name="qa_click" value="">
+									</form>
+									<div class="qa-c-form">
+									</div> <!-- END qa-c-form -->
+									
+								</div> <!-- END qa-q-view-main -->
+								<div class="qa-q-view-clear">
+								</div>
+							</div> <!-- END qa-q-view -->
+							
+						</div>
+						<div class="qa-part-a-list">
+							<h2 id="a_list_title">2 Answers</h2>
+							<div class="qa-a-list" id="a_list">
+								
+								<div class="qa-a-list-item  hentry answer answer-selected qa-a-list-item-selected" id="a13740">
+									<form method="post" action="../../13629/incorrect-stress-computations-compared-analytical-solution">
+										<div class="qa-voting qa-voting-net" id="voting_13740">
+											<div class="qa-vote-count qa-vote-count-net">
+												<span class="qa-netvote-count">
+													<span class="qa-netvote-count-data">0<span class="votes-up"><span class="value-title" title="0"></span></span><span class="votes-down"><span class="value-title" title="0"></span></span></span><span class="qa-netvote-count-pad"> votes</span>
+												</span>
+											</div>
+											<div class="qa-vote-clear">
+											</div>
+										</div>
+										<input type="hidden" name="code" value="0-1516467874-4a3bb3910693ca49a9327842098bf5bb51d51a17">
+									</form>
+									<div class="qa-a-item-main">
+										<form method="post" action="../../13629/incorrect-stress-computations-compared-analytical-solution">
+											<div class="qa-a-item-selected">
+												<div class="qa-a-selection">
+													<div class="qa-a-selected">&#160;</div>
+													<div class="qa-a-selected-text">Best answer</div>
+												</div>
+												<div class="qa-a-item-content">
+													<a name="13740"></a><div class="entry-content"><p>Based on the answer I got on <a rel="nofollow" href="https://fenicsproject.org/qa/13680/different-integration-depending-elemtype-working-example">this</a> question, I believe I am able to correctly compute the wall shear stress. I will put the rationale/ solution below for the sake of completeness.</p>
+
+<p>The problem with the method as stated in the question is that the wall shear stress should be defined something like:</p>
+
+<p>$$\int_{\Gamma}\tau_w\cdot v\,d\Gamma = \int_{\Gamma}(T - (T\cdot n) * n)\cdot v\,d\Gamma$$</p>
+
+<p>where $$\tau_w$$ is the wall shear stress vector, v a test function and $$(T - (T\cdot n) * n)$$ the expression for the wall shear stress.</p>
+
+<p>Trying to solve this with:</p>
+
+<pre><code>assemble(Lt = (1 / FacetArea(mesh)) * inner(w, Tt) * ds
+</code></pre>
+
+<p>(where <code>Tt</code> is the expression for the wall shear stress), only works for a zeroth-order discontinuous Galerkin method, as the mass matrix of this function space is a diagonal matrix where the non-zero entries are equal to the FacetArea. Hence, assembling this vector can be viewed as multiplying the expression for the wall shear stress (<code>inner(w, Tt) * ds</code>) by the inverse of the mass matrix <code>(1 / FacetArea(mesh))</code>. Clearly this only works when the mass matrix is a diagonal matrix. Hence, for all other function spaces this method is simply wrong. Moreover, using the DG0 function space is not the ideal in my opinion, as the nodes of this space are not located on the wall but in the center of the tetrahedrons, hence, your wall shear stress approximation will be slightly off. This effect might be neglected for very small boundary elements, but why would you accept this inaccuracy if you have all information available to get a better approximation (or maybe get the same inaccuracy with much larger elements). </p>
+
+<p>The way I can now compute the wall shear stress correctly is by using the following code (Note: my TrialFunction is <code>shear_stress</code>, my TestFunction is <code>w</code>. Both are defined in the function space <code>VectorFunctionSpace(mesh, 'CG', velocity_degree - 1)</code>)</p>
+
+<pre><code># Define the stress tensor and vector
+sigma = 2 * nu * sym(nabla_grad(uv_tmp))
+T = sigma * n
+
+# Define the wall shear stress
+Tt = T - inner(T, n) * n
+Lt = inner(w, Tt) * ds
+
+# Define a left hand side for projection 
+# CONSTANT throughout program if mesh does not change
+a = inner(shear_stress, w) * ds
+A_wss = assemble(a, keep_diagonal=True)
+A_wss.ident_zeros()
+
+# Assemble the left hand side
+# Should assembled each time
+b = assemble(Lt)
+
+# Compute the wall shear stress
+solve(A_wss, shear_stress_.vector(), b)
+</code></pre>
+
+<p>Note that in assembling the A matrix I specify <code>keep_diagonal=True</code> and <code>A_wss.ident_zeros()</code>. This is necessary because the expression for the wall shear stress is only defined on the boundary domain. Consequently, the problem is ill-posed: only some columns of the mass matrix have entries (boundary nodes), whereas most parts don't. Hence, for the empty columns we put a <code>1</code> on the diagonal with ident_zeros(), which makes the matrix invertible (For a better explanation see again <a rel="nofollow" href="https://fenicsproject.org/qa/13680/different-integration-depending-elemtype-working-example">the answer to my other question</a>). This procedure shouldn't affect the solution of solve(A_wss, shear_stress_.vector(), b). </p>
+</div>
+												</div>
+												<span class="qa-a-item-avatar-meta">
+													<span class="qa-a-item-meta">
+														<a href="../../13629/incorrect-stress-computations-compared-analytical-solution?show=13740#a13740" class="qa-a-item-what">answered</a>
+														<span class="qa-a-item-when">
+															<span class="qa-a-item-when-data"><span class="published"><span class="value-title" title="2017-05-31T13:34:17+0000"></span>May 31, 2017</span></span>
+														</span>
+														<span class="qa-a-item-who">
+															<span class="qa-a-item-who-pad">by </span>
+															<span class="qa-a-item-who-data"><span class="vcard author"><a href="../../user/SQ" class="qa-user-link url nickname">SQ</a></span></span>
+															<span class="qa-a-item-who-title">FEniCS Novice</span>
+															<span class="qa-a-item-who-points">
+																<span class="qa-a-item-who-points-pad">(</span><span class="qa-a-item-who-points-data">320</span><span class="qa-a-item-who-points-pad"> points)</span>
+															</span>
+														</span>
+													</span>
+												</span>
+											</div>
+											<div class="qa-a-item-buttons">
+												</div>
+											
+											<div class="qa-a-item-c-list" style="display:none;" id="c13740_list">
+											</div> <!-- END qa-c-list -->
+											
+											<input type="hidden" name="code" value="0-1516467874-0d553292848ec7ce56249ff9c70250c26a13117b">
+											<input type="hidden" name="qa_click" value="">
+										</form>
+										<div class="qa-c-form">
+										</div> <!-- END qa-c-form -->
+										
+									</div> <!-- END qa-a-item-main -->
+									<div class="qa-a-item-clear">
+									</div>
+								</div> <!-- END qa-a-list-item -->
+								
+								<div class="qa-a-list-item  hentry answer" id="a13661">
+									<form method="post" action="../../13629/incorrect-stress-computations-compared-analytical-solution">
+										<div class="qa-voting qa-voting-net" id="voting_13661">
+											<div class="qa-vote-count qa-vote-count-net">
+												<span class="qa-netvote-count">
+													<span class="qa-netvote-count-data">0<span class="votes-up"><span class="value-title" title="0"></span></span><span class="votes-down"><span class="value-title" title="0"></span></span></span><span class="qa-netvote-count-pad"> votes</span>
+												</span>
+											</div>
+											<div class="qa-vote-clear">
+											</div>
+										</div>
+										<input type="hidden" name="code" value="0-1516467874-4a3bb3910693ca49a9327842098bf5bb51d51a17">
+									</form>
+									<div class="qa-a-item-main">
+										<form method="post" action="../../13629/incorrect-stress-computations-compared-analytical-solution">
+											<div class="qa-a-selection">
+											</div>
+											<div class="qa-a-item-content">
+												<a name="13661"></a><div class="entry-content"><p>If there's such a large discrepancy, then your code is probably not doing what you want it to.  However, the general approach of directly evaluating a boundary flux at a Dirichlet boundary is not really best practice.  A better way to extract fluxes is discussed here:</p>
+
+<p><a rel="nofollow" href="https://www.ices.utexas.edu/media/reports/2011/1122.pdf">https://www.ices.utexas.edu/media/reports/2011/1122.pdf</a></p>
+
+<p>and also in Exercise 8 of Section 2.12 of the T.J.R. Hughes FEM book.  I tried throwing together a FEniCS implementation just now (with version 2016.2) for heat conduction, and it looks like it at least gets the sign right, but, use at your own risk...</p>
+
+<pre><code>from dolfin import *
+from mshr import *
+domain = Rectangle(Point(0.0,0.0), Point(1.0,1.0))
+mesh = generate_mesh(domain,10)
+V = FunctionSpace(mesh,"Lagrange",1)
+class Bdry(SubDomain):
+    def inside(self,x,on_boundary):
+        return on_boundary
+bcs = [DirichletBC(V,Constant(0.0),Bdry()),]
+u = TrialFunction(V)
+v = TestFunction(V)
+def R(u,v):
+    return (inner(grad(u),grad(v)) - Constant(1000.0)*v)*dx
+F = R(u,v)
+a = lhs(F)
+L = rhs(F)
+u = Function(V)
+solve(a==L,u,bcs)
+class AntiBdry(SubDomain):
+    def inside(self,x,on_boundary):
+        return x[0] &gt; DOLFIN_EPS and x[0] &lt; 1.0-DOLFIN_EPS \
+            and x[1] &gt; DOLFIN_EPS and x[1] &lt; 1.0-DOLFIN_EPS
+uBdry = TrialFunction(V)
+antiBCs = [DirichletBC(V,Constant(0.0),AntiBdry()),]
+FBdry = (uBdry-1.0)*v*ds - R(u,v)
+aBdry = lhs(FBdry)
+LBdry = rhs(FBdry)
+ABdry = assemble(aBdry,keep_diagonal=True)
+bBdry = assemble(LBdry)
+[bc.apply(ABdry,bBdry) for bc in antiBCs]
+flux = Function(V)
+solve(ABdry,flux.vector(),bBdry)
+uFile = File("u.pvd")
+uFile &lt;&lt; u
+fluxFile = File("flux.pvd")
+fluxFile &lt;&lt; flux
+</code></pre>
+</div>
+											</div>
+											<span class="qa-a-item-avatar-meta">
+												<span class="qa-a-item-meta">
+													<a href="../../13629/incorrect-stress-computations-compared-analytical-solution?show=13661#a13661" class="qa-a-item-what">answered</a>
+													<span class="qa-a-item-when">
+														<span class="qa-a-item-when-data"><span class="published"><span class="value-title" title="2017-05-27T00:18:50+0000"></span>May 27, 2017</span></span>
+													</span>
+													<span class="qa-a-item-who">
+														<span class="qa-a-item-who-pad">by </span>
+														<span class="qa-a-item-who-data"><span class="vcard author"><a href="../../user/kamensky" class="qa-user-link url nickname">kamensky</a></span></span>
+														<span class="qa-a-item-who-title">FEniCS Novice</span>
+														<span class="qa-a-item-who-points">
+															<span class="qa-a-item-who-points-pad">(</span><span class="qa-a-item-who-points-data">150</span><span class="qa-a-item-who-points-pad"> points)</span>
+														</span>
+													</span>
+												</span>
+											</span>
+											<div class="qa-a-item-buttons">
+												</div>
+											
+											<div class="qa-a-item-c-list" id="c13661_list">
+												<div class="qa-c-list-item  hentry comment" id="c13737">
+													<div class="qa-c-item-content">
+														<a name="13737"></a><div class="entry-content"><p>Hi kamensky,</p>
+
+<p>I looked at the article, but it seems that it is not really suited for my problem: I need to compute the stress vector resulting from the velocity field which is defined as:<br>
+$$\vec{\tau}=\sigma\cdot\vec{n}$$<br>
+where \sigma is the stress tensor. Thus I am not really computing a flux of any kind. I found another solution that seems to work for me (which I will post below).</p>
+
+<p>Anyway, thank you for taking the time to answer my question.</p>
+</div>
+													</div>
+													<div class="qa-c-item-footer">
+														<span class="qa-c-item-avatar-meta">
+															<span class="qa-c-item-meta">
+																<a href="../../13629/incorrect-stress-computations-compared-analytical-solution?show=13737#c13737" class="qa-c-item-what">commented</a>
+																<span class="qa-c-item-when">
+																	<span class="qa-c-item-when-data"><span class="published"><span class="value-title" title="2017-05-31T12:49:47+0000"></span>May 31, 2017</span></span>
+																</span>
+																<span class="qa-c-item-who">
+																	<span class="qa-c-item-who-pad">by </span>
+																	<span class="qa-c-item-who-data"><span class="vcard author"><a href="../../user/SQ" class="qa-user-link url nickname">SQ</a></span></span>
+																	<span class="qa-c-item-who-title">FEniCS Novice</span>
+																	<span class="qa-c-item-who-points">
+																		<span class="qa-c-item-who-points-pad">(</span><span class="qa-c-item-who-points-data">320</span><span class="qa-c-item-who-points-pad"> points)</span>
+																	</span>
+																</span>
+															</span>
+														</span>
+														<div class="qa-c-item-buttons">
+														</div>
+													</div>
+													<div class="qa-c-item-clear">
+													</div>
+												</div> <!-- END qa-c-item -->
+												<div class="qa-c-list-item  hentry comment" id="c13742">
+													<div class="qa-c-item-content">
+														<a name="13742"></a><div class="entry-content"><p>Note that the traction is a flux for the Navier--Stokes problem.  See Section 5.2 on fluid--structure interaction from the previously-linked report, or equations (8)--(13) from this report</p>
+
+<p><a rel="nofollow" href="https://www.ices.utexas.edu/media/reports/2004/0431.pdf">https://www.ices.utexas.edu/media/reports/2004/0431.pdf</a></p>
+
+<p>for a scalar problem with fluxes specified with a similar notation.  (See also (31)--(33) from the above-linked report for flux extraction.)  The heuristic to think of is: "If the Dirichlet BC were not specified strongly, what Neumann (flux) BC would I have needed to apply weakly on that part of the boundary to end up with the solution that I got?"  An advantage of computing fluxes this way is that they satisfy conservation properties of the form (34).  (In the case of a traction flux, this would be conservation of momentum.)</p>
+</div>
+													</div>
+													<div class="qa-c-item-footer">
+														<span class="qa-c-item-avatar-meta">
+															<span class="qa-c-item-meta">
+																<a href="../../13629/incorrect-stress-computations-compared-analytical-solution?show=13742#c13742" class="qa-c-item-what">commented</a>
+																<span class="qa-c-item-when">
+																	<span class="qa-c-item-when-data"><span class="published"><span class="value-title" title="2017-05-31T14:30:51+0000"></span>May 31, 2017</span></span>
+																</span>
+																<span class="qa-c-item-who">
+																	<span class="qa-c-item-who-pad">by </span>
+																	<span class="qa-c-item-who-data"><span class="vcard author"><a href="../../user/kamensky" class="qa-user-link url nickname">kamensky</a></span></span>
+																	<span class="qa-c-item-who-title">FEniCS Novice</span>
+																	<span class="qa-c-item-who-points">
+																		<span class="qa-c-item-who-points-pad">(</span><span class="qa-c-item-who-points-data">150</span><span class="qa-c-item-who-points-pad"> points)</span>
+																	</span>
+																</span>
+															</span>
+														</span>
+														<div class="qa-c-item-buttons">
+														</div>
+													</div>
+													<div class="qa-c-item-clear">
+													</div>
+												</div> <!-- END qa-c-item -->
+												<div class="qa-c-list-item  hentry comment" id="c13743">
+													<div class="qa-c-item-content">
+														<a name="13743"></a><div class="entry-content"><p>Indeed, you are right. I will give it a second look and see if this would be better for my aims. Thanks!</p>
+</div>
+													</div>
+													<div class="qa-c-item-footer">
+														<span class="qa-c-item-avatar-meta">
+															<span class="qa-c-item-meta">
+																<a href="../../13629/incorrect-stress-computations-compared-analytical-solution?show=13743#c13743" class="qa-c-item-what">commented</a>
+																<span class="qa-c-item-when">
+																	<span class="qa-c-item-when-data"><span class="published"><span class="value-title" title="2017-05-31T14:40:23+0000"></span>May 31, 2017</span></span>
+																</span>
+																<span class="qa-c-item-who">
+																	<span class="qa-c-item-who-pad">by </span>
+																	<span class="qa-c-item-who-data"><span class="vcard author"><a href="../../user/SQ" class="qa-user-link url nickname">SQ</a></span></span>
+																	<span class="qa-c-item-who-title">FEniCS Novice</span>
+																	<span class="qa-c-item-who-points">
+																		<span class="qa-c-item-who-points-pad">(</span><span class="qa-c-item-who-points-data">320</span><span class="qa-c-item-who-points-pad"> points)</span>
+																	</span>
+																</span>
+															</span>
+														</span>
+														<div class="qa-c-item-buttons">
+														</div>
+													</div>
+													<div class="qa-c-item-clear">
+													</div>
+												</div> <!-- END qa-c-item -->
+											</div> <!-- END qa-c-list -->
+											
+											<input type="hidden" name="code" value="0-1516467874-ef19319ccc7772502ebdda1db35e3a2ceef5a30f">
+											<input type="hidden" name="qa_click" value="">
+										</form>
+										<div class="qa-c-form">
+										</div> <!-- END qa-c-form -->
+										
+									</div> <!-- END qa-a-item-main -->
+									<div class="qa-a-item-clear">
+									</div>
+								</div> <!-- END qa-a-list-item -->
+								
+							</div> <!-- END qa-a-list -->
+							
+						</div>
+					</div> <!-- END qa-main -->
+					
+				</div> <!-- END main-wrapper -->
+			</div> <!-- END main-shadow -->
+		</div> <!-- END body-wrapper -->
+		<!-- END footer-bottom-group -->
+		
+		<div style="position:absolute; left:-9999px; top:-9999px;">
+			<span id="qa-waiting-template" class="qa-waiting">...</span>
+		</div>
+	
+	
+
+</body><!-- Powered by Question2Answer - http://www.question2answer.org/ --></html>

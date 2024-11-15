@@ -1,0 +1,372 @@
+<html><!-- Powered by Question2Answer - http://www.question2answer.org/ --><head>
+		<meta http-equiv="content-type" content="text/html; charset=utf-8">
+		<title>Benchmarking elasticity example against Comsol solution provides different results - FEniCS Q&amp;A</title>
+		<meta name="description" content="I'm modeling square of size 1 with small hole of radius r = 0.05 in the center of it. The left side of ...  name=&quot;Control&quot;) u = get_u(a) File(&quot;u.pvd&quot;)">
+		<meta name="keywords" content="linear-elasticity,boundary-conditions,elasticity,neumann,dirichletbc">
+		<link rel="stylesheet" type="text/css" href="../../qa-theme/Snow/qa-styles.css">
+		<link rel="canonical" href="http://fenicsproject.org/qa/13662/benchmarking-elasticity-against-solution-provides-different">
+		<script type="text/x-mathjax-config">
+  MathJax.Hub.Config({
+    extensions: ["tex2jax.js"],
+    jax: ["input/TeX","output/HTML-CSS"],
+    tex2jax: {inlineMath: [["$","$"],["\\(","\\)"]]},
+    TeX: { extensions: ["AMSmath.js","AMSsymbols.js"]}
+  });
+</script>
+<script type="text/javascript" src="../../mathjax/MathJax.js"></script>
+		<script src="../../jquery-1.7.2.min.js" type="text/javascript"></script>
+		<script src="../../highlight.min.js"></script>
+<script type="text/javascript">
+$(function(){
+	$('.wmd-input').keypress(function(){
+		window.clearTimeout(hljs.Timeout);
+		hljs.Timeout = window.setTimeout(function() {
+			hljs.initHighlighting.called = false;
+			hljs.initHighlighting();
+		}, 500);
+	});
+	window.setTimeout(function() {
+		hljs.initHighlighting.called = false;
+		hljs.initHighlighting();
+	}, 500);
+});
+</script>
+
+
+	</head>
+	<body class="qa-template-question qa-body-js-off">
+		<div class="qa-body-wrapper">
+			
+			<div class="qa-header">
+				<div class="qa-logo">
+					<a href="../../" class="qa-logo-link" title="FEniCS Q&amp;A"><img src="../../qa-theme/fenics_qa.png" border="0" alt="FEniCS Q&amp;A"></a>
+				</div>
+				<div class="qa-header-clear">
+				</div>
+			</div> <!-- END qa-header -->
+			
+			<div class="qa-main-shadow">
+				
+				<div class="qa-main-wrapper">
+					
+					<div class="qa-sidepanel">
+						<div class="qa-sidebar">
+							This is a read only copy of the old FEniCS QA forum. Please visit the <a href="https://www.allanswered.com/community/s/fenics-project/">new QA forum</a> to ask questions
+						</div>
+						
+					</div>
+					
+					<div class="qa-main">
+						<h1>
+							<span class="entry-title">Benchmarking elasticity example against Comsol solution provides different results</span>
+						</h1>
+						<div class="qa-part-q-view">
+							<div class="qa-q-view  hentry question" id="q13662">
+								<form method="post" action="../../13662/benchmarking-elasticity-against-solution-provides-different">
+									<div class="qa-q-view-stats">
+										<div class="qa-voting qa-voting-net" id="voting_13662">
+											<div class="qa-vote-count qa-vote-count-net">
+												<span class="qa-netvote-count">
+													<span class="qa-netvote-count-data">+1<span class="votes-up"><span class="value-title" title="1"></span></span><span class="votes-down"><span class="value-title" title="0"></span></span></span><span class="qa-netvote-count-pad"> vote</span>
+												</span>
+											</div>
+											<div class="qa-vote-clear">
+											</div>
+										</div>
+									</div>
+									<input type="hidden" name="code" value="0-1516467876-88eb8820bcf47810c6f7b4c3834e5fe9a33ed35b">
+								</form>
+								<div class="qa-q-view-main">
+									<form method="post" action="../../13662/benchmarking-elasticity-against-solution-provides-different">
+										<div class="qa-q-view-content">
+											<a name="13662"></a><div class="entry-content"><p>I'm modeling square of size 1 with small hole of radius r = 0.05 in the center of it. The left side of the square is fixed (zero displacement) while the right side of the square is being pulled. </p>
+
+<pre><code>from __future__ import print_function
+from dolfin import *
+from dolfin_adjoint import *
+
+n = 100
+mesh  = UnitSquareMesh(n, n)
+p = Constant(2)        
+eps = Constant(1.0e-8) 
+
+class HoleExpression(Expression):
+    def eval(self, values, x):
+        values[0] = 1.0
+        if (x[0]-0.5)**2 + (x[1]-0.5)**2 &lt;  (0.05)**2:
+            values[0] = 0
+        return values
+
+left  =  CompiledSubDomain("near(x[0], side) &amp;&amp; on_boundary", side = 0.0)
+right =  CompiledSubDomain("near(x[0], side) &amp;&amp; on_boundary", side = 1.0)
+
+boundary_parts = MeshFunction("size_t", mesh, mesh.topology().dim() - 1)
+boundary_parts.set_all(0)
+left.mark(boundary_parts, 1)
+right.mark(boundary_parts, 2)
+ds = Measure("ds")[boundary_parts]
+
+A = FunctionSpace(mesh, "CG", 3)  
+PP = VectorFunctionSpace(mesh, "CG", 3)
+
+g = interpolate(Expression(('1.0','0.0'), degree = 2), PP) 
+
+bc1 = DirichletBC(PP, Constant((0.0, 0.0)), left)
+bcs = [bc1]
+
+parameters["std_out_all_processes"] = False
+
+def k(a):
+    return eps + (1 - eps) * a**p
+
+E, nu = 1.0, 0.3
+mu, lmbda = Constant(E/(2*(1 + nu))), Constant(E*nu/((1 - nu**2)))
+
+
+def sigma(rho, v):
+    return 2.0*mu*rho*sym(grad(v)) + lmbda*rho*tr(sym(grad(v)))*Identity(len(v))
+
+def get_u(a):
+    u = TrialFunction(PP)
+    v = TestFunction(PP)
+    frm = inner(sigma(k(a), u), grad(v))*dx
+    rhs = dot(g, v)*ds(2)
+    u = Function(PP)
+    problem = LinearVariationalProblem(frm, rhs, u, bcs = bcs)
+    solver = LinearVariationalSolver(problem)
+    solver.parameters["linear_solver"] ="lu"
+    solver.solve()
+    return u
+if __name__ == "__main__":
+    a = interpolate(HoleExpression(degree = 2), A, name="Control")
+    u = get_u(a)
+    File("u.pvd") &lt;&lt; u
+</code></pre>
+
+<p>From comsol I'm getting the following result for displacement among x: <br>
+<img src="https://i.imgur.com/aY7EWrp.png" alt="comsol x"><br>
+and among y:<br>
+<img src="https://i.imgur.com/bBF3zVW.png" alt="comsol y"><br>
+The scale of values on both pictures are in range 1e-5.</p>
+
+<p>While the code above provide a different solution:<br>
+a displacement among x:<br>
+<img src="https://i.imgur.com/XPnei4z.png" alt="enter image description here"><br>
+and a displacement among y:<br>
+<img src="https://i.imgur.com/MFFHV3a.png" alt="enter image description here"></p>
+
+<p>The pictures are remotely similar, but what bothers me is the fact, that for material with E=1, mu=0.3 I'm getting displacement in range of 1e0, while comsol provides me with displacements in range 1e-5. (The comsol file could be obtained from <a rel="nofollow" href="https://yadi.sk/d/ZIFOPoZ73JZdu9">https://yadi.sk/d/ZIFOPoZ73JZdu9</a> or used original <a rel="nofollow" href="https://www.comsol.com/community/exchange/56/">https://www.comsol.com/community/exchange/56/</a> (but it needs modifications in material parameters)).</p>
+</div>
+										</div>
+										<div class="qa-q-view-tags">
+											<ul class="qa-q-view-tag-list">
+												<li class="qa-q-view-tag-item"><a href="../../tag/linear-elasticity" rel="tag" class="qa-tag-link">linear-elasticity</a></li>
+												<li class="qa-q-view-tag-item"><a href="../../tag/boundary-conditions" rel="tag" class="qa-tag-link">boundary-conditions</a></li>
+												<li class="qa-q-view-tag-item"><a href="../../tag/elasticity" rel="tag" class="qa-tag-link">elasticity</a></li>
+												<li class="qa-q-view-tag-item"><a href="../../tag/neumann" rel="tag" class="qa-tag-link">neumann</a></li>
+												<li class="qa-q-view-tag-item"><a href="../../tag/dirichletbc" rel="tag" class="qa-tag-link">dirichletbc</a></li>
+											</ul>
+										</div>
+										<span class="qa-q-view-avatar-meta">
+											<span class="qa-q-view-meta">
+												<a href="../../13662/benchmarking-elasticity-against-solution-provides-different" class="qa-q-view-what">asked</a>
+												<span class="qa-q-view-when">
+													<span class="qa-q-view-when-data"><span class="published"><span class="value-title" title="2017-05-27T01:15:05+0000"></span>May 27, 2017</span></span>
+												</span>
+												<span class="qa-q-view-who">
+													<span class="qa-q-view-who-pad">by </span>
+													<span class="qa-q-view-who-data"><span class="vcard author"><a href="../../user/gtt" class="qa-user-link url nickname">gtt</a></span></span>
+													<span class="qa-q-view-who-title">FEniCS Novice</span>
+													<span class="qa-q-view-who-points">
+														<span class="qa-q-view-who-points-pad">(</span><span class="qa-q-view-who-points-data">630</span><span class="qa-q-view-who-points-pad"> points)</span>
+													</span>
+												</span>
+											</span>
+										</span>
+										<div class="qa-q-view-buttons">
+										</div>
+										
+										<div class="qa-q-view-c-list" id="c13662_list">
+											<div class="qa-c-list-item  hentry comment" id="c13665">
+												<div class="qa-c-item-content">
+													<a name="13665"></a><div class="entry-content"><p>I have never used comsol but linear elasticity is, of course, a linear problem, and so it scales linearly. If the solutions are so similar, maybe your problem is in the units. Please check that E, mu and F (applied force) are being set within the same scale. If not, no idea. </p>
+</div>
+												</div>
+												<div class="qa-c-item-footer">
+													<span class="qa-c-item-avatar-meta">
+														<span class="qa-c-item-avatar">
+															<a href="../../user/nabarnaf" class="qa-avatar-link"><img src="../../?qa=image&amp;qa_blobid=6623124104544180019&amp;qa_size=20" width="20" height="14" class="qa-avatar-image" alt=""></a>
+														</span>
+														<span class="qa-c-item-meta">
+															<a href="../../13662/benchmarking-elasticity-against-solution-provides-different?show=13665#c13665" class="qa-c-item-what">commented</a>
+															<span class="qa-c-item-when">
+																<span class="qa-c-item-when-data"><span class="published"><span class="value-title" title="2017-05-27T17:44:35+0000"></span>May 27, 2017</span></span>
+															</span>
+															<span class="qa-c-item-who">
+																<span class="qa-c-item-who-pad">by </span>
+																<span class="qa-c-item-who-data"><span class="vcard author"><a href="../../user/nabarnaf" class="qa-user-link url nickname">nabarnaf</a></span></span>
+																<span class="qa-c-item-who-title">FEniCS User</span>
+																<span class="qa-c-item-who-points">
+																	<span class="qa-c-item-who-points-pad">(</span><span class="qa-c-item-who-points-data">2,940</span><span class="qa-c-item-who-points-pad"> points)</span>
+																</span>
+															</span>
+														</span>
+													</span>
+													<div class="qa-c-item-buttons">
+													</div>
+												</div>
+												<div class="qa-c-item-clear">
+												</div>
+											</div> <!-- END qa-c-item -->
+											<div class="qa-c-list-item  hentry comment" id="c13678">
+												<div class="qa-c-item-content">
+													<a name="13678"></a><div class="entry-content"><p>You have a 1x1 mesh, with E=1, and thickness = 1, plane stress, unit load per lenght, right? If yes, then the stiffness, the load and the displacement will be in the order of 1. Thus, Dolfin's solution is right, and Comsol solution is wrong. Or, more probably, you used different data, as already suggested by @nabarnaf.<br>
+That said, you should avoid doing dirty trick in Dolfin to define the hole. Simple use a mesh with an hole, as you are doing in Comsol.</p>
+</div>
+												</div>
+												<div class="qa-c-item-footer">
+													<span class="qa-c-item-avatar-meta">
+														<span class="qa-c-item-meta">
+															<a href="../../13662/benchmarking-elasticity-against-solution-provides-different?show=13678#c13678" class="qa-c-item-what">commented</a>
+															<span class="qa-c-item-when">
+																<span class="qa-c-item-when-data"><span class="published"><span class="value-title" title="2017-05-29T08:39:03+0000"></span>May 29, 2017</span></span>
+															</span>
+															<span class="qa-c-item-who">
+																<span class="qa-c-item-who-pad">by </span>
+																<span class="qa-c-item-who-data"><span class="vcard author"><a href="../../user/mmorandi" class="qa-user-link url nickname">mmorandi</a></span></span>
+																<span class="qa-c-item-who-title">FEniCS Novice</span>
+																<span class="qa-c-item-who-points">
+																	<span class="qa-c-item-who-points-pad">(</span><span class="qa-c-item-who-points-data">990</span><span class="qa-c-item-who-points-pad"> points)</span>
+																</span>
+															</span>
+														</span>
+													</span>
+													<div class="qa-c-item-buttons">
+													</div>
+												</div>
+												<div class="qa-c-item-clear">
+												</div>
+											</div> <!-- END qa-c-item -->
+											<div class="qa-c-list-item  hentry comment" id="c13758">
+												<div class="qa-c-item-content">
+													<a name="13758"></a><div class="entry-content"><p>Yes, I think it was a scale issue, because I was able to replicate stress field with good accuracy.</p>
+</div>
+												</div>
+												<div class="qa-c-item-footer">
+													<span class="qa-c-item-avatar-meta">
+														<span class="qa-c-item-meta">
+															<a href="../../13662/benchmarking-elasticity-against-solution-provides-different?show=13758#c13758" class="qa-c-item-what">commented</a>
+															<span class="qa-c-item-when">
+																<span class="qa-c-item-when-data"><span class="published"><span class="value-title" title="2017-06-01T10:31:24+0000"></span>Jun 1, 2017</span></span>
+															</span>
+															<span class="qa-c-item-who">
+																<span class="qa-c-item-who-pad">by </span>
+																<span class="qa-c-item-who-data"><span class="vcard author"><a href="../../user/gtt" class="qa-user-link url nickname">gtt</a></span></span>
+																<span class="qa-c-item-who-title">FEniCS Novice</span>
+																<span class="qa-c-item-who-points">
+																	<span class="qa-c-item-who-points-pad">(</span><span class="qa-c-item-who-points-data">630</span><span class="qa-c-item-who-points-pad"> points)</span>
+																</span>
+															</span>
+														</span>
+													</span>
+													<div class="qa-c-item-buttons">
+													</div>
+												</div>
+												<div class="qa-c-item-clear">
+												</div>
+											</div> <!-- END qa-c-item -->
+										</div> <!-- END qa-c-list -->
+										
+										<input type="hidden" name="code" value="0-1516467876-322403673fcf997d0782a3e1421bb181eb44dd31">
+										<input type="hidden" name="qa_click" value="">
+									</form>
+									<div class="qa-c-form">
+									</div> <!-- END qa-c-form -->
+									
+								</div> <!-- END qa-q-view-main -->
+								<div class="qa-q-view-clear">
+								</div>
+							</div> <!-- END qa-q-view -->
+							
+						</div>
+						<div class="qa-part-a-list">
+							<h2 id="a_list_title">1 Answer</h2>
+							<div class="qa-a-list" id="a_list">
+								
+								<div class="qa-a-list-item  hentry answer" id="a13672">
+									<form method="post" action="../../13662/benchmarking-elasticity-against-solution-provides-different">
+										<div class="qa-voting qa-voting-net" id="voting_13672">
+											<div class="qa-vote-count qa-vote-count-net">
+												<span class="qa-netvote-count">
+													<span class="qa-netvote-count-data">+1<span class="votes-up"><span class="value-title" title="1"></span></span><span class="votes-down"><span class="value-title" title="0"></span></span></span><span class="qa-netvote-count-pad"> vote</span>
+												</span>
+											</div>
+											<div class="qa-vote-clear">
+											</div>
+										</div>
+										<input type="hidden" name="code" value="0-1516467876-88eb8820bcf47810c6f7b4c3834e5fe9a33ed35b">
+									</form>
+									<div class="qa-a-item-main">
+										<form method="post" action="../../13662/benchmarking-elasticity-against-solution-provides-different">
+											<div class="qa-a-selection">
+											</div>
+											<div class="qa-a-item-content">
+												<a name="13672"></a><div class="entry-content"><p>Print the solution at nodes don't blindly believe the legend in FEniCS.</p>
+
+<p>To print solution at a node point. use:</p>
+
+<pre><code>point = (1,1)
+print 'numerical u at the corner point:', u(point)
+</code></pre>
+</div>
+											</div>
+											<span class="qa-a-item-avatar-meta">
+												<span class="qa-a-item-meta">
+													<a href="../../13662/benchmarking-elasticity-against-solution-provides-different?show=13672#a13672" class="qa-a-item-what">answered</a>
+													<span class="qa-a-item-when">
+														<span class="qa-a-item-when-data"><span class="published"><span class="value-title" title="2017-05-28T04:23:11+0000"></span>May 28, 2017</span></span>
+													</span>
+													<span class="qa-a-item-who">
+														<span class="qa-a-item-who-pad">by </span>
+														<span class="qa-a-item-who-data"><span class="vcard author"><a href="../../user/hirshikesh" class="qa-user-link url nickname">hirshikesh</a></span></span>
+														<span class="qa-a-item-who-title">FEniCS User</span>
+														<span class="qa-a-item-who-points">
+															<span class="qa-a-item-who-points-pad">(</span><span class="qa-a-item-who-points-data">1,890</span><span class="qa-a-item-who-points-pad"> points)</span>
+														</span>
+													</span>
+												</span>
+											</span>
+											<div class="qa-a-item-buttons">
+												</div>
+											
+											<div class="qa-a-item-c-list" style="display:none;" id="c13672_list">
+											</div> <!-- END qa-c-list -->
+											
+											<input type="hidden" name="code" value="0-1516467876-d8ebc21689c39bde8627d0c57583c11984601849">
+											<input type="hidden" name="qa_click" value="">
+										</form>
+										<div class="qa-c-form">
+										</div> <!-- END qa-c-form -->
+										
+									</div> <!-- END qa-a-item-main -->
+									<div class="qa-a-item-clear">
+									</div>
+								</div> <!-- END qa-a-list-item -->
+								
+							</div> <!-- END qa-a-list -->
+							
+						</div>
+					</div> <!-- END qa-main -->
+					
+				</div> <!-- END main-wrapper -->
+			</div> <!-- END main-shadow -->
+		</div> <!-- END body-wrapper -->
+		<!-- END footer-bottom-group -->
+		
+		<div style="position:absolute; left:-9999px; top:-9999px;">
+			<span id="qa-waiting-template" class="qa-waiting">...</span>
+		</div>
+	
+	
+
+</body><!-- Powered by Question2Answer - http://www.question2answer.org/ --></html>

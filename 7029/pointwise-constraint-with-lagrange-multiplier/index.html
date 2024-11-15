@@ -1,0 +1,218 @@
+<html><!-- Powered by Question2Answer - http://www.question2answer.org/ --><head>
+		<meta http-equiv="content-type" content="text/html; charset=utf-8">
+		<title>PointWise constraint with Lagrange Multiplier - FEniCS Q&amp;A</title>
+		<meta name="description" content="I am trying to see if I can replace COMSOL with Fenics for doing multiplysics simulations ...  general point-wise constraint problem Best Regards Marc">
+		<meta name="keywords" content="lagrange-multiplier,mixed-formulation,pointwise-constraint">
+		<link rel="stylesheet" type="text/css" href="../../qa-theme/Snow/qa-styles.css">
+		<link rel="canonical" href="http://fenicsproject.org/qa/7029/pointwise-constraint-with-lagrange-multiplier">
+		<script type="text/x-mathjax-config">
+  MathJax.Hub.Config({
+    extensions: ["tex2jax.js"],
+    jax: ["input/TeX","output/HTML-CSS"],
+    tex2jax: {inlineMath: [["$","$"],["\\(","\\)"]]},
+    TeX: { extensions: ["AMSmath.js","AMSsymbols.js"]}
+  });
+</script>
+<script type="text/javascript" src="../../mathjax/MathJax.js"></script>
+		<script src="../../jquery-1.7.2.min.js" type="text/javascript"></script>
+		<script src="../../highlight.min.js"></script>
+<script type="text/javascript">
+$(function(){
+	$('.wmd-input').keypress(function(){
+		window.clearTimeout(hljs.Timeout);
+		hljs.Timeout = window.setTimeout(function() {
+			hljs.initHighlighting.called = false;
+			hljs.initHighlighting();
+		}, 500);
+	});
+	window.setTimeout(function() {
+		hljs.initHighlighting.called = false;
+		hljs.initHighlighting();
+	}, 500);
+});
+</script>
+
+
+	</head>
+	<body class="qa-template-question qa-body-js-off">
+		<div class="qa-body-wrapper">
+			
+			<div class="qa-header">
+				<div class="qa-logo">
+					<a href="../../" class="qa-logo-link" title="FEniCS Q&amp;A"><img src="../../qa-theme/fenics_qa.png" border="0" alt="FEniCS Q&amp;A"></a>
+				</div>
+				<div class="qa-header-clear">
+				</div>
+			</div> <!-- END qa-header -->
+			
+			<div class="qa-main-shadow">
+				
+				<div class="qa-main-wrapper">
+					
+					<div class="qa-sidepanel">
+						<div class="qa-sidebar">
+							This is a read only copy of the old FEniCS QA forum. Please visit the <a href="https://www.allanswered.com/community/s/fenics-project/">new QA forum</a> to ask questions
+						</div>
+						
+					</div>
+					
+					<div class="qa-main">
+						<h1>
+							<span class="entry-title">PointWise constraint with Lagrange Multiplier</span>
+						</h1>
+						<div class="qa-part-q-view">
+							<div class="qa-q-view  hentry question" id="q7029">
+								<form method="post" action="../../7029/pointwise-constraint-with-lagrange-multiplier">
+									<div class="qa-q-view-stats">
+										<div class="qa-voting qa-voting-net" id="voting_7029">
+											<div class="qa-vote-count qa-vote-count-net">
+												<span class="qa-netvote-count">
+													<span class="qa-netvote-count-data">+1<span class="votes-up"><span class="value-title" title="1"></span></span><span class="votes-down"><span class="value-title" title="0"></span></span></span><span class="qa-netvote-count-pad"> vote</span>
+												</span>
+											</div>
+											<div class="qa-vote-clear">
+											</div>
+										</div>
+									</div>
+									<input type="hidden" name="code" value="0-1516468100-0fcbf98c0bf1ac898169d342c13613e97784d470">
+								</form>
+								<div class="qa-q-view-main">
+									<form method="post" action="../../7029/pointwise-constraint-with-lagrange-multiplier">
+										<div class="qa-q-view-content">
+											<a name="7029"></a><div class="entry-content"><p>I am trying to see if I can replace COMSOL with Fenics for doing multiplysics simulations using FEM. A strong point of COMSOL is the ability to include constraints using Lagrange multipliers<br>
+Using Fenics, I have been able to impose global constraint (integral form), but not local (point-wise) constraint.</p>
+
+<p>Let us consider a classical problem (solved with COMSOL) <br>
+Find u in [0,1]x[0,1] such that -Delta u = f_0  where f_0 is  such that u(0.5,0.5)=1<br>
+f_0 is the the Lagrange multiplier associated with the point-wise constraint  u(0.5,0.5)=1.</p>
+
+<p>If I impose f_0 (as a Constant("2.67")) , I can solve the problem with fenics using a point-wise integration (with Measure('dP')) assuming (0,5,0,5) is a mesh vertex, but  it does not work if a use a mixed formulation with Lagange multiplier (using FunctionSpace(mesh,"R",0)). Here is the Python code</p>
+
+<pre><code> mesh=UnitSquareMesh(4,4)
+ class MidlePoint(SubDomain):
+        def inside(self,x,on_boundary):
+            return near(x[0],0.5) and near(x[1],0.5)
+ # boundary
+ gamma0=CompiledSubDomain("on_boundary")
+ midlepoint=MidlePoint()
+ # points wise integration
+ points=VertexFunction("uint",mesh)
+ points.set_all(0)
+ midlepoint.mark(points,5)
+ dp  = Measure('dP')[points]
+ # FE space
+ V = FunctionSpace(mesh,"Lagrange",1)
+ R = FunctionSpace(mesh,"R",0)
+ W = MixedFunctionSpace([V,R])
+ # FEM formulation
+ u,lb       = TrialFunction(W)
+ v,lb_test = TestFunction(W)
+ a = inner(nabla_grad(u),nabla_grad(v))*dx() + lb*v*dp(5) + lb_test*u*dp(5)
+ L = lb_test*dp(5)
+ # solve
+ bcs = [DirichletBC(W.sub(0),0.0,gamma0)]
+ wh=Function(W)
+ solve(a==L,wh,bcs)
+</code></pre>
+
+<p>running the code on fenics 1.5 I get the following error on solve</p>
+
+<pre><code>&lt;ipython-input-197-1e95aec09e42&gt; in &lt;module&gt;()
+          wh=Function(W)
+----&gt; solve(a==L,wh,bcs)  
+    /usr/lib/python2.7/dist-packages/dolfin/fem/solving.pyc in solve(*args, **kwargs)
+    267     # Call variational problem solver if we get an equation (but not a tolerance)
+    268     elif isinstance(args[0], ufl.classes.Equation):
+--&gt; 269         _solve_varproblem(*args, **kwargs)
+/usr/lib/python2.7/dist-packages/dolfin/fem/solving.pyc in _solve_varproblem(*args, **kwargs)
+    296         solver = LinearVariationalSolver(problem)
+    297         solver.parameters.update(solver_parameters)
+--&gt; 298         solver.solve()
+RuntimeError
+*** -------------------------------------------------------------------------
+*** Error:   Unable to assemble form over vertices.
+*** Reason:  Expecting test and trial spaces to only have dofs on vertices for point integrals.
+*** Where:   This error was encountered inside Assembler.cpp.
+*** Process: unknown
+*** 
+*** DOLFIN version: 1.5.0
+*** Git changeset:  unknown
+*** -------------------------------------------------------------------------
+</code></pre>
+
+<p>Looking at the code in  Assembler.cpp, the error occurs in a test to Check that the test and trial space as dofs on the vertices with num_entity_dofs(0)#0<br>
+But lb, the lagrange multiplier is in the space R (the real constant) and has a num_entity_dofs(0)=0<br>
+But as lb is constant it can be evaluated at any vertices,and thus the assembly should be possible.</p>
+
+<p>Am I doing wrong ?<br>
+Can I solve problem with pointwise constraint using lagrange multiplier with Fenics ?</p>
+
+<p>I know that for this particular problem I can impose u(0.5,0.5)=1 using DirichletBC pointwise<br>
+but this is not a solution for a general point-wise constraint problem</p>
+
+<p>Best Regards<br>
+Marc</p>
+</div>
+										</div>
+										<div class="qa-q-view-tags">
+											<ul class="qa-q-view-tag-list">
+												<li class="qa-q-view-tag-item"><a href="../../tag/lagrange-multiplier" rel="tag" class="qa-tag-link">lagrange-multiplier</a></li>
+												<li class="qa-q-view-tag-item"><a href="../../tag/mixed-formulation" rel="tag" class="qa-tag-link">mixed-formulation</a></li>
+												<li class="qa-q-view-tag-item"><a href="../../tag/pointwise-constraint" rel="tag" class="qa-tag-link">pointwise-constraint</a></li>
+											</ul>
+										</div>
+										<span class="qa-q-view-avatar-meta">
+											<span class="qa-q-view-meta">
+												<a href="../../7029/pointwise-constraint-with-lagrange-multiplier" class="qa-q-view-what">asked</a>
+												<span class="qa-q-view-when">
+													<span class="qa-q-view-when-data"><span class="published"><span class="value-title" title="2015-05-02T18:57:36+0000"></span>May 2, 2015</span></span>
+												</span>
+												<span class="qa-q-view-who">
+													<span class="qa-q-view-who-pad">by </span>
+													<span class="qa-q-view-who-data"><span class="vcard author"><a href="../../user/mbuffat" class="qa-user-link url nickname">mbuffat</a></span></span>
+													<span class="qa-q-view-who-title">FEniCS Novice</span>
+													<span class="qa-q-view-who-points">
+														<span class="qa-q-view-who-points-pad">(</span><span class="qa-q-view-who-points-data">130</span><span class="qa-q-view-who-points-pad"> points)</span>
+													</span>
+												</span>
+											</span>
+										</span>
+										<div class="qa-q-view-buttons">
+										</div>
+										
+										<div class="qa-q-view-c-list" style="display:none;" id="c7029_list">
+										</div> <!-- END qa-c-list -->
+										
+										<input type="hidden" name="code" value="0-1516468100-f716d5f5b72132c8477351f33d9f51dee97a8141">
+										<input type="hidden" name="qa_click" value="">
+									</form>
+									<div class="qa-c-form">
+									</div> <!-- END qa-c-form -->
+									
+								</div> <!-- END qa-q-view-main -->
+								<div class="qa-q-view-clear">
+								</div>
+							</div> <!-- END qa-q-view -->
+							
+						</div>
+						<div class="qa-part-a-list">
+							<h2 id="a_list_title" style="display:none;"></h2>
+							<div class="qa-a-list" id="a_list">
+								
+							</div> <!-- END qa-a-list -->
+							
+						</div>
+					</div> <!-- END qa-main -->
+					
+				</div> <!-- END main-wrapper -->
+			</div> <!-- END main-shadow -->
+		</div> <!-- END body-wrapper -->
+		<!-- END footer-bottom-group -->
+		
+		<div style="position:absolute; left:-9999px; top:-9999px;">
+			<span id="qa-waiting-template" class="qa-waiting">...</span>
+		</div>
+	
+	
+
+</body><!-- Powered by Question2Answer - http://www.question2answer.org/ --></html>

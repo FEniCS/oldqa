@@ -1,0 +1,259 @@
+<html><!-- Powered by Question2Answer - http://www.question2answer.org/ --><head>
+		<meta http-equiv="content-type" content="text/html; charset=utf-8">
+		<title>Implementing discretised wave equation in linear form - FEniCS Q&amp;A</title>
+		<meta name="description" content='Hi all, I have the discretised variational form of the wave equation using Newmark Beta Method **below**: ... ("results/newwave.pvd") i = 0 while t'>
+		<meta name="keywords" content="wave-equation,time-dependent,newmark-beta,linear-solver">
+		<link rel="stylesheet" type="text/css" href="../../qa-theme/Snow/qa-styles.css">
+		<link rel="canonical" href="http://fenicsproject.org/qa/8578/implementing-discretised-wave-equation-in-linear-form">
+		<script type="text/x-mathjax-config">
+  MathJax.Hub.Config({
+    extensions: ["tex2jax.js"],
+    jax: ["input/TeX","output/HTML-CSS"],
+    tex2jax: {inlineMath: [["$","$"],["\\(","\\)"]]},
+    TeX: { extensions: ["AMSmath.js","AMSsymbols.js"]}
+  });
+</script>
+<script type="text/javascript" src="../../mathjax/MathJax.js"></script>
+		<script src="../../jquery-1.7.2.min.js" type="text/javascript"></script>
+		<script src="../../highlight.min.js"></script>
+<script type="text/javascript">
+$(function(){
+	$('.wmd-input').keypress(function(){
+		window.clearTimeout(hljs.Timeout);
+		hljs.Timeout = window.setTimeout(function() {
+			hljs.initHighlighting.called = false;
+			hljs.initHighlighting();
+		}, 500);
+	});
+	window.setTimeout(function() {
+		hljs.initHighlighting.called = false;
+		hljs.initHighlighting();
+	}, 500);
+});
+</script>
+
+
+	</head>
+	<body class="qa-template-question qa-body-js-off">
+		<div class="qa-body-wrapper">
+			
+			<div class="qa-header">
+				<div class="qa-logo">
+					<a href="../../" class="qa-logo-link" title="FEniCS Q&amp;A"><img src="../../qa-theme/fenics_qa.png" border="0" alt="FEniCS Q&amp;A"></a>
+				</div>
+				<div class="qa-header-clear">
+				</div>
+			</div> <!-- END qa-header -->
+			
+			<div class="qa-main-shadow">
+				
+				<div class="qa-main-wrapper">
+					
+					<div class="qa-sidepanel">
+						<div class="qa-sidebar">
+							This is a read only copy of the old FEniCS QA forum. Please visit the <a href="https://www.allanswered.com/community/s/fenics-project/">new QA forum</a> to ask questions
+						</div>
+						
+					</div>
+					
+					<div class="qa-main">
+						<h1>
+							<span class="entry-title">Implementing discretised wave equation in linear form</span>
+						</h1>
+						<div class="qa-part-q-view">
+							<div class="qa-q-view  hentry question" id="q8578">
+								<form method="post" action="../../8578/implementing-discretised-wave-equation-in-linear-form">
+									<div class="qa-q-view-stats">
+										<div class="qa-voting qa-voting-net" id="voting_8578">
+											<div class="qa-vote-count qa-vote-count-net">
+												<span class="qa-netvote-count">
+													<span class="qa-netvote-count-data">0<span class="votes-up"><span class="value-title" title="0"></span></span><span class="votes-down"><span class="value-title" title="0"></span></span></span><span class="qa-netvote-count-pad"> votes</span>
+												</span>
+											</div>
+											<div class="qa-vote-clear">
+											</div>
+										</div>
+									</div>
+									<input type="hidden" name="code" value="0-1516468180-a2d1b10347ba4b9e599f53dfef2e6e474b16e773">
+								</form>
+								<div class="qa-q-view-main">
+									<form method="post" action="../../8578/implementing-discretised-wave-equation-in-linear-form">
+										<div class="qa-q-view-content">
+											<a name="8578"></a><div class="entry-content"><p>Hi all,</p>
+
+<p>I have the discretised variational form of the wave equation using Newmark Beta Method <strong>below</strong>:</p>
+
+<p>Also <strong>attached is the algorithm</strong> of how the scheme should be implemented.</p>
+
+<p>I have also <strong>attached my attempt</strong> at implementing it in fenics for simple zero BC. THE CODE RUNS, however, the results do not propagate. Can someone please help with this. </p>
+
+<p>I basically wanted to implement this in a linear form with a proper solver so as to enable parallel computing at a later stage (which I currently have no idea about). It's ok if you cant help with that but can someone at least get this code to work.</p>
+
+<p><img src="http://i63.tinypic.com/rswvwl.png" alt="enter image description here"></p>
+
+<pre><code>from dolfin import *
+from math import sqrt
+import numpy as np
+import pylab
+
+# Parameters
+beta = 1.0/4.0                               # newmark-beta parameter
+info("Newmark-beta = %f" % (beta))           
+N = 100                                        # number of timesteps
+
+rho = 1.6              # Density in g/cc 
+mu = 10e-3          # Shear Modulus in GPA
+inv = mu/rho      
+c = sqrt(inv)          # Speed of wave (km/s)
+
+#Define Mesh
+dh  = 48
+h = 1./dh                     # Mesh Size
+mesh = UnitSquareMesh(dh,dh)
+
+# Set time stepping information for CFL (mesh size - time step) condition
+cfl_dt = h/c            
+dt = 0.05*cfl_dt
+info('cfl time step size = %.5f' % cfl_dt)
+info('time step size = %.5f' % dt)
+t = 0.0
+T = N*dt
+
+V = FunctionSpace(mesh,"CG",1)
+
+def boundaries(x, on_boundary):
+    return on_boundary
+
+bc = DirichletBC(V, Constant(0.0), boundaries)
+
+ui = Expression('-40.*sin(pi*x[0])*sin(pi*x[1])*exp(-1000.*(pow(x[0]-0.5,2)+pow(x[1]-0.5,2)))')
+u0 = interpolate(ui, V)                      # Initial conditions
+p0 = interpolate(Constant(0.0),V)    #initial velocity
+
+u = TrialFunction(V) 
+v = TestFunction(V)  
+u_new = Function(V)                   # displacement (solution)
+p_new = Function(V)                   # velocity
+a_new = Function(V)                   # acceleration
+
+k = inner(nabla_grad(u),nabla_grad(v))*dx # stiffness matrix integrand
+m = u*v*dx                                # mass matrix integrand
+
+K = assemble(k) # assemble stiffness matrix
+M = assemble(m) # assemble mass matrix
+
+u0_vec = u0.vector()
+p0_vec = p0.vector()
+
+# Start the process by finding the initial acceleration M*a0 = f0 - K*u0
+#a0.vector() = -K*u0_vec/M
+a0 = Function(V)
+RHS = c**2*k*u0_vec
+bc.apply(m, RHS)      
+solve(m, a0.vector(), RHS)   
+a0_vec = a0.vector()
+
+# Compute LU factorization of 'B' [[breaking down the terms from final discretised expression resulting from newmark beta]]
+B = M + dt**2*K*beta*c**2        #LHS of discretised equation
+bc.apply(B)
+Bsolve = LUSolver(B)
+Bsolve.parameters["reuse_factorization"] = True
+
+file = File("results/newwave.pvd")
+i = 0
+while t &lt;= T:
+    print("Timestep %.5f, %.2f %s complete" % (t, 100*t/T, '%'))
+
+    file &lt;&lt; (u0,t)
+
+    i+=1
+    # Perform predictor step 
+    u_p = u0_vec + dt*p0_vec + dt*dt/2*(1-2*beta)*a0_vec    
+    p_p = p0_vec + dt*a0_vec/2 
+    L = -K*u_p  
+    # Solve algebric system of equations
+    bc.apply(L)
+    Bsolve.solve(a_new.vector(), L)
+    t += dt
+    # Perform corrector step
+    u_new.vector()[:] = u_p + dt**2*beta*a_new.vector()  
+    p_new.vector()[:] = p_p + dt/2*a_new.vector()   
+    u0.assign(u_new) # update old vector
+    p0.assign(p_new)
+</code></pre>
+</div>
+										</div>
+										<div class="qa-q-view-tags">
+											<ul class="qa-q-view-tag-list">
+												<li class="qa-q-view-tag-item"><a href="../../tag/wave-equation" rel="tag" class="qa-tag-link">wave-equation</a></li>
+												<li class="qa-q-view-tag-item"><a href="../../tag/time-dependent" rel="tag" class="qa-tag-link">time-dependent</a></li>
+												<li class="qa-q-view-tag-item"><a href="../../tag/newmark-beta" rel="tag" class="qa-tag-link">newmark-beta</a></li>
+												<li class="qa-q-view-tag-item"><a href="../../tag/linear-solver" rel="tag" class="qa-tag-link">linear-solver</a></li>
+											</ul>
+										</div>
+										<span class="qa-q-view-avatar-meta">
+											<span class="qa-q-view-avatar">
+												<a href="../../user/Chaitanya_Raj_Goyal" class="qa-avatar-link"><img src="../../?qa=image&amp;qa_blobid=5557427273671820211&amp;qa_size=50" width="50" height="31" class="qa-avatar-image" alt=""></a>
+											</span>
+											<span class="qa-q-view-meta">
+												<a href="../../8578/implementing-discretised-wave-equation-in-linear-form" class="qa-q-view-what">asked</a>
+												<span class="qa-q-view-when">
+													<span class="qa-q-view-when-data"><span class="published"><span class="value-title" title="2015-11-16T19:38:35+0000"></span>Nov 16, 2015</span></span>
+												</span>
+												<span class="qa-q-view-who">
+													<span class="qa-q-view-who-pad">by </span>
+													<span class="qa-q-view-who-data"><span class="vcard author"><a href="../../user/Chaitanya_Raj_Goyal" class="qa-user-link url nickname">Chaitanya_Raj_Goyal</a></span></span>
+													<span class="qa-q-view-who-title">FEniCS User</span>
+													<span class="qa-q-view-who-points">
+														<span class="qa-q-view-who-points-pad">(</span><span class="qa-q-view-who-points-data">4,150</span><span class="qa-q-view-who-points-pad"> points)</span>
+													</span>
+												</span>
+												<br>
+												<span class="qa-q-view-what">edited</span>
+												<span class="qa-q-view-when">
+													<span class="qa-q-view-when-data"><span class="updated"><span class="value-title" title="2015-11-19T21:42:30+0000"></span>Nov 19, 2015</span></span>
+												</span>
+												<span class="qa-q-view-who">
+													<span class="qa-q-view-who-pad">by </span><span class="qa-q-view-who-data"><a href="../../user/Chaitanya_Raj_Goyal" class="qa-user-link url nickname">Chaitanya_Raj_Goyal</a></span>
+												</span>
+											</span>
+										</span>
+										<div class="qa-q-view-buttons">
+										</div>
+										
+										<div class="qa-q-view-c-list" style="display:none;" id="c8578_list">
+										</div> <!-- END qa-c-list -->
+										
+										<input type="hidden" name="code" value="0-1516468180-600fd22a25540dc8340ea8daa78cba8dc73db732">
+										<input type="hidden" name="qa_click" value="">
+									</form>
+									<div class="qa-c-form">
+									</div> <!-- END qa-c-form -->
+									
+								</div> <!-- END qa-q-view-main -->
+								<div class="qa-q-view-clear">
+								</div>
+							</div> <!-- END qa-q-view -->
+							
+						</div>
+						<div class="qa-part-a-list">
+							<h2 id="a_list_title" style="display:none;"></h2>
+							<div class="qa-a-list" id="a_list">
+								
+							</div> <!-- END qa-a-list -->
+							
+						</div>
+					</div> <!-- END qa-main -->
+					
+				</div> <!-- END main-wrapper -->
+			</div> <!-- END main-shadow -->
+		</div> <!-- END body-wrapper -->
+		<!-- END footer-bottom-group -->
+		
+		<div style="position:absolute; left:-9999px; top:-9999px;">
+			<span id="qa-waiting-template" class="qa-waiting">...</span>
+		</div>
+	
+	
+
+</body><!-- Powered by Question2Answer - http://www.question2answer.org/ --></html>

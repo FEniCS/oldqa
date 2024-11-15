@@ -1,0 +1,270 @@
+<html><!-- Powered by Question2Answer - http://www.question2answer.org/ --><head>
+		<meta http-equiv="content-type" content="text/html; charset=utf-8">
+		<title>DG problem with subdomains - FEniCS Q&amp;A</title>
+		<meta name="description" content="Hi, I am trying to use some function 'u_e' as an exact solution to a DG problem over a  ...  interactive=True) plot(u,title=&quot;u_h&quot;, interactive=True)">
+		<link rel="stylesheet" type="text/css" href="../../qa-theme/Snow/qa-styles.css">
+		<link rel="canonical" href="http://fenicsproject.org/qa/5942/dg-problem-with-subdomains">
+		<script type="text/x-mathjax-config">
+  MathJax.Hub.Config({
+    extensions: ["tex2jax.js"],
+    jax: ["input/TeX","output/HTML-CSS"],
+    tex2jax: {inlineMath: [["$","$"],["\\(","\\)"]]},
+    TeX: { extensions: ["AMSmath.js","AMSsymbols.js"]}
+  });
+</script>
+<script type="text/javascript" src="../../mathjax/MathJax.js"></script>
+		<script src="../../jquery-1.7.2.min.js" type="text/javascript"></script>
+		<script src="../../highlight.min.js"></script>
+<script type="text/javascript">
+$(function(){
+	$('.wmd-input').keypress(function(){
+		window.clearTimeout(hljs.Timeout);
+		hljs.Timeout = window.setTimeout(function() {
+			hljs.initHighlighting.called = false;
+			hljs.initHighlighting();
+		}, 500);
+	});
+	window.setTimeout(function() {
+		hljs.initHighlighting.called = false;
+		hljs.initHighlighting();
+	}, 500);
+});
+</script>
+
+
+	</head>
+	<body class="qa-template-question qa-body-js-off">
+		<div class="qa-body-wrapper">
+			
+			<div class="qa-header">
+				<div class="qa-logo">
+					<a href="../../" class="qa-logo-link" title="FEniCS Q&amp;A"><img src="../../qa-theme/fenics_qa.png" border="0" alt="FEniCS Q&amp;A"></a>
+				</div>
+				<div class="qa-header-clear">
+				</div>
+			</div> <!-- END qa-header -->
+			
+			<div class="qa-main-shadow">
+				
+				<div class="qa-main-wrapper">
+					
+					<div class="qa-sidepanel">
+						<div class="qa-sidebar">
+							This is a read only copy of the old FEniCS QA forum. Please visit the <a href="https://www.allanswered.com/community/s/fenics-project/">new QA forum</a> to ask questions
+						</div>
+						
+					</div>
+					
+					<div class="qa-main">
+						<h1>
+							<span class="entry-title">DG problem with subdomains</span>
+						</h1>
+						<div class="qa-part-q-view">
+							<div class="qa-q-view  hentry question" id="q5942">
+								<form method="post" action="../../5942/dg-problem-with-subdomains">
+									<div class="qa-q-view-stats">
+										<div class="qa-voting qa-voting-net" id="voting_5942">
+											<div class="qa-vote-count qa-vote-count-net">
+												<span class="qa-netvote-count">
+													<span class="qa-netvote-count-data">+1<span class="votes-up"><span class="value-title" title="1"></span></span><span class="votes-down"><span class="value-title" title="0"></span></span></span><span class="qa-netvote-count-pad"> vote</span>
+												</span>
+											</div>
+											<div class="qa-vote-clear">
+											</div>
+										</div>
+									</div>
+									<input type="hidden" name="code" value="0-1516468050-a6cbc6c98843396d6cb19d2bc6b63e836f251ab1">
+								</form>
+								<div class="qa-q-view-main">
+									<form method="post" action="../../5942/dg-problem-with-subdomains">
+										<div class="qa-q-view-content">
+											<a name="5942"></a><div class="entry-content"><p>Hi, I am trying to use some function 'u_e' as an exact solution  to a DG problem over a unit square mesh, that is divided into two subdomains, in these subdomains, the coefficient "aa" takes the values [1, 100] respectively.  I used "u_e" to find the formulas for the source function and the boundary values.<br>
+I am not receiving any error massages, but the computed Error seems to be a bet big! which is not expected! I couldn't find why the error is big, can any one help me?<br>
+Thank you,<br>
+here is an example</p>
+
+<pre><code>from dolfin import *
+import numpy as np
+
+mesh = UnitSquareMesh(10, 10, 'crossed')
+class Omega1(SubDomain):
+        def inside(self,x, on_boundary):
+            return (between(x[0], (0.0, 1.0)) and between(x[1], (x[0], 1.-x[0])))
+
+class Omega2(SubDomain):
+        def inside(self,x, on_boundary):
+            return (between(x[1], (0.0, 1.0)) and between(x[0], (x[1], 1.-x[1])))
+mesh.init()
+# Marking the domains
+subdomains = CellFunction("size_t",mesh)
+subdomain1 = Omega1()
+subdomain1.mark(subdomains, 0)
+subdomain2 = Omega2()
+subdomain2.mark(subdomains, 1)
+#values of aa
+a1 = 1.0
+a2 = 100.0
+V0 = FunctionSpace(mesh, 'DG', 0)
+
+aa = Function(V0)   
+aa_values = [a1, a2]  #values of a in each subdomain
+#the following is to make sure a takes the right value in each subdomain:
+for cell_no in range(len(subdomains.array())):
+    subdomain_no = subdomains.array()[cell_no]
+    aa.vector()[cell_no] = aa_values[subdomain_no]
+    help = np.asarray(subdomains.array(), dtype=np.int32)
+    aa.vector()[:] = np.choose(help, aa_values)
+
+# plot (subdomains, interactive = True)
+
+
+# Exact solution and Source
+u_e = Expression('(x[1]-x[0])*(1-x[0]-x[1])')
+f = Expression('(x[1]-x[0])*(1-x[0]-x[1])')
+
+# boundaries
+class DirichletBoundary_top(SubDomain):
+    def inside(self ,x, on_boundary):
+        return x[1] &gt; 1.0 - DOLFIN_EPS  
+
+class DirichletBoundary_bottom(SubDomain):
+    def inside(self ,x, on_boundary):
+        return x[1] &lt; DOLFIN_EPS
+
+class DirichletBoundary_left(SubDomain):
+    def inside(self, x, ob_boundary):
+        return x[0] &lt; DOLFIN_EPS
+
+class DirichletBoundary_right(SubDomain):
+    def inside(self, x, ob_boundary):
+        return x[0] &gt; 1.0 - DOLFIN_EPS  
+boundaries = FacetFunction('size_t', mesh)
+Gamma_D1 = DirichletBoundary_top()
+Gamma_D1.mark(boundaries, 2)        
+Gamma_D2 = DirichletBoundary_bottom()
+Gamma_D2.mark(boundaries, 4)
+
+Gamma_N1 = DirichletBoundary_left()
+Gamma_N1.mark(boundaries, 1)
+Gamma_N2 = DirichletBoundary_right()
+Gamma_N2.mark(boundaries, 3)
+
+
+# boundary values
+u_top = Expression('-x[0]*(1-x[0])')
+u_bottom = Expression('-x[0]*(1-x[0])')
+u_left = Expression('x[1]*(1-x[1])')
+u_right = Expression('x[1]*(1-x[1])')
+
+# solve the problem
+V = FunctionSpace(mesh, "DG", 3)
+u = TrialFunction(V)
+v = TestFunction(V)
+dx = Measure("dx")[subdomains]
+ds = Measure("ds")[boundaries] 
+
+alpha = Constant(40)
+h_T = CellSize(mesh)
+h_T_avg = (h_T('+') + h_T('-'))/2.0
+n = FacetNormal(mesh)
+
+
+a = dot(a1*grad(u),grad(v))*dx(0) + dot(a2*grad(u),grad(v))*dx(1)\
+    +  u*v*dx()- dot(avg(aa*grad(u)),jump(v,n))*dS\
+    - dot(avg(aa*grad(v)),jump(u,n))*dS\
+    - dot(aa*grad(u),v*n)*ds()\
+    - dot(avg(aa*grad(v)),jump(u,n))*dS\
+    - dot(aa*grad(v),u*n)*ds()\
+    + alpha('+')/h_T_avg*dot(jump(u,n),jump(v,n))*dS\
+    + alpha/h_T*u*v*ds()
+
+L = f*v*dx() - u_left*dot(aa*grad(v),n)*ds(1) - u_top*dot(aa*grad(v),n)*ds(2)\
+    - u_right*dot(aa*grad(v),n)*ds(3)- u_bottom*dot(aa*grad(v),n)*ds(4) \
+    + alpha/h_T*u_left*v*ds(1) + alpha/h_T*u_top*v*ds(2) \
+    + alpha/h_T*u_right*v*ds(3) + alpha/h_T*u_bottom*v*ds(4)
+
+bcs = [ DirichletBC(V, u_left, Gamma_N1),DirichletBC(V, u_top, Gamma_D1),
+        DirichletBC(V, u_right, Gamma_N2), DirichletBC(V, u_bottom, Gamma_D2)]
+
+u = Function(V)
+
+A, b = assemble_system(a, L,bcs, mesh= mesh, cell_domains = subdomains,
+            exterior_facet_domains = boundaries)
+solve(A, u.vector(), b)
+
+# compute the error
+u_e_V = interpolate(u_e, V)
+error1 = (u - u_e_V)**2*dx
+E1 = sqrt(assemble(error1))
+# H1 seminorm
+Ve = FunctionSpace(mesh, 'Lagrange', 5)
+u_Ve = interpolate(u, Ve)
+u_e_Ve = interpolate(u_e, Ve)
+e_Ve = Function(Ve)
+e_Ve.vector()[:] = u_e_Ve.vector().array() - u_Ve.vector().array()
+error2 = inner(aa*grad(e_Ve), grad(e_Ve))*dx()
+E2 = sqrt(assemble(error2))
+
+
+print 'E1:', E1
+print 'E2:', E2
+plot(u_e_V,title="u_e", interactive=True)
+plot(u,title="u_h", interactive=True)
+</code></pre>
+</div>
+										</div>
+										<span class="qa-q-view-avatar-meta">
+											<span class="qa-q-view-meta">
+												<a href="../../5942/dg-problem-with-subdomains" class="qa-q-view-what">asked</a>
+												<span class="qa-q-view-when">
+													<span class="qa-q-view-when-data"><span class="published"><span class="value-title" title="2014-11-09T23:51:18+0000"></span>Nov 10, 2014</span></span>
+												</span>
+												<span class="qa-q-view-who">
+													<span class="qa-q-view-who-pad">by </span>
+													<span class="qa-q-view-who-data"><span class="vcard author"><a href="../../user/dndash" class="qa-user-link url nickname">dndash</a></span></span>
+													<span class="qa-q-view-who-title">FEniCS Novice</span>
+													<span class="qa-q-view-who-points">
+														<span class="qa-q-view-who-points-pad">(</span><span class="qa-q-view-who-points-data">330</span><span class="qa-q-view-who-points-pad"> points)</span>
+													</span>
+												</span>
+											</span>
+										</span>
+										<div class="qa-q-view-buttons">
+										</div>
+										
+										<div class="qa-q-view-c-list" style="display:none;" id="c5942_list">
+										</div> <!-- END qa-c-list -->
+										
+										<input type="hidden" name="code" value="0-1516468050-06ac09da877b0e7cdb3a84355a94267596598a67">
+										<input type="hidden" name="qa_click" value="">
+									</form>
+									<div class="qa-c-form">
+									</div> <!-- END qa-c-form -->
+									
+								</div> <!-- END qa-q-view-main -->
+								<div class="qa-q-view-clear">
+								</div>
+							</div> <!-- END qa-q-view -->
+							
+						</div>
+						<div class="qa-part-a-list">
+							<h2 id="a_list_title" style="display:none;"></h2>
+							<div class="qa-a-list" id="a_list">
+								
+							</div> <!-- END qa-a-list -->
+							
+						</div>
+					</div> <!-- END qa-main -->
+					
+				</div> <!-- END main-wrapper -->
+			</div> <!-- END main-shadow -->
+		</div> <!-- END body-wrapper -->
+		<!-- END footer-bottom-group -->
+		
+		<div style="position:absolute; left:-9999px; top:-9999px;">
+			<span id="qa-waiting-template" class="qa-waiting">...</span>
+		</div>
+	
+	
+
+</body><!-- Powered by Question2Answer - http://www.question2answer.org/ --></html>

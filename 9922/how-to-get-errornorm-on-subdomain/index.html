@@ -1,0 +1,297 @@
+<html><!-- Powered by Question2Answer - http://www.question2answer.org/ --><head>
+		<meta http-equiv="content-type" content="text/html; charset=utf-8">
+		<title>How to get errornorm on subdomain - FEniCS Q&amp;A</title>
+		<meta name="description" content="I have the following script: from dolfin import * from mshr import * nx, ny = 30, 30 plx,  ... for calculating an `errornorm`. How can I perform this?">
+		<meta name="keywords" content="gibbs,subdomains,errornorm,error-estimate,analysis">
+		<link rel="stylesheet" type="text/css" href="../../qa-theme/Snow/qa-styles.css">
+		<link rel="canonical" href="http://fenicsproject.org/qa/9922/how-to-get-errornorm-on-subdomain">
+		<script type="text/x-mathjax-config">
+  MathJax.Hub.Config({
+    extensions: ["tex2jax.js"],
+    jax: ["input/TeX","output/HTML-CSS"],
+    tex2jax: {inlineMath: [["$","$"],["\\(","\\)"]]},
+    TeX: { extensions: ["AMSmath.js","AMSsymbols.js"]}
+  });
+</script>
+<script type="text/javascript" src="../../mathjax/MathJax.js"></script>
+		<script src="../../jquery-1.7.2.min.js" type="text/javascript"></script>
+		<script src="../../highlight.min.js"></script>
+<script type="text/javascript">
+$(function(){
+	$('.wmd-input').keypress(function(){
+		window.clearTimeout(hljs.Timeout);
+		hljs.Timeout = window.setTimeout(function() {
+			hljs.initHighlighting.called = false;
+			hljs.initHighlighting();
+		}, 500);
+	});
+	window.setTimeout(function() {
+		hljs.initHighlighting.called = false;
+		hljs.initHighlighting();
+	}, 500);
+});
+</script>
+
+
+	</head>
+	<body class="qa-template-question qa-body-js-off">
+		<div class="qa-body-wrapper">
+			
+			<div class="qa-header">
+				<div class="qa-logo">
+					<a href="../../" class="qa-logo-link" title="FEniCS Q&amp;A"><img src="../../qa-theme/fenics_qa.png" border="0" alt="FEniCS Q&amp;A"></a>
+				</div>
+				<div class="qa-header-clear">
+				</div>
+			</div> <!-- END qa-header -->
+			
+			<div class="qa-main-shadow">
+				
+				<div class="qa-main-wrapper">
+					
+					<div class="qa-sidepanel">
+						<div class="qa-sidebar">
+							This is a read only copy of the old FEniCS QA forum. Please visit the <a href="https://www.allanswered.com/community/s/fenics-project/">new QA forum</a> to ask questions
+						</div>
+						
+					</div>
+					
+					<div class="qa-main">
+						<h1>
+							<span class="entry-title">How to get errornorm on subdomain</span>
+						</h1>
+						<div class="qa-part-q-view">
+							<div class="qa-q-view  hentry question" id="q9922">
+								<form method="post" action="../../9922/how-to-get-errornorm-on-subdomain">
+									<div class="qa-q-view-stats">
+										<div class="qa-voting qa-voting-net" id="voting_9922">
+											<div class="qa-vote-count qa-vote-count-net">
+												<span class="qa-netvote-count">
+													<span class="qa-netvote-count-data">0<span class="votes-up"><span class="value-title" title="0"></span></span><span class="votes-down"><span class="value-title" title="0"></span></span></span><span class="qa-netvote-count-pad"> votes</span>
+												</span>
+											</div>
+											<div class="qa-vote-clear">
+											</div>
+										</div>
+									</div>
+									<input type="hidden" name="code" value="0-1516468245-9ad49c9dfd07b89eef047896ecad6c23e57bf9c2">
+								</form>
+								<div class="qa-q-view-main">
+									<form method="post" action="../../9922/how-to-get-errornorm-on-subdomain">
+										<div class="qa-q-view-content">
+											<a name="9922"></a><div class="entry-content"><p>I have the following script:</p>
+
+<pre><code>from dolfin import *
+from mshr import *
+
+nx, ny = 30, 30
+plx, prx = 0.2, 0.8
+u0, u1 = 0.0, 0.05
+
+mesh = UnitSquareMesh(nx, ny)
+
+#-------------refinement-start
+
+p, q = Point(0.2, 1.), Point(0.8, 1.)
+tol = 0.1
+tol2= 0.5
+
+# Selecting edges to refine
+class Border(SubDomain):
+    def inside(self, x, on_boundary):
+        return (near(x[0], p.x(), tol) and near(x[1], p.y(), tol) or
+    near(x[0], q.x(), tol) and near(x[1], q.y(), tol)) and near(x[1], 1.0, tol2)
+
+Border = Border()
+
+# Number of refinements
+nor = 3
+
+for i in range(nor):
+    edge_markers = EdgeFunction("bool", mesh)
+    Border.mark(edge_markers, True)
+
+    adapt(mesh, edge_markers)
+    mesh = mesh.child()
+
+#---------------refinement-end
+
+def plate_boundary(x, on_boundary):
+    return (plx &lt; x[0] &lt; prx) and near(x[1], 1.0)
+
+def empty_boundary(x, on_boundary):
+    return on_boundary and not plate_boundary(x, on_boundary)
+
+V = FunctionSpace(mesh, "Lagrange", 1)
+u = TrialFunction(V)
+v = TestFunction(V)
+
+bcs = [DirichletBC(V, Constant(u1), plate_boundary),
+       DirichletBC(V, Constant(u0), empty_boundary)]
+
+a = inner(grad(u), grad(v)) * dx
+L = Constant(0.0) * v * dx
+
+u = Function(V)
+
+problem = LinearVariationalProblem(a, L, u, bcs)
+solver = LinearVariationalSolver(problem)
+solver.solve()
+
+plot(u)
+
+plot(mesh)
+
+interactive()
+</code></pre>
+
+<p>I want to calculate <code>errornorm</code> of numerical solution and solution that I got by the separation of variables. Analytic solution has emissions in little subdomains near the points of break (points <code>p</code> and <code>q</code>) caused by Gibbs phenomenon. So I need to cut out these subdomains for calculating an <code>errornorm</code>.<br>
+How can I perform this?</p>
+</div>
+										</div>
+										<div class="qa-q-view-tags">
+											<ul class="qa-q-view-tag-list">
+												<li class="qa-q-view-tag-item"><a href="../../tag/gibbs" rel="tag" class="qa-tag-link">gibbs</a></li>
+												<li class="qa-q-view-tag-item"><a href="../../tag/subdomains" rel="tag" class="qa-tag-link">subdomains</a></li>
+												<li class="qa-q-view-tag-item"><a href="../../tag/errornorm" rel="tag" class="qa-tag-link">errornorm</a></li>
+												<li class="qa-q-view-tag-item"><a href="../../tag/error-estimate" rel="tag" class="qa-tag-link">error-estimate</a></li>
+												<li class="qa-q-view-tag-item"><a href="../../tag/analysis" rel="tag" class="qa-tag-link">analysis</a></li>
+											</ul>
+										</div>
+										<span class="qa-q-view-avatar-meta">
+											<span class="qa-q-view-meta">
+												<a href="../../9922/how-to-get-errornorm-on-subdomain" class="qa-q-view-what">asked</a>
+												<span class="qa-q-view-when">
+													<span class="qa-q-view-when-data"><span class="published"><span class="value-title" title="2016-04-20T22:10:49+0000"></span>Apr 21, 2016</span></span>
+												</span>
+												<span class="qa-q-view-who">
+													<span class="qa-q-view-who-pad">by </span>
+													<span class="qa-q-view-who-data"><span class="vcard author"><a href="../../user/Illusion" class="qa-user-link url nickname">Illusion</a></span></span>
+													<span class="qa-q-view-who-title">FEniCS Novice</span>
+													<span class="qa-q-view-who-points">
+														<span class="qa-q-view-who-points-pad">(</span><span class="qa-q-view-who-points-data">290</span><span class="qa-q-view-who-points-pad"> points)</span>
+													</span>
+												</span>
+											</span>
+										</span>
+										<div class="qa-q-view-buttons">
+										</div>
+										
+										<div class="qa-q-view-c-list" style="display:none;" id="c9922_list">
+										</div> <!-- END qa-c-list -->
+										
+										<input type="hidden" name="code" value="0-1516468245-13bf0e18c5dbedec37609d23625d7cbff5198895">
+										<input type="hidden" name="qa_click" value="">
+									</form>
+									<div class="qa-c-form">
+									</div> <!-- END qa-c-form -->
+									
+								</div> <!-- END qa-q-view-main -->
+								<div class="qa-q-view-clear">
+								</div>
+							</div> <!-- END qa-q-view -->
+							
+						</div>
+						<div class="qa-part-a-list">
+							<h2 id="a_list_title">1 Answer</h2>
+							<div class="qa-a-list" id="a_list">
+								
+								<div class="qa-a-list-item  hentry answer" id="a9923">
+									<form method="post" action="../../9922/how-to-get-errornorm-on-subdomain">
+										<div class="qa-voting qa-voting-net" id="voting_9923">
+											<div class="qa-vote-count qa-vote-count-net">
+												<span class="qa-netvote-count">
+													<span class="qa-netvote-count-data">0<span class="votes-up"><span class="value-title" title="0"></span></span><span class="votes-down"><span class="value-title" title="0"></span></span></span><span class="qa-netvote-count-pad"> votes</span>
+												</span>
+											</div>
+											<div class="qa-vote-clear">
+											</div>
+										</div>
+										<input type="hidden" name="code" value="0-1516468245-9ad49c9dfd07b89eef047896ecad6c23e57bf9c2">
+									</form>
+									<div class="qa-a-item-main">
+										<form method="post" action="../../9922/how-to-get-errornorm-on-subdomain">
+											<div class="qa-a-selection">
+											</div>
+											<div class="qa-a-item-content">
+												<a name="9923"></a><div class="entry-content"><p>Hi,<br>
+you can define two subdomains and integrate only over one of them. Something like:</p>
+
+<pre><code>excluded_sub = excluded_subdomain()
+
+domains = MeshFunction("size_t", mesh, mesh.topology().dim())
+domains.set_all(1)
+excluded_sub.mark(domains, 0)
+
+dx = Measure("dx")[domains]
+error_norm = assemble(0.5*inner(u - uh, u - uh)*dx(1))
+</code></pre>
+
+<p>In this manner you are calculating the error, in this case defined as</p>
+
+<p>$$error = \frac{1}{2}\int_{\Omega_1}(\mathbf{u}-\mathbf{u}_h)\cdot(\mathbf{u}-\mathbf{u}_h)\;\text{d}\Omega$$</p>
+
+<p>only on the cells marked as 1. I don't know if the python functions <a rel="nofollow" href="http://fenicsproject.org/documentation/dolfin/1.6.0/python/programmers-reference/fem/norms/norm.html#dolfin.fem.norms.norm">norm</a> and <a rel="nofollow" href="http://fenicsproject.org/documentation/dolfin/1.6.0/python/programmers-reference/fem/norms/errornorm.html#dolfin.fem.norms.errornorm">errornorm</a> has the functionality of select an user-defined domain (apparently not at the moment).</p>
+</div>
+											</div>
+											<span class="qa-a-item-avatar-meta">
+												<span class="qa-a-item-avatar">
+													<a href="../../user/hernan_mella" class="qa-avatar-link"><img src="../../?qa=image&amp;qa_blobid=14920815903966845416&amp;qa_size=40" width="40" height="22" class="qa-avatar-image" alt=""></a>
+												</span>
+												<span class="qa-a-item-meta">
+													<a href="../../9922/how-to-get-errornorm-on-subdomain?show=9923#a9923" class="qa-a-item-what">answered</a>
+													<span class="qa-a-item-when">
+														<span class="qa-a-item-when-data"><span class="published"><span class="value-title" title="2016-04-21T03:05:53+0000"></span>Apr 21, 2016</span></span>
+													</span>
+													<span class="qa-a-item-who">
+														<span class="qa-a-item-who-pad">by </span>
+														<span class="qa-a-item-who-data"><span class="vcard author"><a href="../../user/hernan_mella" class="qa-user-link url nickname">hernan_mella</a></span></span>
+														<span class="qa-a-item-who-title">FEniCS Expert</span>
+														<span class="qa-a-item-who-points">
+															<span class="qa-a-item-who-points-pad">(</span><span class="qa-a-item-who-points-data">19,460</span><span class="qa-a-item-who-points-pad"> points)</span>
+														</span>
+													</span>
+													<br>
+													<span class="qa-a-item-what">reshown</span>
+													<span class="qa-a-item-when">
+														<span class="qa-a-item-when-data"><span class="updated"><span class="value-title" title="2016-04-22T14:03:10+0000"></span>Apr 22, 2016</span></span>
+													</span>
+													<span class="qa-a-item-who">
+														<span class="qa-a-item-who-pad">by </span><span class="qa-a-item-who-data"><a href="../../user/hernan_mella" class="qa-user-link url nickname">hernan_mella</a></span>
+													</span>
+												</span>
+											</span>
+											<div class="qa-a-item-buttons">
+												</div>
+											
+											<div class="qa-a-item-c-list" style="display:none;" id="c9923_list">
+											</div> <!-- END qa-c-list -->
+											
+											<input type="hidden" name="code" value="0-1516468245-dc2d8d05b375fecc219c7b623695a3355dec4f3b">
+											<input type="hidden" name="qa_click" value="">
+										</form>
+										<div class="qa-c-form">
+										</div> <!-- END qa-c-form -->
+										
+									</div> <!-- END qa-a-item-main -->
+									<div class="qa-a-item-clear">
+									</div>
+								</div> <!-- END qa-a-list-item -->
+								
+							</div> <!-- END qa-a-list -->
+							
+						</div>
+					</div> <!-- END qa-main -->
+					
+				</div> <!-- END main-wrapper -->
+			</div> <!-- END main-shadow -->
+		</div> <!-- END body-wrapper -->
+		<!-- END footer-bottom-group -->
+		
+		<div style="position:absolute; left:-9999px; top:-9999px;">
+			<span id="qa-waiting-template" class="qa-waiting">...</span>
+		</div>
+	
+	
+
+</body><!-- Powered by Question2Answer - http://www.question2answer.org/ --></html>

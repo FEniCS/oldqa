@@ -1,0 +1,345 @@
+<html><!-- Powered by Question2Answer - http://www.question2answer.org/ --><head>
+		<meta http-equiv="content-type" content="text/html; charset=utf-8">
+		<title>Time dependent problem in Gryphon not working - FEniCS Q&amp;A</title>
+		<meta name="description" content="Hi there, I'm looking at [Gryphon project][1], but find that none of the given  ... 6.0/python/demo/documented/mixed-poisson/python/documentation.html">
+		<meta name="keywords" content="gryphon,time-dependent">
+		<link rel="stylesheet" type="text/css" href="../../qa-theme/Snow/qa-styles.css">
+		<link rel="canonical" href="http://fenicsproject.org/qa/8891/time-dependent-problem-in-gryphon-not-working">
+		<script type="text/x-mathjax-config">
+  MathJax.Hub.Config({
+    extensions: ["tex2jax.js"],
+    jax: ["input/TeX","output/HTML-CSS"],
+    tex2jax: {inlineMath: [["$","$"],["\\(","\\)"]]},
+    TeX: { extensions: ["AMSmath.js","AMSsymbols.js"]}
+  });
+</script>
+<script type="text/javascript" src="../../mathjax/MathJax.js"></script>
+		<script src="../../jquery-1.7.2.min.js" type="text/javascript"></script>
+		<script src="../../highlight.min.js"></script>
+<script type="text/javascript">
+$(function(){
+	$('.wmd-input').keypress(function(){
+		window.clearTimeout(hljs.Timeout);
+		hljs.Timeout = window.setTimeout(function() {
+			hljs.initHighlighting.called = false;
+			hljs.initHighlighting();
+		}, 500);
+	});
+	window.setTimeout(function() {
+		hljs.initHighlighting.called = false;
+		hljs.initHighlighting();
+	}, 500);
+});
+</script>
+
+
+	</head>
+	<body class="qa-template-question qa-body-js-off">
+		<div class="qa-body-wrapper">
+			
+			<div class="qa-header">
+				<div class="qa-logo">
+					<a href="../../" class="qa-logo-link" title="FEniCS Q&amp;A"><img src="../../qa-theme/fenics_qa.png" border="0" alt="FEniCS Q&amp;A"></a>
+				</div>
+				<div class="qa-header-clear">
+				</div>
+			</div> <!-- END qa-header -->
+			
+			<div class="qa-main-shadow">
+				
+				<div class="qa-main-wrapper">
+					
+					<div class="qa-sidepanel">
+						<div class="qa-sidebar">
+							This is a read only copy of the old FEniCS QA forum. Please visit the <a href="https://www.allanswered.com/community/s/fenics-project/">new QA forum</a> to ask questions
+						</div>
+						
+					</div>
+					
+					<div class="qa-main">
+						<h1>
+							<span class="entry-title">Time dependent problem in Gryphon not working</span>
+						</h1>
+						<div class="qa-part-q-view">
+							<div class="qa-q-view  hentry question" id="q8891">
+								<form method="post" action="../../8891/time-dependent-problem-in-gryphon-not-working">
+									<div class="qa-q-view-stats">
+										<div class="qa-voting qa-voting-net" id="voting_8891">
+											<div class="qa-vote-count qa-vote-count-net">
+												<span class="qa-netvote-count">
+													<span class="qa-netvote-count-data">0<span class="votes-up"><span class="value-title" title="0"></span></span><span class="votes-down"><span class="value-title" title="0"></span></span></span><span class="qa-netvote-count-pad"> votes</span>
+												</span>
+											</div>
+											<div class="qa-vote-clear">
+											</div>
+										</div>
+									</div>
+									<input type="hidden" name="code" value="0-1516468197-85640b0eb1ccbb74a89871c44f5f47474a4bf815">
+								</form>
+								<div class="qa-q-view-main">
+									<form method="post" action="../../8891/time-dependent-problem-in-gryphon-not-working">
+										<div class="qa-q-view-content">
+											<a name="8891"></a><div class="entry-content"><p>Hi there, </p>
+
+<p>I'm looking at <a rel="nofollow" href="https://bitbucket.org/knutesk/gryphonproject">Gryphon project</a>, but find that none of the given examples are mixed function space problems. I'm wondering if Gryphon works with mixed function space. Actually, I did try to solve a dynamic version of the <a rel="nofollow" href="http://fenicsproject.org/documentation/dolfin/1.6.0/python/demo/documented/mixed-poisson/python/documentation.html">mixed poisson problem</a> with Gryphon, but haven't succeeded yet. It will be great if you could give me some idea where the problem is.</p>
+
+<p>Provided are two minimal test codes: one with DOLFIN, working but fixed time step; the other with Gryphon, not working.</p>
+
+<p>DOLFIN version:</p>
+
+<pre><code>'''
+Status: working
+This is to solve the dynamic Heat conduction problem 
+with uniform Neumann boundary conditions:
+    sigma - grad(u) = 0
+    dudt - div(sigma) = f
+where
+    f = 10*exp(-(pow(x[0] - 0.5, 2) + pow(x[1] - 0.5, 2)) / 0.02)
+
+Initial condition:
+    u = 0
+    sigma = (0, 0)
+
+Boundary condition:
+    n*sigma = 0 on all boundary
+
+Time interval:
+T = [0, 1]
+'''
+from dolfin import *
+t = 0
+dt = 1.0e-2
+T = 1.0
+# Create mesh
+mesh = UnitSquareMesh(32, 32)
+
+# Define function spaces and mixed (product) space
+BDM = FunctionSpace(mesh, "BDM", 1)
+DG = FunctionSpace(mesh, "DG", 0)
+W = BDM * DG
+
+# Define trial and test functions and initial solution w0
+(sigma, u) = TrialFunctions(W)
+w0 = Function(W)
+(sigma0, u0) = split(w0)
+(tau, v) = TestFunctions(W)
+
+# Define source function
+f = Expression("10*exp(-(pow(x[0] - 0.5, 2) + pow(x[1] - 0.5, 2)) / 0.02)")
+
+# Define variational form
+a = (dot(sigma, tau) + div(tau)*u + u*v/dt - div(sigma)*v)*dx
+L = u0*v/dt*dx + f*v*dx
+
+# Define function G such that G \cdot n = g
+class BoundarySource(Expression):
+    def __init__(self, mesh):
+        self.mesh = mesh
+    def eval_cell(self, values, x, ufc_cell):
+        cell = Cell(self.mesh, ufc_cell.index)
+        n = cell.normal(ufc_cell.local_facet)
+        g = 0.0
+        values[0] = g*n[0]
+        values[1] = g*n[1]
+    def value_shape(self):
+        return (2,)
+
+G = BoundarySource(mesh)
+
+# Define essential boundary
+def boundary(x, on_boundary):
+    return on_boundary
+
+bc = DirichletBC(W.sub(0), G, boundary)
+
+# Compute solution
+w = Function(W)
+
+while t &lt; T:
+    t += dt
+    solve(a == L, w, bc)
+    w0.vector()[:] = w.vector()
+
+# Plot sigma and u
+(sigma, u) = w.split()
+plot(sigma)
+plot(u)
+interactive()
+</code></pre>
+
+<p>Gryphon version:</p>
+
+<pre><code> '''
+Status: not working
+This is to solve the dynamic Heat conduction problem 
+with uniform Neumann boundary conditions:
+    sigma - grad(u) = 0
+    dudt - div(sigma) = f
+where
+    f = 10*exp(-(pow(x[0] - 0.5, 2) + pow(x[1] - 0.5, 2)) / 0.02)
+
+Initial condition:
+    u = 0
+    sigma = (0, 0)
+
+Boundary condition:
+    n*sigma = 0 on all boundary
+
+Time interval:
+T = [0, 1]
+'''
+
+from gryphon import ESDIRK
+from dolfin import *
+
+# initial value classes
+class InitialConditions(Expression):
+  def eval(self, values, x):
+      values[0] = 0.0
+      values[1] = 0.0
+      values[2] = 0.0
+  def value_shape(self):
+      return (3,)
+
+# Create mesh
+mesh = UnitSquareMesh(32, 32)
+
+# Define function spaces and mixed (product) space
+BDM = FunctionSpace(mesh, "BDM", 1)
+DG = FunctionSpace(mesh, "DG", 0)
+W = BDM * DG
+
+# Define trial and test functions
+(sigma, u) = TrialFunctions(W)
+
+(tau, v) = TestFunctions(W)
+
+# Define source function
+source = Expression("10*exp(-(pow(x[0] - 0.5, 2) + pow(x[1] - 0.5, 2)) / 0.02)")
+
+f = div(sigma)*v*dx + source*v*dx
+g = -dot(sigma, tau)*dx - div(tau)*u*dx
+
+# Define function G such that G \cdot n = g
+class BoundarySource(Expression):
+    def __init__(self, mesh):
+        self.mesh = mesh
+    def eval_cell(self, values, x, ufc_cell):
+        cell = Cell(self.mesh, ufc_cell.index)
+        n = cell.normal(ufc_cell.local_facet)
+        g = 0.0
+        values[0] = g*n[0]
+        values[1] = g*n[1]
+    def value_shape(self):
+        return (2,)
+
+G = BoundarySource(mesh)
+
+# Define essential boundary
+def boundary(x, on_boundary):
+    return on_boundary
+
+bc = DirichletBC(W.sub(0), G, boundary)
+w = Function(W)
+w.interpolate(InitialConditions())
+
+T = [0,1.0]
+# Create the ESDIRK object.
+obj = ESDIRK(T,w,f,g=[g],bcs=bc)
+
+obj.parameters['output']['reuseoutputfolder'] = True
+# obj.parameters['timestepping']['dt'] = 1.0e-6
+
+# Turn on extra terminal output
+obj.parameters["verbose"] = True
+
+# Turn on runtime plot of current time step
+obj.parameters["drawplot"] = True
+
+# Save runtime statistics.
+obj.parameters["output"]["statistics"] = False
+
+# Save plot of each time step in VTK format.
+obj.parameters["output"]["plot"] = True
+
+# Set that the plot of selected step sizes should be saved in jpg.
+# Available choices are jpg, png and eps.
+obj.parameters["output"]["imgformat"] = "jpg"
+
+# Call the solver which will do the actual calculation.
+obj.solve()
+</code></pre>
+</div>
+										</div>
+										<div class="qa-q-view-tags">
+											<ul class="qa-q-view-tag-list">
+												<li class="qa-q-view-tag-item"><a href="../../tag/gryphon" rel="tag" class="qa-tag-link">gryphon</a></li>
+												<li class="qa-q-view-tag-item"><a href="../../tag/time-dependent" rel="tag" class="qa-tag-link">time-dependent</a></li>
+											</ul>
+										</div>
+										<span class="qa-q-view-avatar-meta">
+											<span class="qa-q-view-avatar">
+												<a href="../../user/Chao+Zhang" class="qa-avatar-link"><img src="https://www.gravatar.com/avatar/a50d81c60676e9ac40552912720d7b96?s=50" width="50" height="50" class="qa-avatar-image" alt=""></a>
+											</span>
+											<span class="qa-q-view-meta">
+												<a href="../../8891/time-dependent-problem-in-gryphon-not-working" class="qa-q-view-what">asked</a>
+												<span class="qa-q-view-when">
+													<span class="qa-q-view-when-data"><span class="published"><span class="value-title" title="2015-12-19T04:34:53+0000"></span>Dec 19, 2015</span></span>
+												</span>
+												<span class="qa-q-view-who">
+													<span class="qa-q-view-who-pad">by </span>
+													<span class="qa-q-view-who-data"><span class="vcard author"><a href="../../user/Chao+Zhang" class="qa-user-link url nickname">Chao Zhang</a></span></span>
+													<span class="qa-q-view-who-title">FEniCS User</span>
+													<span class="qa-q-view-who-points">
+														<span class="qa-q-view-who-points-pad">(</span><span class="qa-q-view-who-points-data">1,180</span><span class="qa-q-view-who-points-pad"> points)</span>
+													</span>
+												</span>
+												<br>
+												<span class="qa-q-view-what">edited</span>
+												<span class="qa-q-view-when">
+													<span class="qa-q-view-when-data"><span class="updated"><span class="value-title" title="2015-12-19T08:42:41+0000"></span>Dec 19, 2015</span></span>
+												</span>
+												<span class="qa-q-view-who">
+													<span class="qa-q-view-who-pad">by </span><span class="qa-q-view-who-data"><a href="../../user/Chao+Zhang" class="qa-user-link url nickname">Chao Zhang</a></span>
+												</span>
+											</span>
+										</span>
+										<div class="qa-q-view-buttons">
+										</div>
+										
+										<div class="qa-q-view-c-list" style="display:none;" id="c8891_list">
+										</div> <!-- END qa-c-list -->
+										
+										<input type="hidden" name="code" value="0-1516468197-669d29727bf208348faf458feeb9a899106ef215">
+										<input type="hidden" name="qa_click" value="">
+									</form>
+									<div class="qa-c-form">
+									</div> <!-- END qa-c-form -->
+									
+								</div> <!-- END qa-q-view-main -->
+								<div class="qa-q-view-clear">
+								</div>
+							</div> <!-- END qa-q-view -->
+							
+						</div>
+						<div class="qa-part-a-list">
+							<h2 id="a_list_title" style="display:none;"></h2>
+							<div class="qa-a-list" id="a_list">
+								
+							</div> <!-- END qa-a-list -->
+							
+						</div>
+					</div> <!-- END qa-main -->
+					
+				</div> <!-- END main-wrapper -->
+			</div> <!-- END main-shadow -->
+		</div> <!-- END body-wrapper -->
+		<!-- END footer-bottom-group -->
+		
+		<div style="position:absolute; left:-9999px; top:-9999px;">
+			<span id="qa-waiting-template" class="qa-waiting">...</span>
+		</div>
+	
+	
+
+</body><!-- Powered by Question2Answer - http://www.question2answer.org/ --></html>

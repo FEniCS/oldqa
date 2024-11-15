@@ -1,0 +1,518 @@
+<html><!-- Powered by Question2Answer - http://www.question2answer.org/ --><head>
+		<meta http-equiv="content-type" content="text/html; charset=utf-8">
+		<title>solutions to eigenvalue problem do not solve boundary conditions - FEniCS Q&amp;A</title>
+		<meta name="description" content="Below is code that solves an eigenvalue problem. Unfortunately, the first couple of solutions do not satisfy  ... , title='%d real' % i) interactive()">
+		<link rel="stylesheet" type="text/css" href="../../qa-theme/Snow/qa-styles.css">
+		<link rel="canonical" href="http://fenicsproject.org/qa/9650/solutions-eigenvalue-problem-not-solve-boundary-conditions">
+		<script type="text/x-mathjax-config">
+  MathJax.Hub.Config({
+    extensions: ["tex2jax.js"],
+    jax: ["input/TeX","output/HTML-CSS"],
+    tex2jax: {inlineMath: [["$","$"],["\\(","\\)"]]},
+    TeX: { extensions: ["AMSmath.js","AMSsymbols.js"]}
+  });
+</script>
+<script type="text/javascript" src="../../mathjax/MathJax.js"></script>
+		<script src="../../jquery-1.7.2.min.js" type="text/javascript"></script>
+		<script src="../../highlight.min.js"></script>
+<script type="text/javascript">
+$(function(){
+	$('.wmd-input').keypress(function(){
+		window.clearTimeout(hljs.Timeout);
+		hljs.Timeout = window.setTimeout(function() {
+			hljs.initHighlighting.called = false;
+			hljs.initHighlighting();
+		}, 500);
+	});
+	window.setTimeout(function() {
+		hljs.initHighlighting.called = false;
+		hljs.initHighlighting();
+	}, 500);
+});
+</script>
+
+
+	</head>
+	<body class="qa-template-question qa-body-js-off">
+		<div class="qa-body-wrapper">
+			
+			<div class="qa-header">
+				<div class="qa-logo">
+					<a href="../" class="qa-logo-link" title="FEniCS Q&amp;A"><img src="../../qa-theme/fenics_qa.png" border="0" alt="FEniCS Q&amp;A"></a>
+				</div>
+				<div class="qa-header-clear">
+				</div>
+			</div> <!-- END qa-header -->
+			
+			<div class="qa-main-shadow">
+				
+				<div class="qa-main-wrapper">
+					
+					<div class="qa-sidepanel">
+						<div class="qa-sidebar">
+							This is a read only copy of the old FEniCS QA forum. Please visit the <a href="https://www.allanswered.com/community/s/fenics-project/">new QA forum</a> to ask questions
+						</div>
+						
+					</div>
+					
+					<div class="qa-main">
+						<h1>
+							<span class="entry-title">solutions to eigenvalue problem do not solve boundary conditions</span>
+						</h1>
+						<div class="qa-part-q-view">
+							<div class="qa-q-view qa-q-closed hentry question" id="q9650">
+								<form method="post" action="../9650">
+									<div class="qa-q-view-stats">
+										<div class="qa-voting qa-voting-net" id="voting_9650">
+											<div class="qa-vote-count qa-vote-count-net">
+												<span class="qa-netvote-count">
+													<span class="qa-netvote-count-data">0<span class="votes-up"><span class="value-title" title="0"></span></span><span class="votes-down"><span class="value-title" title="0"></span></span></span><span class="qa-netvote-count-pad"> votes</span>
+												</span>
+											</div>
+											<div class="qa-vote-clear">
+											</div>
+										</div>
+									</div>
+									<input type="hidden" name="code" value="0-1516478021-b61c0b2efe6b545140a7c5d791755720e4dbda8d">
+								</form>
+								<div class="qa-q-view-main">
+									<form method="post" action="../9650">
+										<div class="qa-q-view-content">
+											<a name="9650"></a><div class="entry-content"><p>Below is code that solves an eigenvalue problem.  Unfortunately, the first couple of solutions do not satisfy the boundary conditions.  Is there a way to prevent those from occurring? Maybe I'm not imposing the boundary conditions correctly?</p>
+
+<pre><code>from dolfin import *
+import numpy as np
+
+# Create mesh and define function space
+nx   = 20
+L    = 4.0
+mesh = IntervalMesh(nx,0.0,L)
+
+# Order of method
+p = 0
+
+# Function Spaces
+V0 = FunctionSpace(mesh, 'CG', p+2)
+
+zeroVelocity = Constant(0.0)
+def left(x, on_boundary): return x[0] &lt; DOLFIN_EPS
+def right(x, on_boundary): return x[0] &gt; L - DOLFIN_EPS
+bc0 = DirichletBC(V0, zeroVelocity, left)
+bc1 = DirichletBC(V0, zeroVelocity, right)
+bcs = [bc0, bc1]
+
+# Parameters
+beta = Constant(1e0)
+k2   = Constant((2.*np.pi/L)**2)
+
+# Define variational problem
+p = TrialFunction(V0)
+r = TestFunction(V0)
+a = -beta*(r*p)*dx
+b = (r.dx(0)*p.dx(0) + k2*r*p)*dx
+
+# Assemble Matrices
+A = PETScMatrix()
+assemble(a, tensor=A)
+[bc.apply(A) for bc in bcs]
+
+B = PETScMatrix()
+assemble(b, tensor=B)
+[bc.apply(B) for bc in bcs]
+
+# Create eigensolver
+eigensolver = SLEPcEigenSolver(A, B)
+
+eigensolver.parameters["spectrum"] = "largest magnitude"
+
+# Compute all eigenvalues of A x = \lambda B x
+print("Computing eigenvalues. This can take a minute.")
+num = 6
+eigensolver.solve(num)
+
+print -1e0/((2.*np.pi/L)**2 + (np.arange(1,5)*np.pi/4.0)**2)
+
+psi = Function(V0)
+psi_vec = psi.vector()
+
+# Extract largest (first) eigenpair
+print("Before get_eigenpair")
+for i in range(num):
+    r, c, rx, cx = eigensolver.get_eigenpair(i)
+    print("Eigenvalue:", i, r, c)
+
+    plot(Function(V0, rx), title='%d real' % i)
+
+interactive()
+</code></pre>
+</div>
+										</div>
+										<div class="qa-q-view-closed">
+											closed with the note:
+											<span class="qa-q-view-closed-content">
+												I found the answer to my question
+											</span>
+										</div>
+										<span class="qa-q-view-avatar-meta">
+											<span class="qa-q-view-meta">
+												<a href="../9650/solutions-eigenvalue-problem-not-solve-boundary-conditions" class="qa-q-view-what">asked</a>
+												<span class="qa-q-view-when">
+													<span class="qa-q-view-when-data"><span class="published"><span class="value-title" title="2016-03-22T19:52:43+0000"></span>Mar 22, 2016</span></span>
+												</span>
+												<span class="qa-q-view-who">
+													<span class="qa-q-view-who-pad">by </span>
+													<span class="qa-q-view-who-data"><span class="vcard author"><a href="../../user/fpoulin" class="qa-user-link url nickname">fpoulin</a></span></span>
+													<span class="qa-q-view-who-title">FEniCS Novice</span>
+													<span class="qa-q-view-who-points">
+														<span class="qa-q-view-who-points-pad">(</span><span class="qa-q-view-who-points-data">200</span><span class="qa-q-view-who-points-pad"> points)</span>
+													</span>
+												</span>
+												<br>
+												<span class="qa-q-view-what">closed</span>
+												<span class="qa-q-view-when">
+													<span class="qa-q-view-when-data"><span class="updated"><span class="value-title" title="2016-04-07T18:15:02+0000"></span>Apr 7, 2016</span></span>
+												</span>
+												<span class="qa-q-view-who">
+													<span class="qa-q-view-who-pad">by </span><span class="qa-q-view-who-data"><a href="../../user/fpoulin" class="qa-user-link url nickname">fpoulin</a></span>
+												</span>
+											</span>
+										</span>
+										<div class="qa-q-view-buttons">
+										</div>
+										
+										<div class="qa-q-view-c-list" id="c9650_list">
+											<div class="qa-c-list-item  hentry comment" id="c9671">
+												<div class="qa-c-item-content">
+													<a name="9671"></a><div class="entry-content"><p>You are more likely to get an answer if you format your code correctly.</p>
+</div>
+												</div>
+												<div class="qa-c-item-footer">
+													<span class="qa-c-item-avatar-meta">
+														<span class="qa-c-item-meta">
+															<a href="../9650/solutions-eigenvalue-problem-not-solve-boundary-conditions?show=9671#c9671" class="qa-c-item-what">commented</a>
+															<span class="qa-c-item-when">
+																<span class="qa-c-item-when-data"><span class="published"><span class="value-title" title="2016-03-24T12:58:10+0000"></span>Mar 24, 2016</span></span>
+															</span>
+															<span class="qa-c-item-who">
+																<span class="qa-c-item-who-pad">by </span>
+																<span class="qa-c-item-who-data"><span class="vcard author"><a href="../../user/maartent" class="qa-user-link url nickname">maartent</a></span></span>
+																<span class="qa-c-item-who-title">FEniCS User</span>
+																<span class="qa-c-item-who-points">
+																	<span class="qa-c-item-who-points-pad">(</span><span class="qa-c-item-who-points-data">3,910</span><span class="qa-c-item-who-points-pad"> points)</span>
+																</span>
+															</span>
+														</span>
+													</span>
+													<div class="qa-c-item-buttons">
+													</div>
+												</div>
+												<div class="qa-c-item-clear">
+												</div>
+											</div> <!-- END qa-c-item -->
+											<div class="qa-c-list-item  hentry comment" id="c9673">
+												<div class="qa-c-item-content">
+													<a name="9673"></a><div class="entry-content"><p>Thanks for replying.</p>
+
+<p>I tried to follow the format of the eigenvalue problem demo as much as possible.  Looks pretty similar to me but I am just a novice and probably messed something up, just not sure what.</p>
+
+<p>If you can point me towards what part of the formatting that is bad that yields incorrect results I am happy to look into it.  At the moment I am at a loss as to what part is badly formatted.</p>
+
+<p>Maybe my presentation of the code is done badly as well, I am not sure.</p>
+</div>
+												</div>
+												<div class="qa-c-item-footer">
+													<span class="qa-c-item-avatar-meta">
+														<span class="qa-c-item-meta">
+															<a href="../9650/solutions-eigenvalue-problem-not-solve-boundary-conditions?show=9673#c9673" class="qa-c-item-what">commented</a>
+															<span class="qa-c-item-when">
+																<span class="qa-c-item-when-data"><span class="published"><span class="value-title" title="2016-03-24T13:31:43+0000"></span>Mar 24, 2016</span></span>
+															</span>
+															<span class="qa-c-item-who">
+																<span class="qa-c-item-who-pad">by </span>
+																<span class="qa-c-item-who-data"><span class="vcard author"><a href="../../user/fpoulin" class="qa-user-link url nickname">fpoulin</a></span></span>
+																<span class="qa-c-item-who-title">FEniCS Novice</span>
+																<span class="qa-c-item-who-points">
+																	<span class="qa-c-item-who-points-pad">(</span><span class="qa-c-item-who-points-data">200</span><span class="qa-c-item-who-points-pad"> points)</span>
+																</span>
+															</span>
+														</span>
+													</span>
+													<div class="qa-c-item-buttons">
+													</div>
+												</div>
+												<div class="qa-c-item-clear">
+												</div>
+											</div> <!-- END qa-c-item -->
+											<div class="qa-c-list-item  hentry comment" id="c9674">
+												<div class="qa-c-item-content">
+													<a name="9674"></a><div class="entry-content"><p>I don't mean the code itself, just the way it displays for us to read :-)<br>
+If you edit your question, select your code and click 'code sample' (the parenthesis { } button) you will see what I mean.</p>
+</div>
+												</div>
+												<div class="qa-c-item-footer">
+													<span class="qa-c-item-avatar-meta">
+														<span class="qa-c-item-meta">
+															<a href="../9650/solutions-eigenvalue-problem-not-solve-boundary-conditions?show=9674#c9674" class="qa-c-item-what">commented</a>
+															<span class="qa-c-item-when">
+																<span class="qa-c-item-when-data"><span class="published"><span class="value-title" title="2016-03-24T13:47:54+0000"></span>Mar 24, 2016</span></span>
+															</span>
+															<span class="qa-c-item-who">
+																<span class="qa-c-item-who-pad">by </span>
+																<span class="qa-c-item-who-data"><span class="vcard author"><a href="../../user/maartent" class="qa-user-link url nickname">maartent</a></span></span>
+																<span class="qa-c-item-who-title">FEniCS User</span>
+																<span class="qa-c-item-who-points">
+																	<span class="qa-c-item-who-points-pad">(</span><span class="qa-c-item-who-points-data">3,910</span><span class="qa-c-item-who-points-pad"> points)</span>
+																</span>
+															</span>
+														</span>
+													</span>
+													<div class="qa-c-item-buttons">
+													</div>
+												</div>
+												<div class="qa-c-item-clear">
+												</div>
+											</div> <!-- END qa-c-item -->
+											<div class="qa-c-list-item  hentry comment" id="c9675">
+												<div class="qa-c-item-content">
+													<a name="9675"></a><div class="entry-content"><p>Ah, thanks!</p>
+
+<p>I added this line and tried it again.  I am asking for 6 eigenvalues and it says that only 5 have converged.  So it seems that the first one is not a problem because it is not a converged eigenvalue.</p>
+
+<p>eigensolver.parameters['verbose'] = True</p>
+
+<p>This leads to another related question, is it possible to ignore the eigenvalues that have not converged?  </p>
+
+<p>Thanks again.</p>
+</div>
+												</div>
+												<div class="qa-c-item-footer">
+													<span class="qa-c-item-avatar-meta">
+														<span class="qa-c-item-meta">
+															<a href="../9650/solutions-eigenvalue-problem-not-solve-boundary-conditions?show=9675#c9675" class="qa-c-item-what">commented</a>
+															<span class="qa-c-item-when">
+																<span class="qa-c-item-when-data"><span class="published"><span class="value-title" title="2016-03-24T13:53:44+0000"></span>Mar 24, 2016</span></span>
+															</span>
+															<span class="qa-c-item-who">
+																<span class="qa-c-item-who-pad">by </span>
+																<span class="qa-c-item-who-data"><span class="vcard author"><a href="../../user/fpoulin" class="qa-user-link url nickname">fpoulin</a></span></span>
+																<span class="qa-c-item-who-title">FEniCS Novice</span>
+																<span class="qa-c-item-who-points">
+																	<span class="qa-c-item-who-points-pad">(</span><span class="qa-c-item-who-points-data">200</span><span class="qa-c-item-who-points-pad"> points)</span>
+																</span>
+															</span>
+														</span>
+													</span>
+													<div class="qa-c-item-buttons">
+													</div>
+												</div>
+												<div class="qa-c-item-clear">
+												</div>
+											</div> <!-- END qa-c-item -->
+											<div class="qa-c-list-item  hentry comment" id="c9676">
+												<div class="qa-c-item-content">
+													<a name="9676"></a><div class="entry-content"><p>If you for some reason only expect negative eigenvalues, you can just discard solutions with positive ones (or eigenvalues close to 1.0). Not the best solution, but in my case it helped.</p>
+
+<p>There are some related questions you can check, eg. <br>
+<a rel="nofollow" href="http://fenicsproject.org/qa/7956/symmetry-and-dirichlet-eigenvalue-problem?show=7956#q7956">http://fenicsproject.org/qa/7956/symmetry-and-dirichlet-eigenvalue-problem?show=7956#q7956</a><br>
+<a rel="nofollow" href="http://fenicsproject.org/qa/6707/assemble-system-for-eigenvalue-problem?show=6707#q6707">http://fenicsproject.org/qa/6707/assemble-system-for-eigenvalue-problem?show=6707#q6707</a></p>
+</div>
+												</div>
+												<div class="qa-c-item-footer">
+													<span class="qa-c-item-avatar-meta">
+														<span class="qa-c-item-meta">
+															<a href="../9650/solutions-eigenvalue-problem-not-solve-boundary-conditions?show=9676#c9676" class="qa-c-item-what">commented</a>
+															<span class="qa-c-item-when">
+																<span class="qa-c-item-when-data"><span class="published"><span class="value-title" title="2016-03-24T14:09:39+0000"></span>Mar 24, 2016</span></span>
+															</span>
+															<span class="qa-c-item-who">
+																<span class="qa-c-item-who-pad">by </span>
+																<span class="qa-c-item-who-data"><span class="vcard author"><a href="../../user/maartent" class="qa-user-link url nickname">maartent</a></span></span>
+																<span class="qa-c-item-who-title">FEniCS User</span>
+																<span class="qa-c-item-who-points">
+																	<span class="qa-c-item-who-points-pad">(</span><span class="qa-c-item-who-points-data">3,910</span><span class="qa-c-item-who-points-pad"> points)</span>
+																</span>
+															</span>
+														</span>
+													</span>
+													<div class="qa-c-item-buttons">
+													</div>
+												</div>
+												<div class="qa-c-item-clear">
+												</div>
+											</div> <!-- END qa-c-item -->
+											<div class="qa-c-list-item  hentry comment" id="c9678">
+												<div class="qa-c-item-content">
+													<a name="9678"></a><div class="entry-content"><p>Thanks for the suggestion and the links.  I read them over and they are interesting but maybe not quite what I was looking for.</p>
+
+<p>In this case the spurious eigenvalue is positive, and equal to 1, so easy to spot but in other problems that is not the case.</p>
+
+<p>I thought that there were only 5 converges eigenvalues but I went to the following link</p>
+
+<p><a rel="nofollow" href="https://answers.launchpad.net/dolfin/+question/210106">https://answers.launchpad.net/dolfin/+question/210106</a></p>
+
+<p>and found out how to compute the number of converged eigenvalues and only show those.  </p>
+
+<p>It seems that the first mode with eigenvalue 1, which does not satisfy the correct boundary conditions, is considered to be converged.  </p>
+
+<p>The fact that the boundary conditions are not satisfied should indicate that it is not a valid solution.  I guess I'm back to not knowing why the boundary conditions are not being correctly enforced.</p>
+</div>
+												</div>
+												<div class="qa-c-item-footer">
+													<span class="qa-c-item-avatar-meta">
+														<span class="qa-c-item-meta">
+															<a href="../9650/solutions-eigenvalue-problem-not-solve-boundary-conditions?show=9678#c9678" class="qa-c-item-what">commented</a>
+															<span class="qa-c-item-when">
+																<span class="qa-c-item-when-data"><span class="published"><span class="value-title" title="2016-03-24T16:23:01+0000"></span>Mar 24, 2016</span></span>
+															</span>
+															<span class="qa-c-item-who">
+																<span class="qa-c-item-who-pad">by </span>
+																<span class="qa-c-item-who-data"><span class="vcard author"><a href="../../user/fpoulin" class="qa-user-link url nickname">fpoulin</a></span></span>
+																<span class="qa-c-item-who-title">FEniCS Novice</span>
+																<span class="qa-c-item-who-points">
+																	<span class="qa-c-item-who-points-pad">(</span><span class="qa-c-item-who-points-data">200</span><span class="qa-c-item-who-points-pad"> points)</span>
+																</span>
+															</span>
+														</span>
+													</span>
+													<div class="qa-c-item-buttons">
+													</div>
+												</div>
+												<div class="qa-c-item-clear">
+												</div>
+											</div> <!-- END qa-c-item -->
+											<div class="qa-c-list-item  hentry comment" id="c9683">
+												<div class="qa-c-item-content">
+													<a name="9683"></a><div class="entry-content"><p>A friend pointed out that the link that I posted actually explained what to do.  In case other people might benefit from this I am including the revised code below.</p>
+
+<p>Thanks for all the help everyone. I'm happy to say that now I only get converged modes that satisfy the correct Dirichlet boundary conditions.</p>
+
+<pre><code>from dolfin import *
+import numpy as np
+
+# Create mesh and define function space
+nx   = 200
+L    = 4.0
+mesh = IntervalMesh(nx,0.0,L)
+
+# Order of method
+p = 0
+
+# Function Spaces
+V0 = FunctionSpace(mesh, 'CG', p+2)
+
+# Parameters
+beta = Constant(1e0)
+k2   = Constant((2.*np.pi/L)**2)
+
+# Define variational problem
+p = TrialFunction(V0)
+r = TestFunction(V0)
+a = -beta*(r*p)*dx
+b = (r.dx(0)*p.dx(0) + k2*r*p)*dx
+tm = r*dx
+
+# boundary
+def bdry(x, on_boundary):
+    return on_boundary
+
+bc = DirichletBC(V0, Constant(0.0), bdry)
+
+# Assemble Matrices
+A,_ = assemble_system(a, tm, bc)
+B,_ = assemble_system(b, tm, bc)
+bc.zero(B)
+
+A = as_backend_type(A)
+B = as_backend_type(B)
+
+# Create eigensolver
+eigensolver = SLEPcEigenSolver(A, B)
+
+eigensolver.parameters["spectrum"] = "largest magnitude"
+eigensolver.parameters["problem_type"] = "gen_hermitian"
+eigensolver.parameters["spectral_transform"] = "shift-and-invert"
+eigensolver.parameters["spectral_shift"] = 1.0e-10
+eigensolver.parameters["verbose"] = False
+
+# Compute all eigenvalues of A x = \lambda B x
+print("Computing eigenvalues. This can take a minute.")
+num = 6
+eigensolver.solve(num)
+
+nconv = eigensolver.get_number_converged()
+print "Number of eigenvalues successfully computed: ", nconv
+
+print -1e0/((2.*np.pi/L)**2 + (np.arange(1,5)*np.pi/4.0)**2)
+
+psi = Function(V0)
+psi_vec = psi.vector()
+
+# Extract largest (first) eigenpair
+for i in range(nconv):
+    r, c, rx, cx = eigensolver.get_eigenpair(i)
+    print("Eigenvalue:", i, r, c)
+
+    plot(Function(V0, rx), title='%d real' % i)
+
+interactive()
+</code></pre>
+</div>
+												</div>
+												<div class="qa-c-item-footer">
+													<span class="qa-c-item-avatar-meta">
+														<span class="qa-c-item-meta">
+															<a href="../9650/solutions-eigenvalue-problem-not-solve-boundary-conditions?show=9683#c9683" class="qa-c-item-what">commented</a>
+															<span class="qa-c-item-when">
+																<span class="qa-c-item-when-data"><span class="published"><span class="value-title" title="2016-03-25T02:07:29+0000"></span>Mar 25, 2016</span></span>
+															</span>
+															<span class="qa-c-item-who">
+																<span class="qa-c-item-who-pad">by </span>
+																<span class="qa-c-item-who-data"><span class="vcard author"><a href="../../user/fpoulin" class="qa-user-link url nickname">fpoulin</a></span></span>
+																<span class="qa-c-item-who-title">FEniCS Novice</span>
+																<span class="qa-c-item-who-points">
+																	<span class="qa-c-item-who-points-pad">(</span><span class="qa-c-item-who-points-data">200</span><span class="qa-c-item-who-points-pad"> points)</span>
+																</span>
+															</span>
+														</span>
+													</span>
+													<div class="qa-c-item-buttons">
+													</div>
+												</div>
+												<div class="qa-c-item-clear">
+												</div>
+											</div> <!-- END qa-c-item -->
+										</div> <!-- END qa-c-list -->
+										
+										<input type="hidden" name="code" value="0-1516478021-af12bbda13a6e9afabb726d3704d11f332ba63c1">
+										<input type="hidden" name="qa_click" value="">
+									</form>
+									<div class="qa-c-form">
+									</div> <!-- END qa-c-form -->
+									
+								</div> <!-- END qa-q-view-main -->
+								<div class="qa-q-view-clear">
+								</div>
+							</div> <!-- END qa-q-view -->
+							
+						</div>
+						<div class="qa-part-a-list">
+							<h2 id="a_list_title" style="display:none;"></h2>
+							<div class="qa-a-list" id="a_list">
+								
+							</div> <!-- END qa-a-list -->
+							
+						</div>
+					</div> <!-- END qa-main -->
+					
+				</div> <!-- END main-wrapper -->
+			</div> <!-- END main-shadow -->
+		</div> <!-- END body-wrapper -->
+		<!-- END footer-bottom-group -->
+		
+		<div style="position:absolute; left:-9999px; top:-9999px;">
+			<span id="qa-waiting-template" class="qa-waiting">...</span>
+		</div>
+	
+	
+
+</body><!-- Powered by Question2Answer - http://www.question2answer.org/ --></html>

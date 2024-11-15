@@ -1,0 +1,383 @@
+<html><!-- Powered by Question2Answer - http://www.question2answer.org/ --><head>
+		<meta http-equiv="content-type" content="text/html; charset=utf-8">
+		<title>Interpolate on MixedFunctionSpace - FEniCS Q&amp;A</title>
+		<meta name="description" content="Hi all, This question is somehow related to http://fenicsproject.org/qa/8556/interpolation-on-mixef-function- ...  A and B. Thank you in advance! Umbe">
+		<meta name="keywords" content="mixed-function-space,copy-vs-view,subfunction">
+		<link rel="stylesheet" type="text/css" href="../../qa-theme/Snow/qa-styles.css">
+		<link rel="canonical" href="http://fenicsproject.org/qa/8876/interpolate-on-mixedfunctionspace">
+		<script type="text/x-mathjax-config">
+  MathJax.Hub.Config({
+    extensions: ["tex2jax.js"],
+    jax: ["input/TeX","output/HTML-CSS"],
+    tex2jax: {inlineMath: [["$","$"],["\\(","\\)"]]},
+    TeX: { extensions: ["AMSmath.js","AMSsymbols.js"]}
+  });
+</script>
+<script type="text/javascript" src="../../mathjax/MathJax.js"></script>
+		<script src="../../jquery-1.7.2.min.js" type="text/javascript"></script>
+		<script src="../../highlight.min.js"></script>
+<script type="text/javascript">
+$(function(){
+	$('.wmd-input').keypress(function(){
+		window.clearTimeout(hljs.Timeout);
+		hljs.Timeout = window.setTimeout(function() {
+			hljs.initHighlighting.called = false;
+			hljs.initHighlighting();
+		}, 500);
+	});
+	window.setTimeout(function() {
+		hljs.initHighlighting.called = false;
+		hljs.initHighlighting();
+	}, 500);
+});
+</script>
+
+
+	</head>
+	<body class="qa-template-question qa-body-js-off">
+		<div class="qa-body-wrapper">
+			
+			<div class="qa-header">
+				<div class="qa-logo">
+					<a href="../../" class="qa-logo-link" title="FEniCS Q&amp;A"><img src="../../qa-theme/fenics_qa.png" border="0" alt="FEniCS Q&amp;A"></a>
+				</div>
+				<div class="qa-header-clear">
+				</div>
+			</div> <!-- END qa-header -->
+			
+			<div class="qa-main-shadow">
+				
+				<div class="qa-main-wrapper">
+					
+					<div class="qa-sidepanel">
+						<div class="qa-sidebar">
+							This is a read only copy of the old FEniCS QA forum. Please visit the <a href="https://www.allanswered.com/community/s/fenics-project/">new QA forum</a> to ask questions
+						</div>
+						
+					</div>
+					
+					<div class="qa-main">
+						<h1>
+							<span class="entry-title">Interpolate on MixedFunctionSpace</span>
+						</h1>
+						<div class="qa-part-q-view">
+							<div class="qa-q-view  hentry question" id="q8876">
+								<form method="post" action="../../8876/interpolate-on-mixedfunctionspace">
+									<div class="qa-q-view-stats">
+										<div class="qa-voting qa-voting-net" id="voting_8876">
+											<div class="qa-vote-count qa-vote-count-net">
+												<span class="qa-netvote-count">
+													<span class="qa-netvote-count-data">0<span class="votes-up"><span class="value-title" title="0"></span></span><span class="votes-down"><span class="value-title" title="0"></span></span></span><span class="qa-netvote-count-pad"> votes</span>
+												</span>
+											</div>
+											<div class="qa-vote-clear">
+											</div>
+										</div>
+									</div>
+									<input type="hidden" name="code" value="0-1516468196-cb6fedc5df4709ecd7ed1f23e879d7dcc4cca1f5">
+								</form>
+								<div class="qa-q-view-main">
+									<form method="post" action="../../8876/interpolate-on-mixedfunctionspace">
+										<div class="qa-q-view-content">
+											<a name="8876"></a><div class="entry-content"><p>Hi all,</p>
+
+<p>This question is somehow related to<br>
+<a rel="nofollow" href="http://fenicsproject.org/qa/8556/interpolation-on-mixef-function-space-failled,">http://fenicsproject.org/qa/8556/interpolation-on-mixef-function-space-failled,</a><br>
+but the above Q/A is too problem specific and I can not understand how to use it to solve my problem.</p>
+
+<p>I would like to understand better why the following piece of code does not behave as expected <br>
+(I have tried using both FEniCS 1.5 and FEniCS 1.6).</p>
+
+<pre><code>mesh = dl.UnitSquareMesh(10,10)
+V1 = dl.VectorFunctionSpace(mesh, "CG", 2)
+V2 = dl.FunctionSpace(mesh, "CG", 1)
+V3 = dl.FunctionSpace(mesh, "CG", 1)
+V = dl.MixedFunctionSpace([V1,V2,V3])
+
+f1 = dl.Expression( ("A + B*x[1]*(1-x[1])", "0."), A=1., B=1.)
+f2 = dl.Expression( "A*x[0]", A=1.)
+f3 = dl.Expression( "A", A = -3.)
+
+state = dl.Function(V)
+state.sub(0,deepcopy=False).assign( dl.interpolate(f1, V1))
+state.sub(1,deepcopy=False).assign( dl.interpolate(f2, V2))
+state.sub(2,deepcopy=False).assign( dl.interpolate(f3, V3))
+
+print "|| state ||^2_L^(2) = ", dl.assemble( dl.inner(state, state)*dl.dx)
+
+dl.plot(state.sub(0))
+dl.plot(state.sub(1)) 
+dl.plot(state.sub(2))
+</code></pre>
+
+<p>I would expect this code to initialize each component of the <em>state</em> to the functions f1,f2,f3.<br>
+However the output of the code is</p>
+
+<blockquote>
+  <p>|| state ||^2_L^(2)  = 0.0</p>
+</blockquote>
+
+<p>and the three plots are identically 0.</p>
+
+<p>What I am missing? This seems that sub() command creates a <strong>copy</strong> instead of a <strong>view</strong> of the underlying <em>data</em>.</p>
+
+<p>Could you please suggest some workaround? Please note that the expressions for f1,f2,f3 are actually more complicated, and they MUST use the additional parameters A and B.</p>
+
+<p>Thank you in advance!</p>
+
+<p>Umbe</p>
+</div>
+										</div>
+										<div class="qa-q-view-tags">
+											<ul class="qa-q-view-tag-list">
+												<li class="qa-q-view-tag-item"><a href="../../tag/mixed-function-space" rel="tag" class="qa-tag-link">mixed-function-space</a></li>
+												<li class="qa-q-view-tag-item"><a href="../../tag/copy-vs-view" rel="tag" class="qa-tag-link">copy-vs-view</a></li>
+												<li class="qa-q-view-tag-item"><a href="../../tag/subfunction" rel="tag" class="qa-tag-link">subfunction</a></li>
+											</ul>
+										</div>
+										<span class="qa-q-view-avatar-meta">
+											<span class="qa-q-view-meta">
+												<a href="../../8876/interpolate-on-mixedfunctionspace" class="qa-q-view-what">asked</a>
+												<span class="qa-q-view-when">
+													<span class="qa-q-view-when-data"><span class="published"><span class="value-title" title="2015-12-17T17:50:24+0000"></span>Dec 17, 2015</span></span>
+												</span>
+												<span class="qa-q-view-who">
+													<span class="qa-q-view-who-pad">by </span>
+													<span class="qa-q-view-who-data"><span class="vcard author"><a href="../../user/umberto" class="qa-user-link url nickname">umberto</a></span></span>
+													<span class="qa-q-view-who-title">FEniCS User</span>
+													<span class="qa-q-view-who-points">
+														<span class="qa-q-view-who-points-pad">(</span><span class="qa-q-view-who-points-data">6,440</span><span class="qa-q-view-who-points-pad"> points)</span>
+													</span>
+												</span>
+												<br>
+												<span class="qa-q-view-what">edited</span>
+												<span class="qa-q-view-when">
+													<span class="qa-q-view-when-data"><span class="updated"><span class="value-title" title="2015-12-17T18:13:43+0000"></span>Dec 17, 2015</span></span>
+												</span>
+												<span class="qa-q-view-who">
+													<span class="qa-q-view-who-pad">by </span><span class="qa-q-view-who-data"><a href="../../user/umberto" class="qa-user-link url nickname">umberto</a></span>
+												</span>
+											</span>
+										</span>
+										<div class="qa-q-view-buttons">
+										</div>
+										
+										<div class="qa-q-view-c-list" id="c8876_list">
+											<div class="qa-c-list-item  hentry comment" id="c8878">
+												<div class="qa-c-item-content">
+													<a name="8878"></a><div class="entry-content"><p>I have also tried out a similar technique, but I am getting the same result:</p>
+
+<pre><code>state = dl.Function(V)
+s1, s2, s3 = state.split(deepcopy=False)
+s1.assign(dl.interpolate(f1,V1))
+s2.assign(dl.interpolate(f2,V2))
+s3.assign(dl.interpolate(f3,V3))
+
+print "|| (s1,s2,s3) ||^2_L^(2)  = ", dl.assemble( (dl.inner(s1,s1) + s2*s2 + s3*s3)*dl.dx)
+print "|| state ||^2_L^(2) = ", dl.assemble( dl.inner(state, state)*dl.dx)
+</code></pre>
+
+<p>Output:</p>
+
+<blockquote>
+  <p>|| (s1,s2,s3) ||^2_L^(2)  =  10.7<br>
+  || state ||^2_L^(2) =  0.0</p>
+</blockquote>
+</div>
+												</div>
+												<div class="qa-c-item-footer">
+													<span class="qa-c-item-avatar-meta">
+														<span class="qa-c-item-meta">
+															<a href="../../8876/interpolate-on-mixedfunctionspace?show=8878#c8878" class="qa-c-item-what">commented</a>
+															<span class="qa-c-item-when">
+																<span class="qa-c-item-when-data"><span class="published"><span class="value-title" title="2015-12-17T18:06:32+0000"></span>Dec 17, 2015</span></span>
+															</span>
+															<span class="qa-c-item-who">
+																<span class="qa-c-item-who-pad">by </span>
+																<span class="qa-c-item-who-data"><span class="vcard author"><a href="../../user/umberto" class="qa-user-link url nickname">umberto</a></span></span>
+																<span class="qa-c-item-who-title">FEniCS User</span>
+																<span class="qa-c-item-who-points">
+																	<span class="qa-c-item-who-points-pad">(</span><span class="qa-c-item-who-points-data">6,440</span><span class="qa-c-item-who-points-pad"> points)</span>
+																</span>
+															</span>
+														</span>
+													</span>
+													<div class="qa-c-item-buttons">
+													</div>
+												</div>
+												<div class="qa-c-item-clear">
+												</div>
+											</div> <!-- END qa-c-item -->
+										</div> <!-- END qa-c-list -->
+										
+										<input type="hidden" name="code" value="0-1516468196-43b7b8c965c082206688804c65ed6ac9bcc02e27">
+										<input type="hidden" name="qa_click" value="">
+									</form>
+									<div class="qa-c-form">
+									</div> <!-- END qa-c-form -->
+									
+								</div> <!-- END qa-q-view-main -->
+								<div class="qa-q-view-clear">
+								</div>
+							</div> <!-- END qa-q-view -->
+							
+						</div>
+						<div class="qa-part-a-list">
+							<h2 id="a_list_title">1 Answer</h2>
+							<div class="qa-a-list" id="a_list">
+								
+								<div class="qa-a-list-item  hentry answer answer-selected qa-a-list-item-selected" id="a8886">
+									<form method="post" action="../../8876/interpolate-on-mixedfunctionspace">
+										<div class="qa-voting qa-voting-net" id="voting_8886">
+											<div class="qa-vote-count qa-vote-count-net">
+												<span class="qa-netvote-count">
+													<span class="qa-netvote-count-data">0<span class="votes-up"><span class="value-title" title="0"></span></span><span class="votes-down"><span class="value-title" title="0"></span></span></span><span class="qa-netvote-count-pad"> votes</span>
+												</span>
+											</div>
+											<div class="qa-vote-clear">
+											</div>
+										</div>
+										<input type="hidden" name="code" value="0-1516468196-cb6fedc5df4709ecd7ed1f23e879d7dcc4cca1f5">
+									</form>
+									<div class="qa-a-item-main">
+										<form method="post" action="../../8876/interpolate-on-mixedfunctionspace">
+											<div class="qa-a-item-selected">
+												<div class="qa-a-selection">
+													<div class="qa-a-selected">&#160;</div>
+													<div class="qa-a-selected-text">Best answer</div>
+												</div>
+												<div class="qa-a-item-content">
+													<a name="8886"></a><div class="entry-content"><p>Hi, consider using <a rel="nofollow" href="https://github.com/FEniCS/dolfin/blob/master/dolfin/function/FunctionAssigner.h">FunctionAssigner</a></p>
+
+<pre><code>import dolfin as dl
+
+mesh = dl.UnitSquareMesh(10,10)
+V1 = dl.VectorFunctionSpace(mesh, "CG", 2)
+V2 = dl.FunctionSpace(mesh, "CG", 1)
+V3 = dl.FunctionSpace(mesh, "CG", 1)
+V = dl.MixedFunctionSpace([V1,V2,V3])
+
+f1 = dl.Expression( ("A + B*x[1]*(1-x[1])", "0."), A=1., B=1.)
+f2 = dl.Expression( "A*x[0]", A=1.)
+f3 = dl.Expression( "A", A = -3.)
+
+F1, F2, F3 = [dl.interpolate(fi, Vi) for fi, Vi in zip((f1, f2, f3), (V1, V2, V3))]
+
+assigner = dl.FunctionAssigner(V, [V1, V2, V3])
+state = dl.Function(V)
+assigner.assign(state, [F1, F2, F3])
+
+print "|| state ||^2_L^(2) = ", dl.assemble( dl.inner(state, state)*dl.dx)
+
+dl.plot(state.sub(0))
+dl.plot(state.sub(1)) 
+dl.plot(state.sub(2))
+
+dl.interactive()
+</code></pre>
+</div>
+												</div>
+												<span class="qa-a-item-avatar-meta">
+													<span class="qa-a-item-avatar">
+														<a href="../../user/MiroK" class="qa-avatar-link"><img src="https://www.gravatar.com/avatar/f566be3274ec73e3a6dda27bca11631c?s=40" width="40" height="40" class="qa-avatar-image" alt=""></a>
+													</span>
+													<span class="qa-a-item-meta">
+														<a href="../../8876/interpolate-on-mixedfunctionspace?show=8886#a8886" class="qa-a-item-what">answered</a>
+														<span class="qa-a-item-when">
+															<span class="qa-a-item-when-data"><span class="published"><span class="value-title" title="2015-12-18T09:35:18+0000"></span>Dec 18, 2015</span></span>
+														</span>
+														<span class="qa-a-item-who">
+															<span class="qa-a-item-who-pad">by </span>
+															<span class="qa-a-item-who-data"><span class="vcard author"><a href="../../user/MiroK" class="qa-user-link url nickname">MiroK</a></span></span>
+															<span class="qa-a-item-who-title">FEniCS Expert</span>
+															<span class="qa-a-item-who-points">
+																<span class="qa-a-item-who-points-pad">(</span><span class="qa-a-item-who-points-data">80,920</span><span class="qa-a-item-who-points-pad"> points)</span>
+															</span>
+														</span>
+														<br>
+														<span class="qa-a-item-what">selected</span>
+														<span class="qa-a-item-when">
+															<span class="qa-a-item-when-data"><span class="updated"><span class="value-title" title="2015-12-18T17:59:40+0000"></span>Dec 18, 2015</span></span>
+														</span>
+														<span class="qa-a-item-who">
+															<span class="qa-a-item-who-pad">by </span><span class="qa-a-item-who-data"><a href="../../user/umberto" class="qa-user-link url nickname">umberto</a></span>
+														</span>
+													</span>
+												</span>
+											</div>
+											<div class="qa-a-item-buttons">
+												</div>
+											
+											<div class="qa-a-item-c-list" id="c8886_list">
+												<div class="qa-c-list-item  hentry comment" id="c8890">
+													<div class="qa-c-item-content">
+														<a name="8890"></a><div class="entry-content"><p>Hi MiroK,</p>
+
+<p>Thank you very much for pointing out the FunctionAssigner class.<br>
+It worked perfectly and it is also extremely clean.</p>
+
+<p>However could you explain why does</p>
+
+<pre><code>state.sub(0,deepcopy=False).assign( dl.interpolate(f1, V1))
+</code></pre>
+
+<p>modify a temporary data, instead of the data in the state function?</p>
+
+<p>Thanks,</p>
+
+<p>Umberto</p>
+</div>
+													</div>
+													<div class="qa-c-item-footer">
+														<span class="qa-c-item-avatar-meta">
+															<span class="qa-c-item-meta">
+																<a href="../../8876/interpolate-on-mixedfunctionspace?show=8890#c8890" class="qa-c-item-what">commented</a>
+																<span class="qa-c-item-when">
+																	<span class="qa-c-item-when-data"><span class="published"><span class="value-title" title="2015-12-18T18:07:20+0000"></span>Dec 18, 2015</span></span>
+																</span>
+																<span class="qa-c-item-who">
+																	<span class="qa-c-item-who-pad">by </span>
+																	<span class="qa-c-item-who-data"><span class="vcard author"><a href="../../user/umberto" class="qa-user-link url nickname">umberto</a></span></span>
+																	<span class="qa-c-item-who-title">FEniCS User</span>
+																	<span class="qa-c-item-who-points">
+																		<span class="qa-c-item-who-points-pad">(</span><span class="qa-c-item-who-points-data">6,440</span><span class="qa-c-item-who-points-pad"> points)</span>
+																	</span>
+																</span>
+															</span>
+														</span>
+														<div class="qa-c-item-buttons">
+														</div>
+													</div>
+													<div class="qa-c-item-clear">
+													</div>
+												</div> <!-- END qa-c-item -->
+											</div> <!-- END qa-c-list -->
+											
+											<input type="hidden" name="code" value="0-1516468196-7b950d4e256fee475fe0927e461434d0b7ff6fde">
+											<input type="hidden" name="qa_click" value="">
+										</form>
+										<div class="qa-c-form">
+										</div> <!-- END qa-c-form -->
+										
+									</div> <!-- END qa-a-item-main -->
+									<div class="qa-a-item-clear">
+									</div>
+								</div> <!-- END qa-a-list-item -->
+								
+							</div> <!-- END qa-a-list -->
+							
+						</div>
+					</div> <!-- END qa-main -->
+					
+				</div> <!-- END main-wrapper -->
+			</div> <!-- END main-shadow -->
+		</div> <!-- END body-wrapper -->
+		<!-- END footer-bottom-group -->
+		
+		<div style="position:absolute; left:-9999px; top:-9999px;">
+			<span id="qa-waiting-template" class="qa-waiting">...</span>
+		</div>
+	
+	
+
+</body><!-- Powered by Question2Answer - http://www.question2answer.org/ --></html>

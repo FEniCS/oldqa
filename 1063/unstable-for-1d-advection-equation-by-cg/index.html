@@ -1,0 +1,940 @@
+<html><!-- Powered by Question2Answer - http://www.question2answer.org/ --><head>
+		<meta http-equiv="content-type" content="text/html; charset=utf-8">
+		<title>unstable for 1D advection equation by CG - FEniCS Q&amp;A</title>
+		<meta name="description" content="Hi I am trying to do the time depend problem by explicit RK4 method and starting by 1D advection equation in periodic ...  = 4 t = 0 dt =0.001 while t">
+		<link rel="stylesheet" type="text/css" href="../../qa-theme/Snow/qa-styles.css">
+		<link rel="canonical" href="http://fenicsproject.org/qa/1063/unstable-for-1d-advection-equation-by-cg">
+		<script type="text/x-mathjax-config">
+  MathJax.Hub.Config({
+    extensions: ["tex2jax.js"],
+    jax: ["input/TeX","output/HTML-CSS"],
+    tex2jax: {inlineMath: [["$","$"],["\\(","\\)"]]},
+    TeX: { extensions: ["AMSmath.js","AMSsymbols.js"]}
+  });
+</script>
+<script type="text/javascript" src="../../mathjax/MathJax.js"></script>
+		<script src="../../jquery-1.7.2.min.js" type="text/javascript"></script>
+		<script src="../../highlight.min.js"></script>
+<script type="text/javascript">
+$(function(){
+	$('.wmd-input').keypress(function(){
+		window.clearTimeout(hljs.Timeout);
+		hljs.Timeout = window.setTimeout(function() {
+			hljs.initHighlighting.called = false;
+			hljs.initHighlighting();
+		}, 500);
+	});
+	window.setTimeout(function() {
+		hljs.initHighlighting.called = false;
+		hljs.initHighlighting();
+	}, 500);
+});
+</script>
+
+
+	</head>
+	<body class="qa-template-question qa-body-js-off">
+		<div class="qa-body-wrapper">
+			
+			<div class="qa-header">
+				<div class="qa-logo">
+					<a href="../../" class="qa-logo-link" title="FEniCS Q&amp;A"><img src="../../qa-theme/fenics_qa.png" border="0" alt="FEniCS Q&amp;A"></a>
+				</div>
+				<div class="qa-header-clear">
+				</div>
+			</div> <!-- END qa-header -->
+			
+			<div class="qa-main-shadow">
+				
+				<div class="qa-main-wrapper">
+					
+					<div class="qa-sidepanel">
+						<div class="qa-sidebar">
+							This is a read only copy of the old FEniCS QA forum. Please visit the <a href="https://www.allanswered.com/community/s/fenics-project/">new QA forum</a> to ask questions
+						</div>
+						
+					</div>
+					
+					<div class="qa-main">
+						<h1>
+							<span class="entry-title">unstable for 1D advection equation by CG</span>
+						</h1>
+						<div class="qa-part-q-view">
+							<div class="qa-q-view  hentry question" id="q1063">
+								<form method="post" action="../../1063/unstable-for-1d-advection-equation-by-cg">
+									<div class="qa-q-view-stats">
+										<div class="qa-voting qa-voting-net" id="voting_1063">
+											<div class="qa-vote-count qa-vote-count-net">
+												<span class="qa-netvote-count">
+													<span class="qa-netvote-count-data">+3<span class="votes-up"><span class="value-title" title="4"></span></span><span class="votes-down"><span class="value-title" title="1"></span></span></span><span class="qa-netvote-count-pad"> votes</span>
+												</span>
+											</div>
+											<div class="qa-vote-clear">
+											</div>
+										</div>
+									</div>
+									<input type="hidden" name="code" value="0-1516467067-79ed8c76c6988e7db366e758947d99a352449fa3">
+								</form>
+								<div class="qa-q-view-main">
+									<form method="post" action="../../1063/unstable-for-1d-advection-equation-by-cg">
+										<div class="qa-q-view-content">
+											<a name="1063"></a><div class="entry-content"><p>Hi<br>
+I am trying to do the time depend problem by explicit RK4 method and starting by 1D advection  equation in periodic UnitInterval. but it is very unstable even if I try very tiny time step size to full fill CFL number limitation. actually I tried to do it  manually in matlab, which is very stable while I choose the same mesh size and time step size.  </p>
+
+<p>here is code:</p>
+
+<pre><code>from dolfin import *
+mesh = UnitInterval(128)
+V = FunctionSpace(mesh,'CG',1)
+c0=Expression('exp(-pow((x[0]-0.5),2)/0.025)')
+
+# Sub domain for Periodic boundary condition
+class PeriodicBoundary(SubDomain):
+
+    def inside(self, x, on_boundary):
+        return bool(x[0] &lt; DOLFIN_EPS and x[0] &gt; -DOLFIN_EPS and on_boundary)
+
+    def map(self, x, y):
+        y[0] = x[0] - 1.0
+
+# Create periodic boundary condition
+pbc = PeriodicBoundary()
+bc = PeriodicBC(V, pbc)
+
+c=TrialFunction(V) 
+v=TestFunction(V)
+
+a_K=-nabla_grad(v)*c*dx
+# a_K=-nabla_grad(c)*v*dx  
+a_M=c*v*dx
+
+M=assemble(a_M)
+bc.apply(M)
+K=assemble(a_K)
+
+c=Function(V)
+
+c_1=interpolate(c0,V)
+c.assign(c_1)
+
+k=[]
+for i in range(4):
+    k.append(Function(V))
+
+T = 4
+t = 0
+dt =0.001
+
+while t&lt;=T:
+    b1=K*c.vector()
+    bc.apply(b1)
+    solve(M,k[0].vector(),b1)
+
+    b2=K*(c.vector()+0.5*dt*k[0].vector())
+    bc.apply(b2)
+    solve(M,k[1].vector(),b2)
+
+    b3=K*(c.vector()+0.5*dt*k[1].vector())
+    bc.apply(b2)
+    solve(M,k[2].vector(),b3)
+
+    b4=K*(c.vector()+dt*k[2].vector())
+    bc.apply(b2)
+    solve(M,k[3].vector(),b4)
+
+    c.vector()[:]= c.vector()+dt*(k[0].vector()+ 2 * k[1].vector() + 2 * k[2].vector() +k[3].vector())/6.0
+
+    t += dt
+    plot(c,rescale=False)    
+</code></pre>
+</div>
+										</div>
+										<span class="qa-q-view-avatar-meta">
+											<span class="qa-q-view-meta">
+												<a href="../../1063/unstable-for-1d-advection-equation-by-cg" class="qa-q-view-what">asked</a>
+												<span class="qa-q-view-when">
+													<span class="qa-q-view-when-data"><span class="published"><span class="value-title" title="2013-09-01T15:02:04+0000"></span>Sep 1, 2013</span></span>
+												</span>
+												<span class="qa-q-view-who">
+													<span class="qa-q-view-who-pad">by </span>
+													<span class="qa-q-view-who-data"><span class="vcard author"><a href="../../user/waynezw0618" class="qa-user-link url nickname">waynezw0618</a></span></span>
+													<span class="qa-q-view-who-title">FEniCS Novice</span>
+													<span class="qa-q-view-who-points">
+														<span class="qa-q-view-who-points-pad">(</span><span class="qa-q-view-who-points-data">450</span><span class="qa-q-view-who-points-pad"> points)</span>
+													</span>
+												</span>
+												<br>
+												<span class="qa-q-view-what">edited</span>
+												<span class="qa-q-view-when">
+													<span class="qa-q-view-when-data"><span class="updated"><span class="value-title" title="2013-09-02T11:11:42+0000"></span>Sep 2, 2013</span></span>
+												</span>
+												<span class="qa-q-view-who">
+													<span class="qa-q-view-who-pad">by </span><span class="qa-q-view-who-data"><a href="../../user/waynezw0618" class="qa-user-link url nickname">waynezw0618</a></span>
+												</span>
+											</span>
+										</span>
+										<div class="qa-q-view-buttons">
+										</div>
+										
+										<div class="qa-q-view-c-list" id="c1063_list">
+											<div class="qa-c-list-item  hentry comment" id="c1064">
+												<div class="qa-c-item-content">
+													<a name="1064"></a><div class="entry-content"><p>Simplify your code to increase the chances of getting and answer.</p>
+</div>
+												</div>
+												<div class="qa-c-item-footer">
+													<span class="qa-c-item-avatar-meta">
+														<span class="qa-c-item-meta">
+															<a href="../../1063/unstable-for-1d-advection-equation-by-cg?show=1064#c1064" class="qa-c-item-what">commented</a>
+															<span class="qa-c-item-when">
+																<span class="qa-c-item-when-data"><span class="published"><span class="value-title" title="2013-09-01T15:06:17+0000"></span>Sep 1, 2013</span></span>
+															</span>
+															<span class="qa-c-item-who">
+																<span class="qa-c-item-who-pad">by </span>
+																<span class="qa-c-item-who-data"><span class="vcard author"><a href="../../user/Garth+N.+Wells" class="qa-user-link url nickname">Garth N. Wells</a></span></span>
+																<span class="qa-c-item-who-title">FEniCS Expert</span>
+																<span class="qa-c-item-who-points">
+																	<span class="qa-c-item-who-points-pad">(</span><span class="qa-c-item-who-points-data">35,930</span><span class="qa-c-item-who-points-pad"> points)</span>
+																</span>
+															</span>
+														</span>
+													</span>
+													<div class="qa-c-item-buttons">
+													</div>
+												</div>
+												<div class="qa-c-item-clear">
+												</div>
+											</div> <!-- END qa-c-item -->
+											<div class="qa-c-list-item  hentry comment" id="c1069">
+												<div class="qa-c-item-content">
+													<a name="1069"></a><div class="entry-content"><p>In addition to Gath's comment, edit your question using <a rel="nofollow" href="http://fenicsproject.org/qa/50/does-one-write-code-with-syntax-highlighting-fenics-q%26a-forum">the code environment</a>, please. <strong>Your post is currently unreadable</strong> because some syntax symbol (for example `*') has been parsed by this website engine.</p>
+</div>
+												</div>
+												<div class="qa-c-item-footer">
+													<span class="qa-c-item-avatar-meta">
+														<span class="qa-c-item-avatar">
+															<a href="../../user/Jan+Blechta" class="qa-avatar-link"><img src="https://www.gravatar.com/avatar/dc6f8dce77e4a0bd5adc7ff31ab83741?s=20" width="20" height="20" class="qa-avatar-image" alt=""></a>
+														</span>
+														<span class="qa-c-item-meta">
+															<a href="../../1063/unstable-for-1d-advection-equation-by-cg?show=1069#c1069" class="qa-c-item-what">commented</a>
+															<span class="qa-c-item-when">
+																<span class="qa-c-item-when-data"><span class="published"><span class="value-title" title="2013-09-02T09:21:28+0000"></span>Sep 2, 2013</span></span>
+															</span>
+															<span class="qa-c-item-who">
+																<span class="qa-c-item-who-pad">by </span>
+																<span class="qa-c-item-who-data"><span class="vcard author"><a href="../../user/Jan+Blechta" class="qa-user-link url nickname">Jan Blechta</a></span></span>
+																<span class="qa-c-item-who-title">FEniCS Expert</span>
+																<span class="qa-c-item-who-points">
+																	<span class="qa-c-item-who-points-pad">(</span><span class="qa-c-item-who-points-data">51,420</span><span class="qa-c-item-who-points-pad"> points)</span>
+																</span>
+															</span>
+														</span>
+													</span>
+													<div class="qa-c-item-buttons">
+													</div>
+												</div>
+												<div class="qa-c-item-clear">
+												</div>
+											</div> <!-- END qa-c-item -->
+											<div class="qa-c-list-item  hentry comment" id="c1070">
+												<div class="qa-c-item-content">
+													<a name="1070"></a><div class="entry-content"><p>Hi <br>
+sorry for that. I am a fresh man here not used to that. <br>
+actually I tried both weak form and strong form. both are not stable.</p>
+</div>
+												</div>
+												<div class="qa-c-item-footer">
+													<span class="qa-c-item-avatar-meta">
+														<span class="qa-c-item-meta">
+															<a href="../../1063/unstable-for-1d-advection-equation-by-cg?show=1070#c1070" class="qa-c-item-what">commented</a>
+															<span class="qa-c-item-when">
+																<span class="qa-c-item-when-data"><span class="published"><span class="value-title" title="2013-09-02T11:13:24+0000"></span>Sep 2, 2013</span></span>
+															</span>
+															<span class="qa-c-item-who">
+																<span class="qa-c-item-who-pad">by </span>
+																<span class="qa-c-item-who-data"><span class="vcard author"><a href="../../user/waynezw0618" class="qa-user-link url nickname">waynezw0618</a></span></span>
+																<span class="qa-c-item-who-title">FEniCS Novice</span>
+																<span class="qa-c-item-who-points">
+																	<span class="qa-c-item-who-points-pad">(</span><span class="qa-c-item-who-points-data">450</span><span class="qa-c-item-who-points-pad"> points)</span>
+																</span>
+															</span>
+														</span>
+													</span>
+													<div class="qa-c-item-buttons">
+													</div>
+												</div>
+												<div class="qa-c-item-clear">
+												</div>
+											</div> <!-- END qa-c-item -->
+											<div class="qa-c-list-item  hentry comment" id="c1071">
+												<div class="qa-c-item-content">
+													<a name="1071"></a><div class="entry-content"><p>Are you aware of a mathematical reason why this should work without added diffusion/stabilization?</p>
+
+<p>Did you test that <code>bc</code> works? You could also try to use newer approach for periodic BCs implemented by directly constraining function space in 1.2.0 and development version.</p>
+</div>
+												</div>
+												<div class="qa-c-item-footer">
+													<span class="qa-c-item-avatar-meta">
+														<span class="qa-c-item-avatar">
+															<a href="../../user/Jan+Blechta" class="qa-avatar-link"><img src="https://www.gravatar.com/avatar/dc6f8dce77e4a0bd5adc7ff31ab83741?s=20" width="20" height="20" class="qa-avatar-image" alt=""></a>
+														</span>
+														<span class="qa-c-item-meta">
+															<a href="../../1063/unstable-for-1d-advection-equation-by-cg?show=1071#c1071" class="qa-c-item-what">commented</a>
+															<span class="qa-c-item-when">
+																<span class="qa-c-item-when-data"><span class="published"><span class="value-title" title="2013-09-02T11:34:18+0000"></span>Sep 2, 2013</span></span>
+															</span>
+															<span class="qa-c-item-who">
+																<span class="qa-c-item-who-pad">by </span>
+																<span class="qa-c-item-who-data"><span class="vcard author"><a href="../../user/Jan+Blechta" class="qa-user-link url nickname">Jan Blechta</a></span></span>
+																<span class="qa-c-item-who-title">FEniCS Expert</span>
+																<span class="qa-c-item-who-points">
+																	<span class="qa-c-item-who-points-pad">(</span><span class="qa-c-item-who-points-data">51,420</span><span class="qa-c-item-who-points-pad"> points)</span>
+																</span>
+															</span>
+														</span>
+													</span>
+													<div class="qa-c-item-buttons">
+													</div>
+												</div>
+												<div class="qa-c-item-clear">
+												</div>
+											</div> <!-- END qa-c-item -->
+											<div class="qa-c-list-item  hentry comment" id="c1074">
+												<div class="qa-c-item-content">
+													<a name="1074"></a><div class="entry-content"><p>I am not very sure. but one thing strange is that I compared the mass and derivative matrix for both Fenics and my maltab code. they are the same, and eigen value of operator inv(M)*K are the same as well . here is the code I used for compute the eigen value.</p>
+
+<pre><code>A=M.array()
+A=np.linalg.inv(A)
+A=np.dot(A,K.array())
+ee,ev=np.linalg.eig(B)
+re=np.real(ee)
+im=np.imag(ee)
+import matplotlib.pyplot as plt
+fig, ax = plt.subplots()
+ax.plot(a, b, 'o')
+</code></pre>
+
+<p>except the results.. that is very strange. I don't know if it could be the algebra solver?</p>
+</div>
+												</div>
+												<div class="qa-c-item-footer">
+													<span class="qa-c-item-avatar-meta">
+														<span class="qa-c-item-meta">
+															<a href="../../1063/unstable-for-1d-advection-equation-by-cg?show=1074#c1074" class="qa-c-item-what">commented</a>
+															<span class="qa-c-item-when">
+																<span class="qa-c-item-when-data"><span class="published"><span class="value-title" title="2013-09-03T04:49:00+0000"></span>Sep 3, 2013</span></span>
+															</span>
+															<span class="qa-c-item-who">
+																<span class="qa-c-item-who-pad">by </span>
+																<span class="qa-c-item-who-data"><span class="vcard author"><a href="../../user/waynezw0618" class="qa-user-link url nickname">waynezw0618</a></span></span>
+																<span class="qa-c-item-who-title">FEniCS Novice</span>
+																<span class="qa-c-item-who-points">
+																	<span class="qa-c-item-who-points-pad">(</span><span class="qa-c-item-who-points-data">450</span><span class="qa-c-item-who-points-pad"> points)</span>
+																</span>
+															</span>
+															<br>
+															<span class="qa-c-item-what">edited</span>
+															<span class="qa-c-item-when">
+																<span class="qa-c-item-when-data"><span class="updated"><span class="value-title" title="2013-09-03T05:01:47+0000"></span>Sep 3, 2013</span></span>
+															</span>
+															<span class="qa-c-item-who">
+																<span class="qa-c-item-who-pad">by </span><span class="qa-c-item-who-data"><a href="../../user/waynezw0618" class="qa-user-link url nickname">waynezw0618</a></span>
+															</span>
+														</span>
+													</span>
+													<div class="qa-c-item-buttons">
+													</div>
+												</div>
+												<div class="qa-c-item-clear">
+												</div>
+											</div> <!-- END qa-c-item -->
+											<div class="qa-c-list-item  hentry comment" id="c1075">
+												<div class="qa-c-item-content">
+													<a name="1075"></a><div class="entry-content"><p>Well, I can reproduce it with FEniCS 1.1.0 with PETSc backend (see figures) and with FEniCS 1.0.0 with uBLAS backend.</p>
+
+<p><img src="http://artax.karlin.mff.cuni.cz/~blecj6am/q1063/dolfin_plot_0.png" alt=""><br>
+<img src="http://artax.karlin.mff.cuni.cz/~blecj6am/q1063/dolfin_plot_1.png" alt=""></p>
+</div>
+												</div>
+												<div class="qa-c-item-footer">
+													<span class="qa-c-item-avatar-meta">
+														<span class="qa-c-item-avatar">
+															<a href="../../user/Jan+Blechta" class="qa-avatar-link"><img src="https://www.gravatar.com/avatar/dc6f8dce77e4a0bd5adc7ff31ab83741?s=20" width="20" height="20" class="qa-avatar-image" alt=""></a>
+														</span>
+														<span class="qa-c-item-meta">
+															<a href="../../1063/unstable-for-1d-advection-equation-by-cg?show=1075#c1075" class="qa-c-item-what">commented</a>
+															<span class="qa-c-item-when">
+																<span class="qa-c-item-when-data"><span class="published"><span class="value-title" title="2013-09-03T08:13:44+0000"></span>Sep 3, 2013</span></span>
+															</span>
+															<span class="qa-c-item-who">
+																<span class="qa-c-item-who-pad">by </span>
+																<span class="qa-c-item-who-data"><span class="vcard author"><a href="../../user/Jan+Blechta" class="qa-user-link url nickname">Jan Blechta</a></span></span>
+																<span class="qa-c-item-who-title">FEniCS Expert</span>
+																<span class="qa-c-item-who-points">
+																	<span class="qa-c-item-who-points-pad">(</span><span class="qa-c-item-who-points-data">51,420</span><span class="qa-c-item-who-points-pad"> points)</span>
+																</span>
+															</span>
+														</span>
+													</span>
+													<div class="qa-c-item-buttons">
+													</div>
+												</div>
+												<div class="qa-c-item-clear">
+												</div>
+											</div> <!-- END qa-c-item -->
+											<div class="qa-c-list-item  hentry comment" id="c1076">
+												<div class="qa-c-item-content">
+													<a name="1076"></a><div class="entry-content"><blockquote>
+  <p>I compared the mass and derivative matrix for both Fenics and my maltab code.</p>
+</blockquote>
+
+<p>Did you compared them after an application of BCs?</p>
+</div>
+												</div>
+												<div class="qa-c-item-footer">
+													<span class="qa-c-item-avatar-meta">
+														<span class="qa-c-item-avatar">
+															<a href="../../user/Jan+Blechta" class="qa-avatar-link"><img src="https://www.gravatar.com/avatar/dc6f8dce77e4a0bd5adc7ff31ab83741?s=20" width="20" height="20" class="qa-avatar-image" alt=""></a>
+														</span>
+														<span class="qa-c-item-meta">
+															<a href="../../1063/unstable-for-1d-advection-equation-by-cg?show=1076#c1076" class="qa-c-item-what">commented</a>
+															<span class="qa-c-item-when">
+																<span class="qa-c-item-when-data"><span class="published"><span class="value-title" title="2013-09-03T08:18:24+0000"></span>Sep 3, 2013</span></span>
+															</span>
+															<span class="qa-c-item-who">
+																<span class="qa-c-item-who-pad">by </span>
+																<span class="qa-c-item-who-data"><span class="vcard author"><a href="../../user/Jan+Blechta" class="qa-user-link url nickname">Jan Blechta</a></span></span>
+																<span class="qa-c-item-who-title">FEniCS Expert</span>
+																<span class="qa-c-item-who-points">
+																	<span class="qa-c-item-who-points-pad">(</span><span class="qa-c-item-who-points-data">51,420</span><span class="qa-c-item-who-points-pad"> points)</span>
+																</span>
+															</span>
+														</span>
+													</span>
+													<div class="qa-c-item-buttons">
+													</div>
+												</div>
+												<div class="qa-c-item-clear">
+												</div>
+											</div> <!-- END qa-c-item -->
+											<div class="qa-c-list-item  hentry comment" id="c1077">
+												<div class="qa-c-item-content">
+													<a name="1077"></a><div class="entry-content"><p>yes. I checked both. and for eigen value I use the mass matrix with BC while derivative one not. everything is the same in matlab and Fenics. <br>
+<img src="http://farm6.staticflickr.com/5449/9664966144_bb1a7b720c_d.jpg" alt="Eigen value of inv(M)*K"></p>
+</div>
+												</div>
+												<div class="qa-c-item-footer">
+													<span class="qa-c-item-avatar-meta">
+														<span class="qa-c-item-meta">
+															<a href="../../1063/unstable-for-1d-advection-equation-by-cg?show=1077#c1077" class="qa-c-item-what">commented</a>
+															<span class="qa-c-item-when">
+																<span class="qa-c-item-when-data"><span class="published"><span class="value-title" title="2013-09-03T09:56:09+0000"></span>Sep 3, 2013</span></span>
+															</span>
+															<span class="qa-c-item-who">
+																<span class="qa-c-item-who-pad">by </span>
+																<span class="qa-c-item-who-data"><span class="vcard author"><a href="../../user/waynezw0618" class="qa-user-link url nickname">waynezw0618</a></span></span>
+																<span class="qa-c-item-who-title">FEniCS Novice</span>
+																<span class="qa-c-item-who-points">
+																	<span class="qa-c-item-who-points-pad">(</span><span class="qa-c-item-who-points-data">450</span><span class="qa-c-item-who-points-pad"> points)</span>
+																</span>
+															</span>
+															<br>
+															<span class="qa-c-item-what">edited</span>
+															<span class="qa-c-item-when">
+																<span class="qa-c-item-when-data"><span class="updated"><span class="value-title" title="2013-09-03T13:30:13+0000"></span>Sep 3, 2013</span></span>
+															</span>
+															<span class="qa-c-item-who">
+																<span class="qa-c-item-who-pad">by </span><span class="qa-c-item-who-data"><a href="../../user/waynezw0618" class="qa-user-link url nickname">waynezw0618</a></span>
+															</span>
+														</span>
+													</span>
+													<div class="qa-c-item-buttons">
+													</div>
+												</div>
+												<div class="qa-c-item-clear">
+												</div>
+											</div> <!-- END qa-c-item -->
+											<div class="qa-c-list-item  hentry comment" id="c1078">
+												<div class="qa-c-item-content">
+													<a name="1078"></a><div class="entry-content"><p>There's just some Chinese placeholder image in place of the figures in your last post.</p>
+
+<p>Can you convert the code for the new implementation of periodic BC and run in 1.2.0 or development version? The implementation of BC is maybe crucial for stability.</p>
+</div>
+												</div>
+												<div class="qa-c-item-footer">
+													<span class="qa-c-item-avatar-meta">
+														<span class="qa-c-item-avatar">
+															<a href="../../user/Jan+Blechta" class="qa-avatar-link"><img src="https://www.gravatar.com/avatar/dc6f8dce77e4a0bd5adc7ff31ab83741?s=20" width="20" height="20" class="qa-avatar-image" alt=""></a>
+														</span>
+														<span class="qa-c-item-meta">
+															<a href="../../1063/unstable-for-1d-advection-equation-by-cg?show=1078#c1078" class="qa-c-item-what">commented</a>
+															<span class="qa-c-item-when">
+																<span class="qa-c-item-when-data"><span class="published"><span class="value-title" title="2013-09-03T10:31:59+0000"></span>Sep 3, 2013</span></span>
+															</span>
+															<span class="qa-c-item-who">
+																<span class="qa-c-item-who-pad">by </span>
+																<span class="qa-c-item-who-data"><span class="vcard author"><a href="../../user/Jan+Blechta" class="qa-user-link url nickname">Jan Blechta</a></span></span>
+																<span class="qa-c-item-who-title">FEniCS Expert</span>
+																<span class="qa-c-item-who-points">
+																	<span class="qa-c-item-who-points-pad">(</span><span class="qa-c-item-who-points-data">51,420</span><span class="qa-c-item-who-points-pad"> points)</span>
+																</span>
+															</span>
+														</span>
+													</span>
+													<div class="qa-c-item-buttons">
+													</div>
+												</div>
+												<div class="qa-c-item-clear">
+												</div>
+											</div> <!-- END qa-c-item -->
+										</div> <!-- END qa-c-list -->
+										
+										<input type="hidden" name="code" value="0-1516467067-ac09eb19b633797754b43909ed26c65d6253c583">
+										<input type="hidden" name="qa_click" value="">
+									</form>
+									<div class="qa-c-form">
+									</div> <!-- END qa-c-form -->
+									
+								</div> <!-- END qa-q-view-main -->
+								<div class="qa-q-view-clear">
+								</div>
+							</div> <!-- END qa-q-view -->
+							
+						</div>
+						<div class="qa-part-a-list">
+							<h2 id="a_list_title">1 Answer</h2>
+							<div class="qa-a-list" id="a_list">
+								
+								<div class="qa-a-list-item  hentry answer answer-selected qa-a-list-item-selected" id="a1079">
+									<form method="post" action="../../1063/unstable-for-1d-advection-equation-by-cg">
+										<div class="qa-voting qa-voting-net" id="voting_1079">
+											<div class="qa-vote-count qa-vote-count-net">
+												<span class="qa-netvote-count">
+													<span class="qa-netvote-count-data">+2<span class="votes-up"><span class="value-title" title="2"></span></span><span class="votes-down"><span class="value-title" title="0"></span></span></span><span class="qa-netvote-count-pad"> votes</span>
+												</span>
+											</div>
+											<div class="qa-vote-clear">
+											</div>
+										</div>
+										<input type="hidden" name="code" value="0-1516467067-79ed8c76c6988e7db366e758947d99a352449fa3">
+									</form>
+									<div class="qa-a-item-main">
+										<form method="post" action="../../1063/unstable-for-1d-advection-equation-by-cg">
+											<div class="qa-a-item-selected">
+												<div class="qa-a-selection">
+													<div class="qa-a-selected">&#160;</div>
+													<div class="qa-a-selected-text">Best answer</div>
+												</div>
+												<div class="qa-a-item-content">
+													<a name="1079"></a><div class="entry-content"><p>Problem is probably in an implementation of periodic BC in DOLFIN 1.0.0 and 1.1.0 which seems being very susceptible to instability. Your code updated to new implementation which directly restricts function space works fine in 1.2.0 or development version (see figures).</p>
+
+<pre><code>from dolfin import *
+mesh = UnitInterval(128)
+c0=Expression('exp(-pow((x[0]-0.5),2)/0.025)')
+
+# Sub domain for Periodic boundary condition
+class PeriodicBoundary(SubDomain):
+
+    def inside(self, x, on_boundary):
+        return bool(x[0] &lt; DOLFIN_EPS and x[0] &gt; -DOLFIN_EPS and on_boundary)
+
+    def map(self, x, y):
+        y[0] = x[0] - 1.0
+
+# Create function space constrained by periodic BC
+pbc = PeriodicBoundary()
+V = FunctionSpace(mesh, 'CG', 1, constrained_domain=pbc)
+
+c=TrialFunction(V)
+v=TestFunction(V)
+
+a_K = -v.dx(0)*c*dx
+a_M = c*v*dx
+
+M=assemble(a_M)
+K=assemble(a_K)
+
+c=Function(V)
+
+c_1=interpolate(c0,V)
+c.assign(c_1)
+
+k=[]
+for i in range(4):
+    k.append(Function(V))
+
+T = 4
+t = 0
+dt =0.001
+
+while t&lt;=T:
+    b1=K*c.vector()
+    solve(M,k[0].vector(),b1)
+
+    b2=K*(c.vector()+0.5*dt*k[0].vector())
+    solve(M,k[1].vector(),b2)
+
+    b3=K*(c.vector()+0.5*dt*k[1].vector())
+    solve(M,k[2].vector(),b3)
+
+    b4=K*(c.vector()+dt*k[2].vector())
+    solve(M,k[3].vector(),b4)
+
+    c.vector()[:]= c.vector()+dt*(k[0].vector()+ 2 * k[1].vector() + 2 * k[2].vector() +k[3].vector())/6.0
+
+    t += dt
+    plot(c,rescale=False)
+</code></pre>
+
+<p><img src="http://artax.karlin.mff.cuni.cz/~blecj6am/q1063/dolfin_plot_6.png" alt=""><br>
+<img src="http://artax.karlin.mff.cuni.cz/~blecj6am/q1063/dolfin_plot_8.png" alt=""></p>
+</div>
+												</div>
+												<span class="qa-a-item-avatar-meta">
+													<span class="qa-a-item-avatar">
+														<a href="../../user/Jan+Blechta" class="qa-avatar-link"><img src="https://www.gravatar.com/avatar/dc6f8dce77e4a0bd5adc7ff31ab83741?s=40" width="40" height="40" class="qa-avatar-image" alt=""></a>
+													</span>
+													<span class="qa-a-item-meta">
+														<a href="../../1063/unstable-for-1d-advection-equation-by-cg?show=1079#a1079" class="qa-a-item-what">answered</a>
+														<span class="qa-a-item-when">
+															<span class="qa-a-item-when-data"><span class="published"><span class="value-title" title="2013-09-03T10:55:33+0000"></span>Sep 3, 2013</span></span>
+														</span>
+														<span class="qa-a-item-who">
+															<span class="qa-a-item-who-pad">by </span>
+															<span class="qa-a-item-who-data"><span class="vcard author"><a href="../../user/Jan+Blechta" class="qa-user-link url nickname">Jan Blechta</a></span></span>
+															<span class="qa-a-item-who-title">FEniCS Expert</span>
+															<span class="qa-a-item-who-points">
+																<span class="qa-a-item-who-points-pad">(</span><span class="qa-a-item-who-points-data">51,420</span><span class="qa-a-item-who-points-pad"> points)</span>
+															</span>
+														</span>
+														<br>
+														<span class="qa-a-item-what">selected</span>
+														<span class="qa-a-item-when">
+															<span class="qa-a-item-when-data"><span class="updated"><span class="value-title" title="2013-09-03T12:43:14+0000"></span>Sep 3, 2013</span></span>
+														</span>
+														<span class="qa-a-item-who">
+															<span class="qa-a-item-who-pad">by </span><span class="qa-a-item-who-data"><a href="../../user/waynezw0618" class="qa-user-link url nickname">waynezw0618</a></span>
+														</span>
+													</span>
+												</span>
+											</div>
+											<div class="qa-a-item-buttons">
+												</div>
+											
+											<div class="qa-a-item-c-list" id="c1079_list">
+												<div class="qa-c-list-item  hentry comment" id="c1080">
+													<div class="qa-c-item-content">
+														<a name="1080"></a><div class="entry-content"><p>Thanks. sounds  great!<br>
+could it be the problem of mass matrix when apply this BC? because I tried spetrum element in myself. and it works fine  </p>
+</div>
+													</div>
+													<div class="qa-c-item-footer">
+														<span class="qa-c-item-avatar-meta">
+															<span class="qa-c-item-meta">
+																<a href="../../1063/unstable-for-1d-advection-equation-by-cg?show=1080#c1080" class="qa-c-item-what">commented</a>
+																<span class="qa-c-item-when">
+																	<span class="qa-c-item-when-data"><span class="published"><span class="value-title" title="2013-09-03T12:51:48+0000"></span>Sep 3, 2013</span></span>
+																</span>
+																<span class="qa-c-item-who">
+																	<span class="qa-c-item-who-pad">by </span>
+																	<span class="qa-c-item-who-data"><span class="vcard author"><a href="../../user/waynezw0618" class="qa-user-link url nickname">waynezw0618</a></span></span>
+																	<span class="qa-c-item-who-title">FEniCS Novice</span>
+																	<span class="qa-c-item-who-points">
+																		<span class="qa-c-item-who-points-pad">(</span><span class="qa-c-item-who-points-data">450</span><span class="qa-c-item-who-points-pad"> points)</span>
+																	</span>
+																</span>
+															</span>
+														</span>
+														<div class="qa-c-item-buttons">
+														</div>
+													</div>
+													<div class="qa-c-item-clear">
+													</div>
+												</div> <!-- END qa-c-item -->
+												<div class="qa-c-list-item  hentry comment" id="c1081">
+													<div class="qa-c-item-content">
+														<a name="1081"></a><div class="entry-content"><p>Let's have DOF1 and DOF2 subject to periodic BC. Former approach I guess worked like: set row of a matrix corresponding to DOF1 to (0, 0, ..., -1, 0, ..., 1, 0, ...) with -1 at column DOF2 and 1 at diagonal entry; set RHS at DOF1 entry to 0. Current approach: eliminate one DOF2 directly from function space. Maybe there's some good numerical reason why latter works better. You should ask the authors of the implementation.</p>
+</div>
+													</div>
+													<div class="qa-c-item-footer">
+														<span class="qa-c-item-avatar-meta">
+															<span class="qa-c-item-avatar">
+																<a href="../../user/Jan+Blechta" class="qa-avatar-link"><img src="https://www.gravatar.com/avatar/dc6f8dce77e4a0bd5adc7ff31ab83741?s=20" width="20" height="20" class="qa-avatar-image" alt=""></a>
+															</span>
+															<span class="qa-c-item-meta">
+																<a href="../../1063/unstable-for-1d-advection-equation-by-cg?show=1081#c1081" class="qa-c-item-what">commented</a>
+																<span class="qa-c-item-when">
+																	<span class="qa-c-item-when-data"><span class="published"><span class="value-title" title="2013-09-03T13:29:07+0000"></span>Sep 3, 2013</span></span>
+																</span>
+																<span class="qa-c-item-who">
+																	<span class="qa-c-item-who-pad">by </span>
+																	<span class="qa-c-item-who-data"><span class="vcard author"><a href="../../user/Jan+Blechta" class="qa-user-link url nickname">Jan Blechta</a></span></span>
+																	<span class="qa-c-item-who-title">FEniCS Expert</span>
+																	<span class="qa-c-item-who-points">
+																		<span class="qa-c-item-who-points-pad">(</span><span class="qa-c-item-who-points-data">51,420</span><span class="qa-c-item-who-points-pad"> points)</span>
+																	</span>
+																</span>
+															</span>
+														</span>
+														<div class="qa-c-item-buttons">
+														</div>
+													</div>
+													<div class="qa-c-item-clear">
+													</div>
+												</div> <!-- END qa-c-item -->
+												<div class="qa-c-list-item  hentry comment" id="c1082">
+													<div class="qa-c-item-content">
+														<a name="1082"></a><div class="entry-content"><p>yes, the former one sounds working as what you mentioned. it seems one can't check how the later affect directly. but the thing is that I apply the exact the same one as the first method in my matlab code. as eigen value of is the same for both FEnics and Matlab. That is to say the instability of algebra equations should be the same. then how to explain so?  </p>
+
+<p>/Wei</p>
+</div>
+													</div>
+													<div class="qa-c-item-footer">
+														<span class="qa-c-item-avatar-meta">
+															<span class="qa-c-item-meta">
+																<a href="../../1063/unstable-for-1d-advection-equation-by-cg?show=1082#c1082" class="qa-c-item-what">commented</a>
+																<span class="qa-c-item-when">
+																	<span class="qa-c-item-when-data"><span class="published"><span class="value-title" title="2013-09-03T13:41:41+0000"></span>Sep 3, 2013</span></span>
+																</span>
+																<span class="qa-c-item-who">
+																	<span class="qa-c-item-who-pad">by </span>
+																	<span class="qa-c-item-who-data"><span class="vcard author"><a href="../../user/waynezw0618" class="qa-user-link url nickname">waynezw0618</a></span></span>
+																	<span class="qa-c-item-who-title">FEniCS Novice</span>
+																	<span class="qa-c-item-who-points">
+																		<span class="qa-c-item-who-points-pad">(</span><span class="qa-c-item-who-points-data">450</span><span class="qa-c-item-who-points-pad"> points)</span>
+																	</span>
+																</span>
+															</span>
+														</span>
+														<div class="qa-c-item-buttons">
+														</div>
+													</div>
+													<div class="qa-c-item-clear">
+													</div>
+												</div> <!-- END qa-c-item -->
+												<div class="qa-c-list-item  hentry comment" id="c1083">
+													<div class="qa-c-item-content">
+														<a name="1083"></a><div class="entry-content"><blockquote>
+  <p>eigen value of is the same</p>
+</blockquote>
+
+<p>Which one?</p>
+</div>
+													</div>
+													<div class="qa-c-item-footer">
+														<span class="qa-c-item-avatar-meta">
+															<span class="qa-c-item-avatar">
+																<a href="../../user/Jan+Blechta" class="qa-avatar-link"><img src="https://www.gravatar.com/avatar/dc6f8dce77e4a0bd5adc7ff31ab83741?s=20" width="20" height="20" class="qa-avatar-image" alt=""></a>
+															</span>
+															<span class="qa-c-item-meta">
+																<a href="../../1063/unstable-for-1d-advection-equation-by-cg?show=1083#c1083" class="qa-c-item-what">commented</a>
+																<span class="qa-c-item-when">
+																	<span class="qa-c-item-when-data"><span class="published"><span class="value-title" title="2013-09-03T13:46:41+0000"></span>Sep 3, 2013</span></span>
+																</span>
+																<span class="qa-c-item-who">
+																	<span class="qa-c-item-who-pad">by </span>
+																	<span class="qa-c-item-who-data"><span class="vcard author"><a href="../../user/Jan+Blechta" class="qa-user-link url nickname">Jan Blechta</a></span></span>
+																	<span class="qa-c-item-who-title">FEniCS Expert</span>
+																	<span class="qa-c-item-who-points">
+																		<span class="qa-c-item-who-points-pad">(</span><span class="qa-c-item-who-points-data">51,420</span><span class="qa-c-item-who-points-pad"> points)</span>
+																	</span>
+																</span>
+															</span>
+														</span>
+														<div class="qa-c-item-buttons">
+														</div>
+													</div>
+													<div class="qa-c-item-clear">
+													</div>
+												</div> <!-- END qa-c-item -->
+												<div class="qa-c-list-item  hentry comment" id="c1084">
+													<div class="qa-c-item-content">
+														<a name="1084"></a><div class="entry-content"><p><img src="http://farm6.staticflickr.com/5449/9664966144_bb1a7b720c.jpg" alt="eigen value of operator"><br>
+<img src="http://farm4.staticflickr.com/3691/9664966352_721d797708.jpg" alt="results"><br>
+OK, I can finnaly handle the figures. I plot eigen value of both matlab and Fenics codes while mass matrix is applied the BC as you mentioned before</p>
+</div>
+													</div>
+													<div class="qa-c-item-footer">
+														<span class="qa-c-item-avatar-meta">
+															<span class="qa-c-item-meta">
+																<a href="../../1063/unstable-for-1d-advection-equation-by-cg?show=1084#c1084" class="qa-c-item-what">commented</a>
+																<span class="qa-c-item-when">
+																	<span class="qa-c-item-when-data"><span class="published"><span class="value-title" title="2013-09-03T13:46:49+0000"></span>Sep 3, 2013</span></span>
+																</span>
+																<span class="qa-c-item-who">
+																	<span class="qa-c-item-who-pad">by </span>
+																	<span class="qa-c-item-who-data"><span class="vcard author"><a href="../../user/waynezw0618" class="qa-user-link url nickname">waynezw0618</a></span></span>
+																	<span class="qa-c-item-who-title">FEniCS Novice</span>
+																	<span class="qa-c-item-who-points">
+																		<span class="qa-c-item-who-points-pad">(</span><span class="qa-c-item-who-points-data">450</span><span class="qa-c-item-who-points-pad"> points)</span>
+																	</span>
+																</span>
+															</span>
+														</span>
+														<div class="qa-c-item-buttons">
+														</div>
+													</div>
+													<div class="qa-c-item-clear">
+													</div>
+												</div> <!-- END qa-c-item -->
+												<div class="qa-c-list-item  hentry comment" id="c1085">
+													<div class="qa-c-item-content">
+														<a name="1085"></a><div class="entry-content"><blockquote>
+  <p>it seems one can't check how the later affect directly</p>
+</blockquote>
+
+<p>This is hidden somewhere in <code>dolfin/fem/DofMapBuilder.cpp</code>.</p>
+</div>
+													</div>
+													<div class="qa-c-item-footer">
+														<span class="qa-c-item-avatar-meta">
+															<span class="qa-c-item-avatar">
+																<a href="../../user/Jan+Blechta" class="qa-avatar-link"><img src="https://www.gravatar.com/avatar/dc6f8dce77e4a0bd5adc7ff31ab83741?s=20" width="20" height="20" class="qa-avatar-image" alt=""></a>
+															</span>
+															<span class="qa-c-item-meta">
+																<a href="../../1063/unstable-for-1d-advection-equation-by-cg?show=1085#c1085" class="qa-c-item-what">commented</a>
+																<span class="qa-c-item-when">
+																	<span class="qa-c-item-when-data"><span class="published"><span class="value-title" title="2013-09-03T13:48:19+0000"></span>Sep 3, 2013</span></span>
+																</span>
+																<span class="qa-c-item-who">
+																	<span class="qa-c-item-who-pad">by </span>
+																	<span class="qa-c-item-who-data"><span class="vcard author"><a href="../../user/Jan+Blechta" class="qa-user-link url nickname">Jan Blechta</a></span></span>
+																	<span class="qa-c-item-who-title">FEniCS Expert</span>
+																	<span class="qa-c-item-who-points">
+																		<span class="qa-c-item-who-points-pad">(</span><span class="qa-c-item-who-points-data">51,420</span><span class="qa-c-item-who-points-pad"> points)</span>
+																	</span>
+																</span>
+															</span>
+														</span>
+														<div class="qa-c-item-buttons">
+														</div>
+													</div>
+													<div class="qa-c-item-clear">
+													</div>
+												</div> <!-- END qa-c-item -->
+												<div class="qa-c-list-item  hentry comment" id="c1086">
+													<div class="qa-c-item-content">
+														<a name="1086"></a><div class="entry-content"><p>Fenics 1.1.0 and my matlab code give same eigen value of inv(M)*K. while M is already enforce the periodic bc by add last colume to the first. and set the last one as (1,0,0,0...,-1)</p>
+</div>
+													</div>
+													<div class="qa-c-item-footer">
+														<span class="qa-c-item-avatar-meta">
+															<span class="qa-c-item-meta">
+																<a href="../../1063/unstable-for-1d-advection-equation-by-cg?show=1086#c1086" class="qa-c-item-what">commented</a>
+																<span class="qa-c-item-when">
+																	<span class="qa-c-item-when-data"><span class="published"><span class="value-title" title="2013-09-03T13:49:59+0000"></span>Sep 3, 2013</span></span>
+																</span>
+																<span class="qa-c-item-who">
+																	<span class="qa-c-item-who-pad">by </span>
+																	<span class="qa-c-item-who-data"><span class="vcard author"><a href="../../user/waynezw0618" class="qa-user-link url nickname">waynezw0618</a></span></span>
+																	<span class="qa-c-item-who-title">FEniCS Novice</span>
+																	<span class="qa-c-item-who-points">
+																		<span class="qa-c-item-who-points-pad">(</span><span class="qa-c-item-who-points-data">450</span><span class="qa-c-item-who-points-pad"> points)</span>
+																	</span>
+																</span>
+															</span>
+														</span>
+														<div class="qa-c-item-buttons">
+														</div>
+													</div>
+													<div class="qa-c-item-clear">
+													</div>
+												</div> <!-- END qa-c-item -->
+												<div class="qa-c-list-item  hentry comment" id="c1087">
+													<div class="qa-c-item-content">
+														<a name="1087"></a><div class="entry-content"><p>I guess that particular implementation of LU solver may affect whether numerical error in respective matrix subspace is created to cause a growth of instability. What is condition number of $M^{-1}K$?</p>
+</div>
+													</div>
+													<div class="qa-c-item-footer">
+														<span class="qa-c-item-avatar-meta">
+															<span class="qa-c-item-avatar">
+																<a href="../../user/Jan+Blechta" class="qa-avatar-link"><img src="https://www.gravatar.com/avatar/dc6f8dce77e4a0bd5adc7ff31ab83741?s=20" width="20" height="20" class="qa-avatar-image" alt=""></a>
+															</span>
+															<span class="qa-c-item-meta">
+																<a href="../../1063/unstable-for-1d-advection-equation-by-cg?show=1087#c1087" class="qa-c-item-what">commented</a>
+																<span class="qa-c-item-when">
+																	<span class="qa-c-item-when-data"><span class="published"><span class="value-title" title="2013-09-03T14:02:57+0000"></span>Sep 3, 2013</span></span>
+																</span>
+																<span class="qa-c-item-who">
+																	<span class="qa-c-item-who-pad">by </span>
+																	<span class="qa-c-item-who-data"><span class="vcard author"><a href="../../user/Jan+Blechta" class="qa-user-link url nickname">Jan Blechta</a></span></span>
+																	<span class="qa-c-item-who-title">FEniCS Expert</span>
+																	<span class="qa-c-item-who-points">
+																		<span class="qa-c-item-who-points-pad">(</span><span class="qa-c-item-who-points-data">51,420</span><span class="qa-c-item-who-points-pad"> points)</span>
+																	</span>
+																</span>
+															</span>
+														</span>
+														<div class="qa-c-item-buttons">
+														</div>
+													</div>
+													<div class="qa-c-item-clear">
+													</div>
+												</div> <!-- END qa-c-item -->
+												<div class="qa-c-list-item  hentry comment" id="c1089">
+													<div class="qa-c-item-content">
+														<a name="1089"></a><div class="entry-content"><p>very large,,,</p>
+
+<blockquote>
+  <blockquote>
+    <blockquote>
+      <p>cond(A)<br>
+      ans =  6.1966e+16</p>
+    </blockquote>
+  </blockquote>
+</blockquote>
+</div>
+													</div>
+													<div class="qa-c-item-footer">
+														<span class="qa-c-item-avatar-meta">
+															<span class="qa-c-item-meta">
+																<a href="../../1063/unstable-for-1d-advection-equation-by-cg?show=1089#c1089" class="qa-c-item-what">commented</a>
+																<span class="qa-c-item-when">
+																	<span class="qa-c-item-when-data"><span class="published"><span class="value-title" title="2013-09-04T03:39:22+0000"></span>Sep 4, 2013</span></span>
+																</span>
+																<span class="qa-c-item-who">
+																	<span class="qa-c-item-who-pad">by </span>
+																	<span class="qa-c-item-who-data"><span class="vcard author"><a href="../../user/waynezw0618" class="qa-user-link url nickname">waynezw0618</a></span></span>
+																	<span class="qa-c-item-who-title">FEniCS Novice</span>
+																	<span class="qa-c-item-who-points">
+																		<span class="qa-c-item-who-points-pad">(</span><span class="qa-c-item-who-points-data">450</span><span class="qa-c-item-who-points-pad"> points)</span>
+																	</span>
+																</span>
+															</span>
+														</span>
+														<div class="qa-c-item-buttons">
+														</div>
+													</div>
+													<div class="qa-c-item-clear">
+													</div>
+												</div> <!-- END qa-c-item -->
+											</div> <!-- END qa-c-list -->
+											
+											<input type="hidden" name="code" value="0-1516467067-98744dbd614bc32cf7af6b88f787ec905acf3b22">
+											<input type="hidden" name="qa_click" value="">
+										</form>
+										<div class="qa-c-form">
+										</div> <!-- END qa-c-form -->
+										
+									</div> <!-- END qa-a-item-main -->
+									<div class="qa-a-item-clear">
+									</div>
+								</div> <!-- END qa-a-list-item -->
+								
+							</div> <!-- END qa-a-list -->
+							
+						</div>
+					</div> <!-- END qa-main -->
+					
+				</div> <!-- END main-wrapper -->
+			</div> <!-- END main-shadow -->
+		</div> <!-- END body-wrapper -->
+		<!-- END footer-bottom-group -->
+		
+		<div style="position:absolute; left:-9999px; top:-9999px;">
+			<span id="qa-waiting-template" class="qa-waiting">...</span>
+		</div>
+	
+	
+
+</body><!-- Powered by Question2Answer - http://www.question2answer.org/ --></html>

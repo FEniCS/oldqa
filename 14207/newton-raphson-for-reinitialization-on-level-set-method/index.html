@@ -1,0 +1,279 @@
+<html><!-- Powered by Question2Answer - http://www.question2answer.org/ --><head>
+		<meta http-equiv="content-type" content="text/html; charset=utf-8">
+		<title>Newton Raphson for reinitialization on level set method - FEniCS Q&amp;A</title>
+		<meta name="description" content="Dear all, I am trying to implement a reinitialization procedure for level set method using the ... Integral of type cell cannot contain a FacetNormal.">
+		<meta name="keywords" content="nonlinear-problem,level-set-method">
+		<link rel="stylesheet" type="text/css" href="../../qa-theme/Snow/qa-styles.css">
+		<link rel="canonical" href="http://fenicsproject.org/qa/14207/newton-raphson-for-reinitialization-on-level-set-method">
+		<script type="text/x-mathjax-config">
+  MathJax.Hub.Config({
+    extensions: ["tex2jax.js"],
+    jax: ["input/TeX","output/HTML-CSS"],
+    tex2jax: {inlineMath: [["$","$"],["\\(","\\)"]]},
+    TeX: { extensions: ["AMSmath.js","AMSsymbols.js"]}
+  });
+</script>
+<script type="text/javascript" src="../../mathjax/MathJax.js"></script>
+		<script src="../../jquery-1.7.2.min.js" type="text/javascript"></script>
+		<script src="../../highlight.min.js"></script>
+<script type="text/javascript">
+$(function(){
+	$('.wmd-input').keypress(function(){
+		window.clearTimeout(hljs.Timeout);
+		hljs.Timeout = window.setTimeout(function() {
+			hljs.initHighlighting.called = false;
+			hljs.initHighlighting();
+		}, 500);
+	});
+	window.setTimeout(function() {
+		hljs.initHighlighting.called = false;
+		hljs.initHighlighting();
+	}, 500);
+});
+</script>
+
+
+	</head>
+	<body class="qa-template-question qa-body-js-off">
+		<div class="qa-body-wrapper">
+			
+			<div class="qa-header">
+				<div class="qa-logo">
+					<a href="../../" class="qa-logo-link" title="FEniCS Q&amp;A"><img src="../../qa-theme/fenics_qa.png" border="0" alt="FEniCS Q&amp;A"></a>
+				</div>
+				<div class="qa-header-clear">
+				</div>
+			</div> <!-- END qa-header -->
+			
+			<div class="qa-main-shadow">
+				
+				<div class="qa-main-wrapper">
+					
+					<div class="qa-sidepanel">
+						<div class="qa-sidebar">
+							This is a read only copy of the old FEniCS QA forum. Please visit the <a href="https://www.allanswered.com/community/s/fenics-project/">new QA forum</a> to ask questions
+						</div>
+						
+					</div>
+					
+					<div class="qa-main">
+						<h1>
+							<span class="entry-title">Newton Raphson for reinitialization on level set method</span>
+						</h1>
+						<div class="qa-part-q-view">
+							<div class="qa-q-view  hentry question" id="q14207">
+								<form method="post" action="../../14207/newton-raphson-for-reinitialization-on-level-set-method">
+									<div class="qa-q-view-stats">
+										<div class="qa-voting qa-voting-net" id="voting_14207">
+											<div class="qa-vote-count qa-vote-count-net">
+												<span class="qa-netvote-count">
+													<span class="qa-netvote-count-data">+1<span class="votes-up"><span class="value-title" title="1"></span></span><span class="votes-down"><span class="value-title" title="0"></span></span></span><span class="qa-netvote-count-pad"> vote</span>
+												</span>
+											</div>
+											<div class="qa-vote-clear">
+											</div>
+										</div>
+									</div>
+									<input type="hidden" name="code" value="0-1516466511-664d98cf837874cb8ff14f2361bdccfd70c05c59">
+								</form>
+								<div class="qa-q-view-main">
+									<form method="post" action="../../14207/newton-raphson-for-reinitialization-on-level-set-method">
+										<div class="qa-q-view-content">
+											<a name="14207"></a><div class="entry-content"><p>Dear all, <br>
+I am trying to implement a reinitialization procedure for level set method using the following equation:</p>
+
+<p>$$\phi_{\tau}(\vec{x},\tau) + \nabla\cdot[\phi(\vec{x},\tau)(1-\phi(\vec{x},\tau))\hat{n}] =\varepsilon\nabla\cdot[\hat{n}\phi(\vec{x},\tau)\cdot\hat{n}]$$</p>
+
+<pre><code> # Modules
+from fenics import*
+import time
+%matplotlib inline
+
+# Parameters
+
+theta = Constant(0.5)    # theta schema
+t_end = 5.0
+num_steps = 10
+dt = t_end/num_steps
+inv_dt = Constant(1.0/dt)
+
+# Mesh
+mesh = RectangleMesh(Point(0.0, 0.0), Point(1.0, 4.0), 20, 80,"crossed")
+
+center = Point(0.5, 0.5)
+radius = 0.2
+dist = Expression('sqrt((x[0]-A)*(x[0]-A) + (x[1]-B)*(x[1]-B))-r',degree=2, A=center[0],    B=center[1],r=radius)
+
+# Difine function space
+#L = FiniteElement("Lagrange", mesh.ufl_cell(), 2) # levelset field
+ V = FunctionSpace(mesh, "Lagrange", 1)
+#V = FunctionSpace(mesh,L)
+
+phi = TrialFunction(V)
+phi0 = TrialFunction(V)
+w = TestFunction(V)
+
+# Initial condition
+phi0 = interpolate(dist,V)
+
+n = FacetNormal(mesh)
+h = CellSize(mesh)
+epsilon = 2*h
+
+psi = -phi*(1-phi)*inner(grad(w),n) + epsilon*(inner(grad(phi),n)*inner(grad(w),n))
+psi0 = -phi0*(1-phi0)*inner(grad(w),n) + epsilon*(inner(grad(phi0),n)*inner(grad(w),n))
+
+F = inv_dt*(phi-phi0)*w*dx + theta*psi*dx + (1-theta)*psi0*dx
+a, L = lhs(F), rhs(F)
+
+A = assemble(a)
+b = assemble(L)
+solver = KrylovSolver("cg", "ilu")
+solver.set_operator(A)
+sol = Function(V)
+</code></pre>
+
+<hr>
+
+<p>But I stack since the following errors came out</p>
+
+<pre><code>Integral of type cell cannot contain a FacetNormal.
+</code></pre>
+</div>
+										</div>
+										<div class="qa-q-view-tags">
+											<ul class="qa-q-view-tag-list">
+												<li class="qa-q-view-tag-item"><a href="../../tag/nonlinear-problem" rel="tag" class="qa-tag-link">nonlinear-problem</a></li>
+												<li class="qa-q-view-tag-item"><a href="../../tag/level-set-method" rel="tag" class="qa-tag-link">level-set-method</a></li>
+											</ul>
+										</div>
+										<span class="qa-q-view-avatar-meta">
+											<span class="qa-q-view-meta">
+												<a href="../../14207/newton-raphson-for-reinitialization-on-level-set-method" class="qa-q-view-what">asked</a>
+												<span class="qa-q-view-when">
+													<span class="qa-q-view-when-data"><span class="published"><span class="value-title" title="2017-07-04T00:09:51+0000"></span>Jul 4, 2017</span></span>
+												</span>
+												<span class="qa-q-view-who">
+													<span class="qa-q-view-who-pad">by </span>
+													<span class="qa-q-view-who-data"><span class="vcard author"><a href="../../user/pimenta.pvcl" class="qa-user-link url nickname">pimenta.pvcl</a></span></span>
+													<span class="qa-q-view-who-title">FEniCS Novice</span>
+													<span class="qa-q-view-who-points">
+														<span class="qa-q-view-who-points-pad">(</span><span class="qa-q-view-who-points-data">320</span><span class="qa-q-view-who-points-pad"> points)</span>
+													</span>
+												</span>
+											</span>
+										</span>
+										<div class="qa-q-view-buttons">
+										</div>
+										
+										<div class="qa-q-view-c-list" style="display:none;" id="c14207_list">
+										</div> <!-- END qa-c-list -->
+										
+										<input type="hidden" name="code" value="0-1516466511-0635e21e8411bfc1675841612a348584989a7ff9">
+										<input type="hidden" name="qa_click" value="">
+									</form>
+									<div class="qa-c-form">
+									</div> <!-- END qa-c-form -->
+									
+								</div> <!-- END qa-q-view-main -->
+								<div class="qa-q-view-clear">
+								</div>
+							</div> <!-- END qa-q-view -->
+							
+						</div>
+						<div class="qa-part-a-list">
+							<h2 id="a_list_title">1 Answer</h2>
+							<div class="qa-a-list" id="a_list">
+								
+								<div class="qa-a-list-item  hentry answer answer-selected qa-a-list-item-selected" id="a14209">
+									<form method="post" action="../../14207/newton-raphson-for-reinitialization-on-level-set-method">
+										<div class="qa-voting qa-voting-net" id="voting_14209">
+											<div class="qa-vote-count qa-vote-count-net">
+												<span class="qa-netvote-count">
+													<span class="qa-netvote-count-data">+1<span class="votes-up"><span class="value-title" title="1"></span></span><span class="votes-down"><span class="value-title" title="0"></span></span></span><span class="qa-netvote-count-pad"> vote</span>
+												</span>
+											</div>
+											<div class="qa-vote-clear">
+											</div>
+										</div>
+										<input type="hidden" name="code" value="0-1516466511-664d98cf837874cb8ff14f2361bdccfd70c05c59">
+									</form>
+									<div class="qa-a-item-main">
+										<form method="post" action="../../14207/newton-raphson-for-reinitialization-on-level-set-method">
+											<div class="qa-a-item-selected">
+												<div class="qa-a-selection">
+													<div class="qa-a-selected">&#160;</div>
+													<div class="qa-a-selected-text">Best answer</div>
+												</div>
+												<div class="qa-a-item-content">
+													<a name="14209"></a><div class="entry-content"><p>In level-set methods normal vector is computed with level-set function,</p>
+
+<p>$$\hat{n} = \frac{\nabla \phi}{|\nabla \phi|}$$</p>
+
+<p>(but normal vector is kept constant during reinitialization)<br>
+so it is a function in whole computational domain. FEniCS is trying to tell you that you are<br>
+interating something living on Facet over Cells - it doesn't make sense.</p>
+</div>
+												</div>
+												<span class="qa-a-item-avatar-meta">
+													<span class="qa-a-item-avatar">
+														<a href="../../user/mhabera" class="qa-avatar-link"><img src="../../?qa=image&amp;qa_blobid=16889760115928551178&amp;qa_size=40" width="29" height="40" class="qa-avatar-image" alt=""></a>
+													</span>
+													<span class="qa-a-item-meta">
+														<a href="../../14207/newton-raphson-for-reinitialization-on-level-set-method?show=14209#a14209" class="qa-a-item-what">answered</a>
+														<span class="qa-a-item-when">
+															<span class="qa-a-item-when-data"><span class="published"><span class="value-title" title="2017-07-04T08:19:49+0000"></span>Jul 4, 2017</span></span>
+														</span>
+														<span class="qa-a-item-who">
+															<span class="qa-a-item-who-pad">by </span>
+															<span class="qa-a-item-who-data"><span class="vcard author"><a href="../../user/mhabera" class="qa-user-link url nickname">mhabera</a></span></span>
+															<span class="qa-a-item-who-title">FEniCS User</span>
+															<span class="qa-a-item-who-points">
+																<span class="qa-a-item-who-points-pad">(</span><span class="qa-a-item-who-points-data">1,890</span><span class="qa-a-item-who-points-pad"> points)</span>
+															</span>
+														</span>
+														<br>
+														<span class="qa-a-item-what">selected</span>
+														<span class="qa-a-item-when">
+															<span class="qa-a-item-when-data"><span class="updated"><span class="value-title" title="2017-07-04T13:41:41+0000"></span>Jul 4, 2017</span></span>
+														</span>
+														<span class="qa-a-item-who">
+															<span class="qa-a-item-who-pad">by </span><span class="qa-a-item-who-data"><a href="../../user/pimenta.pvcl" class="qa-user-link url nickname">pimenta.pvcl</a></span>
+														</span>
+													</span>
+												</span>
+											</div>
+											<div class="qa-a-item-buttons">
+												</div>
+											
+											<div class="qa-a-item-c-list" style="display:none;" id="c14209_list">
+											</div> <!-- END qa-c-list -->
+											
+											<input type="hidden" name="code" value="0-1516466511-1e8b7df5cc4a43064a978946fc4d4740da410713">
+											<input type="hidden" name="qa_click" value="">
+										</form>
+										<div class="qa-c-form">
+										</div> <!-- END qa-c-form -->
+										
+									</div> <!-- END qa-a-item-main -->
+									<div class="qa-a-item-clear">
+									</div>
+								</div> <!-- END qa-a-list-item -->
+								
+							</div> <!-- END qa-a-list -->
+							
+						</div>
+					</div> <!-- END qa-main -->
+					
+				</div> <!-- END main-wrapper -->
+			</div> <!-- END main-shadow -->
+		</div> <!-- END body-wrapper -->
+		<!-- END footer-bottom-group -->
+		
+		<div style="position:absolute; left:-9999px; top:-9999px;">
+			<span id="qa-waiting-template" class="qa-waiting">...</span>
+		</div>
+	
+	
+
+</body><!-- Powered by Question2Answer - http://www.question2answer.org/ --></html>

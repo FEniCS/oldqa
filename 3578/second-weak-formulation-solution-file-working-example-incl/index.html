@@ -1,0 +1,639 @@
+<html><!-- Powered by Question2Answer - http://www.question2answer.org/ --><head>
+		<meta http-equiv="content-type" content="text/html; charset=utf-8">
+		<title>Second weak formulation and solution in one file not working - min. example incl. - FEniCS Q&amp;A</title>
+		<meta name="description" content="Dear FEniCS users, I met a strange problem in FEniCS. You can try it by yourself. At first try to run the code and then ... --------------------------">
+		<meta name="keywords" content="problem,weak-formulation,solve,2nd-solve">
+		<link rel="stylesheet" type="text/css" href="../../qa-theme/Snow/qa-styles.css">
+		<link rel="canonical" href="http://fenicsproject.org/qa/3578/second-weak-formulation-solution-file-working-example-incl">
+		<script type="text/x-mathjax-config">
+  MathJax.Hub.Config({
+    extensions: ["tex2jax.js"],
+    jax: ["input/TeX","output/HTML-CSS"],
+    tex2jax: {inlineMath: [["$","$"],["\\(","\\)"]]},
+    TeX: { extensions: ["AMSmath.js","AMSsymbols.js"]}
+  });
+</script>
+<script type="text/javascript" src="../../mathjax/MathJax.js"></script>
+		<script src="../../jquery-1.7.2.min.js" type="text/javascript"></script>
+		<script src="../../highlight.min.js"></script>
+<script type="text/javascript">
+$(function(){
+	$('.wmd-input').keypress(function(){
+		window.clearTimeout(hljs.Timeout);
+		hljs.Timeout = window.setTimeout(function() {
+			hljs.initHighlighting.called = false;
+			hljs.initHighlighting();
+		}, 500);
+	});
+	window.setTimeout(function() {
+		hljs.initHighlighting.called = false;
+		hljs.initHighlighting();
+	}, 500);
+});
+</script>
+
+
+	</head>
+	<body class="qa-template-question qa-body-js-off">
+		<div class="qa-body-wrapper">
+			
+			<div class="qa-header">
+				<div class="qa-logo">
+					<a href="../../" class="qa-logo-link" title="FEniCS Q&amp;A"><img src="../../qa-theme/fenics_qa.png" border="0" alt="FEniCS Q&amp;A"></a>
+				</div>
+				<div class="qa-header-clear">
+				</div>
+			</div> <!-- END qa-header -->
+			
+			<div class="qa-main-shadow">
+				
+				<div class="qa-main-wrapper">
+					
+					<div class="qa-sidepanel">
+						<div class="qa-sidebar">
+							This is a read only copy of the old FEniCS QA forum. Please visit the <a href="https://www.allanswered.com/community/s/fenics-project/">new QA forum</a> to ask questions
+						</div>
+						
+					</div>
+					
+					<div class="qa-main">
+						<h1>
+							<span class="entry-title">Second weak formulation and solution in one file not working - min. example incl.</span>
+						</h1>
+						<div class="qa-part-q-view">
+							<div class="qa-q-view  hentry question" id="q3578">
+								<form method="post" action="../../3578/second-weak-formulation-solution-file-working-example-incl">
+									<div class="qa-q-view-stats">
+										<div class="qa-voting qa-voting-net" id="voting_3578">
+											<div class="qa-vote-count qa-vote-count-net">
+												<span class="qa-netvote-count">
+													<span class="qa-netvote-count-data">+2<span class="votes-up"><span class="value-title" title="2"></span></span><span class="votes-down"><span class="value-title" title="0"></span></span></span><span class="qa-netvote-count-pad"> votes</span>
+												</span>
+											</div>
+											<div class="qa-vote-clear">
+											</div>
+										</div>
+									</div>
+									<input type="hidden" name="code" value="0-1516467978-0014600f97a96fbc3142fd238d062b5521295046">
+								</form>
+								<div class="qa-q-view-main">
+									<form method="post" action="../../3578/second-weak-formulation-solution-file-working-example-incl">
+										<div class="qa-q-view-content">
+											<a name="3578"></a><div class="entry-content"><p>Dear FEniCS users,</p>
+
+<p>I met a strange problem in FEniCS. You can try it by yourself. At first try to run the code and then comment the blocks marked by (2).</p>
+
+<pre><code>from dolfin import *
+
+mesh = UnitSquareMesh(15,15)
+V =  FunctionSpace(mesh, "CG", 3)
+
+# Boundary conditions
+def down(x, on_boundary): return x[0] &lt; (0.0 + DOLFIN_EPS)
+g0 = Constant(0.0)
+bc = DirichletBC(V, g0, down)
+
+# Parameters
+epsilon = Constant(0.1)
+b = Expression(('-x[1]', 'x[0]'))
+f = Constant(1.)
+
+uh = TrialFunction(V)
+vh = TestFunction(V)
+
+# (1)
+a = (epsilon*dot(grad(uh),grad(vh)) + vh*dot(b,grad(uh)))*dx
+L = f*vh*dx
+
+# Compute solution (1)
+uh = Function(V)
+solve(a == L, uh, bc)
+
+# (2)
+psih = TrialFunction(V)
+vh = TestFunction(V)
+psih = Function(V)
+a = (epsilon*dot(grad(psih),grad(vh)) + vh*dot(b,grad(psih)))*dx
+L = f*vh*dx
+
+# Compute solution (2)
+psih = Function(V)
+solve(a == L, psih, bc)
+
+plot(uh)
+interactive()
+</code></pre>
+
+<p>Why is fenics throwing the following error in the first case?</p>
+
+<pre><code>*** -------------------------------------------------------------------------
+*** DOLFIN encountered an error. If you are not able to resolve this issue
+*** using the information listed below, you can ask for help at
+***
+***     fenics@fenicsproject.org
+***
+*** Remember to include the error message listed below and, if possible,
+*** include a *minimal* running example to reproduce the error.
+***
+*** -------------------------------------------------------------------------
+*** Error:   Unable to define linear variational problem a(u, v) == L(v) for all v.
+*** Reason:  Expecting the left-hand side to be a bilinear form (not rank 1).
+*** Where:   This error was encountered inside LinearVariationalProblem.cpp.
+*** Process: 0
+*** 
+*** DOLFIN version: 1.3.0
+*** Git changeset:  unknown
+*** -------------------------------------------------------------------------
+</code></pre>
+</div>
+										</div>
+										<div class="qa-q-view-tags">
+											<ul class="qa-q-view-tag-list">
+												<li class="qa-q-view-tag-item"><a href="../../tag/problem" rel="tag" class="qa-tag-link">problem</a></li>
+												<li class="qa-q-view-tag-item"><a href="../../tag/weak-formulation" rel="tag" class="qa-tag-link">weak-formulation</a></li>
+												<li class="qa-q-view-tag-item"><a href="../../tag/solve" rel="tag" class="qa-tag-link">solve</a></li>
+												<li class="qa-q-view-tag-item"><a href="../../tag/2nd-solve" rel="tag" class="qa-tag-link">2nd-solve</a></li>
+											</ul>
+										</div>
+										<span class="qa-q-view-avatar-meta">
+											<span class="qa-q-view-avatar">
+												<a href="../../user/luk.p" class="qa-avatar-link"><img src="https://www.gravatar.com/avatar/118073cf8da85e2ea30249b40213f5d4?s=50" width="50" height="50" class="qa-avatar-image" alt=""></a>
+											</span>
+											<span class="qa-q-view-meta">
+												<a href="../../3578/second-weak-formulation-solution-file-working-example-incl" class="qa-q-view-what">asked</a>
+												<span class="qa-q-view-when">
+													<span class="qa-q-view-when-data"><span class="published"><span class="value-title" title="2014-05-20T09:59:42+0000"></span>May 20, 2014</span></span>
+												</span>
+												<span class="qa-q-view-who">
+													<span class="qa-q-view-who-pad">by </span>
+													<span class="qa-q-view-who-data"><span class="vcard author"><a href="../../user/luk.p" class="qa-user-link url nickname">luk.p</a></span></span>
+													<span class="qa-q-view-who-title">FEniCS User</span>
+													<span class="qa-q-view-who-points">
+														<span class="qa-q-view-who-points-pad">(</span><span class="qa-q-view-who-points-data">3,470</span><span class="qa-q-view-who-points-pad"> points)</span>
+													</span>
+												</span>
+											</span>
+										</span>
+										<div class="qa-q-view-buttons">
+										</div>
+										
+										<div class="qa-q-view-c-list" style="display:none;" id="c3578_list">
+										</div> <!-- END qa-c-list -->
+										
+										<input type="hidden" name="code" value="0-1516467978-dc1a799b2d411491068f0c2a954db4a344ff23ce">
+										<input type="hidden" name="qa_click" value="">
+									</form>
+									<div class="qa-c-form">
+									</div> <!-- END qa-c-form -->
+									
+								</div> <!-- END qa-q-view-main -->
+								<div class="qa-q-view-clear">
+								</div>
+							</div> <!-- END qa-q-view -->
+							
+						</div>
+						<div class="qa-part-a-list">
+							<h2 id="a_list_title">2 Answers</h2>
+							<div class="qa-a-list" id="a_list">
+								
+								<div class="qa-a-list-item  hentry answer answer-selected qa-a-list-item-selected" id="a3582">
+									<form method="post" action="../../3578/second-weak-formulation-solution-file-working-example-incl">
+										<div class="qa-voting qa-voting-net" id="voting_3582">
+											<div class="qa-vote-count qa-vote-count-net">
+												<span class="qa-netvote-count">
+													<span class="qa-netvote-count-data">+4<span class="votes-up"><span class="value-title" title="4"></span></span><span class="votes-down"><span class="value-title" title="0"></span></span></span><span class="qa-netvote-count-pad"> votes</span>
+												</span>
+											</div>
+											<div class="qa-vote-clear">
+											</div>
+										</div>
+										<input type="hidden" name="code" value="0-1516467978-0014600f97a96fbc3142fd238d062b5521295046">
+									</form>
+									<div class="qa-a-item-main">
+										<form method="post" action="../../3578/second-weak-formulation-solution-file-working-example-incl">
+											<div class="qa-a-item-selected">
+												<div class="qa-a-selection">
+													<div class="qa-a-selected">&#160;</div>
+													<div class="qa-a-selected-text">Best answer</div>
+												</div>
+												<div class="qa-a-item-content">
+													<a name="3582"></a><div class="entry-content"><p>Your left hand side is rank 1 since it does not contain a <code>TrialFunction</code>. You have defined <code>psih</code> twice in block 2, so <code>psih</code> is a <code>Function</code> when <code>a</code> is created and not a <code>TrialFunction</code> as it probably should be.</p>
+</div>
+												</div>
+												<span class="qa-a-item-avatar-meta">
+													<span class="qa-a-item-avatar">
+														<a href="../../user/mikael-mortensen" class="qa-avatar-link"><img src="https://www.gravatar.com/avatar/d5614112a2818f1800a461e49ac229df?s=40" width="40" height="40" class="qa-avatar-image" alt=""></a>
+													</span>
+													<span class="qa-a-item-meta">
+														<a href="../../3578/second-weak-formulation-solution-file-working-example-incl?show=3582#a3582" class="qa-a-item-what">answered</a>
+														<span class="qa-a-item-when">
+															<span class="qa-a-item-when-data"><span class="published"><span class="value-title" title="2014-05-20T10:18:10+0000"></span>May 20, 2014</span></span>
+														</span>
+														<span class="qa-a-item-who">
+															<span class="qa-a-item-who-pad">by </span>
+															<span class="qa-a-item-who-data"><span class="vcard author"><a href="../../user/mikael-mortensen" class="qa-user-link url nickname">mikael-mortensen</a></span></span>
+															<span class="qa-a-item-who-title">FEniCS Expert</span>
+															<span class="qa-a-item-who-points">
+																<span class="qa-a-item-who-points-pad">(</span><span class="qa-a-item-who-points-data">29,340</span><span class="qa-a-item-who-points-pad"> points)</span>
+															</span>
+														</span>
+														<br>
+														<span class="qa-a-item-what">selected</span>
+														<span class="qa-a-item-when">
+															<span class="qa-a-item-when-data"><span class="updated"><span class="value-title" title="2014-05-20T13:06:24+0000"></span>May 20, 2014</span></span>
+														</span>
+														<span class="qa-a-item-who">
+															<span class="qa-a-item-who-pad">by </span><span class="qa-a-item-who-data"><a href="../../user/luk.p" class="qa-user-link url nickname">luk.p</a></span>
+														</span>
+													</span>
+												</span>
+											</div>
+											<div class="qa-a-item-buttons">
+												</div>
+											
+											<div class="qa-a-item-c-list" id="c3582_list">
+												<div class="qa-c-list-item  hentry comment" id="c3583">
+													<div class="qa-c-item-content">
+														<a name="3583"></a><div class="entry-content"><p>Thank you Mikael, the working code is then:</p>
+
+<pre><code>from dolfin import *
+
+mesh = UnitSquareMesh(15,15)
+V =  FunctionSpace(mesh, "CG", 3)
+
+# Boundary conditions
+def down(x, on_boundary): return x[0] &lt; (0.0 + DOLFIN_EPS)
+g0 = Constant(0.0)
+bc = DirichletBC(V, g0, down)
+
+# Parameters
+epsilon = Constant(0.1)
+b = Expression(('-x[1]', 'x[0]'))
+f = Constant(1.)
+
+uh = TrialFunction(V)
+vh = TestFunction(V)
+
+# (1)
+a = (epsilon*dot(grad(uh),grad(vh)) + vh*dot(b,grad(uh)))*dx
+L = f*vh*dx
+
+# Compute solution (1)
+uh = Function(V)
+solve(a == L, uh, bc)
+
+# (2)
+psih = TrialFunction(V)
+vh = TestFunction(V)
+a = (epsilon*dot(grad(psih),grad(vh)) + vh*dot(b,grad(psih)))*dx
+L = f*vh*dx
+
+# Compute solution (2)
+psih = Function(V)
+solve(a == L, psih, bc)
+
+plot(uh)
+interactive()
+</code></pre>
+
+<p>Everything works fine now.</p>
+</div>
+													</div>
+													<div class="qa-c-item-footer">
+														<span class="qa-c-item-avatar-meta">
+															<span class="qa-c-item-avatar">
+																<a href="../../user/luk.p" class="qa-avatar-link"><img src="https://www.gravatar.com/avatar/118073cf8da85e2ea30249b40213f5d4?s=20" width="20" height="20" class="qa-avatar-image" alt=""></a>
+															</span>
+															<span class="qa-c-item-meta">
+																<a href="../../3578/second-weak-formulation-solution-file-working-example-incl?show=3583#c3583" class="qa-c-item-what">commented</a>
+																<span class="qa-c-item-when">
+																	<span class="qa-c-item-when-data"><span class="published"><span class="value-title" title="2014-05-20T10:23:18+0000"></span>May 20, 2014</span></span>
+																</span>
+																<span class="qa-c-item-who">
+																	<span class="qa-c-item-who-pad">by </span>
+																	<span class="qa-c-item-who-data"><span class="vcard author"><a href="../../user/luk.p" class="qa-user-link url nickname">luk.p</a></span></span>
+																	<span class="qa-c-item-who-title">FEniCS User</span>
+																	<span class="qa-c-item-who-points">
+																		<span class="qa-c-item-who-points-pad">(</span><span class="qa-c-item-who-points-data">3,470</span><span class="qa-c-item-who-points-pad"> points)</span>
+																	</span>
+																</span>
+															</span>
+														</span>
+														<div class="qa-c-item-buttons">
+														</div>
+													</div>
+													<div class="qa-c-item-clear">
+													</div>
+												</div> <!-- END qa-c-item -->
+												<div class="qa-c-list-item  hentry comment" id="c3585">
+													<div class="qa-c-item-content">
+														<a name="3585"></a><div class="entry-content"><p>But why I need to have the line</p>
+
+<pre><code>uh = Function(V)
+</code></pre>
+
+<p>in the first case? (Otherwise i get an error...)</p>
+</div>
+													</div>
+													<div class="qa-c-item-footer">
+														<span class="qa-c-item-avatar-meta">
+															<span class="qa-c-item-avatar">
+																<a href="../../user/luk.p" class="qa-avatar-link"><img src="https://www.gravatar.com/avatar/118073cf8da85e2ea30249b40213f5d4?s=20" width="20" height="20" class="qa-avatar-image" alt=""></a>
+															</span>
+															<span class="qa-c-item-meta">
+																<a href="../../3578/second-weak-formulation-solution-file-working-example-incl?show=3585#c3585" class="qa-c-item-what">commented</a>
+																<span class="qa-c-item-when">
+																	<span class="qa-c-item-when-data"><span class="published"><span class="value-title" title="2014-05-20T10:26:04+0000"></span>May 20, 2014</span></span>
+																</span>
+																<span class="qa-c-item-who">
+																	<span class="qa-c-item-who-pad">by </span>
+																	<span class="qa-c-item-who-data"><span class="vcard author"><a href="../../user/luk.p" class="qa-user-link url nickname">luk.p</a></span></span>
+																	<span class="qa-c-item-who-title">FEniCS User</span>
+																	<span class="qa-c-item-who-points">
+																		<span class="qa-c-item-who-points-pad">(</span><span class="qa-c-item-who-points-data">3,470</span><span class="qa-c-item-who-points-pad"> points)</span>
+																	</span>
+																</span>
+															</span>
+														</span>
+														<div class="qa-c-item-buttons">
+														</div>
+													</div>
+													<div class="qa-c-item-clear">
+													</div>
+												</div> <!-- END qa-c-item -->
+												<div class="qa-c-list-item  hentry comment" id="c3587">
+													<div class="qa-c-item-content">
+														<a name="3587"></a><div class="entry-content"><p>Because you need a container for your solution. <code>uh</code> in <code>solve</code> must be a <code>Function</code>. You can call it anything you like, doesn't have to be the same name as the <code>TrialFunction</code>.</p>
+</div>
+													</div>
+													<div class="qa-c-item-footer">
+														<span class="qa-c-item-avatar-meta">
+															<span class="qa-c-item-avatar">
+																<a href="../../user/mikael-mortensen" class="qa-avatar-link"><img src="https://www.gravatar.com/avatar/d5614112a2818f1800a461e49ac229df?s=20" width="20" height="20" class="qa-avatar-image" alt=""></a>
+															</span>
+															<span class="qa-c-item-meta">
+																<a href="../../3578/second-weak-formulation-solution-file-working-example-incl?show=3587#c3587" class="qa-c-item-what">commented</a>
+																<span class="qa-c-item-when">
+																	<span class="qa-c-item-when-data"><span class="published"><span class="value-title" title="2014-05-20T10:50:01+0000"></span>May 20, 2014</span></span>
+																</span>
+																<span class="qa-c-item-who">
+																	<span class="qa-c-item-who-pad">by </span>
+																	<span class="qa-c-item-who-data"><span class="vcard author"><a href="../../user/mikael-mortensen" class="qa-user-link url nickname">mikael-mortensen</a></span></span>
+																	<span class="qa-c-item-who-title">FEniCS Expert</span>
+																	<span class="qa-c-item-who-points">
+																		<span class="qa-c-item-who-points-pad">(</span><span class="qa-c-item-who-points-data">29,340</span><span class="qa-c-item-who-points-pad"> points)</span>
+																	</span>
+																</span>
+															</span>
+														</span>
+														<div class="qa-c-item-buttons">
+														</div>
+													</div>
+													<div class="qa-c-item-clear">
+													</div>
+												</div> <!-- END qa-c-item -->
+												<div class="qa-c-list-item  hentry comment" id="c3590">
+													<div class="qa-c-item-content">
+														<a name="3590"></a><div class="entry-content"><p>Thank you, so if I got it from a novice's point of view, it is necessary to have everytime you use <code>solve()</code> the following form (if I am naming TrialFunction and Function of solution the same as my convention):</p>
+
+<pre><code>uh = TrialFunction(V)
+vh = TestFunction(V)
+a = ...; L = ...
+uh = Function(V)
+solve(a == L, uh, bc)
+</code></pre>
+
+<p>Thank you Mikael and Miro!</p>
+</div>
+													</div>
+													<div class="qa-c-item-footer">
+														<span class="qa-c-item-avatar-meta">
+															<span class="qa-c-item-avatar">
+																<a href="../../user/luk.p" class="qa-avatar-link"><img src="https://www.gravatar.com/avatar/118073cf8da85e2ea30249b40213f5d4?s=20" width="20" height="20" class="qa-avatar-image" alt=""></a>
+															</span>
+															<span class="qa-c-item-meta">
+																<a href="../../3578/second-weak-formulation-solution-file-working-example-incl?show=3590#c3590" class="qa-c-item-what">commented</a>
+																<span class="qa-c-item-when">
+																	<span class="qa-c-item-when-data"><span class="published"><span class="value-title" title="2014-05-20T12:46:05+0000"></span>May 20, 2014</span></span>
+																</span>
+																<span class="qa-c-item-who">
+																	<span class="qa-c-item-who-pad">by </span>
+																	<span class="qa-c-item-who-data"><span class="vcard author"><a href="../../user/luk.p" class="qa-user-link url nickname">luk.p</a></span></span>
+																	<span class="qa-c-item-who-title">FEniCS User</span>
+																	<span class="qa-c-item-who-points">
+																		<span class="qa-c-item-who-points-pad">(</span><span class="qa-c-item-who-points-data">3,470</span><span class="qa-c-item-who-points-pad"> points)</span>
+																	</span>
+																</span>
+															</span>
+														</span>
+														<div class="qa-c-item-buttons">
+														</div>
+													</div>
+													<div class="qa-c-item-clear">
+													</div>
+												</div> <!-- END qa-c-item -->
+											</div> <!-- END qa-c-list -->
+											
+											<input type="hidden" name="code" value="0-1516467978-6188b2bfd398b1c431c80d73fe19f645d5f158f3">
+											<input type="hidden" name="qa_click" value="">
+										</form>
+										<div class="qa-c-form">
+										</div> <!-- END qa-c-form -->
+										
+									</div> <!-- END qa-a-item-main -->
+									<div class="qa-a-item-clear">
+									</div>
+								</div> <!-- END qa-a-list-item -->
+								
+								<div class="qa-a-list-item  hentry answer" id="a3584">
+									<form method="post" action="../../3578/second-weak-formulation-solution-file-working-example-incl">
+										<div class="qa-voting qa-voting-net" id="voting_3584">
+											<div class="qa-vote-count qa-vote-count-net">
+												<span class="qa-netvote-count">
+													<span class="qa-netvote-count-data">+1<span class="votes-up"><span class="value-title" title="1"></span></span><span class="votes-down"><span class="value-title" title="0"></span></span></span><span class="qa-netvote-count-pad"> vote</span>
+												</span>
+											</div>
+											<div class="qa-vote-clear">
+											</div>
+										</div>
+										<input type="hidden" name="code" value="0-1516467978-0014600f97a96fbc3142fd238d062b5521295046">
+									</form>
+									<div class="qa-a-item-main">
+										<form method="post" action="../../3578/second-weak-formulation-solution-file-working-example-incl">
+											<div class="qa-a-selection">
+											</div>
+											<div class="qa-a-item-content">
+												<a name="3584"></a><div class="entry-content"><p>Hi, the problem in (2) is due to <em>psih</em> defined as <code>Function</code> and not <code>TrialFunction</code>. Because of this  <em>a</em> is not a bilinear form. The fix is</p>
+
+<pre><code>psih = TrialFunction(V)
+vh = TestFunction(V)
+# psih = Function(V)
+a = (epsilon*dot(grad(psih),grad(vh)) + vh*dot(b,grad(psih)))*dx
+L = f*vh*dx
+</code></pre>
+</div>
+											</div>
+											<span class="qa-a-item-avatar-meta">
+												<span class="qa-a-item-avatar">
+													<a href="../../user/MiroK" class="qa-avatar-link"><img src="https://www.gravatar.com/avatar/f566be3274ec73e3a6dda27bca11631c?s=40" width="40" height="40" class="qa-avatar-image" alt=""></a>
+												</span>
+												<span class="qa-a-item-meta">
+													<a href="../../3578/second-weak-formulation-solution-file-working-example-incl?show=3584#a3584" class="qa-a-item-what">answered</a>
+													<span class="qa-a-item-when">
+														<span class="qa-a-item-when-data"><span class="published"><span class="value-title" title="2014-05-20T10:23:32+0000"></span>May 20, 2014</span></span>
+													</span>
+													<span class="qa-a-item-who">
+														<span class="qa-a-item-who-pad">by </span>
+														<span class="qa-a-item-who-data"><span class="vcard author"><a href="../../user/MiroK" class="qa-user-link url nickname">MiroK</a></span></span>
+														<span class="qa-a-item-who-title">FEniCS Expert</span>
+														<span class="qa-a-item-who-points">
+															<span class="qa-a-item-who-points-pad">(</span><span class="qa-a-item-who-points-data">80,920</span><span class="qa-a-item-who-points-pad"> points)</span>
+														</span>
+													</span>
+												</span>
+											</span>
+											<div class="qa-a-item-buttons">
+												</div>
+											
+											<div class="qa-a-item-c-list" id="c3584_list">
+												<div class="qa-c-list-item  hentry comment" id="c3586">
+													<div class="qa-c-item-content">
+														<a name="3586"></a><div class="entry-content"><p>Thank you MiroK! It really was a basic question, but then:<br>
+why I need to have the line</p>
+
+<pre><code>uh = Function(V)
+</code></pre>
+
+<p>in the first case? (Otherwise i get an error...)</p>
+</div>
+													</div>
+													<div class="qa-c-item-footer">
+														<span class="qa-c-item-avatar-meta">
+															<span class="qa-c-item-avatar">
+																<a href="../../user/luk.p" class="qa-avatar-link"><img src="https://www.gravatar.com/avatar/118073cf8da85e2ea30249b40213f5d4?s=20" width="20" height="20" class="qa-avatar-image" alt=""></a>
+															</span>
+															<span class="qa-c-item-meta">
+																<a href="../../3578/second-weak-formulation-solution-file-working-example-incl?show=3586#c3586" class="qa-c-item-what">commented</a>
+																<span class="qa-c-item-when">
+																	<span class="qa-c-item-when-data"><span class="published"><span class="value-title" title="2014-05-20T10:28:13+0000"></span>May 20, 2014</span></span>
+																</span>
+																<span class="qa-c-item-who">
+																	<span class="qa-c-item-who-pad">by </span>
+																	<span class="qa-c-item-who-data"><span class="vcard author"><a href="../../user/luk.p" class="qa-user-link url nickname">luk.p</a></span></span>
+																	<span class="qa-c-item-who-title">FEniCS User</span>
+																	<span class="qa-c-item-who-points">
+																		<span class="qa-c-item-who-points-pad">(</span><span class="qa-c-item-who-points-data">3,470</span><span class="qa-c-item-who-points-pad"> points)</span>
+																	</span>
+																</span>
+															</span>
+														</span>
+														<div class="qa-c-item-buttons">
+														</div>
+													</div>
+													<div class="qa-c-item-clear">
+													</div>
+												</div> <!-- END qa-c-item -->
+												<div class="qa-c-list-item  hentry comment" id="c3588">
+													<div class="qa-c-item-content">
+														<a name="3588"></a><div class="entry-content"><p>As the error message says</p>
+
+<blockquote>
+  <p>Expecting second argument to be a Function.</p>
+</blockquote>
+
+<p>But</p>
+
+<pre><code>uh = TrialFunction(V)
+type(uh)
+</code></pre>
+
+<p>tells you that uh in an <code>Argument</code> instance.</p>
+</div>
+													</div>
+													<div class="qa-c-item-footer">
+														<span class="qa-c-item-avatar-meta">
+															<span class="qa-c-item-avatar">
+																<a href="../../user/MiroK" class="qa-avatar-link"><img src="https://www.gravatar.com/avatar/f566be3274ec73e3a6dda27bca11631c?s=20" width="20" height="20" class="qa-avatar-image" alt=""></a>
+															</span>
+															<span class="qa-c-item-meta">
+																<a href="../../3578/second-weak-formulation-solution-file-working-example-incl?show=3588#c3588" class="qa-c-item-what">commented</a>
+																<span class="qa-c-item-when">
+																	<span class="qa-c-item-when-data"><span class="published"><span class="value-title" title="2014-05-20T10:50:29+0000"></span>May 20, 2014</span></span>
+																</span>
+																<span class="qa-c-item-who">
+																	<span class="qa-c-item-who-pad">by </span>
+																	<span class="qa-c-item-who-data"><span class="vcard author"><a href="../../user/MiroK" class="qa-user-link url nickname">MiroK</a></span></span>
+																	<span class="qa-c-item-who-title">FEniCS Expert</span>
+																	<span class="qa-c-item-who-points">
+																		<span class="qa-c-item-who-points-pad">(</span><span class="qa-c-item-who-points-data">80,920</span><span class="qa-c-item-who-points-pad"> points)</span>
+																	</span>
+																</span>
+															</span>
+														</span>
+														<div class="qa-c-item-buttons">
+														</div>
+													</div>
+													<div class="qa-c-item-clear">
+													</div>
+												</div> <!-- END qa-c-item -->
+												<div class="qa-c-list-item  hentry comment" id="c3591">
+													<div class="qa-c-item-content">
+														<a name="3591"></a><div class="entry-content"><p>Thank you Miro, I got it!</p>
+</div>
+													</div>
+													<div class="qa-c-item-footer">
+														<span class="qa-c-item-avatar-meta">
+															<span class="qa-c-item-avatar">
+																<a href="../../user/luk.p" class="qa-avatar-link"><img src="https://www.gravatar.com/avatar/118073cf8da85e2ea30249b40213f5d4?s=20" width="20" height="20" class="qa-avatar-image" alt=""></a>
+															</span>
+															<span class="qa-c-item-meta">
+																<a href="../../3578/second-weak-formulation-solution-file-working-example-incl?show=3591#c3591" class="qa-c-item-what">commented</a>
+																<span class="qa-c-item-when">
+																	<span class="qa-c-item-when-data"><span class="published"><span class="value-title" title="2014-05-20T12:48:01+0000"></span>May 20, 2014</span></span>
+																</span>
+																<span class="qa-c-item-who">
+																	<span class="qa-c-item-who-pad">by </span>
+																	<span class="qa-c-item-who-data"><span class="vcard author"><a href="../../user/luk.p" class="qa-user-link url nickname">luk.p</a></span></span>
+																	<span class="qa-c-item-who-title">FEniCS User</span>
+																	<span class="qa-c-item-who-points">
+																		<span class="qa-c-item-who-points-pad">(</span><span class="qa-c-item-who-points-data">3,470</span><span class="qa-c-item-who-points-pad"> points)</span>
+																	</span>
+																</span>
+															</span>
+														</span>
+														<div class="qa-c-item-buttons">
+														</div>
+													</div>
+													<div class="qa-c-item-clear">
+													</div>
+												</div> <!-- END qa-c-item -->
+											</div> <!-- END qa-c-list -->
+											
+											<input type="hidden" name="code" value="0-1516467978-1e5ddf6257c85096bb0514f4b3740b2c73cfa2ff">
+											<input type="hidden" name="qa_click" value="">
+										</form>
+										<div class="qa-c-form">
+										</div> <!-- END qa-c-form -->
+										
+									</div> <!-- END qa-a-item-main -->
+									<div class="qa-a-item-clear">
+									</div>
+								</div> <!-- END qa-a-list-item -->
+								
+							</div> <!-- END qa-a-list -->
+							
+						</div>
+					</div> <!-- END qa-main -->
+					
+				</div> <!-- END main-wrapper -->
+			</div> <!-- END main-shadow -->
+		</div> <!-- END body-wrapper -->
+		<!-- END footer-bottom-group -->
+		
+		<div style="position:absolute; left:-9999px; top:-9999px;">
+			<span id="qa-waiting-template" class="qa-waiting">...</span>
+		</div>
+	
+	
+
+</body><!-- Powered by Question2Answer - http://www.question2answer.org/ --></html>

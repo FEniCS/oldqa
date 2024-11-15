@@ -1,0 +1,297 @@
+<html><!-- Powered by Question2Answer - http://www.question2answer.org/ --><head>
+		<meta http-equiv="content-type" content="text/html; charset=utf-8">
+		<title>Computation of second derivative fails on boundaries - FEniCS Q&amp;A</title>
+		<meta name="description" content="Hi, In order to compute the solutions of an elasticity problem on a 1D domain thanks to a manually  ... [6]: http://s21.postimg.org/irsmcd1pj/d03.png">
+		<meta name="keywords" content="second,derivative,boundaries,wiggles">
+		<link rel="stylesheet" type="text/css" href="../../qa-theme/Snow/qa-styles.css">
+		<link rel="canonical" href="http://fenicsproject.org/qa/7728/computation-of-second-derivative-fails-on-boundaries">
+		<script type="text/x-mathjax-config">
+  MathJax.Hub.Config({
+    extensions: ["tex2jax.js"],
+    jax: ["input/TeX","output/HTML-CSS"],
+    tex2jax: {inlineMath: [["$","$"],["\\(","\\)"]]},
+    TeX: { extensions: ["AMSmath.js","AMSsymbols.js"]}
+  });
+</script>
+<script type="text/javascript" src="../../mathjax/MathJax.js"></script>
+		<script src="../../jquery-1.7.2.min.js" type="text/javascript"></script>
+		<script src="../../highlight.min.js"></script>
+<script type="text/javascript">
+$(function(){
+	$('.wmd-input').keypress(function(){
+		window.clearTimeout(hljs.Timeout);
+		hljs.Timeout = window.setTimeout(function() {
+			hljs.initHighlighting.called = false;
+			hljs.initHighlighting();
+		}, 500);
+	});
+	window.setTimeout(function() {
+		hljs.initHighlighting.called = false;
+		hljs.initHighlighting();
+	}, 500);
+});
+</script>
+
+
+	</head>
+	<body class="qa-template-question qa-body-js-off">
+		<div class="qa-body-wrapper">
+			
+			<div class="qa-header">
+				<div class="qa-logo">
+					<a href="../../" class="qa-logo-link" title="FEniCS Q&amp;A"><img src="../../qa-theme/fenics_qa.png" border="0" alt="FEniCS Q&amp;A"></a>
+				</div>
+				<div class="qa-header-clear">
+				</div>
+			</div> <!-- END qa-header -->
+			
+			<div class="qa-main-shadow">
+				
+				<div class="qa-main-wrapper">
+					
+					<div class="qa-sidepanel">
+						<div class="qa-sidebar">
+							This is a read only copy of the old FEniCS QA forum. Please visit the <a href="https://www.allanswered.com/community/s/fenics-project/">new QA forum</a> to ask questions
+						</div>
+						
+					</div>
+					
+					<div class="qa-main">
+						<h1>
+							<span class="entry-title">Computation of second derivative fails on boundaries</span>
+						</h1>
+						<div class="qa-part-q-view">
+							<div class="qa-q-view  hentry question" id="q7728">
+								<form method="post" action="../../7728/computation-of-second-derivative-fails-on-boundaries">
+									<div class="qa-q-view-stats">
+										<div class="qa-voting qa-voting-net" id="voting_7728">
+											<div class="qa-vote-count qa-vote-count-net">
+												<span class="qa-netvote-count">
+													<span class="qa-netvote-count-data">+2<span class="votes-up"><span class="value-title" title="2"></span></span><span class="votes-down"><span class="value-title" title="0"></span></span></span><span class="qa-netvote-count-pad"> votes</span>
+												</span>
+											</div>
+											<div class="qa-vote-clear">
+											</div>
+										</div>
+									</div>
+									<input type="hidden" name="code" value="0-1516468134-dde3794cd8c10d57e8edd80971ad1ae9aef57eb9">
+								</form>
+								<div class="qa-q-view-main">
+									<form method="post" action="../../7728/computation-of-second-derivative-fails-on-boundaries">
+										<div class="qa-q-view-content">
+											<a name="7728"></a><div class="entry-content"><p>Hi,</p>
+
+<p>In order to compute the solutions of an elasticity problem on a 1D domain thanks to a manually implemented Newton's method I need to compute a function and its second derivative prior to passing it in the weak form as an initial guess. Although I have no problem computing the function, I have some issues trying to compute its second derivative near the boundaries of the domain. I'll try to reproduce what's happening in a short example:</p>
+
+<p>Having a unit interval mesh, I have defined R, a vector valued function and projected it on V which is a vector function space of Lagrange finite elements. Then I compute its first derivative calling <code>Dx(R,0)</code>. To this point everything goes smoothly and the output of the function looks as follow:</p>
+
+<p><img src="http://s24.postimg.org/cluzfd5z9/image.png" alt="first coordinate"><br>
+<img src="http://s29.postimg.org/bkfse15hj/image.png" alt="second coordinate"><br>
+<img src="http://s23.postimg.org/vcsjffa4b/image.png" alt="third coordinate"></p>
+
+<p>Then I basically try to compute the second derivative of this function by first projecting <code>Dx(R,0)</code> on V and calling again <code>Dx()</code>:</p>
+
+<pre><code>dR=project(dR,V)
+ddR=Dx(dR,0)
+</code></pre>
+
+<p>Which returns this function:</p>
+
+<p><img src="http://s10.postimg.org/ktjymmn15/d01.png" alt="derived first coordinate"><br>
+<img src="http://s24.postimg.org/eo4nl3ipx/d02.png" alt="derived second coordinate"><br>
+<img src="http://s21.postimg.org/irsmcd1pj/d03.png" alt="derived third coordinate"></p>
+
+<p>As you can see, there are each time wiggles near the domain's boundaries and I think it may impede the convergence of my Newton method. So far, I tried to:</p>
+
+<ul>
+<li>Refine the mesh near the boundaries, which led to the same result plus another set of wiggles on the interface between the refined and non-refined parts of the mesh.</li>
+<li>Use higher order Lagrange elements for the computation, which led to the same results</li>
+<li>Compute the derivative on high order elements then projecting on lower order to get some averaging but it didn't work out as well.</li>
+</ul>
+
+<p>As none of these brought satisfying results I begin to think that computation of derivative is not as clear as I thought it was, if anyone has already encountered such problem and/or have ideas of workarounds it would be much appreciated. As this function is the initial guess of a Newton's method I think that anything that could smoothen the second derivative enough to get convergence will do the trick.</p>
+
+<p>Many thanks!<br>
+Regards,</p>
+
+<p>MFV.</p>
+</div>
+										</div>
+										<div class="qa-q-view-tags">
+											<ul class="qa-q-view-tag-list">
+												<li class="qa-q-view-tag-item"><a href="../../tag/second" rel="tag" class="qa-tag-link">second</a></li>
+												<li class="qa-q-view-tag-item"><a href="../../tag/derivative" rel="tag" class="qa-tag-link">derivative</a></li>
+												<li class="qa-q-view-tag-item"><a href="../../tag/boundaries" rel="tag" class="qa-tag-link">boundaries</a></li>
+												<li class="qa-q-view-tag-item"><a href="../../tag/wiggles" rel="tag" class="qa-tag-link">wiggles</a></li>
+											</ul>
+										</div>
+										<span class="qa-q-view-avatar-meta">
+											<span class="qa-q-view-meta">
+												<a href="../../7728/computation-of-second-derivative-fails-on-boundaries" class="qa-q-view-what">asked</a>
+												<span class="qa-q-view-when">
+													<span class="qa-q-view-when-data"><span class="published"><span class="value-title" title="2015-07-30T08:32:29+0000"></span>Jul 30, 2015</span></span>
+												</span>
+												<span class="qa-q-view-who">
+													<span class="qa-q-view-who-pad">by </span>
+													<span class="qa-q-view-who-data"><span class="vcard author"><a href="../../user/MathieuFV" class="qa-user-link url nickname">MathieuFV</a></span></span>
+													<span class="qa-q-view-who-title">FEniCS User</span>
+													<span class="qa-q-view-who-points">
+														<span class="qa-q-view-who-points-pad">(</span><span class="qa-q-view-who-points-data">1,490</span><span class="qa-q-view-who-points-pad"> points)</span>
+													</span>
+												</span>
+											</span>
+										</span>
+										<div class="qa-q-view-buttons">
+										</div>
+										
+										<div class="qa-q-view-c-list" style="display:none;" id="c7728_list">
+										</div> <!-- END qa-c-list -->
+										
+										<input type="hidden" name="code" value="0-1516468134-5f106b95031a0988786b893fa6e6103fd470cb6c">
+										<input type="hidden" name="qa_click" value="">
+									</form>
+									<div class="qa-c-form">
+									</div> <!-- END qa-c-form -->
+									
+								</div> <!-- END qa-q-view-main -->
+								<div class="qa-q-view-clear">
+								</div>
+							</div> <!-- END qa-q-view -->
+							
+						</div>
+						<div class="qa-part-a-list">
+							<h2 id="a_list_title">1 Answer</h2>
+							<div class="qa-a-list" id="a_list">
+								
+								<div class="qa-a-list-item  hentry answer answer-selected qa-a-list-item-selected" id="a7735">
+									<form method="post" action="../../7728/computation-of-second-derivative-fails-on-boundaries">
+										<div class="qa-voting qa-voting-net" id="voting_7735">
+											<div class="qa-vote-count qa-vote-count-net">
+												<span class="qa-netvote-count">
+													<span class="qa-netvote-count-data">0<span class="votes-up"><span class="value-title" title="0"></span></span><span class="votes-down"><span class="value-title" title="0"></span></span></span><span class="qa-netvote-count-pad"> votes</span>
+												</span>
+											</div>
+											<div class="qa-vote-clear">
+											</div>
+										</div>
+										<input type="hidden" name="code" value="0-1516468134-dde3794cd8c10d57e8edd80971ad1ae9aef57eb9">
+									</form>
+									<div class="qa-a-item-main">
+										<form method="post" action="../../7728/computation-of-second-derivative-fails-on-boundaries">
+											<div class="qa-a-item-selected">
+												<div class="qa-a-selection">
+													<div class="qa-a-selected">&#160;</div>
+													<div class="qa-a-selected-text">Best answer</div>
+												</div>
+												<div class="qa-a-item-content">
+													<a name="7735"></a><div class="entry-content"><p>Hi</p>
+
+<p>This is a difficult problem because of the regularity of the piecewise solutions, see, e.g., <a rel="nofollow" href="http://fenicsproject.org/qa/2487/second-derivative-incorrect-on-boundary?show=2487#q2487">this previous question</a>. However, if you have your vector valued function R in CG2, then at least you can get the solution nicely in DG0</p>
+
+<pre><code>mehs = UnitIntervalMesh(50)
+CG2 = FunctionSpace(mesh, "CG", 2)
+DG0 = FunctionSpace(mesh, "DG", 0)
+f = interpolate(Expression("x[0]*(1-x[0])"), CG2)
+d2f = project(f.dx(0).dx(0), DG0)
+assert numpy.allclose(d2f.vector().array(), -2) #  True
+</code></pre>
+
+<p>Otherwise, I think you need som boundary conditions on grad(R) to avoid the wiggles.</p>
+</div>
+												</div>
+												<span class="qa-a-item-avatar-meta">
+													<span class="qa-a-item-avatar">
+														<a href="../../user/mikael-mortensen" class="qa-avatar-link"><img src="https://www.gravatar.com/avatar/d5614112a2818f1800a461e49ac229df?s=40" width="40" height="40" class="qa-avatar-image" alt=""></a>
+													</span>
+													<span class="qa-a-item-meta">
+														<a href="../../7728/computation-of-second-derivative-fails-on-boundaries?show=7735#a7735" class="qa-a-item-what">answered</a>
+														<span class="qa-a-item-when">
+															<span class="qa-a-item-when-data"><span class="published"><span class="value-title" title="2015-07-31T13:11:06+0000"></span>Jul 31, 2015</span></span>
+														</span>
+														<span class="qa-a-item-who">
+															<span class="qa-a-item-who-pad">by </span>
+															<span class="qa-a-item-who-data"><span class="vcard author"><a href="../../user/mikael-mortensen" class="qa-user-link url nickname">mikael-mortensen</a></span></span>
+															<span class="qa-a-item-who-title">FEniCS Expert</span>
+															<span class="qa-a-item-who-points">
+																<span class="qa-a-item-who-points-pad">(</span><span class="qa-a-item-who-points-data">29,340</span><span class="qa-a-item-who-points-pad"> points)</span>
+															</span>
+														</span>
+														<br>
+														<span class="qa-a-item-what">selected</span>
+														<span class="qa-a-item-when">
+															<span class="qa-a-item-when-data"><span class="updated"><span class="value-title" title="2015-08-04T07:41:48+0000"></span>Aug 4, 2015</span></span>
+														</span>
+														<span class="qa-a-item-who">
+															<span class="qa-a-item-who-pad">by </span><span class="qa-a-item-who-data"><a href="../../user/MathieuFV" class="qa-user-link url nickname">MathieuFV</a></span>
+														</span>
+													</span>
+												</span>
+											</div>
+											<div class="qa-a-item-buttons">
+												</div>
+											
+											<div class="qa-a-item-c-list" id="c7735_list">
+												<div class="qa-c-list-item  hentry comment" id="c7754">
+													<div class="qa-c-item-content">
+														<a name="7754"></a><div class="entry-content"><p>Hi,</p>
+
+<p>First of all thank you for your reply, I understood not long after this post what was my error concerning the use of higher order elements. Before, when I used CG1, I could compute first derivative nicely but couldn't call again Dx because, of course, the result of a derivative in a CG0 space is zero. So I had to project the derivative back to CG1 before calling Dx again, which was very silly considering that it could only result in loss of information. Removing the projection and using CG2 space the second derivative computes much more nicely. </p>
+
+<p>Still, I'm very interested in your suggestion of projecting in DG0 space, I'll try it in order to see if I get any improvement in convergence of my Newton method.</p>
+
+<p>Anyways thank you very much for your time.</p>
+</div>
+													</div>
+													<div class="qa-c-item-footer">
+														<span class="qa-c-item-avatar-meta">
+															<span class="qa-c-item-meta">
+																<a href="../../7728/computation-of-second-derivative-fails-on-boundaries?show=7754#c7754" class="qa-c-item-what">commented</a>
+																<span class="qa-c-item-when">
+																	<span class="qa-c-item-when-data"><span class="published"><span class="value-title" title="2015-08-04T07:41:46+0000"></span>Aug 4, 2015</span></span>
+																</span>
+																<span class="qa-c-item-who">
+																	<span class="qa-c-item-who-pad">by </span>
+																	<span class="qa-c-item-who-data"><span class="vcard author"><a href="../../user/MathieuFV" class="qa-user-link url nickname">MathieuFV</a></span></span>
+																	<span class="qa-c-item-who-title">FEniCS User</span>
+																	<span class="qa-c-item-who-points">
+																		<span class="qa-c-item-who-points-pad">(</span><span class="qa-c-item-who-points-data">1,490</span><span class="qa-c-item-who-points-pad"> points)</span>
+																	</span>
+																</span>
+															</span>
+														</span>
+														<div class="qa-c-item-buttons">
+														</div>
+													</div>
+													<div class="qa-c-item-clear">
+													</div>
+												</div> <!-- END qa-c-item -->
+											</div> <!-- END qa-c-list -->
+											
+											<input type="hidden" name="code" value="0-1516468134-29843dda8bb515f24d6e9e91983c61a025a4169e">
+											<input type="hidden" name="qa_click" value="">
+										</form>
+										<div class="qa-c-form">
+										</div> <!-- END qa-c-form -->
+										
+									</div> <!-- END qa-a-item-main -->
+									<div class="qa-a-item-clear">
+									</div>
+								</div> <!-- END qa-a-list-item -->
+								
+							</div> <!-- END qa-a-list -->
+							
+						</div>
+					</div> <!-- END qa-main -->
+					
+				</div> <!-- END main-wrapper -->
+			</div> <!-- END main-shadow -->
+		</div> <!-- END body-wrapper -->
+		<!-- END footer-bottom-group -->
+		
+		<div style="position:absolute; left:-9999px; top:-9999px;">
+			<span id="qa-waiting-template" class="qa-waiting">...</span>
+		</div>
+	
+	
+
+</body><!-- Powered by Question2Answer - http://www.question2answer.org/ --></html>

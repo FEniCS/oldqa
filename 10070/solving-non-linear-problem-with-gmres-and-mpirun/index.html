@@ -1,0 +1,273 @@
+<html><!-- Powered by Question2Answer - http://www.question2answer.org/ --><head>
+		<meta http-equiv="content-type" content="text/html; charset=utf-8">
+		<title>Solving non linear problem with gmres and mpirun - FEniCS Q&amp;A</title>
+		<meta name="description" content="Hello. I am trying to use GMRES to solve a problem with mpi run but am getting the following error ***  ... ().array()).max() print 'Max error:', diff">
+		<link rel="stylesheet" type="text/css" href="../../qa-theme/Snow/qa-styles.css">
+		<link rel="canonical" href="http://fenicsproject.org/qa/10070/solving-non-linear-problem-with-gmres-and-mpirun">
+		<script type="text/x-mathjax-config">
+  MathJax.Hub.Config({
+    extensions: ["tex2jax.js"],
+    jax: ["input/TeX","output/HTML-CSS"],
+    tex2jax: {inlineMath: [["$","$"],["\\(","\\)"]]},
+    TeX: { extensions: ["AMSmath.js","AMSsymbols.js"]}
+  });
+</script>
+<script type="text/javascript" src="../../mathjax/MathJax.js"></script>
+		<script src="../../jquery-1.7.2.min.js" type="text/javascript"></script>
+		<script src="../../highlight.min.js"></script>
+<script type="text/javascript">
+$(function(){
+	$('.wmd-input').keypress(function(){
+		window.clearTimeout(hljs.Timeout);
+		hljs.Timeout = window.setTimeout(function() {
+			hljs.initHighlighting.called = false;
+			hljs.initHighlighting();
+		}, 500);
+	});
+	window.setTimeout(function() {
+		hljs.initHighlighting.called = false;
+		hljs.initHighlighting();
+	}, 500);
+});
+</script>
+
+
+	</head>
+	<body class="qa-template-question qa-body-js-off">
+		<div class="qa-body-wrapper">
+			
+			<div class="qa-header">
+				<div class="qa-logo">
+					<a href="../../" class="qa-logo-link" title="FEniCS Q&amp;A"><img src="../../qa-theme/fenics_qa.png" border="0" alt="FEniCS Q&amp;A"></a>
+				</div>
+				<div class="qa-header-clear">
+				</div>
+			</div> <!-- END qa-header -->
+			
+			<div class="qa-main-shadow">
+				
+				<div class="qa-main-wrapper">
+					
+					<div class="qa-sidepanel">
+						<div class="qa-sidebar">
+							This is a read only copy of the old FEniCS QA forum. Please visit the <a href="https://www.allanswered.com/community/s/fenics-project/">new QA forum</a> to ask questions
+						</div>
+						
+					</div>
+					
+					<div class="qa-main">
+						<h1>
+							<span class="entry-title">Solving non linear problem with gmres and mpirun</span>
+						</h1>
+						<div class="qa-part-q-view">
+							<div class="qa-q-view  hentry question" id="q10070">
+								<form method="post" action="../../10070/solving-non-linear-problem-with-gmres-and-mpirun">
+									<div class="qa-q-view-stats">
+										<div class="qa-voting qa-voting-net" id="voting_10070">
+											<div class="qa-vote-count qa-vote-count-net">
+												<span class="qa-netvote-count">
+													<span class="qa-netvote-count-data">0<span class="votes-up"><span class="value-title" title="0"></span></span><span class="votes-down"><span class="value-title" title="0"></span></span></span><span class="qa-netvote-count-pad"> votes</span>
+												</span>
+											</div>
+											<div class="qa-vote-clear">
+											</div>
+										</div>
+									</div>
+									<input type="hidden" name="code" value="0-1516467038-a6dc7db95c883f7abc7fe41571894b78c552e9b5">
+								</form>
+								<div class="qa-q-view-main">
+									<form method="post" action="../../10070/solving-non-linear-problem-with-gmres-and-mpirun">
+										<div class="qa-q-view-content">
+											<a name="10070"></a><div class="entry-content"><p>Hello. I am trying to use GMRES to solve a problem  with mpi run but am getting the following error</p>
+
+<pre><code>*** Error:   Unable to successfully call PETSc function 'PCHYPRESetType'.
+*** Reason:  PETSc error code is: 86.
+*** Where:   This error was encountered inside        
+   /home/fenics/build/src/dolfin/dolfin/la/PETScPreconditioner.cpp.
+</code></pre>
+
+<p>Bellow is an example with nonlinear poisson equation, this is using the latest Fenics build in Docker. For the preconditioner I am using hypre_euclid as recommended in another post. If check for the available solvers and preconditioners, both grmes and hypre_euclid are available. Code is bellow, and any help would be appreciated.</p>
+
+<pre><code>"""
+FEniCS tutorial demo program:
+Nonlinear Poisson equation with Dirichlet conditions
+in x-direction and homogeneous Neumann (symmetry) conditions
+in all other directions. The domain is the unit hypercube in
+of a given dimension.
+
+-div(q(u)*nabla_grad(u)) = 0,
+u = 0 at x=0, u=1 at x=1, du/dn=0 at all other boundaries.
+q(u) = (1+u)^m
+
+Solution method: automatic, i.e., by a NonlinearVariationalProblem/Solver
+(Newton method).
+"""
+
+from dolfin import *
+import numpy, sys
+print list_krylov_solver_preconditioners()
+#print ttt
+iterative_solver = True
+
+# Create mesh and define function space
+degree = 2
+divisions = [int(arg) for arg in sys.argv[4:]]
+d = len(divisions)
+mesh = UnitSquareMesh(32, 32)
+
+V = FunctionSpace(mesh, 'Lagrange', degree)
+
+
+# Define boundary conditions
+tol = 1E-14
+def left_boundary(x, on_boundary):
+    return on_boundary and abs(x[0]) &lt; tol
+
+def right_boundary(x, on_boundary):
+    return on_boundary and abs(x[0]-1) &lt; tol
+
+Gamma_0 = DirichletBC(V, Constant(0.0), left_boundary)
+Gamma_1 = DirichletBC(V, Constant(1.0), right_boundary)
+bcs = [Gamma_0, Gamma_1]
+
+# Choice of nonlinear coefficient
+m = 2
+
+def q(u):
+    return (1+u)**m
+
+def Dq(u):
+    return m*(1+u)**(m-1)
+
+# Define variational problem
+v  = TestFunction(V)
+u  = TrialFunction(V)
+F  = inner(q(u)*nabla_grad(u), nabla_grad(v))*dx
+u_ = Function(V)  # most recently computed solution
+F  = action(F, u_)
+
+J = derivative(F, u_, u)
+
+# Compute solution
+problem = NonlinearVariationalProblem(F, u_, bcs, J)
+solver  = NonlinearVariationalSolver(problem)
+prm = solver.parameters
+#info(prm, True)
+prm['newton_solver']['absolute_tolerance'] = 1E-8
+prm['newton_solver']['relative_tolerance'] = 1E-7
+prm['newton_solver']['maximum_iterations'] = 25
+prm['newton_solver']['relaxation_parameter'] = 1.0
+if True:
+    prm['newton_solver']['linear_solver'] = 'gmres'
+    prm['newton_solver']['preconditioner'] = 'hypre_euclid'
+    prm['newton_solver']['krylov_solver']['absolute_tolerance'] = 1E-9
+    prm['newton_solver']['krylov_solver']['relative_tolerance'] = 1E-7
+    prm['newton_solver']['krylov_solver']['maximum_iterations'] = 1000
+    prm['newton_solver']['krylov_solver']['monitor_convergence'] = True
+    prm['newton_solver']['krylov_solver']['nonzero_initial_guess'] = True
+    prm['newton_solver']['krylov_solver']['gmres']['restart'] = 40
+    #prm['newton_solver']['krylov_solver']['preconditioner']['same_nonzero_pattern'] = True
+    prm['newton_solver']['krylov_solver']['preconditioner']['ilu']['fill_level'] = 0
+PROGRESS = 16
+info(prm, True)
+set_log_level(PROGRESS)
+solver.solve()
+
+print """
+Solution of the nonlinear Poisson problem div(q(u)*nabla_grad(u)) = f,
+with f=0, q(u) = (1+u)^m, u=0 at x=0 and u=1 at x=1.
+%s
+""" % mesh
+
+# Find max error
+u_exact = Expression('pow((pow(2, m+1)-1)*x[0] + 1, 1.0/(m+1)) - 1', m=m)
+u_e = interpolate(u_exact, V)
+import numpy
+diff = numpy.abs(u_e.vector().array() - u_.vector().array()).max()
+print 'Max error:', diff
+</code></pre>
+</div>
+										</div>
+										<span class="qa-q-view-avatar-meta">
+											<span class="qa-q-view-meta">
+												<a href="../../10070/solving-non-linear-problem-with-gmres-and-mpirun" class="qa-q-view-what">asked</a>
+												<span class="qa-q-view-when">
+													<span class="qa-q-view-when-data"><span class="published"><span class="value-title" title="2016-05-10T20:38:03+0000"></span>May 10, 2016</span></span>
+												</span>
+												<span class="qa-q-view-who">
+													<span class="qa-q-view-who-pad">by </span>
+													<span class="qa-q-view-who-data"><span class="vcard author"><a href="../../user/soviet911" class="qa-user-link url nickname">soviet911</a></span></span>
+													<span class="qa-q-view-who-title">FEniCS Novice</span>
+													<span class="qa-q-view-who-points">
+														<span class="qa-q-view-who-points-pad">(</span><span class="qa-q-view-who-points-data">180</span><span class="qa-q-view-who-points-pad"> points)</span>
+													</span>
+												</span>
+											</span>
+										</span>
+										<div class="qa-q-view-buttons">
+										</div>
+										
+										<div class="qa-q-view-c-list" id="c10070_list">
+											<div class="qa-c-list-item  hentry comment" id="c10078">
+												<div class="qa-c-item-content">
+													<a name="10078"></a><div class="entry-content"><p>Just to add to the above I am able to solve this now useing hypre_amg preconditioner. But since my goal is to solve stationary navier-stokes equation ( low velocity 0.001-0.05 m/s with the fluid being water) I am unable to get an actual solution, even though the iterative solver seems to converge.</p>
+</div>
+												</div>
+												<div class="qa-c-item-footer">
+													<span class="qa-c-item-avatar-meta">
+														<span class="qa-c-item-meta">
+															<a href="../../10070/solving-non-linear-problem-with-gmres-and-mpirun?show=10078#c10078" class="qa-c-item-what">commented</a>
+															<span class="qa-c-item-when">
+																<span class="qa-c-item-when-data"><span class="published"><span class="value-title" title="2016-05-11T17:45:32+0000"></span>May 11, 2016</span></span>
+															</span>
+															<span class="qa-c-item-who">
+																<span class="qa-c-item-who-pad">by </span>
+																<span class="qa-c-item-who-data"><span class="vcard author"><a href="../../user/soviet911" class="qa-user-link url nickname">soviet911</a></span></span>
+																<span class="qa-c-item-who-title">FEniCS Novice</span>
+																<span class="qa-c-item-who-points">
+																	<span class="qa-c-item-who-points-pad">(</span><span class="qa-c-item-who-points-data">180</span><span class="qa-c-item-who-points-pad"> points)</span>
+																</span>
+															</span>
+														</span>
+													</span>
+													<div class="qa-c-item-buttons">
+													</div>
+												</div>
+												<div class="qa-c-item-clear">
+												</div>
+											</div> <!-- END qa-c-item -->
+										</div> <!-- END qa-c-list -->
+										
+										<input type="hidden" name="code" value="0-1516467038-8f07a029e030d18c7029ee44524bc645f4e4b3c7">
+										<input type="hidden" name="qa_click" value="">
+									</form>
+									<div class="qa-c-form">
+									</div> <!-- END qa-c-form -->
+									
+								</div> <!-- END qa-q-view-main -->
+								<div class="qa-q-view-clear">
+								</div>
+							</div> <!-- END qa-q-view -->
+							
+						</div>
+						<div class="qa-part-a-list">
+							<h2 id="a_list_title" style="display:none;"></h2>
+							<div class="qa-a-list" id="a_list">
+								
+							</div> <!-- END qa-a-list -->
+							
+						</div>
+					</div> <!-- END qa-main -->
+					
+				</div> <!-- END main-wrapper -->
+			</div> <!-- END main-shadow -->
+		</div> <!-- END body-wrapper -->
+		<!-- END footer-bottom-group -->
+		
+		<div style="position:absolute; left:-9999px; top:-9999px;">
+			<span id="qa-waiting-template" class="qa-waiting">...</span>
+		</div>
+	
+	
+
+</body><!-- Powered by Question2Answer - http://www.question2answer.org/ --></html>

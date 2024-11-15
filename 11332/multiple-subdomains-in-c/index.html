@@ -1,0 +1,699 @@
+<html><!-- Powered by Question2Answer - http://www.question2answer.org/ --><head>
+		<meta http-equiv="content-type" content="text/html; charset=utf-8">
+		<title>Multiple Subdomains in C++ - FEniCS Q&amp;A</title>
+		<meta name="description" content="I'm trying to apply the [Different material tutorial][1] to C++. As a simple test, I'm  ...  solution in VTK format File file(&quot;poisson.pvd&quot;); file">
+		<meta name="keywords" content="fenics,different-materials,subdomains">
+		<link rel="stylesheet" type="text/css" href="../../qa-theme/Snow/qa-styles.css">
+		<link rel="canonical" href="http://fenicsproject.org/qa/11332/multiple-subdomains-in-c">
+		<script type="text/x-mathjax-config">
+  MathJax.Hub.Config({
+    extensions: ["tex2jax.js"],
+    jax: ["input/TeX","output/HTML-CSS"],
+    tex2jax: {inlineMath: [["$","$"],["\\(","\\)"]]},
+    TeX: { extensions: ["AMSmath.js","AMSsymbols.js"]}
+  });
+</script>
+<script type="text/javascript" src="../../mathjax/MathJax.js"></script>
+		<script src="../../jquery-1.7.2.min.js" type="text/javascript"></script>
+		<script src="../../highlight.min.js"></script>
+<script type="text/javascript">
+$(function(){
+	$('.wmd-input').keypress(function(){
+		window.clearTimeout(hljs.Timeout);
+		hljs.Timeout = window.setTimeout(function() {
+			hljs.initHighlighting.called = false;
+			hljs.initHighlighting();
+		}, 500);
+	});
+	window.setTimeout(function() {
+		hljs.initHighlighting.called = false;
+		hljs.initHighlighting();
+	}, 500);
+});
+</script>
+
+
+	</head>
+	<body class="qa-template-question qa-body-js-off">
+		<div class="qa-body-wrapper">
+			
+			<div class="qa-header">
+				<div class="qa-logo">
+					<a href="../../" class="qa-logo-link" title="FEniCS Q&amp;A"><img src="../../qa-theme/fenics_qa.png" border="0" alt="FEniCS Q&amp;A"></a>
+				</div>
+				<div class="qa-header-clear">
+				</div>
+			</div> <!-- END qa-header -->
+			
+			<div class="qa-main-shadow">
+				
+				<div class="qa-main-wrapper">
+					
+					<div class="qa-sidepanel">
+						<div class="qa-sidebar">
+							This is a read only copy of the old FEniCS QA forum. Please visit the <a href="https://www.allanswered.com/community/s/fenics-project/">new QA forum</a> to ask questions
+						</div>
+						
+					</div>
+					
+					<div class="qa-main">
+						<h1>
+							<span class="entry-title">Multiple Subdomains in C++</span>
+						</h1>
+						<div class="qa-part-q-view">
+							<div class="qa-q-view  hentry question" id="q11332">
+								<form method="post" action="../../11332/multiple-subdomains-in-c">
+									<div class="qa-q-view-stats">
+										<div class="qa-voting qa-voting-net" id="voting_11332">
+											<div class="qa-vote-count qa-vote-count-net">
+												<span class="qa-netvote-count">
+													<span class="qa-netvote-count-data">+1<span class="votes-up"><span class="value-title" title="1"></span></span><span class="votes-down"><span class="value-title" title="0"></span></span></span><span class="qa-netvote-count-pad"> vote</span>
+												</span>
+											</div>
+											<div class="qa-vote-clear">
+											</div>
+										</div>
+									</div>
+									<input type="hidden" name="code" value="0-1516467106-03a509493450629609fc641174871fa575107231">
+								</form>
+								<div class="qa-q-view-main">
+									<form method="post" action="../../11332/multiple-subdomains-in-c">
+										<div class="qa-q-view-content">
+											<a name="11332"></a><div class="entry-content"><p>I'm trying to apply the <a rel="nofollow" href="http://home.simula.no/~hpl/homepage/fenics-tutorial/release-1.0-nonabla/webm/materials.html">Different material tutorial</a> to C++.<br>
+As a simple test, I'm trying to solve the Poisson equation times a scalar parameter k on a square mesh where the value of k is different depending on whether we are on the left or right half of the mesh.</p>
+
+<p>In particular, I don't see how I could translate in C++ the python code</p>
+
+<pre><code>k_values = [1.5, 50]  # values of k in the two subdomains
+for cell_no in range(len(subdomains.array())):
+subdomain_no = subdomains.array()[cell_no]
+k.vector()[cell_no] = k_values[subdomain_no]
+</code></pre>
+
+<p>Also, I am wondering whether it would be possible to somehow define two dx(0) and dx(1) so that the definition of the bilinear form in the .ufl file would look like </p>
+
+<pre><code>a = k0*inner(grad(u), grad(v))*dx(0) + k1*inner(grad(u), grad(v))*dx(1)
+</code></pre>
+
+<hr>
+
+<p>My incomplete and not working code so far is</p>
+
+<pre><code># The bilinear form a(u, v) and linear form L(v) for
+# Poisson's equation.
+#
+# Compile this form with FFC: ffc -l dolfin Poisson.ufl.
+
+V = FiniteElement("Lagrange", triangle, 1)
+
+u = TrialFunction(V)
+v = TestFunction(V)
+f = Coefficient(V)
+
+k = Coefficient(V) 
+
+a = k*inner(grad(u), grad(v))*dx
+L = f*v*dx
+</code></pre>
+
+<hr>
+
+<pre><code>// This program solves Poisson's equation
+//
+//     - div grad u(x, y) = f(x, y)
+//
+// on the [-1,1]x[-1,1] square with source f given by
+//
+//     f(x, y) = - 4*exp(x^2 + y^2) * (1 + x^2 + y^2)
+//
+// and Dirichlet boundary conditions given by
+//
+//     u(x, y) = exp(1)
+
+#include &lt;dolfin.h&gt;
+#include "Poisson.h"
+#include &lt;mshr.h&gt;
+
+using namespace dolfin;
+
+// Source term (right-hand side)
+class Source : public Expression
+{
+  void eval(Array&lt;double&gt;&amp; values, const Array&lt;double&gt;&amp; x) const
+  {
+    double dx = x[0];
+    double dy = x[1];
+    values[0] = - 4*exp(dx*dx + dy*dy)*(1 + dx*dx + dy*dy);
+  }
+};
+
+// Sub domain for Dirichlet boundary condition
+class DirichletBoundary : public SubDomain
+{
+  bool inside(const Array&lt;double&gt;&amp; x, bool on_boundary) const
+  {
+    return ((x[0] &lt; -1 + DOLFIN_EPS or x[0] &gt; 1 - DOLFIN_EPS or x[1] &lt; -1 + DOLFIN_EPS or x[1] &gt; 1 - DOLFIN_EPS) and on_boundary);
+  }
+};
+
+// Left half of mesh
+class Omega0 : public SubDomain
+{
+  bool inside(const Array&lt;double&gt;&amp; x, bool on_boundary) const
+  {
+    if (x[0] &lt;= 1.0)
+      return true;
+    else
+      return false;
+  }
+};
+
+// Right half of mesh
+class Omega1 : public SubDomain
+{
+  bool inside(const Array&lt;double&gt;&amp; x, bool on_boundary) const
+  {
+    if (x[0] &gt;= 1.0)
+      return true;
+    else
+      return false;
+  }
+};
+
+
+int main()
+{
+  auto circle = mshr::Rectangle(dolfin::Point(-1.0, 1.0, 0.0),dolfin::Point(1.0, -1.0, 0.0));
+  auto mesh = mshr::generate_mesh(circle, 32);
+
+  auto V = std::make_shared&lt;Poisson::FunctionSpace&gt;(mesh);
+
+    Omega0 omega0;
+  auto omega0_function = std::make_shared&lt;MeshFunction&lt;std::size_t&gt;&gt;(mesh, 2);
+    omega0.mark(*omega0_function, 0);
+
+    Omega1 omega1;
+  auto omega1_function = std::make_shared&lt;MeshFunction&lt;std::size_t&gt;&gt;(mesh, 2);
+    omega1.mark(*omega1_function, 1);
+
+  // Define boundary condition
+  auto u0 = std::make_shared&lt;Constant&gt;(exp(1.0));
+  auto boundary = std::make_shared&lt;DirichletBoundary&gt;();
+  DirichletBC bc(V, u0, boundary);
+
+  // Define variational forms
+  Poisson::BilinearForm a(V, V);
+  Poisson::LinearForm L(V);
+
+  auto f = std::make_shared&lt;Source&gt;();
+  L.f = f;
+
+  // Compute solution
+  Function u(V);
+  solve(a == L, u, bc);
+
+  // Save solution in VTK format
+  File file("poisson.pvd");
+  file &lt;&lt; u;
+
+  // Plot solution
+  plot(u);
+  interactive();
+
+  return 0;
+}
+</code></pre>
+
+<p>Thanks for your help!</p>
+</div>
+										</div>
+										<div class="qa-q-view-tags">
+											<ul class="qa-q-view-tag-list">
+												<li class="qa-q-view-tag-item"><a href="../../tag/fenics" rel="tag" class="qa-tag-link">fenics</a></li>
+												<li class="qa-q-view-tag-item"><a href="../../tag/different-materials" rel="tag" class="qa-tag-link">different-materials</a></li>
+												<li class="qa-q-view-tag-item"><a href="../../tag/subdomains" rel="tag" class="qa-tag-link">subdomains</a></li>
+											</ul>
+										</div>
+										<span class="qa-q-view-avatar-meta">
+											<span class="qa-q-view-meta">
+												<a href="../../11332/multiple-subdomains-in-c" class="qa-q-view-what">asked</a>
+												<span class="qa-q-view-when">
+													<span class="qa-q-view-when-data"><span class="published"><span class="value-title" title="2016-10-10T11:10:25+0000"></span>Oct 10, 2016</span></span>
+												</span>
+												<span class="qa-q-view-who">
+													<span class="qa-q-view-who-pad">by </span>
+													<span class="qa-q-view-who-data"><span class="vcard author"><a href="../../user/anfneub" class="qa-user-link url nickname">anfneub</a></span></span>
+													<span class="qa-q-view-who-title">FEniCS Novice</span>
+													<span class="qa-q-view-who-points">
+														<span class="qa-q-view-who-points-pad">(</span><span class="qa-q-view-who-points-data">580</span><span class="qa-q-view-who-points-pad"> points)</span>
+													</span>
+												</span>
+												<br>
+												<span class="qa-q-view-what">edited</span>
+												<span class="qa-q-view-when">
+													<span class="qa-q-view-when-data"><span class="updated"><span class="value-title" title="2016-10-10T11:23:35+0000"></span>Oct 10, 2016</span></span>
+												</span>
+												<span class="qa-q-view-who">
+													<span class="qa-q-view-who-pad">by </span><span class="qa-q-view-who-data"><a href="../../user/anfneub" class="qa-user-link url nickname">anfneub</a></span>
+												</span>
+											</span>
+										</span>
+										<div class="qa-q-view-buttons">
+										</div>
+										
+										<div class="qa-q-view-c-list" style="display:none;" id="c11332_list">
+										</div> <!-- END qa-c-list -->
+										
+										<input type="hidden" name="code" value="0-1516467106-0e9ab91f7274459e79ed920fa95a33c2c3c38b6e">
+										<input type="hidden" name="qa_click" value="">
+									</form>
+									<div class="qa-c-form">
+									</div> <!-- END qa-c-form -->
+									
+								</div> <!-- END qa-q-view-main -->
+								<div class="qa-q-view-clear">
+								</div>
+							</div> <!-- END qa-q-view -->
+							
+						</div>
+						<div class="qa-part-a-list">
+							<h2 id="a_list_title">1 Answer</h2>
+							<div class="qa-a-list" id="a_list">
+								
+								<div class="qa-a-list-item  hentry answer answer-selected qa-a-list-item-selected" id="a11333">
+									<form method="post" action="../../11332/multiple-subdomains-in-c">
+										<div class="qa-voting qa-voting-net" id="voting_11333">
+											<div class="qa-vote-count qa-vote-count-net">
+												<span class="qa-netvote-count">
+													<span class="qa-netvote-count-data">0<span class="votes-up"><span class="value-title" title="0"></span></span><span class="votes-down"><span class="value-title" title="0"></span></span></span><span class="qa-netvote-count-pad"> votes</span>
+												</span>
+											</div>
+											<div class="qa-vote-clear">
+											</div>
+										</div>
+										<input type="hidden" name="code" value="0-1516467106-03a509493450629609fc641174871fa575107231">
+									</form>
+									<div class="qa-a-item-main">
+										<form method="post" action="../../11332/multiple-subdomains-in-c">
+											<div class="qa-a-item-selected">
+												<div class="qa-a-selection">
+													<div class="qa-a-selected">&#160;</div>
+													<div class="qa-a-selected-text">Best answer</div>
+												</div>
+												<div class="qa-a-item-content">
+													<a name="11333"></a><div class="entry-content"><p>It is possible to use</p>
+
+<pre><code>a = k0*inner(grad(u), grad(v))*dx(0) + k1*inner(grad(u), grad(v))*dx(1)
+</code></pre>
+
+<p>You need to set the cell domains using <code>Form::set_cell_domains()</code> see <a rel="nofollow" href="https://fenicsproject.org/documentation/dolfin/dev/cpp/programmers-reference/fem/Form.html">here</a>.</p>
+
+<p>On a separate note, your code</p>
+
+<pre><code>k.vector()[cell_no] = k_values[subdomain_no]
+</code></pre>
+
+<p>is invalid. The local and global cell numbers do not line up with the DoFs of the problem. Consider projecting or interpolating a piecewise function onto the finite element space to formulate <code>k</code> instead.</p>
+</div>
+												</div>
+												<span class="qa-a-item-avatar-meta">
+													<span class="qa-a-item-avatar">
+														<a href="../../user/nate" class="qa-avatar-link"><img src="../../?qa=image&amp;qa_blobid=969593914916706065&amp;qa_size=40" width="40" height="40" class="qa-avatar-image" alt=""></a>
+													</span>
+													<span class="qa-a-item-meta">
+														<a href="../../11332/multiple-subdomains-in-c?show=11333#a11333" class="qa-a-item-what">answered</a>
+														<span class="qa-a-item-when">
+															<span class="qa-a-item-when-data"><span class="published"><span class="value-title" title="2016-10-10T12:10:12+0000"></span>Oct 10, 2016</span></span>
+														</span>
+														<span class="qa-a-item-who">
+															<span class="qa-a-item-who-pad">by </span>
+															<span class="qa-a-item-who-data"><span class="vcard author"><a href="../../user/nate" class="qa-user-link url nickname">nate</a></span></span>
+															<span class="qa-a-item-who-title">FEniCS Expert</span>
+															<span class="qa-a-item-who-points">
+																<span class="qa-a-item-who-points-pad">(</span><span class="qa-a-item-who-points-data">17,050</span><span class="qa-a-item-who-points-pad"> points)</span>
+															</span>
+														</span>
+														<br>
+														<span class="qa-a-item-what">selected</span>
+														<span class="qa-a-item-when">
+															<span class="qa-a-item-when-data"><span class="updated"><span class="value-title" title="2016-10-10T17:16:53+0000"></span>Oct 10, 2016</span></span>
+														</span>
+														<span class="qa-a-item-who">
+															<span class="qa-a-item-who-pad">by </span><span class="qa-a-item-who-data"><a href="../../user/anfneub" class="qa-user-link url nickname">anfneub</a></span>
+														</span>
+													</span>
+												</span>
+											</div>
+											<div class="qa-a-item-buttons">
+												</div>
+											
+											<div class="qa-a-item-c-list" id="c11333_list">
+												<div class="qa-c-list-item  hentry comment" id="c11334">
+													<div class="qa-c-item-content">
+														<a name="11334"></a><div class="entry-content"><p>Hi nate,<br>
+Thank you for your answer.</p>
+
+<p>I'm trying to apply you answer on my code, but so far I have been running into some problems.</p>
+
+<p>Forgive my lack of understanding, just to be sure, what you're suggesting is something of the form</p>
+
+<pre><code>MeshFunction&lt;std::size_t&gt; subdomains(mesh, mesh-&gt;topology().dim()); 
+subdomains = 0;
+
+Omega0 omega0;
+omega0.mark(subdomains, 1);
+
+Omega1 omega1;
+omega1.mark(subdomains, 2);
+
+// Define variational forms
+Poisson::BilinearForm a(V, V);
+ Poisson::LinearForm L(V);
+
+a.set_cell_domains(subdomains);
+</code></pre>
+
+<p>That is, I define my 2 subdomains, mark them into the object <em>subdomains</em><br>
+and the use your suggestion to send the information about the subdomains of the bilinear form a in the .ufl file, where </p>
+
+<pre><code>a = k0*inner(grad(u), grad(v))*dx(1) + k1*inner(grad(u), grad(v))*dx(2)
+</code></pre>
+
+<p>is that right?</p>
+
+<p>I seem to have some problems with pointers and such though, since the error reads</p>
+
+<pre><code>main.cpp:89:31: error: no matching function for call to &#8216;Poisson::Form_a::set_cell_domains(dolfin::MeshFunction&lt;long unsigned int&gt;&amp;)&#8217;
+  a.set_cell_domains(subdomains);
+                               ^
+In file included from /usr/include/dolfin/fem/dolfin_fem.h:20:0,
+                 from /usr/include/dolfin.h:31,
+                 from main.cpp:13:
+/usr/include/dolfin/fem/Form.h:310:10: note: candidate: void dolfin::Form::set_cell_domains(std::shared_ptr&lt;const dolfin::MeshFunction&lt;long unsigned int&gt; &gt;)
+     void set_cell_domains(std::shared_ptr&lt;const MeshFunction&lt;std::size_t&gt;&gt;
+</code></pre>
+</div>
+													</div>
+													<div class="qa-c-item-footer">
+														<span class="qa-c-item-avatar-meta">
+															<span class="qa-c-item-meta">
+																<a href="../../11332/multiple-subdomains-in-c?show=11334#c11334" class="qa-c-item-what">commented</a>
+																<span class="qa-c-item-when">
+																	<span class="qa-c-item-when-data"><span class="published"><span class="value-title" title="2016-10-10T15:08:01+0000"></span>Oct 10, 2016</span></span>
+																</span>
+																<span class="qa-c-item-who">
+																	<span class="qa-c-item-who-pad">by </span>
+																	<span class="qa-c-item-who-data"><span class="vcard author"><a href="../../user/anfneub" class="qa-user-link url nickname">anfneub</a></span></span>
+																	<span class="qa-c-item-who-title">FEniCS Novice</span>
+																	<span class="qa-c-item-who-points">
+																		<span class="qa-c-item-who-points-pad">(</span><span class="qa-c-item-who-points-data">580</span><span class="qa-c-item-who-points-pad"> points)</span>
+																	</span>
+																</span>
+															</span>
+														</span>
+														<div class="qa-c-item-buttons">
+														</div>
+													</div>
+													<div class="qa-c-item-clear">
+													</div>
+												</div> <!-- END qa-c-item -->
+												<div class="qa-c-list-item  hentry comment" id="c11335">
+													<div class="qa-c-item-content">
+														<a name="11335"></a><div class="entry-content"><p>looks like you need to dereference <code>subdomains</code> into a <code>shared_ptr</code>. Or just instantiate <code>subdomains</code> as a <code>shared_ptr</code> from the start via something like </p>
+
+<pre><code>auto subdomains = std::make_shared&lt;MeshFunction&lt;std::size_t&gt;&gt;(mesh, mesh-&gt;topology().dim());
+</code></pre>
+</div>
+													</div>
+													<div class="qa-c-item-footer">
+														<span class="qa-c-item-avatar-meta">
+															<span class="qa-c-item-avatar">
+																<a href="../../user/nate" class="qa-avatar-link"><img src="../../?qa=image&amp;qa_blobid=969593914916706065&amp;qa_size=20" width="20" height="20" class="qa-avatar-image" alt=""></a>
+															</span>
+															<span class="qa-c-item-meta">
+																<a href="../../11332/multiple-subdomains-in-c?show=11335#c11335" class="qa-c-item-what">commented</a>
+																<span class="qa-c-item-when">
+																	<span class="qa-c-item-when-data"><span class="published"><span class="value-title" title="2016-10-10T15:14:53+0000"></span>Oct 10, 2016</span></span>
+																</span>
+																<span class="qa-c-item-who">
+																	<span class="qa-c-item-who-pad">by </span>
+																	<span class="qa-c-item-who-data"><span class="vcard author"><a href="../../user/nate" class="qa-user-link url nickname">nate</a></span></span>
+																	<span class="qa-c-item-who-title">FEniCS Expert</span>
+																	<span class="qa-c-item-who-points">
+																		<span class="qa-c-item-who-points-pad">(</span><span class="qa-c-item-who-points-data">17,050</span><span class="qa-c-item-who-points-pad"> points)</span>
+																	</span>
+																</span>
+															</span>
+														</span>
+														<div class="qa-c-item-buttons">
+														</div>
+													</div>
+													<div class="qa-c-item-clear">
+													</div>
+												</div> <!-- END qa-c-item -->
+												<div class="qa-c-list-item  hentry comment" id="c11336">
+													<div class="qa-c-item-content">
+														<a name="11336"></a><div class="entry-content"><p>Yes, something like that.<br>
+With a couple more modifications the code compiles, but I now have a segmentation fault when launching the application ^^</p>
+
+<p>I'll look into it again tomorrow.</p>
+
+<p>Thanks for your help!</p>
+</div>
+													</div>
+													<div class="qa-c-item-footer">
+														<span class="qa-c-item-avatar-meta">
+															<span class="qa-c-item-meta">
+																<a href="../../11332/multiple-subdomains-in-c?show=11336#c11336" class="qa-c-item-what">commented</a>
+																<span class="qa-c-item-when">
+																	<span class="qa-c-item-when-data"><span class="published"><span class="value-title" title="2016-10-10T15:35:23+0000"></span>Oct 10, 2016</span></span>
+																</span>
+																<span class="qa-c-item-who">
+																	<span class="qa-c-item-who-pad">by </span>
+																	<span class="qa-c-item-who-data"><span class="vcard author"><a href="../../user/anfneub" class="qa-user-link url nickname">anfneub</a></span></span>
+																	<span class="qa-c-item-who-title">FEniCS Novice</span>
+																	<span class="qa-c-item-who-points">
+																		<span class="qa-c-item-who-points-pad">(</span><span class="qa-c-item-who-points-data">580</span><span class="qa-c-item-who-points-pad"> points)</span>
+																	</span>
+																</span>
+															</span>
+														</span>
+														<div class="qa-c-item-buttons">
+														</div>
+													</div>
+													<div class="qa-c-item-clear">
+													</div>
+												</div> <!-- END qa-c-item -->
+												<div class="qa-c-list-item  hentry comment" id="c11339">
+													<div class="qa-c-item-content">
+														<a name="11339"></a><div class="entry-content"><p>Of course I forgot a reference in a pointer... or something like that.</p>
+
+<p>The whole thing works now. For anyone interested the code is</p>
+
+<pre><code># Compile this form with FFC: ffc -l dolfin Poisson.ufl.
+
+V = FiniteElement("Lagrange", triangle, 1)
+
+u = TrialFunction(V)
+v = TestFunction(V)
+f = Coefficient(V)
+
+k1 = Coefficient(V)
+k2 = Coefficient(V)
+
+a = k1*inner(grad(u), grad(v))*dx(1) + k2*inner(grad(u), grad(v))*dx(2)
+L = f*v*dx
+</code></pre>
+
+<hr>
+
+<pre><code>// This program solves Poisson's equation
+//
+//     - div grad u(x, y) = f(x, y)
+//
+// on the [-1,1]x[-1,1] square with source f given by
+//
+//     f(x, y) = - 4*exp(x^2 + y^2) * (1 + x^2 + y^2)
+//
+// and Dirichlet boundary conditions given by
+//
+//     u(x, y) = exp(1)
+
+#include &lt;dolfin.h&gt;
+#include "Poisson.h"
+#include &lt;mshr.h&gt;
+
+using namespace dolfin;
+
+// Source term (right-hand side)
+class Source : public Expression
+{
+  void eval(Array&lt;double&gt;&amp; values, const Array&lt;double&gt;&amp; x) const
+  {
+    double dx = x[0];
+    double dy = x[1];
+    values[0] = - 4*exp(dx*dx + dy*dy)*(1 + dx*dx + dy*dy);
+  }
+};
+
+// Sub domain for Dirichlet boundary condition
+class DirichletBoundary : public SubDomain
+{
+  bool inside(const Array&lt;double&gt;&amp; x, bool on_boundary) const
+  {
+    return ((x[0] &lt; -1 + DOLFIN_EPS or x[0] &gt; 1 - DOLFIN_EPS or x[1] &lt; -1 + DOLFIN_EPS or x[1] &gt; 1 - DOLFIN_EPS) and on_boundary);
+  }
+};
+
+// Left half of mesh
+class Omega0 : public SubDomain
+{
+  bool inside(const Array&lt;double&gt;&amp; x, bool on_boundary) const
+  {
+    if (x[0] &lt;= 0.0)
+      return true;
+    else
+      return false;
+  }
+};
+
+// Right half of mesh
+class Omega1 : public SubDomain
+{
+  bool inside(const Array&lt;double&gt;&amp; x, bool on_boundary) const
+  {
+    if (x[0] &gt;= 0.0)
+      return true;
+    else
+      return false;
+  }
+};
+
+class Test : public Expression
+{
+  void eval(Array&lt;double&gt;&amp; values, const Array&lt;double&gt;&amp; x) const
+  {
+    values[0] = 5; //cos(x[0]);
+  }
+};
+
+class Test2 : public Expression
+{
+  void eval(Array&lt;double&gt;&amp; values, const Array&lt;double&gt;&amp; x) const
+  {
+    values[0] = 10; //sin(x[0]);
+  }
+};
+
+int main()
+{
+  auto rect = std::make_shared&lt;mshr::Rectangle&gt;(dolfin::Point(-1.0, 1.0, 0.0),dolfin::Point(1.0, -1.0, 0.0));
+  auto mesh = mshr::generate_mesh(*rect, 100);
+
+  auto V = std::make_shared&lt;Poisson::FunctionSpace&gt;(mesh);
+
+  auto subdomains = std::make_shared&lt;MeshFunction&lt;std::size_t&gt;&gt;(mesh, mesh-&gt;topology().dim());
+  *subdomains = 0;
+
+  Omega0 omega0;
+  omega0.mark(*subdomains, 1);
+
+  Omega1 omega1;
+  omega1.mark(*subdomains, 2);
+
+  // Define boundary condition
+  auto u0 = std::make_shared&lt;Constant&gt;(exp(1.0));
+  auto boundary = std::make_shared&lt;DirichletBoundary&gt;();
+  DirichletBC bc(V, u0, boundary);
+
+  // Define variational forms
+  Poisson::BilinearForm a(V, V);
+  Poisson::LinearForm L(V);
+
+  a.set_cell_domains(subdomains);
+
+  auto f = std::make_shared&lt;Source&gt;();
+  auto k11 = std::make_shared&lt;Test&gt;();
+  auto k22 = std::make_shared&lt;Test2&gt;();
+  a.k1 = k11;
+  a.k2 = k22;
+  L.f = f;
+
+  // Compute solution
+  Function u(V);
+  solve(a == L, u, bc);
+
+  // Save solution in VTK format
+  File file("poisson.pvd");
+  file &lt;&lt; u;
+
+  // Plot solution
+  plot(u);
+  interactive();
+
+  return 0;
+}
+</code></pre>
+</div>
+													</div>
+													<div class="qa-c-item-footer">
+														<span class="qa-c-item-avatar-meta">
+															<span class="qa-c-item-meta">
+																<a href="../../11332/multiple-subdomains-in-c?show=11339#c11339" class="qa-c-item-what">commented</a>
+																<span class="qa-c-item-when">
+																	<span class="qa-c-item-when-data"><span class="published"><span class="value-title" title="2016-10-10T17:11:34+0000"></span>Oct 10, 2016</span></span>
+																</span>
+																<span class="qa-c-item-who">
+																	<span class="qa-c-item-who-pad">by </span>
+																	<span class="qa-c-item-who-data"><span class="vcard author"><a href="../../user/anfneub" class="qa-user-link url nickname">anfneub</a></span></span>
+																	<span class="qa-c-item-who-title">FEniCS Novice</span>
+																	<span class="qa-c-item-who-points">
+																		<span class="qa-c-item-who-points-pad">(</span><span class="qa-c-item-who-points-data">580</span><span class="qa-c-item-who-points-pad"> points)</span>
+																	</span>
+																</span>
+																<br>
+																<span class="qa-c-item-what">edited</span>
+																<span class="qa-c-item-when">
+																	<span class="qa-c-item-when-data"><span class="updated"><span class="value-title" title="2016-10-11T09:17:26+0000"></span>Oct 11, 2016</span></span>
+																</span>
+																<span class="qa-c-item-who">
+																	<span class="qa-c-item-who-pad">by </span><span class="qa-c-item-who-data"><a href="../../user/anfneub" class="qa-user-link url nickname">anfneub</a></span>
+																</span>
+															</span>
+														</span>
+														<div class="qa-c-item-buttons">
+														</div>
+													</div>
+													<div class="qa-c-item-clear">
+													</div>
+												</div> <!-- END qa-c-item -->
+											</div> <!-- END qa-c-list -->
+											
+											<input type="hidden" name="code" value="0-1516467106-5907c822cc1b4e4e00efddecc1b09d2cd88e7d4c">
+											<input type="hidden" name="qa_click" value="">
+										</form>
+										<div class="qa-c-form">
+										</div> <!-- END qa-c-form -->
+										
+									</div> <!-- END qa-a-item-main -->
+									<div class="qa-a-item-clear">
+									</div>
+								</div> <!-- END qa-a-list-item -->
+								
+							</div> <!-- END qa-a-list -->
+							
+						</div>
+					</div> <!-- END qa-main -->
+					
+				</div> <!-- END main-wrapper -->
+			</div> <!-- END main-shadow -->
+		</div> <!-- END body-wrapper -->
+		<!-- END footer-bottom-group -->
+		
+		<div style="position:absolute; left:-9999px; top:-9999px;">
+			<span id="qa-waiting-template" class="qa-waiting">...</span>
+		</div>
+	
+	
+
+</body><!-- Powered by Question2Answer - http://www.question2answer.org/ --></html>

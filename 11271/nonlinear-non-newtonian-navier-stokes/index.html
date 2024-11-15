@@ -1,0 +1,548 @@
+<html><!-- Powered by Question2Answer - http://www.question2answer.org/ --><head>
+		<meta http-equiv="content-type" content="text/html; charset=utf-8">
+		<title>Nonlinear Non-Newtonian Navier Stokes - FEniCS Q&amp;A</title>
+		<meta name="description" content="Hello! I want to solve the Navier Stokes equations with the Nonlinear solver! I have written the code below  ...  Solve problem solve(F == 0, w, bcs)">
+		<meta name="keywords" content="nonlinear,navier,stokes,non-newtonian,power-law">
+		<link rel="stylesheet" type="text/css" href="../../qa-theme/Snow/qa-styles.css">
+		<link rel="canonical" href="http://fenicsproject.org/qa/11271/nonlinear-non-newtonian-navier-stokes">
+		<script type="text/x-mathjax-config">
+  MathJax.Hub.Config({
+    extensions: ["tex2jax.js"],
+    jax: ["input/TeX","output/HTML-CSS"],
+    tex2jax: {inlineMath: [["$","$"],["\\(","\\)"]]},
+    TeX: { extensions: ["AMSmath.js","AMSsymbols.js"]}
+  });
+</script>
+<script type="text/javascript" src="../../mathjax/MathJax.js"></script>
+		<script src="../../jquery-1.7.2.min.js" type="text/javascript"></script>
+		<script src="../../highlight.min.js"></script>
+<script type="text/javascript">
+$(function(){
+	$('.wmd-input').keypress(function(){
+		window.clearTimeout(hljs.Timeout);
+		hljs.Timeout = window.setTimeout(function() {
+			hljs.initHighlighting.called = false;
+			hljs.initHighlighting();
+		}, 500);
+	});
+	window.setTimeout(function() {
+		hljs.initHighlighting.called = false;
+		hljs.initHighlighting();
+	}, 500);
+});
+</script>
+
+
+	</head>
+	<body class="qa-template-question qa-body-js-off">
+		<div class="qa-body-wrapper">
+			
+			<div class="qa-header">
+				<div class="qa-logo">
+					<a href="../../" class="qa-logo-link" title="FEniCS Q&amp;A"><img src="../../qa-theme/fenics_qa.png" border="0" alt="FEniCS Q&amp;A"></a>
+				</div>
+				<div class="qa-header-clear">
+				</div>
+			</div> <!-- END qa-header -->
+			
+			<div class="qa-main-shadow">
+				
+				<div class="qa-main-wrapper">
+					
+					<div class="qa-sidepanel">
+						<div class="qa-sidebar">
+							This is a read only copy of the old FEniCS QA forum. Please visit the <a href="https://www.allanswered.com/community/s/fenics-project/">new QA forum</a> to ask questions
+						</div>
+						
+					</div>
+					
+					<div class="qa-main">
+						<h1>
+							<span class="entry-title">Nonlinear Non-Newtonian Navier Stokes</span>
+						</h1>
+						<div class="qa-part-q-view">
+							<div class="qa-q-view  hentry question" id="q11271">
+								<form method="post" action="../../11271/nonlinear-non-newtonian-navier-stokes">
+									<div class="qa-q-view-stats">
+										<div class="qa-voting qa-voting-net" id="voting_11271">
+											<div class="qa-vote-count qa-vote-count-net">
+												<span class="qa-netvote-count">
+													<span class="qa-netvote-count-data">0<span class="votes-up"><span class="value-title" title="0"></span></span><span class="votes-down"><span class="value-title" title="0"></span></span></span><span class="qa-netvote-count-pad"> votes</span>
+												</span>
+											</div>
+											<div class="qa-vote-clear">
+											</div>
+										</div>
+									</div>
+									<input type="hidden" name="code" value="0-1516467104-876d1dada93f736f555d5cce4049a4bf8beab728">
+								</form>
+								<div class="qa-q-view-main">
+									<form method="post" action="../../11271/nonlinear-non-newtonian-navier-stokes">
+										<div class="qa-q-view-content">
+											<a name="11271"></a><div class="entry-content"><p>Hello!</p>
+
+<p>I want to solve the Navier Stokes equations with the Nonlinear solver!<br>
+I have written the code below for a pipe (0.25*0.05) ,but i can't get a solution...<br>
+Can you help me?</p>
+
+<p>Thanks in advance!</p>
+
+<pre><code>from dolfin import *
+# Define mesh and geometry
+mesh = RectangleMesh(Point(0, 0), Point(0.25, 0.05),40,10)
+n = FacetNormal(mesh)
+
+# Define Taylor--Hood function space W
+V = VectorFunctionSpace(mesh, "CG" , 2)
+Q = FunctionSpace(mesh , "CG", 1)
+W = MixedFunctionSpace([V, Q])
+
+# Define Function and TestFunction(s)
+w = Function(W); (u, p) = split(w)
+(v, q) = TestFunctions(W)
+u_prev=Function(V)
+u_prev=interpolate(Constant((0.0,0.0)),V)
+
+#----------------------------- Define boundaries------------------------------
+inflow  = 'near(x[0], 0)'
+outflow = 'near(x[0], 0.25)'
+walls   = "on_boundary &amp;&amp; !(near(x[0], 0.0) || near(x[0], 0.05))"
+
+# Define inflow profile
+inflow_profile = Expression(('4.0*0.01*x[1]*(0.05 - x[1]) / pow(0.05, 2)', '0'),degree=2)
+
+# Define boundary conditions
+bcu_noslip = DirichletBC(V, Constant((0, 0)), walls)
+bcu_inflow = DirichletBC(V, inflow_profile, inflow)
+bcp_outflow = DirichletBC(Q, Constant(0), outflow)
+bcu = [bcu_noslip, bcu_inflow]
+bcp = [bcp_outflow]
+bcs=[bcu_noslip,bcu_inflow,bcp_outflow]
+
+#--------------------------------Setup the problem ---------------------------
+f=Constant((0.0,0.0))
+dt=1E-3
+k=Constant(dt)
+
+# Define variational form
+def epsilon(input):
+    return sym(grad(input))
+
+def gamma(w):
+    return pow(2*inner(epsilon(w),epsilon(w)),0.5)
+
+def viscocity(w):
+    C1=Constant('0.00148')
+    C2=Constant('5.12')
+    C3=Constant('0.499')
+    H=Constant('0.4')
+    kappa=C1*exp(C2*H)
+    n_exp=1-C3*H
+
+    return kappa*pow(gamma(w),n_exp-1)
+
+F = 1./k*inner(u-u_prev,v)*dx+(2*viscocity(u)*inner(epsilon(u), epsilon(v)) - div(u)*q - div(v)*p-inner(f,v))*dx#+(p0-2*nu*epsilon(u0))*dot(v,n)*ds
+
+# Solve problem
+solve(F == 0, w, bcs)
+</code></pre>
+</div>
+										</div>
+										<div class="qa-q-view-tags">
+											<ul class="qa-q-view-tag-list">
+												<li class="qa-q-view-tag-item"><a href="../../tag/nonlinear" rel="tag" class="qa-tag-link">nonlinear</a></li>
+												<li class="qa-q-view-tag-item"><a href="../../tag/navier" rel="tag" class="qa-tag-link">navier</a></li>
+												<li class="qa-q-view-tag-item"><a href="../../tag/stokes" rel="tag" class="qa-tag-link">stokes</a></li>
+												<li class="qa-q-view-tag-item"><a href="../../tag/non-newtonian" rel="tag" class="qa-tag-link">non-newtonian</a></li>
+												<li class="qa-q-view-tag-item"><a href="../../tag/power-law" rel="tag" class="qa-tag-link">power-law</a></li>
+											</ul>
+										</div>
+										<span class="qa-q-view-avatar-meta">
+											<span class="qa-q-view-meta">
+												<a href="../../11271/nonlinear-non-newtonian-navier-stokes" class="qa-q-view-what">asked</a>
+												<span class="qa-q-view-when">
+													<span class="qa-q-view-when-data"><span class="published"><span class="value-title" title="2016-10-04T09:26:50+0000"></span>Oct 4, 2016</span></span>
+												</span>
+												<span class="qa-q-view-who">
+													<span class="qa-q-view-who-pad">by </span>
+													<span class="qa-q-view-who-data"><span class="vcard author"><a href="../../user/AgisM" class="qa-user-link url nickname">AgisM</a></span></span>
+													<span class="qa-q-view-who-title">FEniCS Novice</span>
+													<span class="qa-q-view-who-points">
+														<span class="qa-q-view-who-points-pad">(</span><span class="qa-q-view-who-points-data">260</span><span class="qa-q-view-who-points-pad"> points)</span>
+													</span>
+												</span>
+												<br>
+												<span class="qa-q-view-what">edited</span>
+												<span class="qa-q-view-when">
+													<span class="qa-q-view-when-data"><span class="updated"><span class="value-title" title="2016-10-04T19:49:44+0000"></span>Oct 4, 2016</span></span>
+												</span>
+												<span class="qa-q-view-who">
+													<span class="qa-q-view-who-pad">by </span><span class="qa-q-view-who-data"><a href="../../user/AgisM" class="qa-user-link url nickname">AgisM</a></span>
+												</span>
+											</span>
+										</span>
+										<div class="qa-q-view-buttons">
+										</div>
+										
+										<div class="qa-q-view-c-list" style="display:none;" id="c11271_list">
+										</div> <!-- END qa-c-list -->
+										
+										<input type="hidden" name="code" value="0-1516467104-ebb5518660124e006da954f40a37d01896587349">
+										<input type="hidden" name="qa_click" value="">
+									</form>
+									<div class="qa-c-form">
+									</div> <!-- END qa-c-form -->
+									
+								</div> <!-- END qa-q-view-main -->
+								<div class="qa-q-view-clear">
+								</div>
+							</div> <!-- END qa-q-view -->
+							
+						</div>
+						<div class="qa-part-a-list">
+							<h2 id="a_list_title">3 Answers</h2>
+							<div class="qa-a-list" id="a_list">
+								
+								<div class="qa-a-list-item  hentry answer answer-selected qa-a-list-item-selected" id="a11380">
+									<form method="post" action="../../11271/nonlinear-non-newtonian-navier-stokes">
+										<div class="qa-voting qa-voting-net" id="voting_11380">
+											<div class="qa-vote-count qa-vote-count-net">
+												<span class="qa-netvote-count">
+													<span class="qa-netvote-count-data">+1<span class="votes-up"><span class="value-title" title="1"></span></span><span class="votes-down"><span class="value-title" title="0"></span></span></span><span class="qa-netvote-count-pad"> vote</span>
+												</span>
+											</div>
+											<div class="qa-vote-clear">
+											</div>
+										</div>
+										<input type="hidden" name="code" value="0-1516467104-876d1dada93f736f555d5cce4049a4bf8beab728">
+									</form>
+									<div class="qa-a-item-main">
+										<form method="post" action="../../11271/nonlinear-non-newtonian-navier-stokes">
+											<div class="qa-a-item-selected">
+												<div class="qa-a-selection">
+													<div class="qa-a-selected">&#160;</div>
+													<div class="qa-a-selected-text">Best answer</div>
+												</div>
+												<div class="qa-a-item-content">
+													<a name="11380"></a><div class="entry-content"><p>Your problem lies in the choice of the initial guess for the nonlinear problem. Please see below for an updated code (look for comments starting with XXX). I am not sure whether the obtained solution is physical, but this should give you at least a starting point to understand the source of your problem.</p>
+
+<pre><code>from dolfin import *
+# Define mesh and geometry
+mesh = RectangleMesh(Point(0, 0), Point(0.25, 0.05),40,10)
+n = FacetNormal(mesh)
+
+# Define Taylor--Hood function space W
+# XXX updated to 2016.1.0
+V_element = VectorElement("Lagrange", mesh.ufl_cell(), 2)
+Q_element = FiniteElement("Lagrange", mesh.ufl_cell(), 1)
+W_element = MixedElement(V_element, Q_element)
+W = FunctionSpace(mesh, W_element)
+
+# Define Function and TestFunction(s)
+w = Function(W); (u, p) = split(w)
+(v, q) = TestFunctions(W)
+# XXX define a mixed prev function
+w_prev=Function(W); (u_prev, p_prev) = split(w_prev)
+# XXX there is no need to project the 0. constant, Function is already zero by default
+
+#----------------------------- Define boundaries------------------------------
+inflow  = 'near(x[0], 0)'
+outflow = 'near(x[0], 0.25)'
+walls   = "on_boundary &amp;&amp; !(near(x[0], 0.0) || near(x[0], 0.05))"
+
+# Define inflow profile
+inflow_profile = Expression(('4.0*0.01*x[1]*(0.05 - x[1]) / pow(0.05, 2)', '0'),degree=2)
+
+# Define boundary conditions
+# XXX using sub(0) and sub(1) in BCs
+bcu_noslip = DirichletBC(W.sub(0), Constant((0, 0)), walls)
+bcu_inflow = DirichletBC(W.sub(0), inflow_profile, inflow)
+bcp_outflow = DirichletBC(W.sub(1), Constant(0), outflow)
+bcu = [bcu_noslip, bcu_inflow]
+bcp = [bcp_outflow]
+bcs=[bcu_noslip,bcu_inflow,bcp_outflow]
+
+#--------------------------------Setup the problem ---------------------------
+f=Constant((0.0,0.0))
+dt=1E-3
+k=Constant(dt)
+
+# Define variational form
+def epsilon(input):
+    return sym(grad(input))
+
+def gamma(w):
+    return pow(2*inner(epsilon(w),epsilon(w)),0.5)
+
+def viscosity(w):
+    C1=Constant('0.00148')
+    C2=Constant('5.12')
+    C3=Constant('0.499')
+    H=Constant('0.4')
+    kappa=C1*exp(C2*H)
+    n_exp=1-C3*H
+
+    return kappa*pow(gamma(w), n_exp-1)
+
+# XXX you cannot start the nonlinear iteration from w=0, because gamma(0) = 0 and n_exp-1 &lt; 0
+# XXX solve e.g. a Stokes problem first
+(u_stokes, p_stokes) = TrialFunctions(W)
+F_stokes = (2*inner(epsilon(u_stokes), epsilon(v)) - div(u_stokes)*q - div(v)*p_stokes-inner(f,v))*dx
+solve(lhs(F_stokes) == rhs(F_stokes), w, bcs)
+
+# XXX now solve the nonlinear problem
+F = 1./k*inner(u-u_prev,v)*dx+(2*viscosity(u)*inner(epsilon(u), epsilon(v)) - div(u)*q - div(v)*p-inner(f,v))*dx
+solve(F == 0, w, bcs)
+
+# XXX assign current solution for the next time iteration
+assign(w_prev, w)
+</code></pre>
+</div>
+												</div>
+												<span class="qa-a-item-avatar-meta">
+													<span class="qa-a-item-meta">
+														<a href="../../11271/nonlinear-non-newtonian-navier-stokes?show=11380#a11380" class="qa-a-item-what">answered</a>
+														<span class="qa-a-item-when">
+															<span class="qa-a-item-when-data"><span class="published"><span class="value-title" title="2016-10-15T08:15:11+0000"></span>Oct 15, 2016</span></span>
+														</span>
+														<span class="qa-a-item-who">
+															<span class="qa-a-item-who-pad">by </span>
+															<span class="qa-a-item-who-data"><span class="vcard author"><a href="../../user/francesco.ballarin" class="qa-user-link url nickname">francesco.ballarin</a></span></span>
+															<span class="qa-a-item-who-title">FEniCS User</span>
+															<span class="qa-a-item-who-points">
+																<span class="qa-a-item-who-points-pad">(</span><span class="qa-a-item-who-points-data">4,070</span><span class="qa-a-item-who-points-pad"> points)</span>
+															</span>
+														</span>
+														<br>
+														<span class="qa-a-item-what">selected</span>
+														<span class="qa-a-item-when">
+															<span class="qa-a-item-when-data"><span class="updated"><span class="value-title" title="2016-10-16T14:16:32+0000"></span>Oct 16, 2016</span></span>
+														</span>
+														<span class="qa-a-item-who">
+															<span class="qa-a-item-who-pad">by </span><span class="qa-a-item-who-data"><a href="../../user/AgisM" class="qa-user-link url nickname">AgisM</a></span>
+														</span>
+													</span>
+												</span>
+											</div>
+											<div class="qa-a-item-buttons">
+												</div>
+											
+											<div class="qa-a-item-c-list" id="c11380_list">
+												<div class="qa-c-list-item  hentry comment" id="c11390">
+													<div class="qa-c-item-content">
+														<a name="11390"></a><div class="entry-content"><p>Great!! <br>
+Thank you very much!<br>
+I have found another way and i will compare the 2 solutions!</p>
+
+<p>Thank you again . You were very helpful!</p>
+</div>
+													</div>
+													<div class="qa-c-item-footer">
+														<span class="qa-c-item-avatar-meta">
+															<span class="qa-c-item-meta">
+																<a href="../../11271/nonlinear-non-newtonian-navier-stokes?show=11390#c11390" class="qa-c-item-what">commented</a>
+																<span class="qa-c-item-when">
+																	<span class="qa-c-item-when-data"><span class="published"><span class="value-title" title="2016-10-16T14:17:11+0000"></span>Oct 16, 2016</span></span>
+																</span>
+																<span class="qa-c-item-who">
+																	<span class="qa-c-item-who-pad">by </span>
+																	<span class="qa-c-item-who-data"><span class="vcard author"><a href="../../user/AgisM" class="qa-user-link url nickname">AgisM</a></span></span>
+																	<span class="qa-c-item-who-title">FEniCS Novice</span>
+																	<span class="qa-c-item-who-points">
+																		<span class="qa-c-item-who-points-pad">(</span><span class="qa-c-item-who-points-data">260</span><span class="qa-c-item-who-points-pad"> points)</span>
+																	</span>
+																</span>
+															</span>
+														</span>
+														<div class="qa-c-item-buttons">
+														</div>
+													</div>
+													<div class="qa-c-item-clear">
+													</div>
+												</div> <!-- END qa-c-item -->
+											</div> <!-- END qa-c-list -->
+											
+											<input type="hidden" name="code" value="0-1516467104-5081e8647cf1ce5ee7c206428d953d4034582954">
+											<input type="hidden" name="qa_click" value="">
+										</form>
+										<div class="qa-c-form">
+										</div> <!-- END qa-c-form -->
+										
+									</div> <!-- END qa-a-item-main -->
+									<div class="qa-a-item-clear">
+									</div>
+								</div> <!-- END qa-a-list-item -->
+								
+								<div class="qa-a-list-item  hentry answer" id="a11281">
+									<form method="post" action="../../11271/nonlinear-non-newtonian-navier-stokes">
+										<div class="qa-voting qa-voting-net" id="voting_11281">
+											<div class="qa-vote-count qa-vote-count-net">
+												<span class="qa-netvote-count">
+													<span class="qa-netvote-count-data">0<span class="votes-up"><span class="value-title" title="0"></span></span><span class="votes-down"><span class="value-title" title="0"></span></span></span><span class="qa-netvote-count-pad"> votes</span>
+												</span>
+											</div>
+											<div class="qa-vote-clear">
+											</div>
+										</div>
+										<input type="hidden" name="code" value="0-1516467104-876d1dada93f736f555d5cce4049a4bf8beab728">
+									</form>
+									<div class="qa-a-item-main">
+										<form method="post" action="../../11271/nonlinear-non-newtonian-navier-stokes">
+											<div class="qa-a-selection">
+											</div>
+											<div class="qa-a-item-content">
+												<a name="11281"></a><div class="entry-content"><p>The code is not complete and you do not include the error messages. Hence, it is difficult to determine the cause of your problem. </p>
+</div>
+											</div>
+											<span class="qa-a-item-avatar-meta">
+												<span class="qa-a-item-meta">
+													<a href="../../11271/nonlinear-non-newtonian-navier-stokes?show=11281#a11281" class="qa-a-item-what">answered</a>
+													<span class="qa-a-item-when">
+														<span class="qa-a-item-when-data"><span class="published"><span class="value-title" title="2016-10-04T17:27:35+0000"></span>Oct 4, 2016</span></span>
+													</span>
+													<span class="qa-a-item-who">
+														<span class="qa-a-item-who-pad">by </span>
+														<span class="qa-a-item-who-data"><span class="vcard author"><a href="../../user/Kent-Andre+Mardal" class="qa-user-link url nickname">Kent-Andre Mardal</a></span></span>
+														<span class="qa-a-item-who-title">FEniCS Expert</span>
+														<span class="qa-a-item-who-points">
+															<span class="qa-a-item-who-points-pad">(</span><span class="qa-a-item-who-points-data">14,380</span><span class="qa-a-item-who-points-pad"> points)</span>
+														</span>
+													</span>
+												</span>
+											</span>
+											<div class="qa-a-item-buttons">
+												</div>
+											
+											<div class="qa-a-item-c-list" id="c11281_list">
+												<div class="qa-c-list-item  hentry comment" id="c11286">
+													<div class="qa-c-item-content">
+														<a name="11286"></a><div class="entry-content"><p>Hello! Thank you for your answer ! I have edited the initial code.<br>
+I have made some changes in the code and simplified my problem !<br>
+Basically i took the Stokes problem and adapted it in order to get the non-newtonian Navier stokes.<br>
+The problem is that i get a nan answer in the residuals.<br>
+(In the boundaries i have the integral of p<em>n</em>v*ds which i thought was equal to zero)</p>
+</div>
+													</div>
+													<div class="qa-c-item-footer">
+														<span class="qa-c-item-avatar-meta">
+															<span class="qa-c-item-meta">
+																<a href="../../11271/nonlinear-non-newtonian-navier-stokes?show=11286#c11286" class="qa-c-item-what">commented</a>
+																<span class="qa-c-item-when">
+																	<span class="qa-c-item-when-data"><span class="published"><span class="value-title" title="2016-10-04T19:37:11+0000"></span>Oct 4, 2016</span></span>
+																</span>
+																<span class="qa-c-item-who">
+																	<span class="qa-c-item-who-pad">by </span>
+																	<span class="qa-c-item-who-data"><span class="vcard author"><a href="../../user/AgisM" class="qa-user-link url nickname">AgisM</a></span></span>
+																	<span class="qa-c-item-who-title">FEniCS Novice</span>
+																	<span class="qa-c-item-who-points">
+																		<span class="qa-c-item-who-points-pad">(</span><span class="qa-c-item-who-points-data">260</span><span class="qa-c-item-who-points-pad"> points)</span>
+																	</span>
+																</span>
+																<br>
+																<span class="qa-c-item-what">edited</span>
+																<span class="qa-c-item-when">
+																	<span class="qa-c-item-when-data"><span class="updated"><span class="value-title" title="2016-10-04T19:49:15+0000"></span>Oct 4, 2016</span></span>
+																</span>
+																<span class="qa-c-item-who">
+																	<span class="qa-c-item-who-pad">by </span><span class="qa-c-item-who-data"><a href="../../user/AgisM" class="qa-user-link url nickname">AgisM</a></span>
+																</span>
+															</span>
+														</span>
+														<div class="qa-c-item-buttons">
+														</div>
+													</div>
+													<div class="qa-c-item-clear">
+													</div>
+												</div> <!-- END qa-c-item -->
+											</div> <!-- END qa-c-list -->
+											
+											<input type="hidden" name="code" value="0-1516467104-1238805a787fa5c98d3cbfc40db68c26c5b22cd2">
+											<input type="hidden" name="qa_click" value="">
+										</form>
+										<div class="qa-c-form">
+										</div> <!-- END qa-c-form -->
+										
+									</div> <!-- END qa-a-item-main -->
+									<div class="qa-a-item-clear">
+									</div>
+								</div> <!-- END qa-a-list-item -->
+								
+								<div class="qa-a-list-item  hentry answer" id="a11338">
+									<form method="post" action="../../11271/nonlinear-non-newtonian-navier-stokes">
+										<div class="qa-voting qa-voting-net" id="voting_11338">
+											<div class="qa-vote-count qa-vote-count-net">
+												<span class="qa-netvote-count">
+													<span class="qa-netvote-count-data">0<span class="votes-up"><span class="value-title" title="0"></span></span><span class="votes-down"><span class="value-title" title="0"></span></span></span><span class="qa-netvote-count-pad"> votes</span>
+												</span>
+											</div>
+											<div class="qa-vote-clear">
+											</div>
+										</div>
+										<input type="hidden" name="code" value="0-1516467104-876d1dada93f736f555d5cce4049a4bf8beab728">
+									</form>
+									<div class="qa-a-item-main">
+										<form method="post" action="../../11271/nonlinear-non-newtonian-navier-stokes">
+											<div class="qa-a-selection">
+											</div>
+											<div class="qa-a-item-content">
+												<a name="11338"></a><div class="entry-content"><p>Is there anyone who can help me with the problem?</p>
+
+<p>I think the problem is the PDE form .<br>
+I think i have missed the stress vector (-p+T)*n on the boundary but i don't know what is its value.<br>
+And the second mistake is the form of the viscocity .</p>
+
+<p>I just need some help with the PDE and i think i can solve all the other problems.</p>
+
+<p>Thanks in advance!</p>
+</div>
+											</div>
+											<span class="qa-a-item-avatar-meta">
+												<span class="qa-a-item-meta">
+													<a href="../../11271/nonlinear-non-newtonian-navier-stokes?show=11338#a11338" class="qa-a-item-what">answered</a>
+													<span class="qa-a-item-when">
+														<span class="qa-a-item-when-data"><span class="published"><span class="value-title" title="2016-10-10T16:34:16+0000"></span>Oct 10, 2016</span></span>
+													</span>
+													<span class="qa-a-item-who">
+														<span class="qa-a-item-who-pad">by </span>
+														<span class="qa-a-item-who-data"><span class="vcard author"><a href="../../user/AgisM" class="qa-user-link url nickname">AgisM</a></span></span>
+														<span class="qa-a-item-who-title">FEniCS Novice</span>
+														<span class="qa-a-item-who-points">
+															<span class="qa-a-item-who-points-pad">(</span><span class="qa-a-item-who-points-data">260</span><span class="qa-a-item-who-points-pad"> points)</span>
+														</span>
+													</span>
+												</span>
+											</span>
+											<div class="qa-a-item-buttons">
+												</div>
+											
+											<div class="qa-a-item-c-list" style="display:none;" id="c11338_list">
+											</div> <!-- END qa-c-list -->
+											
+											<input type="hidden" name="code" value="0-1516467104-ef2ed8b166d78120d58cfb45e8075179dee86590">
+											<input type="hidden" name="qa_click" value="">
+										</form>
+										<div class="qa-c-form">
+										</div> <!-- END qa-c-form -->
+										
+									</div> <!-- END qa-a-item-main -->
+									<div class="qa-a-item-clear">
+									</div>
+								</div> <!-- END qa-a-list-item -->
+								
+							</div> <!-- END qa-a-list -->
+							
+						</div>
+					</div> <!-- END qa-main -->
+					
+				</div> <!-- END main-wrapper -->
+			</div> <!-- END main-shadow -->
+		</div> <!-- END body-wrapper -->
+		<!-- END footer-bottom-group -->
+		
+		<div style="position:absolute; left:-9999px; top:-9999px;">
+			<span id="qa-waiting-template" class="qa-waiting">...</span>
+		</div>
+	
+	
+
+</body><!-- Powered by Question2Answer - http://www.question2answer.org/ --></html>

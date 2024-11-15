@@ -1,0 +1,340 @@
+<html><!-- Powered by Question2Answer - http://www.question2answer.org/ --><head>
+		<meta http-equiv="content-type" content="text/html; charset=utf-8">
+		<title>Suspecting a loss of accuracy somewhere in my code, need suggestions where to look - FEniCS Q&amp;A</title>
+		<meta name="description" content="I am in the process of vetting a FEniCS code for sources of loss of accuracy. I have created a FEniCS  ... ((ny*ny,)), np.inf) errors.append(err)">
+		<link rel="stylesheet" type="text/css" href="../../qa-theme/Snow/qa-styles.css">
+		<link rel="canonical" href="http://fenicsproject.org/qa/8591/suspecting-accuracy-somewhere-code-need-suggestions-where">
+		<script type="text/x-mathjax-config">
+  MathJax.Hub.Config({
+    extensions: ["tex2jax.js"],
+    jax: ["input/TeX","output/HTML-CSS"],
+    tex2jax: {inlineMath: [["$","$"],["\\(","\\)"]]},
+    TeX: { extensions: ["AMSmath.js","AMSsymbols.js"]}
+  });
+</script>
+<script type="text/javascript" src="../../mathjax/MathJax.js"></script>
+		<script src="../../jquery-1.7.2.min.js" type="text/javascript"></script>
+		<script src="../../highlight.min.js"></script>
+<script type="text/javascript">
+$(function(){
+	$('.wmd-input').keypress(function(){
+		window.clearTimeout(hljs.Timeout);
+		hljs.Timeout = window.setTimeout(function() {
+			hljs.initHighlighting.called = false;
+			hljs.initHighlighting();
+		}, 500);
+	});
+	window.setTimeout(function() {
+		hljs.initHighlighting.called = false;
+		hljs.initHighlighting();
+	}, 500);
+});
+</script>
+
+
+	</head>
+	<body class="qa-template-question qa-body-js-off">
+		<div class="qa-body-wrapper">
+			
+			<div class="qa-header">
+				<div class="qa-logo">
+					<a href="../../" class="qa-logo-link" title="FEniCS Q&amp;A"><img src="../../qa-theme/fenics_qa.png" border="0" alt="FEniCS Q&amp;A"></a>
+				</div>
+				<div class="qa-header-clear">
+				</div>
+			</div> <!-- END qa-header -->
+			
+			<div class="qa-main-shadow">
+				
+				<div class="qa-main-wrapper">
+					
+					<div class="qa-sidepanel">
+						<div class="qa-sidebar">
+							This is a read only copy of the old FEniCS QA forum. Please visit the <a href="https://www.allanswered.com/community/s/fenics-project/">new QA forum</a> to ask questions
+						</div>
+						
+					</div>
+					
+					<div class="qa-main">
+						<h1>
+							<span class="entry-title">Suspecting a loss of accuracy somewhere in my code, need suggestions where to look</span>
+						</h1>
+						<div class="qa-part-q-view">
+							<div class="qa-q-view  hentry question" id="q8591">
+								<form method="post" action="../../8591/suspecting-accuracy-somewhere-code-need-suggestions-where">
+									<div class="qa-q-view-stats">
+										<div class="qa-voting qa-voting-net" id="voting_8591">
+											<div class="qa-vote-count qa-vote-count-net">
+												<span class="qa-netvote-count">
+													<span class="qa-netvote-count-data">+2<span class="votes-up"><span class="value-title" title="2"></span></span><span class="votes-down"><span class="value-title" title="0"></span></span></span><span class="qa-netvote-count-pad"> votes</span>
+												</span>
+											</div>
+											<div class="qa-vote-clear">
+											</div>
+										</div>
+									</div>
+									<input type="hidden" name="code" value="0-1516468181-04f5495151cce21749f9dab16c6427e41e65a5c3">
+								</form>
+								<div class="qa-q-view-main">
+									<form method="post" action="../../8591/suspecting-accuracy-somewhere-code-need-suggestions-where">
+										<div class="qa-q-view-content">
+											<a name="8591"></a><div class="entry-content"><p>I am in the process of vetting a FEniCS code for sources of loss of accuracy.</p>
+
+<p>I have created a FEniCS implementation of a non-overlapping optimized Schwarz (OSM) domain decomposition (DD) method for the Poisson problem.  The DD iterations converge to the global solution and the number of iterations depends on the grid dependent OSM parameter as expected.  Unfortunately, I find that the FEniCS code converges to the global solution in double the number of iterations than an equivalent finite difference code.</p>
+
+<p>Previously I resolved a convergence rate issue by changing the solver type of the project() function to 'lu'.  I am left wondering if the poor performance of the FEniCS OSM code might also be due to some unseen default mode in one of the FEniCS functions that I use.</p>
+
+<p>The main part of my code, where I suspect a loss of accuracy, is provided below.  In particular, I perform an update to the assembled vectors G1 and G2 at every iteration, and if this is accuracy limited, I might expect to see slower convergence.</p>
+
+<p>Any guidance here will be appreciated.</p>
+
+<pre><code># Find initial error    
+alpha = 20
+
+g1 = Function(V1)
+g2 = Function(V2)
+
+ds1 = Measure("ds")[sub_domains1]
+ds2 = Measure("ds")[sub_domains2]
+
+a1 = - inner(grad(uL), grad(vL))*dx - inner(alpha*uL,vL)*ds1(2)
+a2 = - inner(grad(uR), grad(vR))*dx - inner(alpha*uR,vR)*ds2(1)
+
+A1 = assemble(a1)
+A2 = assemble(a2)
+
+G1 = assemble(inner(g1,vL)*ds1(2))
+G2 = assemble(inner(g2,vR)*ds2(1))
+
+L1 = assemble(inner(f1,vL)*dx)
+L2 = assemble(inner(f2,vR)*dx)
+
+b1 = L1 - G1
+b2 = L2 - G2
+
+bc1.apply(A1, b1)
+bc2.apply(A2, b2)
+
+u1 = Function(V1) # Compute solution - default is LU
+solve(A1, u1.vector(), b1, 'lu')
+
+u2 = Function(V2) # Compute solution - default is LU
+solve(A2, u2.vector(), b2, 'lu')
+
+u1np = u1.vector().array()[v2d1]
+u2np = u2.vector().array()[v2d2]
+
+u1np = u1np.reshape((ny,nx))
+u2np = u2np.reshape((ny,nx))
+
+uGnp = np.zeros((ny,ny))
+uGnp[:,0:nx-1] = u1np[:,0:-1]
+uGnp[:,nx:] = u2np[:,1:]
+uGnp[:,nx-1] = 0.5*(u1np[:,-1] + u2np[:,0])
+
+e0 = np.linalg.norm((uGnp.reshape((ny*ny,)) - uGlob.reshape((ny*ny,))), np.inf) \
+    /np.linalg.norm(uGlob.reshape((ny*ny,)), np.inf)
+
+maxiter = 100
+niter = 1 # Since I do one iteration before entering loop to get initial error
+tol = 1e-6
+resid = []
+errors = []
+err = 1
+
+# Iterate
+
+while err &gt; tol and niter &lt; maxiter:  
+
+    niter +=1
+
+    U1 = assemble(inner(u1,vL)*ds1(2))
+    U2 = assemble(inner(u2,vR)*ds2(1))
+
+    G1_old = G1[v2d1].copy()
+    G1.set_local(np.dot(B1.T, (2.0*alpha*np.dot(B2, U2[v2d2]) - np.dot(B2, G2[v2d2])).T)[d2v1])
+
+    G2.set_local(np.dot(B2.T, (2.0*alpha*np.dot(B1, U1.array()[v2d1]) - np.dot(B1, G1_old)).T)[d2v2])
+
+    b1 = L1 - G1
+    b2 = L2 - G2
+
+    bc1.apply(b1)
+    bc2.apply(b2)
+
+    u1 = Function(V1) # Compute solution - default is LU
+    solve(A1, u1.vector(), b1, 'lu')
+
+    u2 = Function(V2) # Compute solution - default is LU
+    solve(A2, u2.vector(), b2, 'lu')
+
+    u1np = u1.vector().array()[v2d1]
+    u2np = u2.vector().array()[v2d2]
+
+    u1np = u1np.reshape((ny,nx))
+    u2np = u2np.reshape((ny,nx))
+
+    uGnp = np.zeros((ny,ny))
+    uGnp[:,0:nx-1] = u1np[:,0:-1]
+    uGnp[:,nx:] = u2np[:,1:]
+    uGnp[:,nx-1] = 0.5*(u1np[:,-1] + u2np[:,0])
+
+
+    err = np.linalg.norm((uGnp.reshape((ny*ny,)) - uGlob.reshape((ny*ny,))), np.inf) \
+         /np.linalg.norm(uGlob.reshape((ny*ny,)), np.inf)
+    errors.append(err)
+</code></pre>
+</div>
+										</div>
+										<span class="qa-q-view-avatar-meta">
+											<span class="qa-q-view-meta">
+												<a href="../../8591/suspecting-accuracy-somewhere-code-need-suggestions-where" class="qa-q-view-what">asked</a>
+												<span class="qa-q-view-when">
+													<span class="qa-q-view-when-data"><span class="published"><span class="value-title" title="2015-11-17T14:00:51+0000"></span>Nov 17, 2015</span></span>
+												</span>
+												<span class="qa-q-view-who">
+													<span class="qa-q-view-who-pad">by </span>
+													<span class="qa-q-view-who-data"><span class="vcard author"><a href="../../user/brk888" class="qa-user-link url nickname">brk888</a></span></span>
+													<span class="qa-q-view-who-title">FEniCS Novice</span>
+													<span class="qa-q-view-who-points">
+														<span class="qa-q-view-who-points-pad">(</span><span class="qa-q-view-who-points-data">990</span><span class="qa-q-view-who-points-pad"> points)</span>
+													</span>
+												</span>
+											</span>
+										</span>
+										<div class="qa-q-view-buttons">
+										</div>
+										
+										<div class="qa-q-view-c-list" style="display:none;" id="c8591_list">
+										</div> <!-- END qa-c-list -->
+										
+										<input type="hidden" name="code" value="0-1516468181-f0ff087d11872ffa2edc87d15dad4a37d924a7e9">
+										<input type="hidden" name="qa_click" value="">
+									</form>
+									<div class="qa-c-form">
+									</div> <!-- END qa-c-form -->
+									
+								</div> <!-- END qa-q-view-main -->
+								<div class="qa-q-view-clear">
+								</div>
+							</div> <!-- END qa-q-view -->
+							
+						</div>
+						<div class="qa-part-a-list">
+							<h2 id="a_list_title">1 Answer</h2>
+							<div class="qa-a-list" id="a_list">
+								
+								<div class="qa-a-list-item  hentry answer" id="a8593">
+									<form method="post" action="../../8591/suspecting-accuracy-somewhere-code-need-suggestions-where">
+										<div class="qa-voting qa-voting-net" id="voting_8593">
+											<div class="qa-vote-count qa-vote-count-net">
+												<span class="qa-netvote-count">
+													<span class="qa-netvote-count-data">0<span class="votes-up"><span class="value-title" title="0"></span></span><span class="votes-down"><span class="value-title" title="0"></span></span></span><span class="qa-netvote-count-pad"> votes</span>
+												</span>
+											</div>
+											<div class="qa-vote-clear">
+											</div>
+										</div>
+										<input type="hidden" name="code" value="0-1516468181-04f5495151cce21749f9dab16c6427e41e65a5c3">
+									</form>
+									<div class="qa-a-item-main">
+										<form method="post" action="../../8591/suspecting-accuracy-somewhere-code-need-suggestions-where">
+											<div class="qa-a-selection">
+											</div>
+											<div class="qa-a-item-content">
+												<a name="8593"></a><div class="entry-content"><p>This might not be the reason, but you can try to set the convergence criteria in the iterative solver</p>
+
+<pre><code>solver = KrylovSolver("gmres", "hypre_amg") # whatever solver and preconditioner that works best for your problem
+solver.parameters["relative_tolerance"] = 1e-10
+solver.parameters["absolute_tolerance"] = 1e-15
+</code></pre>
+
+<p>If you are using a LU solver on a single core (no MPI) then the PETCs LU solver gives the lowest errors in my experience.</p>
+
+<pre><code>solver = PETScLUSolver("petsc")
+</code></pre>
+
+<p>Then run </p>
+
+<pre><code>solver.solve(A, func.vector(), b)
+</code></pre>
+</div>
+											</div>
+											<span class="qa-a-item-avatar-meta">
+												<span class="qa-a-item-meta">
+													<a href="../../8591/suspecting-accuracy-somewhere-code-need-suggestions-where?show=8593#a8593" class="qa-a-item-what">answered</a>
+													<span class="qa-a-item-when">
+														<span class="qa-a-item-when-data"><span class="published"><span class="value-title" title="2015-11-17T16:15:34+0000"></span>Nov 17, 2015</span></span>
+													</span>
+													<span class="qa-a-item-who">
+														<span class="qa-a-item-who-pad">by </span>
+														<span class="qa-a-item-who-data"><span class="vcard author"><a href="../../user/Tormod+Landet" class="qa-user-link url nickname">Tormod Landet</a></span></span>
+														<span class="qa-a-item-who-title">FEniCS User</span>
+														<span class="qa-a-item-who-points">
+															<span class="qa-a-item-who-points-pad">(</span><span class="qa-a-item-who-points-data">5,130</span><span class="qa-a-item-who-points-pad"> points)</span>
+														</span>
+													</span>
+												</span>
+											</span>
+											<div class="qa-a-item-buttons">
+												</div>
+											
+											<div class="qa-a-item-c-list" id="c8593_list">
+												<div class="qa-c-list-item  hentry comment" id="c8597">
+													<div class="qa-c-item-content">
+														<a name="8597"></a><div class="entry-content"><p>Thank you for the response.  I am currently using lu for all solves, but I will try one of the Krylov's with a low tolerance next.</p>
+</div>
+													</div>
+													<div class="qa-c-item-footer">
+														<span class="qa-c-item-avatar-meta">
+															<span class="qa-c-item-meta">
+																<a href="../../8591/suspecting-accuracy-somewhere-code-need-suggestions-where?show=8597#c8597" class="qa-c-item-what">commented</a>
+																<span class="qa-c-item-when">
+																	<span class="qa-c-item-when-data"><span class="published"><span class="value-title" title="2015-11-17T19:47:05+0000"></span>Nov 17, 2015</span></span>
+																</span>
+																<span class="qa-c-item-who">
+																	<span class="qa-c-item-who-pad">by </span>
+																	<span class="qa-c-item-who-data"><span class="vcard author"><a href="../../user/brk888" class="qa-user-link url nickname">brk888</a></span></span>
+																	<span class="qa-c-item-who-title">FEniCS Novice</span>
+																	<span class="qa-c-item-who-points">
+																		<span class="qa-c-item-who-points-pad">(</span><span class="qa-c-item-who-points-data">990</span><span class="qa-c-item-who-points-pad"> points)</span>
+																	</span>
+																</span>
+															</span>
+														</span>
+														<div class="qa-c-item-buttons">
+														</div>
+													</div>
+													<div class="qa-c-item-clear">
+													</div>
+												</div> <!-- END qa-c-item -->
+											</div> <!-- END qa-c-list -->
+											
+											<input type="hidden" name="code" value="0-1516468181-27fad8de31792c878613c8950799636f2ca9db56">
+											<input type="hidden" name="qa_click" value="">
+										</form>
+										<div class="qa-c-form">
+										</div> <!-- END qa-c-form -->
+										
+									</div> <!-- END qa-a-item-main -->
+									<div class="qa-a-item-clear">
+									</div>
+								</div> <!-- END qa-a-list-item -->
+								
+							</div> <!-- END qa-a-list -->
+							
+						</div>
+					</div> <!-- END qa-main -->
+					
+				</div> <!-- END main-wrapper -->
+			</div> <!-- END main-shadow -->
+		</div> <!-- END body-wrapper -->
+		<!-- END footer-bottom-group -->
+		
+		<div style="position:absolute; left:-9999px; top:-9999px;">
+			<span id="qa-waiting-template" class="qa-waiting">...</span>
+		</div>
+	
+	
+
+</body><!-- Powered by Question2Answer - http://www.question2answer.org/ --></html>

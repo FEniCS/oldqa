@@ -1,0 +1,349 @@
+<html><!-- Powered by Question2Answer - http://www.question2answer.org/ --><head>
+		<meta http-equiv="content-type" content="text/html; charset=utf-8">
+		<title>store  several solutions in one variable - FEniCS Q&amp;A</title>
+		<meta name="description" content="I want to calculate the Gramian matrix of several solution, in order to do that I need to store my  ... = inner(U1,U2)*dx Any hints, or ideas ?">
+		<link rel="stylesheet" type="text/css" href="../../qa-theme/Snow/qa-styles.css">
+		<link rel="canonical" href="http://fenicsproject.org/qa/2039/store-several-solutions-in-one-variable">
+		<script type="text/x-mathjax-config">
+  MathJax.Hub.Config({
+    extensions: ["tex2jax.js"],
+    jax: ["input/TeX","output/HTML-CSS"],
+    tex2jax: {inlineMath: [["$","$"],["\\(","\\)"]]},
+    TeX: { extensions: ["AMSmath.js","AMSsymbols.js"]}
+  });
+</script>
+<script type="text/javascript" src="../../mathjax/MathJax.js"></script>
+		<script src="../../jquery-1.7.2.min.js" type="text/javascript"></script>
+		<script src="../../highlight.min.js"></script>
+<script type="text/javascript">
+$(function(){
+	$('.wmd-input').keypress(function(){
+		window.clearTimeout(hljs.Timeout);
+		hljs.Timeout = window.setTimeout(function() {
+			hljs.initHighlighting.called = false;
+			hljs.initHighlighting();
+		}, 500);
+	});
+	window.setTimeout(function() {
+		hljs.initHighlighting.called = false;
+		hljs.initHighlighting();
+	}, 500);
+});
+</script>
+
+
+	</head>
+	<body class="qa-template-question qa-body-js-off">
+		<div class="qa-body-wrapper">
+			
+			<div class="qa-header">
+				<div class="qa-logo">
+					<a href="../../" class="qa-logo-link" title="FEniCS Q&amp;A"><img src="../../qa-theme/fenics_qa.png" border="0" alt="FEniCS Q&amp;A"></a>
+				</div>
+				<div class="qa-header-clear">
+				</div>
+			</div> <!-- END qa-header -->
+			
+			<div class="qa-main-shadow">
+				
+				<div class="qa-main-wrapper">
+					
+					<div class="qa-sidepanel">
+						<div class="qa-sidebar">
+							This is a read only copy of the old FEniCS QA forum. Please visit the <a href="https://www.allanswered.com/community/s/fenics-project/">new QA forum</a> to ask questions
+						</div>
+						
+					</div>
+					
+					<div class="qa-main">
+						<h1>
+							<span class="entry-title">store  several solutions in one variable</span>
+						</h1>
+						<div class="qa-part-q-view">
+							<div class="qa-q-view  hentry question" id="q2039">
+								<form method="post" action="../../2039/store-several-solutions-in-one-variable">
+									<div class="qa-q-view-stats">
+										<div class="qa-voting qa-voting-net" id="voting_2039">
+											<div class="qa-vote-count qa-vote-count-net">
+												<span class="qa-netvote-count">
+													<span class="qa-netvote-count-data">0<span class="votes-up"><span class="value-title" title="0"></span></span><span class="votes-down"><span class="value-title" title="0"></span></span></span><span class="qa-netvote-count-pad"> votes</span>
+												</span>
+											</div>
+											<div class="qa-vote-clear">
+											</div>
+										</div>
+									</div>
+									<input type="hidden" name="code" value="0-1516467911-e0b985be2c1d4acdce3f47d7fd29fea52f605e4d">
+								</form>
+								<div class="qa-q-view-main">
+									<form method="post" action="../../2039/store-several-solutions-in-one-variable">
+										<div class="qa-q-view-content">
+											<a name="2039"></a><div class="entry-content"><p>I want to calculate the Gramian matrix of several solution, in order to do that I need to store my solution in one variable so after calculating all the solutions i can load/call the variable. so it should be something like :<br>
+u = Function(V)<br>
+solve(a == L, u, bc)<br>
+ B[i]=u<br>
+how can I define B ?</p>
+
+<p>I know there is Time series class but I rather not to store  u.vector() instead of u.</p>
+
+<pre><code>from __future__ import division
+from dolfin import *
+import pickle
+import numpy, scipy.io
+import csv
+E0=[69000000000,65000000000];
+Magnitude=-100;nu = 0.3
+mesh=UnitSquareMesh(10, 10)
+V = VectorFunctionSpace(mesh, "Lagrange", 1)
+WW = VectorFunctionSpace(mesh, "Lagrange", 1, 2)
+B = Function(WW)
+for i in range(0,len(E0)):
+     class Bottom(SubDomain):
+              def inside(self, x, on_boundary):
+                    return (near(x[1], 0.0) )
+      class Top(SubDomain):
+               def inside(self, x, on_boundary):
+                     return (near(x[1], 1.0) )
+     top = Top()
+     bottom = Bottom()
+     boundaries = FacetFunction("uint", mesh)
+     boundaries.set_all(0)
+     top.mark(boundaries, 2)
+     bottom.mark(boundaries, 4)
+     bc = DirichletBC(V, (0.0, 0.0), boundaries,4)
+     ds = Measure("ds")[boundaries]
+     u = TrialFunction(V)
+     v = TestFunction(V)
+     f = Expression(("0.0", "scale"),  scale = Magnitude )
+     E=E0[i]
+    mu = E / (2.0*(1.0 + nu))
+    lmbda = E*nu / ((1.0 + nu)*(1.0 - 2.0*nu))
+   def sigma(u):
+         return 2.0*mu*sym(grad(u)) + lmbda*tr(sym(grad(u)))*Identity(v.cell().d)
+   a = inner(sigma(u), sym(grad(v)))*dx
+   L = inner(f,v)*ds(2)
+   u = Function(V)
+   solve(a == L, u, bc)
+   assign(B.sub(i), u)
+</code></pre>
+
+<p>so for just sake of my second question if I just store each solution in different variable and then want to calculate the covariance matrix of my solutions, if i want to use the same approach as "<a rel="nofollow" href="http://fenicsproject.org/qa/1826/compute-gramian-matrix">http://fenicsproject.org/qa/1826/compute-gramian-matrix</a>" which means using assemble(U1<em>U2</em>dx) I get error. and when i am using a12=inner(U1,U2)*dx, a12 is ufl form but I expect that have scalar value for a12</p>
+
+<pre><code>from __future__ import division
+from dolfin import *
+import pickle
+import numpy, scipy.io
+import csv
+E0=[69000000000,65000000000];
+Magnitude=-100;nu = 0.3
+mesh=UnitSquareMesh(10, 10)
+V = VectorFunctionSpace(mesh, "Lagrange", 1)
+WW = VectorFunctionSpace(mesh, "Lagrange", 1, 2)
+B = Function(WW)
+for i in range(0,len(E0)):
+     class Bottom(SubDomain):
+               def inside(self, x, on_boundary):
+                      return (near(x[1], 0.0) )
+
+      class Top(SubDomain):
+              def inside(self, x, on_boundary):
+                    return (near(x[1], 1.0) )
+      top = Top()
+      bottom = Bottom()
+      boundaries = FacetFunction("uint", mesh)
+      boundaries.set_all(0)
+      top.mark(boundaries, 2)
+      bottom.mark(boundaries, 4)
+      bc = DirichletBC(V, (0.0, 0.0), boundaries,4)
+      ds = Measure("ds")[boundaries]
+       u = TrialFunction(V)
+       v = TestFunction(V)
+       f = Expression(("0.0", "scale"),  scale = Magnitude )
+      E=E0[i]
+      mu = E / (2.0*(1.0 + nu))
+      lmbda = E*nu / ((1.0 + nu)*(1.0 - 2.0*nu))
+       def sigma(u):
+             return 2.0*mu*sym(grad(u)) + lmbda*tr(sym(grad(u)))*Identity(v.cell().d)
+       a = inner(sigma(u), sym(grad(v)))*dx
+       L = inner(f,v)*ds(2)
+       u = Function(V)
+       solve(a == L, u, bc)
+
+       if i==0:
+           U1=u
+       else:
+           U2=u
+
+alpha = inner(U1,U2)*dx
+</code></pre>
+
+<p>Any hints, or  ideas ?</p>
+</div>
+										</div>
+										<span class="qa-q-view-avatar-meta">
+											<span class="qa-q-view-meta">
+												<a href="../../2039/store-several-solutions-in-one-variable" class="qa-q-view-what">asked</a>
+												<span class="qa-q-view-when">
+													<span class="qa-q-view-when-data"><span class="published"><span class="value-title" title="2013-12-18T21:23:56+0000"></span>Dec 18, 2013</span></span>
+												</span>
+												<span class="qa-q-view-who">
+													<span class="qa-q-view-who-pad">by </span>
+													<span class="qa-q-view-who-data"><span class="vcard author"><a href="../../user/Bahram" class="qa-user-link url nickname">Bahram</a></span></span>
+													<span class="qa-q-view-who-title">FEniCS Novice</span>
+													<span class="qa-q-view-who-points">
+														<span class="qa-q-view-who-points-pad">(</span><span class="qa-q-view-who-points-data">400</span><span class="qa-q-view-who-points-pad"> points)</span>
+													</span>
+												</span>
+												<br>
+												<span class="qa-q-view-what">edited</span>
+												<span class="qa-q-view-when">
+													<span class="qa-q-view-when-data"><span class="updated"><span class="value-title" title="2013-12-19T20:16:52+0000"></span>Dec 19, 2013</span></span>
+												</span>
+												<span class="qa-q-view-who">
+													<span class="qa-q-view-who-pad">by </span><span class="qa-q-view-who-data"><a href="../../user/Bahram" class="qa-user-link url nickname">Bahram</a></span>
+												</span>
+											</span>
+										</span>
+										<div class="qa-q-view-buttons">
+										</div>
+										
+										<div class="qa-q-view-c-list" style="display:none;" id="c2039_list">
+										</div> <!-- END qa-c-list -->
+										
+										<input type="hidden" name="code" value="0-1516467911-13132a392127d47e506a33bf56372a37f6337383">
+										<input type="hidden" name="qa_click" value="">
+									</form>
+									<div class="qa-c-form">
+									</div> <!-- END qa-c-form -->
+									
+								</div> <!-- END qa-q-view-main -->
+								<div class="qa-q-view-clear">
+								</div>
+							</div> <!-- END qa-q-view -->
+							
+						</div>
+						<div class="qa-part-a-list">
+							<h2 id="a_list_title">1 Answer</h2>
+							<div class="qa-a-list" id="a_list">
+								
+								<div class="qa-a-list-item  hentry answer" id="a2043">
+									<form method="post" action="../../2039/store-several-solutions-in-one-variable">
+										<div class="qa-voting qa-voting-net" id="voting_2043">
+											<div class="qa-vote-count qa-vote-count-net">
+												<span class="qa-netvote-count">
+													<span class="qa-netvote-count-data">+1<span class="votes-up"><span class="value-title" title="1"></span></span><span class="votes-down"><span class="value-title" title="0"></span></span></span><span class="qa-netvote-count-pad"> vote</span>
+												</span>
+											</div>
+											<div class="qa-vote-clear">
+											</div>
+										</div>
+										<input type="hidden" name="code" value="0-1516467911-e0b985be2c1d4acdce3f47d7fd29fea52f605e4d">
+									</form>
+									<div class="qa-a-item-main">
+										<form method="post" action="../../2039/store-several-solutions-in-one-variable">
+											<div class="qa-a-selection">
+											</div>
+											<div class="qa-a-item-content">
+												<a name="2043"></a><div class="entry-content"><p>If the solutions are in the same space you can store them in a <code>VectorFunction</code>:<br>
+(requires development version of <code>DOLFIN</code>)</p>
+
+<pre><code>W = VectorFunctionSpace(mesh, space, deg, num_solutions)
+B = Function(W)
+for i, (a, L, bc) in enumerate(linear_problems):
+    solve(a==L, u, bc)
+    assign(B.sub(i), u)
+</code></pre>
+
+<p>You need to provide a minimal but runnable code for us to help you with the second question.</p>
+</div>
+											</div>
+											<span class="qa-a-item-avatar-meta">
+												<span class="qa-a-item-avatar">
+													<a href="../../user/johanhake" class="qa-avatar-link"><img src="https://www.gravatar.com/avatar/73612279d6702974866af2e1a9653a5b?s=40" width="40" height="40" class="qa-avatar-image" alt=""></a>
+												</span>
+												<span class="qa-a-item-meta">
+													<a href="../../2039/store-several-solutions-in-one-variable?show=2043#a2043" class="qa-a-item-what">answered</a>
+													<span class="qa-a-item-when">
+														<span class="qa-a-item-when-data"><span class="published"><span class="value-title" title="2013-12-19T07:16:16+0000"></span>Dec 19, 2013</span></span>
+													</span>
+													<span class="qa-a-item-who">
+														<span class="qa-a-item-who-pad">by </span>
+														<span class="qa-a-item-who-data"><span class="vcard author"><a href="../../user/johanhake" class="qa-user-link url nickname">johanhake</a></span></span>
+														<span class="qa-a-item-who-title">FEniCS Expert</span>
+														<span class="qa-a-item-who-points">
+															<span class="qa-a-item-who-points-pad">(</span><span class="qa-a-item-who-points-data">22,480</span><span class="qa-a-item-who-points-pad"> points)</span>
+														</span>
+													</span>
+												</span>
+											</span>
+											<div class="qa-a-item-buttons">
+												</div>
+											
+											<div class="qa-a-item-c-list" id="c2043_list">
+												<div class="qa-c-list-item  hentry comment" id="c2055">
+													<div class="qa-c-item-content">
+														<a name="2055"></a><div class="entry-content"><p>Thank you very much for your help, I tried to store the solution in a way that you suggested but i got an error and I put the code in the main question. also for the second question I put the minimal running code in the main question. <br>
+Thank you again for your help.</p>
+</div>
+													</div>
+													<div class="qa-c-item-footer">
+														<span class="qa-c-item-avatar-meta">
+															<span class="qa-c-item-meta">
+																<a href="../../2039/store-several-solutions-in-one-variable?show=2055#c2055" class="qa-c-item-what">commented</a>
+																<span class="qa-c-item-when">
+																	<span class="qa-c-item-when-data"><span class="published"><span class="value-title" title="2013-12-19T19:56:19+0000"></span>Dec 19, 2013</span></span>
+																</span>
+																<span class="qa-c-item-who">
+																	<span class="qa-c-item-who-pad">by </span>
+																	<span class="qa-c-item-who-data"><span class="vcard author"><a href="../../user/Bahram" class="qa-user-link url nickname">Bahram</a></span></span>
+																	<span class="qa-c-item-who-title">FEniCS Novice</span>
+																	<span class="qa-c-item-who-points">
+																		<span class="qa-c-item-who-points-pad">(</span><span class="qa-c-item-who-points-data">400</span><span class="qa-c-item-who-points-pad"> points)</span>
+																	</span>
+																</span>
+																<br>
+																<span class="qa-c-item-what">edited</span>
+																<span class="qa-c-item-when">
+																	<span class="qa-c-item-when-data"><span class="updated"><span class="value-title" title="2013-12-19T20:15:38+0000"></span>Dec 19, 2013</span></span>
+																</span>
+																<span class="qa-c-item-who">
+																	<span class="qa-c-item-who-pad">by </span><span class="qa-c-item-who-data"><a href="../../user/Bahram" class="qa-user-link url nickname">Bahram</a></span>
+																</span>
+															</span>
+														</span>
+														<div class="qa-c-item-buttons">
+														</div>
+													</div>
+													<div class="qa-c-item-clear">
+													</div>
+												</div> <!-- END qa-c-item -->
+											</div> <!-- END qa-c-list -->
+											
+											<input type="hidden" name="code" value="0-1516467911-a155f79df7b2835fffead2ca2ebe1604ce734274">
+											<input type="hidden" name="qa_click" value="">
+										</form>
+										<div class="qa-c-form">
+										</div> <!-- END qa-c-form -->
+										
+									</div> <!-- END qa-a-item-main -->
+									<div class="qa-a-item-clear">
+									</div>
+								</div> <!-- END qa-a-list-item -->
+								
+							</div> <!-- END qa-a-list -->
+							
+						</div>
+					</div> <!-- END qa-main -->
+					
+				</div> <!-- END main-wrapper -->
+			</div> <!-- END main-shadow -->
+		</div> <!-- END body-wrapper -->
+		<!-- END footer-bottom-group -->
+		
+		<div style="position:absolute; left:-9999px; top:-9999px;">
+			<span id="qa-waiting-template" class="qa-waiting">...</span>
+		</div>
+	
+	
+
+</body><!-- Powered by Question2Answer - http://www.question2answer.org/ --></html>

@@ -1,0 +1,390 @@
+<html><!-- Powered by Question2Answer - http://www.question2answer.org/ --><head>
+		<meta http-equiv="content-type" content="text/html; charset=utf-8">
+		<title>Jacobian of nonlinear time-dependent variational problem with Expression - FEniCS Q&amp;A</title>
+		<meta name="description" content="Hello, I'm quite new to FEniCS and so far I'm very impressed, especially with the documentation and  ...  = 0 file = File(&quot;displacement.pvd&quot;); file">
+		<meta name="keywords" content="nonlinear,time-dependent,hyperelasticity,expression,jacobian">
+		<link rel="stylesheet" type="text/css" href="../../qa-theme/Snow/qa-styles.css">
+		<link rel="canonical" href="http://fenicsproject.org/qa/7982/jacobian-nonlinear-dependent-variational-problem-expression">
+		<script type="text/x-mathjax-config">
+  MathJax.Hub.Config({
+    extensions: ["tex2jax.js"],
+    jax: ["input/TeX","output/HTML-CSS"],
+    tex2jax: {inlineMath: [["$","$"],["\\(","\\)"]]},
+    TeX: { extensions: ["AMSmath.js","AMSsymbols.js"]}
+  });
+</script>
+<script type="text/javascript" src="../../mathjax/MathJax.js"></script>
+		<script src="../../jquery-1.7.2.min.js" type="text/javascript"></script>
+		<script src="../../highlight.min.js"></script>
+<script type="text/javascript">
+$(function(){
+	$('.wmd-input').keypress(function(){
+		window.clearTimeout(hljs.Timeout);
+		hljs.Timeout = window.setTimeout(function() {
+			hljs.initHighlighting.called = false;
+			hljs.initHighlighting();
+		}, 500);
+	});
+	window.setTimeout(function() {
+		hljs.initHighlighting.called = false;
+		hljs.initHighlighting();
+	}, 500);
+});
+</script>
+
+
+	</head>
+	<body class="qa-template-question qa-body-js-off">
+		<div class="qa-body-wrapper">
+			
+			<div class="qa-header">
+				<div class="qa-logo">
+					<a href="../../" class="qa-logo-link" title="FEniCS Q&amp;A"><img src="../../qa-theme/fenics_qa.png" border="0" alt="FEniCS Q&amp;A"></a>
+				</div>
+				<div class="qa-header-clear">
+				</div>
+			</div> <!-- END qa-header -->
+			
+			<div class="qa-main-shadow">
+				
+				<div class="qa-main-wrapper">
+					
+					<div class="qa-sidepanel">
+						<div class="qa-sidebar">
+							This is a read only copy of the old FEniCS QA forum. Please visit the <a href="https://www.allanswered.com/community/s/fenics-project/">new QA forum</a> to ask questions
+						</div>
+						
+					</div>
+					
+					<div class="qa-main">
+						<h1>
+							<span class="entry-title">Jacobian of nonlinear time-dependent variational problem with Expression</span>
+						</h1>
+						<div class="qa-part-q-view">
+							<div class="qa-q-view  hentry question" id="q7982">
+								<form method="post" action="../../7982/jacobian-nonlinear-dependent-variational-problem-expression">
+									<div class="qa-q-view-stats">
+										<div class="qa-voting qa-voting-net" id="voting_7982">
+											<div class="qa-vote-count qa-vote-count-net">
+												<span class="qa-netvote-count">
+													<span class="qa-netvote-count-data">0<span class="votes-up"><span class="value-title" title="0"></span></span><span class="votes-down"><span class="value-title" title="0"></span></span></span><span class="qa-netvote-count-pad"> votes</span>
+												</span>
+											</div>
+											<div class="qa-vote-clear">
+											</div>
+										</div>
+									</div>
+									<input type="hidden" name="code" value="0-1516468149-72938cb252faa745e5a56095e2574564fedfa672">
+								</form>
+								<div class="qa-q-view-main">
+									<form method="post" action="../../7982/jacobian-nonlinear-dependent-variational-problem-expression">
+										<div class="qa-q-view-content">
+											<a name="7982"></a><div class="entry-content"><p>Hello,</p>
+
+<p>I'm quite new to FEniCS and so far I'm very impressed, especially with the documentation and ease of use of the software.</p>
+
+<p>As part of my PhD project I'm trying to develop a model of soft tissue swelling. The material is hyperelastic and the swelling is modelled using a multiplicative split of the deformation gradient into swelling and elastic components. At this stage the swelling is defined by a simple function of time using an "Expression" (later it may depend on other variables or an external subroutine).</p>
+
+<p>The model converges quickly when only standard boundary conditions such as forces and displacements are applied. However, when I apply the swelling deformation the model fails to converge unless pseudo-timestepping with relatively small time steps is used. Therefore, I suspect that there is either a problem with the linearisation of the swelling part of the model (the Jacobian) or that the swelling introduces significant nonlinearities that can only be overcome by taking small time steps.</p>
+
+<p>My question is: do I need to modify the Jacobian to account for the Expression that is changing with time or is this done automatically by FEniCS? In other words, is there any way that I can improve the convergence of the solution.</p>
+
+<p>Here is an example of the code I have so far:</p>
+
+<pre><code>from dolfin import *
+
+# Optimization options for the form compiler
+parameters["form_compiler"]["cpp_optimize"] = True
+ffc_options = {"optimize": True, \
+               "eliminate_zeros": True, \
+               "precompute_basis_const": True, \
+               "precompute_ip_const": True,
+               "quadrature_degree": 1}
+
+# Create mesh and define function space
+mesh = UnitCubeMesh(24, 16, 16)
+V = VectorFunctionSpace(mesh, "Lagrange", 1)
+
+# Define functions
+du = TrialFunction(V)            # Incremental displacement
+v  = TestFunction(V)             # Test function
+u  = Function(V)                 # Displacement from previous iteration
+B  = Constant((0.0, -0.5, 0.0))  # Body force per unit volume
+T  = Constant((0.1,  0.0, 0.0))  # Traction force on the boundary
+
+# Mark boundary subdomians
+left =  CompiledSubDomain("near(x[0], side) &amp;&amp; on_boundary", side = 0.0)
+right = CompiledSubDomain("near(x[0], side) &amp;&amp; on_boundary", side = 1.0)
+
+# Define Dirichlet boundary
+l = Expression(("0.0", "0.0", "0.0"))
+r = Expression(("0.0", "0.0", "0.0"))
+bcl = DirichletBC(V, l, left)
+bcr = DirichletBC(V, r, right)
+bcs = [bcl, bcr]
+
+d = u.geometric_dimension()
+I = Identity(d)             # Identity tensor
+
+# Swelling
+Fs = Expression(("1 + scale*t"), t=0.0, scale = 0.5)
+Fsinv = 1 / Fs
+Js = Fs ** 3
+
+# Kinematics
+F = I + grad(u)             # Deformation gradient
+Fe = F * Fsinv              # Elastic deformation gradient
+Ce = Fe.T * Fe              # Elastic right Cauchy-Green tensor
+
+# Invariants of deformation tensors
+Ice = variable(tr(Ce))
+Je  = variable(det(Fe))
+
+# Elasticity parameters
+E, nu = 10.0, 0.3
+mu, lmbda = Constant(E/(2*(1 + nu))), Constant(E*nu/((1 + nu)*(1 - 2*nu)))
+
+# Stored strain energy density (compressible neo-Hookean model)
+psi = (mu/2)*(Ice - 3) - mu*ln(Je) + (lmbda/2)*(ln(Je))**2
+
+# Elastic second Piola-Kirchhoff stress tensor
+Se = 2*diff(psi, Ice)*I + Je*Je*diff(psi, Je)*inv(Ce)
+
+# Total second Piola-Kirchhoff stress
+S = Js * Fsinv * Se * Fsinv
+
+# First Piola-Kirchhoff stress tensor
+P = F*S
+
+# Variational problem
+F = inner(P, grad(v))*dx - inner(B, v)*dx - inner(T, v)*ds
+
+# Compute Jacobian of F
+J = derivative(F, u, du)
+
+# Timestepping
+t = 0.0; dt = 0.1; T = 1.0
+inc = 0
+file = File("displacement.pvd");
+file &lt;&lt; u
+while t &lt; T:
+    t += dt
+    inc += 1
+
+    # Update swelling deformation
+    Fs.t = t
+
+    # Solve variational problem
+    solve(F == 0, u, bcs, J=J,
+          form_compiler_parameters=ffc_options)
+
+    # Save solution in VTK format
+    file &lt;&lt; u;
+
+# Plot and hold solution
+plot(u, mode = "displacement", interactive = True)
+</code></pre>
+</div>
+										</div>
+										<div class="qa-q-view-tags">
+											<ul class="qa-q-view-tag-list">
+												<li class="qa-q-view-tag-item"><a href="../../tag/nonlinear" rel="tag" class="qa-tag-link">nonlinear</a></li>
+												<li class="qa-q-view-tag-item"><a href="../../tag/time-dependent" rel="tag" class="qa-tag-link">time-dependent</a></li>
+												<li class="qa-q-view-tag-item"><a href="../../tag/hyperelasticity" rel="tag" class="qa-tag-link">hyperelasticity</a></li>
+												<li class="qa-q-view-tag-item"><a href="../../tag/expression" rel="tag" class="qa-tag-link">expression</a></li>
+												<li class="qa-q-view-tag-item"><a href="../../tag/jacobian" rel="tag" class="qa-tag-link">jacobian</a></li>
+											</ul>
+										</div>
+										<span class="qa-q-view-avatar-meta">
+											<span class="qa-q-view-meta">
+												<a href="../../7982/jacobian-nonlinear-dependent-variational-problem-expression" class="qa-q-view-what">asked</a>
+												<span class="qa-q-view-when">
+													<span class="qa-q-view-when-data"><span class="published"><span class="value-title" title="2015-08-31T11:53:06+0000"></span>Aug 31, 2015</span></span>
+												</span>
+												<span class="qa-q-view-who">
+													<span class="qa-q-view-who-pad">by </span>
+													<span class="qa-q-view-who-data"><span class="vcard author"><a href="../../user/benzwick" class="qa-user-link url nickname">benzwick</a></span></span>
+													<span class="qa-q-view-who-title">FEniCS Novice</span>
+													<span class="qa-q-view-who-points">
+														<span class="qa-q-view-who-points-pad">(</span><span class="qa-q-view-who-points-data">350</span><span class="qa-q-view-who-points-pad"> points)</span>
+													</span>
+												</span>
+											</span>
+										</span>
+										<div class="qa-q-view-buttons">
+										</div>
+										
+										<div class="qa-q-view-c-list" style="display:none;" id="c7982_list">
+										</div> <!-- END qa-c-list -->
+										
+										<input type="hidden" name="code" value="0-1516468149-0c37abc45e87b22a25eaf5f68b573e570a1cf9b3">
+										<input type="hidden" name="qa_click" value="">
+									</form>
+									<div class="qa-c-form">
+									</div> <!-- END qa-c-form -->
+									
+								</div> <!-- END qa-q-view-main -->
+								<div class="qa-q-view-clear">
+								</div>
+							</div> <!-- END qa-q-view -->
+							
+						</div>
+						<div class="qa-part-a-list">
+							<h2 id="a_list_title">1 Answer</h2>
+							<div class="qa-a-list" id="a_list">
+								
+								<div class="qa-a-list-item  hentry answer answer-selected qa-a-list-item-selected" id="a8019">
+									<form method="post" action="../../7982/jacobian-nonlinear-dependent-variational-problem-expression">
+										<div class="qa-voting qa-voting-net" id="voting_8019">
+											<div class="qa-vote-count qa-vote-count-net">
+												<span class="qa-netvote-count">
+													<span class="qa-netvote-count-data">0<span class="votes-up"><span class="value-title" title="0"></span></span><span class="votes-down"><span class="value-title" title="0"></span></span></span><span class="qa-netvote-count-pad"> votes</span>
+												</span>
+											</div>
+											<div class="qa-vote-clear">
+											</div>
+										</div>
+										<input type="hidden" name="code" value="0-1516468149-72938cb252faa745e5a56095e2574564fedfa672">
+									</form>
+									<div class="qa-a-item-main">
+										<form method="post" action="../../7982/jacobian-nonlinear-dependent-variational-problem-expression">
+											<div class="qa-a-item-selected">
+												<div class="qa-a-selection">
+													<div class="qa-a-selected">&#160;</div>
+													<div class="qa-a-selected-text">Best answer</div>
+												</div>
+												<div class="qa-a-item-content">
+													<a name="8019"></a><div class="entry-content"><p>I don't see any problems here for derivative(), so I'm guessing your convergence problems are either a bug in your model or a tough model.</p>
+
+<p>However if your Expression will later depend on u through an external computation, that will not be picked up by derivative(). What you can do then is to specify the partial derivative "d(Fs)/du" as a Function dFs that you compute yourself somehow, and pass it to derivative as derivative(F, u, du, coefficient_derivatives={Fs:dFs}).</p>
+</div>
+												</div>
+												<span class="qa-a-item-avatar-meta">
+													<span class="qa-a-item-avatar">
+														<a href="../../user/martinal" class="qa-avatar-link"><img src="https://www.gravatar.com/avatar/24eb33191219cc8eedd6b2a507802368?s=40" width="40" height="40" class="qa-avatar-image" alt=""></a>
+													</span>
+													<span class="qa-a-item-meta">
+														<a href="../../7982/jacobian-nonlinear-dependent-variational-problem-expression?show=8019#a8019" class="qa-a-item-what">answered</a>
+														<span class="qa-a-item-when">
+															<span class="qa-a-item-when-data"><span class="published"><span class="value-title" title="2015-09-04T13:39:21+0000"></span>Sep 4, 2015</span></span>
+														</span>
+														<span class="qa-a-item-who">
+															<span class="qa-a-item-who-pad">by </span>
+															<span class="qa-a-item-who-data"><span class="vcard author"><a href="../../user/martinal" class="qa-user-link url nickname">martinal</a></span></span>
+															<span class="qa-a-item-who-title">FEniCS User</span>
+															<span class="qa-a-item-who-points">
+																<span class="qa-a-item-who-points-pad">(</span><span class="qa-a-item-who-points-data">2,800</span><span class="qa-a-item-who-points-pad"> points)</span>
+															</span>
+														</span>
+														<br>
+														<span class="qa-a-item-what">selected</span>
+														<span class="qa-a-item-when">
+															<span class="qa-a-item-when-data"><span class="updated"><span class="value-title" title="2015-09-05T08:07:34+0000"></span>Sep 5, 2015</span></span>
+														</span>
+														<span class="qa-a-item-who">
+															<span class="qa-a-item-who-pad">by </span><span class="qa-a-item-who-data"><a href="../../user/benzwick" class="qa-user-link url nickname">benzwick</a></span>
+														</span>
+													</span>
+												</span>
+											</div>
+											<div class="qa-a-item-buttons">
+												</div>
+											
+											<div class="qa-a-item-c-list" id="c8019_list">
+												<div class="qa-c-list-item  hentry comment" id="c8020">
+													<div class="qa-c-item-content">
+														<a name="8020"></a><div class="entry-content"><p>An unrelated suggestion: Your model is quite complex. Have you tried uflacs? That should reduce your form compilation time significantly.</p>
+
+<p>To use it, set<br>
+parameters["form_compiler"]["representation"] = "uflacs"<br>
+and drop ffc_options.</p>
+
+<p>If it's not already installed, you could try installing the latest dev versions of fenics from source.</p>
+</div>
+													</div>
+													<div class="qa-c-item-footer">
+														<span class="qa-c-item-avatar-meta">
+															<span class="qa-c-item-avatar">
+																<a href="../../user/martinal" class="qa-avatar-link"><img src="https://www.gravatar.com/avatar/24eb33191219cc8eedd6b2a507802368?s=20" width="20" height="20" class="qa-avatar-image" alt=""></a>
+															</span>
+															<span class="qa-c-item-meta">
+																<a href="../../7982/jacobian-nonlinear-dependent-variational-problem-expression?show=8020#c8020" class="qa-c-item-what">commented</a>
+																<span class="qa-c-item-when">
+																	<span class="qa-c-item-when-data"><span class="published"><span class="value-title" title="2015-09-04T13:48:40+0000"></span>Sep 4, 2015</span></span>
+																</span>
+																<span class="qa-c-item-who">
+																	<span class="qa-c-item-who-pad">by </span>
+																	<span class="qa-c-item-who-data"><span class="vcard author"><a href="../../user/martinal" class="qa-user-link url nickname">martinal</a></span></span>
+																	<span class="qa-c-item-who-title">FEniCS User</span>
+																	<span class="qa-c-item-who-points">
+																		<span class="qa-c-item-who-points-pad">(</span><span class="qa-c-item-who-points-data">2,800</span><span class="qa-c-item-who-points-pad"> points)</span>
+																	</span>
+																</span>
+															</span>
+														</span>
+														<div class="qa-c-item-buttons">
+														</div>
+													</div>
+													<div class="qa-c-item-clear">
+													</div>
+												</div> <!-- END qa-c-item -->
+												<div class="qa-c-list-item  hentry comment" id="c8038">
+													<div class="qa-c-item-content">
+														<a name="8038"></a><div class="entry-content"><p>Thank you very much. You're right, there was at least one bug in the model and it's also a difficult problem to solve. I think I fixed it now---the results and convergence compare very well with Abaqus.</p>
+
+<p>I'd heard good things about uflacs but wasn't using it yet because I had some trouble installing the latest version of FEniCS. I followed your suggestion and it's made a massive difference to the assembly speed.</p>
+</div>
+													</div>
+													<div class="qa-c-item-footer">
+														<span class="qa-c-item-avatar-meta">
+															<span class="qa-c-item-meta">
+																<a href="../../7982/jacobian-nonlinear-dependent-variational-problem-expression?show=8038#c8038" class="qa-c-item-what">commented</a>
+																<span class="qa-c-item-when">
+																	<span class="qa-c-item-when-data"><span class="published"><span class="value-title" title="2015-09-05T08:19:25+0000"></span>Sep 5, 2015</span></span>
+																</span>
+																<span class="qa-c-item-who">
+																	<span class="qa-c-item-who-pad">by </span>
+																	<span class="qa-c-item-who-data"><span class="vcard author"><a href="../../user/benzwick" class="qa-user-link url nickname">benzwick</a></span></span>
+																	<span class="qa-c-item-who-title">FEniCS Novice</span>
+																	<span class="qa-c-item-who-points">
+																		<span class="qa-c-item-who-points-pad">(</span><span class="qa-c-item-who-points-data">350</span><span class="qa-c-item-who-points-pad"> points)</span>
+																	</span>
+																</span>
+															</span>
+														</span>
+														<div class="qa-c-item-buttons">
+														</div>
+													</div>
+													<div class="qa-c-item-clear">
+													</div>
+												</div> <!-- END qa-c-item -->
+											</div> <!-- END qa-c-list -->
+											
+											<input type="hidden" name="code" value="0-1516468149-e96ef63b224d6e5b51062ad979e76fc5da8f6ba6">
+											<input type="hidden" name="qa_click" value="">
+										</form>
+										<div class="qa-c-form">
+										</div> <!-- END qa-c-form -->
+										
+									</div> <!-- END qa-a-item-main -->
+									<div class="qa-a-item-clear">
+									</div>
+								</div> <!-- END qa-a-list-item -->
+								
+							</div> <!-- END qa-a-list -->
+							
+						</div>
+					</div> <!-- END qa-main -->
+					
+				</div> <!-- END main-wrapper -->
+			</div> <!-- END main-shadow -->
+		</div> <!-- END body-wrapper -->
+		<!-- END footer-bottom-group -->
+		
+		<div style="position:absolute; left:-9999px; top:-9999px;">
+			<span id="qa-waiting-template" class="qa-waiting">...</span>
+		</div>
+	
+	
+
+</body><!-- Powered by Question2Answer - http://www.question2answer.org/ --></html>

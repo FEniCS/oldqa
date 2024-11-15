@@ -1,0 +1,291 @@
+<html><!-- Powered by Question2Answer - http://www.question2answer.org/ --><head>
+		<meta http-equiv="content-type" content="text/html; charset=utf-8">
+		<title>JIT Expression - FEniCS Q&amp;A</title>
+		<meta name="description" content="The modified nonlinear Poisson code below contains a nonlinear term that is implemented in two ways: once  ... }; }''' f=Expression(code) Many thanks">
+		<meta name="keywords" content="nonlinear,poisson,expression,jit">
+		<link rel="stylesheet" type="text/css" href="../../qa-theme/Snow/qa-styles.css">
+		<link rel="canonical" href="http://fenicsproject.org/qa/8227/jit-expression">
+		<script type="text/x-mathjax-config">
+  MathJax.Hub.Config({
+    extensions: ["tex2jax.js"],
+    jax: ["input/TeX","output/HTML-CSS"],
+    tex2jax: {inlineMath: [["$","$"],["\\(","\\)"]]},
+    TeX: { extensions: ["AMSmath.js","AMSsymbols.js"]}
+  });
+</script>
+<script type="text/javascript" src="../../mathjax/MathJax.js"></script>
+		<script src="../../jquery-1.7.2.min.js" type="text/javascript"></script>
+		<script src="../../highlight.min.js"></script>
+<script type="text/javascript">
+$(function(){
+	$('.wmd-input').keypress(function(){
+		window.clearTimeout(hljs.Timeout);
+		hljs.Timeout = window.setTimeout(function() {
+			hljs.initHighlighting.called = false;
+			hljs.initHighlighting();
+		}, 500);
+	});
+	window.setTimeout(function() {
+		hljs.initHighlighting.called = false;
+		hljs.initHighlighting();
+	}, 500);
+});
+</script>
+
+
+	</head>
+	<body class="qa-template-question qa-body-js-off">
+		<div class="qa-body-wrapper">
+			
+			<div class="qa-header">
+				<div class="qa-logo">
+					<a href="../../" class="qa-logo-link" title="FEniCS Q&amp;A"><img src="../../qa-theme/fenics_qa.png" border="0" alt="FEniCS Q&amp;A"></a>
+				</div>
+				<div class="qa-header-clear">
+				</div>
+			</div> <!-- END qa-header -->
+			
+			<div class="qa-main-shadow">
+				
+				<div class="qa-main-wrapper">
+					
+					<div class="qa-sidepanel">
+						<div class="qa-sidebar">
+							This is a read only copy of the old FEniCS QA forum. Please visit the <a href="https://www.allanswered.com/community/s/fenics-project/">new QA forum</a> to ask questions
+						</div>
+						
+					</div>
+					
+					<div class="qa-main">
+						<h1>
+							<span class="entry-title">JIT Expression</span>
+						</h1>
+						<div class="qa-part-q-view">
+							<div class="qa-q-view  hentry question" id="q8227">
+								<form method="post" action="../../8227/jit-expression">
+									<div class="qa-q-view-stats">
+										<div class="qa-voting qa-voting-net" id="voting_8227">
+											<div class="qa-vote-count qa-vote-count-net">
+												<span class="qa-netvote-count">
+													<span class="qa-netvote-count-data">+1<span class="votes-up"><span class="value-title" title="1"></span></span><span class="votes-down"><span class="value-title" title="0"></span></span></span><span class="qa-netvote-count-pad"> vote</span>
+												</span>
+											</div>
+											<div class="qa-vote-clear">
+											</div>
+										</div>
+									</div>
+									<input type="hidden" name="code" value="0-1516468163-fb31452db310bad59f5ae1f06d9eeef2a50b25e9">
+								</form>
+								<div class="qa-q-view-main">
+									<form method="post" action="../../8227/jit-expression">
+										<div class="qa-q-view-content">
+											<a name="8227"></a><div class="entry-content"><p>The modified nonlinear Poisson code below contains a nonlinear term that is implemented in two ways: once using UFL, as in the demo (hence supporting automated differentiation and fast evaluation); and then also using an expression.</p>
+
+<pre><code>from dolfin import *
+
+# Sub domain for Dirichlet boundary condition
+class DirichletBoundary(SubDomain):
+    def inside(self, x, on_boundary):
+        return abs(x[0] - 1.0) &lt; DOLFIN_EPS and on_boundary
+
+# Create mesh and define function space
+mesh = UnitSquareMesh(32, 32)
+
+V = FunctionSpace(mesh, "CG", 1)
+
+# Define boundary condition
+g = Constant(1.0)
+bc = DirichletBC(V, g, DirichletBoundary())
+
+# Define variational problem
+u_k = Function(V)
+du = TrialFunction(V)
+v = TestFunction(V)
+f = Expression("x[0]*sin(x[1])")
+
+# define F and J
+method = 2
+if method == 1: # as in the demo-code
+    F = inner((1 + u_k**2)*grad(u_k), grad(v))*dx - f*v*dx
+    J = derivative(F, u_k, du)
+
+elif method == 2: # using custom expressions, doing the same thing
+    class CustomNonlinearity(Expression):
+        def eval(self, value, x):
+            value[0] = 1 + u_k(x)**2
+    q = CustomNonlinearity()
+
+    class DCustomNonlinearity(Expression):
+        def eval(self, value, x):
+            value[0] = 2 * u_k(x)
+    Dq = DCustomNonlinearity()
+
+    F = inner(q*grad(u_k), grad(v))*dx - f*v*dx
+    J = inner(q*grad(du), grad(v)) * dx + inner(Dq * du * grad(u_k), grad(v)) * dx
+
+# Compute solution
+problem = NonlinearVariationalProblem(F, u_k, bc, J)
+solver = NonlinearVariationalSolver(problem)
+solver.solve()
+
+# Plot solution and solution gradient
+plot(u_k, title="Solution")
+plot(grad(u_k), title="Solution gradient")
+interactive()
+</code></pre>
+
+<p>In my code the nonlinear term is slightly more complicated, so option 1 is not possible. Now I would like to compile this expression to speed things up. But how can I pass the <code>Function u_k</code> (or its underlying C++ object) as an argument to the compiler?</p>
+
+<p>I would also need an external C function in this JIT-expression. How can I tell the compiler where to look for this? Here is some code that might clarify a little bit:</p>
+
+<pre><code>from dolfin import *
+code = '''
+**line below --&gt; how to tell compiler where to look for this?**
+#include "external_C_function.h" # defines a function `f`
+
+namespace dolfin {
+    class MyFun : public Expression
+    {
+        public:
+            MyFun(): Expression() {};
+        void eval(Array&lt;double&gt;&amp; values, const Array&lt;double&gt;&amp; x) const {
+            **line below --&gt; how to access the function u_k?**
+            argument = u_k(x)    --
+            values[0] = f(argument);
+        }
+    };
+}'''
+
+f=Expression(code)
+</code></pre>
+
+<p>Many thanks</p>
+</div>
+										</div>
+										<div class="qa-q-view-tags">
+											<ul class="qa-q-view-tag-list">
+												<li class="qa-q-view-tag-item"><a href="../../tag/nonlinear" rel="tag" class="qa-tag-link">nonlinear</a></li>
+												<li class="qa-q-view-tag-item"><a href="../../tag/poisson" rel="tag" class="qa-tag-link">poisson</a></li>
+												<li class="qa-q-view-tag-item"><a href="../../tag/expression" rel="tag" class="qa-tag-link">expression</a></li>
+												<li class="qa-q-view-tag-item"><a href="../../tag/jit" rel="tag" class="qa-tag-link">jit</a></li>
+											</ul>
+										</div>
+										<span class="qa-q-view-avatar-meta">
+											<span class="qa-q-view-meta">
+												<a href="../../8227/jit-expression" class="qa-q-view-what">asked</a>
+												<span class="qa-q-view-when">
+													<span class="qa-q-view-when-data"><span class="published"><span class="value-title" title="2015-09-28T15:00:50+0000"></span>Sep 28, 2015</span></span>
+												</span>
+												<span class="qa-q-view-who">
+													<span class="qa-q-view-who-pad">by </span>
+													<span class="qa-q-view-who-data"><span class="vcard author"><a href="../../user/maartent" class="qa-user-link url nickname">maartent</a></span></span>
+													<span class="qa-q-view-who-title">FEniCS User</span>
+													<span class="qa-q-view-who-points">
+														<span class="qa-q-view-who-points-pad">(</span><span class="qa-q-view-who-points-data">3,910</span><span class="qa-q-view-who-points-pad"> points)</span>
+													</span>
+												</span>
+												<br>
+												<span class="qa-q-view-what">edited</span>
+												<span class="qa-q-view-when">
+													<span class="qa-q-view-when-data"><span class="updated"><span class="value-title" title="2015-09-28T15:06:12+0000"></span>Sep 28, 2015</span></span>
+												</span>
+												<span class="qa-q-view-who">
+													<span class="qa-q-view-who-pad">by </span><span class="qa-q-view-who-data"><a href="../../user/maartent" class="qa-user-link url nickname">maartent</a></span>
+												</span>
+											</span>
+										</span>
+										<div class="qa-q-view-buttons">
+										</div>
+										
+										<div class="qa-q-view-c-list" id="c8227_list">
+											<div class="qa-c-list-item  hentry comment" id="c8275">
+												<div class="qa-c-item-content">
+													<a name="8275"></a><div class="entry-content"><p>What about simply handing u_k over as a constructor argument during the instantiation of MyFun?</p>
+</div>
+												</div>
+												<div class="qa-c-item-footer">
+													<span class="qa-c-item-avatar-meta">
+														<span class="qa-c-item-meta">
+															<a href="../../8227/jit-expression?show=8275#c8275" class="qa-c-item-what">commented</a>
+															<span class="qa-c-item-when">
+																<span class="qa-c-item-when-data"><span class="published"><span class="value-title" title="2015-10-03T12:33:02+0000"></span>Oct 3, 2015</span></span>
+															</span>
+															<span class="qa-c-item-who">
+																<span class="qa-c-item-who-pad">by </span>
+																<span class="qa-c-item-who-data"><span class="vcard author"><a href="../../user/Christian+Waluga" class="qa-user-link url nickname">Christian Waluga</a></span></span>
+																<span class="qa-c-item-who-title">FEniCS Expert</span>
+																<span class="qa-c-item-who-points">
+																	<span class="qa-c-item-who-points-pad">(</span><span class="qa-c-item-who-points-data">12,310</span><span class="qa-c-item-who-points-pad"> points)</span>
+																</span>
+															</span>
+														</span>
+													</span>
+													<div class="qa-c-item-buttons">
+													</div>
+												</div>
+												<div class="qa-c-item-clear">
+												</div>
+											</div> <!-- END qa-c-item -->
+											<div class="qa-c-list-item  hentry comment" id="c8277">
+												<div class="qa-c-item-content">
+													<a name="8277"></a><div class="entry-content"><p>Thanks. I figured out that part by now as well. Apparently, I was also looking for the function <code>dolfin.compile_extension_module()</code> to pass more parameters to the compiler. I haven't tried it yet, but I suppose that would answer the question.</p>
+</div>
+												</div>
+												<div class="qa-c-item-footer">
+													<span class="qa-c-item-avatar-meta">
+														<span class="qa-c-item-meta">
+															<a href="../../8227/jit-expression?show=8277#c8277" class="qa-c-item-what">commented</a>
+															<span class="qa-c-item-when">
+																<span class="qa-c-item-when-data"><span class="published"><span class="value-title" title="2015-10-03T22:19:29+0000"></span>Oct 4, 2015</span></span>
+															</span>
+															<span class="qa-c-item-who">
+																<span class="qa-c-item-who-pad">by </span>
+																<span class="qa-c-item-who-data"><span class="vcard author"><a href="../../user/maartent" class="qa-user-link url nickname">maartent</a></span></span>
+																<span class="qa-c-item-who-title">FEniCS User</span>
+																<span class="qa-c-item-who-points">
+																	<span class="qa-c-item-who-points-pad">(</span><span class="qa-c-item-who-points-data">3,910</span><span class="qa-c-item-who-points-pad"> points)</span>
+																</span>
+															</span>
+														</span>
+													</span>
+													<div class="qa-c-item-buttons">
+													</div>
+												</div>
+												<div class="qa-c-item-clear">
+												</div>
+											</div> <!-- END qa-c-item -->
+										</div> <!-- END qa-c-list -->
+										
+										<input type="hidden" name="code" value="0-1516468163-35e8067f8031f8a9956039332c3028ae9aea382e">
+										<input type="hidden" name="qa_click" value="">
+									</form>
+									<div class="qa-c-form">
+									</div> <!-- END qa-c-form -->
+									
+								</div> <!-- END qa-q-view-main -->
+								<div class="qa-q-view-clear">
+								</div>
+							</div> <!-- END qa-q-view -->
+							
+						</div>
+						<div class="qa-part-a-list">
+							<h2 id="a_list_title" style="display:none;"></h2>
+							<div class="qa-a-list" id="a_list">
+								
+							</div> <!-- END qa-a-list -->
+							
+						</div>
+					</div> <!-- END qa-main -->
+					
+				</div> <!-- END main-wrapper -->
+			</div> <!-- END main-shadow -->
+		</div> <!-- END body-wrapper -->
+		<!-- END footer-bottom-group -->
+		
+		<div style="position:absolute; left:-9999px; top:-9999px;">
+			<span id="qa-waiting-template" class="qa-waiting">...</span>
+		</div>
+	
+	
+
+</body><!-- Powered by Question2Answer - http://www.question2answer.org/ --></html>

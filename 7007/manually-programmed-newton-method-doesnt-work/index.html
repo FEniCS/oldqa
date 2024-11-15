@@ -1,0 +1,479 @@
+<html><!-- Powered by Question2Answer - http://www.question2answer.org/ --><head>
+		<meta http-equiv="content-type" content="text/html; charset=utf-8">
+		<title>Manually programmed Newton method doesn't work? - FEniCS Q&amp;A</title>
+		<meta name="description" content='Hi, I have read the following thread Newton method programmed manually and I wanted to try it for my DG  ... t = dt u_1.rename("u", "velocity") ufile'>
+		<meta name="keywords" content="newton">
+		<link rel="stylesheet" type="text/css" href="../../qa-theme/Snow/qa-styles.css">
+		<link rel="canonical" href="http://fenicsproject.org/qa/7007/manually-programmed-newton-method-doesnt-work">
+		<script type="text/x-mathjax-config">
+  MathJax.Hub.Config({
+    extensions: ["tex2jax.js"],
+    jax: ["input/TeX","output/HTML-CSS"],
+    tex2jax: {inlineMath: [["$","$"],["\\(","\\)"]]},
+    TeX: { extensions: ["AMSmath.js","AMSsymbols.js"]}
+  });
+</script>
+<script type="text/javascript" src="../../mathjax/MathJax.js"></script>
+		<script src="../../jquery-1.7.2.min.js" type="text/javascript"></script>
+		<script src="../../highlight.min.js"></script>
+<script type="text/javascript">
+$(function(){
+	$('.wmd-input').keypress(function(){
+		window.clearTimeout(hljs.Timeout);
+		hljs.Timeout = window.setTimeout(function() {
+			hljs.initHighlighting.called = false;
+			hljs.initHighlighting();
+		}, 500);
+	});
+	window.setTimeout(function() {
+		hljs.initHighlighting.called = false;
+		hljs.initHighlighting();
+	}, 500);
+});
+</script>
+
+
+	</head>
+	<body class="qa-template-question qa-body-js-off">
+		<div class="qa-body-wrapper">
+			
+			<div class="qa-header">
+				<div class="qa-logo">
+					<a href="../../" class="qa-logo-link" title="FEniCS Q&amp;A"><img src="../../qa-theme/fenics_qa.png" border="0" alt="FEniCS Q&amp;A"></a>
+				</div>
+				<div class="qa-header-clear">
+				</div>
+			</div> <!-- END qa-header -->
+			
+			<div class="qa-main-shadow">
+				
+				<div class="qa-main-wrapper">
+					
+					<div class="qa-sidepanel">
+						<div class="qa-sidebar">
+							This is a read only copy of the old FEniCS QA forum. Please visit the <a href="https://www.allanswered.com/community/s/fenics-project/">new QA forum</a> to ask questions
+						</div>
+						
+					</div>
+					
+					<div class="qa-main">
+						<h1>
+							<span class="entry-title">Manually programmed Newton method doesn't work?</span>
+						</h1>
+						<div class="qa-part-q-view">
+							<div class="qa-q-view  hentry question" id="q7007">
+								<form method="post" action="../../7007/manually-programmed-newton-method-doesnt-work">
+									<div class="qa-q-view-stats">
+										<div class="qa-voting qa-voting-net" id="voting_7007">
+											<div class="qa-vote-count qa-vote-count-net">
+												<span class="qa-netvote-count">
+													<span class="qa-netvote-count-data">&#8211;1<span class="votes-up"><span class="value-title" title="0"></span></span><span class="votes-down"><span class="value-title" title="1"></span></span></span><span class="qa-netvote-count-pad"> vote</span>
+												</span>
+											</div>
+											<div class="qa-vote-clear">
+											</div>
+										</div>
+									</div>
+									<input type="hidden" name="code" value="0-1516468099-b56ab01aa3ba588d3c37030cef01ea927fb8ad2d">
+								</form>
+								<div class="qa-q-view-main">
+									<form method="post" action="../../7007/manually-programmed-newton-method-doesnt-work">
+										<div class="qa-q-view-content">
+											<a name="7007"></a><div class="entry-content"><p>Hi, I have read the following thread <a rel="nofollow" href="http://fenicsproject.org/qa/536/newton-method-programmed-manually"> Newton method programmed manually </a> and I wanted to try it for my DG method with upwinding for NS equation.</p>
+
+<p>Here is my code</p>
+
+<pre><code>from dolfin import *
+import numpy as np
+
+dim = 2
+
+# Mesh
+Right   = 5.0
+Top = 1.0
+mesh    = RectangleMesh(0.0,0.0,Right,Top, 50, 10,"crossed")
+bndry   = FacetFunction("size_t", mesh)
+
+# Boundary description
+class LeftBoundary(SubDomain):
+    def inside(self, x, bndry):
+        return x[0] &lt; DOLFIN_EPS
+
+class RightBoundary(SubDomain):
+    def inside(self, x, bndry):
+        return x[0] &gt; Right-DOLFIN_EPS
+
+class TopBoundary(SubDomain):
+    def inside(self, x, bndry):
+        return x[1] &gt; Top-DOLFIN_EPS
+
+class BottomBoundary(SubDomain):
+    def inside(self, x, bndry):
+        return x[1] &lt; DOLFIN_EPS
+
+# Function spaces
+V = VectorFunctionSpace(mesh, 'DG', 1)
+Q = FunctionSpace(mesh, 'DG', 0)
+W = MixedFunctionSpace([V,Q])
+
+dirichlet   = Expression(("0.0", "0.0"), t = 0.0)
+u_IN        = Expression(("x[1]*(1.0-x[1])", "0.0"), t = 0.0)
+
+bc_top      = DirichletBC(W.sub(0), dirichlet, TopBoundary(), 'pointwise')
+bc_bottom   = DirichletBC(W.sub(0), dirichlet, BottomBoundary(), 'pointwise')
+bc_left     = DirichletBC(W.sub(0), u_IN, LeftBoundary(), 'pointwise')
+
+bcs = [bc_top, bc_bottom, bc_left]
+
+# Unknown and test functions
+w   = Function(W)
+(u, p)  = split(w)
+(v, q)  = TestFunctions(W)
+u_1 = Function(V) # velocity from previous time step
+
+
+# Problem parameters
+T_end       = 1.0
+dt      = 0.1
+u0      = Expression(("0.0", "0.0"))
+f_rhs       = Expression(("0.0", "0.0"), t = 0.0)
+
+sigma   = 10.0
+
+# Variational formulation
+n   = FacetNormal(mesh)
+ds  = Measure("ds", subdomain_data = bndry)
+I   = Identity(u.geometric_dimension())
+D   = 0.5*(grad(u) + grad(u).T)
+def F(D):
+    F = D
+    return F
+
+def a(u,v):
+    M = inner(F(D),grad(v))*dx - inner(avg(F(D))*n('+'),jump(v))*dS 
+    return M
+
+def J(u,v):
+    M = sigma*inner(jump(u),jump(v))*dS
+    return M
+
+def b(p,v):
+    M = -p*div(v)*dx  + avg(p)*dot(jump(v),n('+'))*dS
+    return M
+
+def c(u,w,v):   
+    P = avg(dot(w,n))
+    H = conditional(P &lt; 0.0, dot(u('+'),w('+')), dot(u('-'),w('-')))
+    M = -0.5*inner(grad(v)*u,w)*dx + inner(0.5*H*n('+'),jump(v))*dS
+    return M
+
+def L(v):
+    M = inner(f_rhs,v)*dx 
+    return M
+
+T =  (1/dt)*inner(u - u_1,v)*dx + a(u,v) + J(u,v) + b(p,v) + b(q,u) + c(u,u_1,v) - L(v) 
+
+dup = TrialFunction(W)
+Jac     = derivative(T, w, dup)
+
+# Solution
+
+plt = plot(u, mesh = mesh, mode="color", interactive = True, wireframe = False)
+pltP = plot(p, mesh = mesh, mode="color", interactive = True, wireframe = False)
+
+
+a_tol, r_tol = 1e-7, 1e-10
+w_inc = Function(W)
+u_1.assign(interpolate(u0,V))
+
+bc_top_du   = DirichletBC(W.sub(0), Constant((0.0,0.0)), TopBoundary(), 'pointwise')
+bc_bottom_du    = DirichletBC(W.sub(0), Constant((0.0,0.0)), BottomBoundary(), 'pointwise')
+bc_left_du  = DirichletBC(W.sub(0), Constant((0.0,0.0)), LeftBoundary(), 'pointwise')
+
+bcs_du = [bc_top_du, bc_bottom_du, bc_left_du]
+
+ufile = File("u.xdmf")
+pfile = File("p.xdmf")
+t = dt
+u_1.rename("u", "velocity")
+ufile &lt;&lt; u_1
+
+while t&lt;=T_end:
+    dirichlet.t     = t
+    u_IN.t      = t
+    nIter = 0
+    eps = 1
+    print 'time step: ', t
+    if True:
+        problem = NonlinearVariationalProblem(T, w, bcs, Jac)
+        solver = NonlinearVariationalSolver(problem)
+        solver.solve()
+    else:
+        while eps &gt; 1e-10 and nIter &lt; 4:    # Newton iterations
+        nIter += 1
+            A, b = assemble_system(Jac, -T, bcs_du)
+            solve(A, w_inc.vector(),b)     # Determine step direction
+            eps = np.linalg.norm(w_inc.vector().array(), ord = 2)
+            a = assemble(T)
+            for bc in bcs_du:
+                bc.apply(a)
+            print 'b.norm("l2") = ', b.norm('l2'), 'np.linalg.norm(a.array(), ord = 2) = ', np.linalg.norm(a.array(), ord = 2)
+            fnorm = b.norm('l2')
+            lmbda = 1.0     # step size, initially 1
+            w.vector()[:] += lmbda*w_inc.vector()    # New w vector
+        (u,p) = w.split(True)
+        print '      {0:2d}  {1:3.2E}  {2:5e}'.format(nIter, eps, fnorm)    
+
+    (u,p) = w.split(True)
+    u_1.assign(u)       
+    u.rename("u", "velocity")
+    p.rename("p", "pressure")
+    ufile &lt;&lt; (u,t)
+    pfile &lt;&lt; (p,t)
+    t += float(dt)
+plt.plot(u)
+pltP.plot(p)
+</code></pre>
+
+<p>If you leave "True" in the if statement, regular FENICS' Newton is called and you should get proper solution (nonzero solution for given data and problem). If you rewrite it to "False", manually writen Newton is performed.<br>
+The problem is that this time You get zero solution. </p>
+
+<p>Can you pls help me find the right way to implement Newton here? I.e. what should I change in my implementation to get the same results as I get with FENICS' Newton solver for the same problem?</p>
+</div>
+										</div>
+										<div class="qa-q-view-tags">
+											<ul class="qa-q-view-tag-list">
+												<li class="qa-q-view-tag-item"><a href="../../tag/newton" rel="tag" class="qa-tag-link">newton</a></li>
+											</ul>
+										</div>
+										<span class="qa-q-view-avatar-meta">
+											<span class="qa-q-view-meta">
+												<a href="../../7007/manually-programmed-newton-method-doesnt-work" class="qa-q-view-what">asked</a>
+												<span class="qa-q-view-when">
+													<span class="qa-q-view-when-data"><span class="published"><span class="value-title" title="2015-04-29T11:40:59+0000"></span>Apr 29, 2015</span></span>
+												</span>
+												<span class="qa-q-view-who">
+													<span class="qa-q-view-who-pad">by </span>
+													<span class="qa-q-view-who-data"><span class="vcard author"><a href="../../user/Ianx86" class="qa-user-link url nickname">Ianx86</a></span></span>
+													<span class="qa-q-view-who-title">FEniCS User</span>
+													<span class="qa-q-view-who-points">
+														<span class="qa-q-view-who-points-pad">(</span><span class="qa-q-view-who-points-data">1,050</span><span class="qa-q-view-who-points-pad"> points)</span>
+													</span>
+												</span>
+												<br>
+												<span class="qa-q-view-what">edited</span>
+												<span class="qa-q-view-when">
+													<span class="qa-q-view-when-data"><span class="updated"><span class="value-title" title="2015-04-30T05:10:38+0000"></span>Apr 30, 2015</span></span>
+												</span>
+												<span class="qa-q-view-who">
+													<span class="qa-q-view-who-pad">by </span><span class="qa-q-view-who-data"><a href="../../user/Ianx86" class="qa-user-link url nickname">Ianx86</a></span>
+												</span>
+											</span>
+										</span>
+										<div class="qa-q-view-buttons">
+										</div>
+										
+										<div class="qa-q-view-c-list" id="c7007_list">
+											<div class="qa-c-list-item  hentry comment" id="c7011">
+												<div class="qa-c-item-content">
+													<a name="7011"></a><div class="entry-content"><p>It is not clear what you want to ask. From what I understand your Newton implementation gives the right result for homogeneous Dirichlet conditions and fails to converge to the right solution for inhomogeneous ones?</p>
+</div>
+												</div>
+												<div class="qa-c-item-footer">
+													<span class="qa-c-item-avatar-meta">
+														<span class="qa-c-item-meta">
+															<a href="../../7007/manually-programmed-newton-method-doesnt-work?show=7011#c7011" class="qa-c-item-what">commented</a>
+															<span class="qa-c-item-when">
+																<span class="qa-c-item-when-data"><span class="published"><span class="value-title" title="2015-04-29T17:07:38+0000"></span>Apr 29, 2015</span></span>
+															</span>
+															<span class="qa-c-item-who">
+																<span class="qa-c-item-who-pad">by </span>
+																<span class="qa-c-item-who-data"><span class="vcard author"><a href="../../user/Christian+Waluga" class="qa-user-link url nickname">Christian Waluga</a></span></span>
+																<span class="qa-c-item-who-title">FEniCS Expert</span>
+																<span class="qa-c-item-who-points">
+																	<span class="qa-c-item-who-points-pad">(</span><span class="qa-c-item-who-points-data">12,310</span><span class="qa-c-item-who-points-pad"> points)</span>
+																</span>
+															</span>
+														</span>
+													</span>
+													<div class="qa-c-item-buttons">
+													</div>
+												</div>
+												<div class="qa-c-item-clear">
+												</div>
+											</div> <!-- END qa-c-item -->
+											<div class="qa-c-list-item  hentry comment" id="c7013">
+												<div class="qa-c-item-content">
+													<a name="7013"></a><div class="entry-content"><p>Sry, I hope it is now more clear. I just wonder how should I implement Newton to work properly for my problem.</p>
+</div>
+												</div>
+												<div class="qa-c-item-footer">
+													<span class="qa-c-item-avatar-meta">
+														<span class="qa-c-item-meta">
+															<a href="../../7007/manually-programmed-newton-method-doesnt-work?show=7013#c7013" class="qa-c-item-what">commented</a>
+															<span class="qa-c-item-when">
+																<span class="qa-c-item-when-data"><span class="published"><span class="value-title" title="2015-04-29T18:59:45+0000"></span>Apr 29, 2015</span></span>
+															</span>
+															<span class="qa-c-item-who">
+																<span class="qa-c-item-who-pad">by </span>
+																<span class="qa-c-item-who-data"><span class="vcard author"><a href="../../user/Ianx86" class="qa-user-link url nickname">Ianx86</a></span></span>
+																<span class="qa-c-item-who-title">FEniCS User</span>
+																<span class="qa-c-item-who-points">
+																	<span class="qa-c-item-who-points-pad">(</span><span class="qa-c-item-who-points-data">1,050</span><span class="qa-c-item-who-points-pad"> points)</span>
+																</span>
+															</span>
+														</span>
+													</span>
+													<div class="qa-c-item-buttons">
+													</div>
+												</div>
+												<div class="qa-c-item-clear">
+												</div>
+											</div> <!-- END qa-c-item -->
+										</div> <!-- END qa-c-list -->
+										
+										<input type="hidden" name="code" value="0-1516468099-628d38e42f150ec08e006880ab66d7edfd4aad91">
+										<input type="hidden" name="qa_click" value="">
+									</form>
+									<div class="qa-c-form">
+									</div> <!-- END qa-c-form -->
+									
+								</div> <!-- END qa-q-view-main -->
+								<div class="qa-q-view-clear">
+								</div>
+							</div> <!-- END qa-q-view -->
+							
+						</div>
+						<div class="qa-part-a-list">
+							<h2 id="a_list_title">1 Answer</h2>
+							<div class="qa-a-list" id="a_list">
+								
+								<div class="qa-a-list-item  hentry answer answer-selected qa-a-list-item-selected" id="a7015">
+									<form method="post" action="../../7007/manually-programmed-newton-method-doesnt-work">
+										<div class="qa-voting qa-voting-net" id="voting_7015">
+											<div class="qa-vote-count qa-vote-count-net">
+												<span class="qa-netvote-count">
+													<span class="qa-netvote-count-data">+2<span class="votes-up"><span class="value-title" title="2"></span></span><span class="votes-down"><span class="value-title" title="0"></span></span></span><span class="qa-netvote-count-pad"> votes</span>
+												</span>
+											</div>
+											<div class="qa-vote-clear">
+											</div>
+										</div>
+										<input type="hidden" name="code" value="0-1516468099-b56ab01aa3ba588d3c37030cef01ea927fb8ad2d">
+									</form>
+									<div class="qa-a-item-main">
+										<form method="post" action="../../7007/manually-programmed-newton-method-doesnt-work">
+											<div class="qa-a-item-selected">
+												<div class="qa-a-selection">
+													<div class="qa-a-selected">&#160;</div>
+													<div class="qa-a-selected-text">Best answer</div>
+												</div>
+												<div class="qa-a-item-content">
+													<a name="7015"></a><div class="entry-content"><p>The mistake seems to be that in your "hand-made" implementation, you don't apply your boundary condition ("bcs" in your code) to the initial solution w. So you start your Newton iteration with w = 0 and then your Newton increments also have a zero boundary condition (bcs_du), so there is no way that a nonzero boundary condition can enter your equation. This is why you get the correct solution, which is zero in this case.<br>
+What you have to do is something like</p>
+
+<pre><code>for bc in bcs:
+    bc.apply(w)
+</code></pre>
+
+<p>after you define w at the beginning.<br>
+By the way, posting 150 lines of code is not really considered good practice ;)<br>
+Cheers, Gregor</p>
+</div>
+												</div>
+												<span class="qa-a-item-avatar-meta">
+													<span class="qa-a-item-avatar">
+														<a href="../../user/Gregor+Mitscha-Baude" class="qa-avatar-link"><img src="../../?qa=image&amp;qa_blobid=3856551404141824203&amp;qa_size=40" width="32" height="40" class="qa-avatar-image" alt=""></a>
+													</span>
+													<span class="qa-a-item-meta">
+														<a href="../../7007/manually-programmed-newton-method-doesnt-work?show=7015#a7015" class="qa-a-item-what">answered</a>
+														<span class="qa-a-item-when">
+															<span class="qa-a-item-when-data"><span class="published"><span class="value-title" title="2015-04-30T08:16:59+0000"></span>Apr 30, 2015</span></span>
+														</span>
+														<span class="qa-a-item-who">
+															<span class="qa-a-item-who-pad">by </span>
+															<span class="qa-a-item-who-data"><span class="vcard author"><a href="../../user/Gregor+Mitscha-Baude" class="qa-user-link url nickname">Gregor Mitscha-Baude</a></span></span>
+															<span class="qa-a-item-who-title">FEniCS User</span>
+															<span class="qa-a-item-who-points">
+																<span class="qa-a-item-who-points-pad">(</span><span class="qa-a-item-who-points-data">2,280</span><span class="qa-a-item-who-points-pad"> points)</span>
+															</span>
+														</span>
+														<br>
+														<span class="qa-a-item-what">selected</span>
+														<span class="qa-a-item-when">
+															<span class="qa-a-item-when-data"><span class="updated"><span class="value-title" title="2015-05-04T11:41:31+0000"></span>May 4, 2015</span></span>
+														</span>
+														<span class="qa-a-item-who">
+															<span class="qa-a-item-who-pad">by </span><span class="qa-a-item-who-data"><a href="../../user/Ianx86" class="qa-user-link url nickname">Ianx86</a></span>
+														</span>
+													</span>
+												</span>
+											</div>
+											<div class="qa-a-item-buttons">
+												</div>
+											
+											<div class="qa-a-item-c-list" id="c7015_list">
+												<div class="qa-c-list-item  hentry comment" id="c7032">
+													<div class="qa-c-item-content">
+														<a name="7032"></a><div class="entry-content"><p>Thank you very much. Everything works fine and is clear to me. It just suffices to add </p>
+
+<pre><code>for bc in bcs:
+    bc.apply(w.vector())
+</code></pre>
+
+<p>as You proposed. Next time, I will try to make the code as short as possible. ;)</p>
+</div>
+													</div>
+													<div class="qa-c-item-footer">
+														<span class="qa-c-item-avatar-meta">
+															<span class="qa-c-item-meta">
+																<a href="../../7007/manually-programmed-newton-method-doesnt-work?show=7032#c7032" class="qa-c-item-what">commented</a>
+																<span class="qa-c-item-when">
+																	<span class="qa-c-item-when-data"><span class="published"><span class="value-title" title="2015-05-04T11:45:10+0000"></span>May 4, 2015</span></span>
+																</span>
+																<span class="qa-c-item-who">
+																	<span class="qa-c-item-who-pad">by </span>
+																	<span class="qa-c-item-who-data"><span class="vcard author"><a href="../../user/Ianx86" class="qa-user-link url nickname">Ianx86</a></span></span>
+																	<span class="qa-c-item-who-title">FEniCS User</span>
+																	<span class="qa-c-item-who-points">
+																		<span class="qa-c-item-who-points-pad">(</span><span class="qa-c-item-who-points-data">1,050</span><span class="qa-c-item-who-points-pad"> points)</span>
+																	</span>
+																</span>
+															</span>
+														</span>
+														<div class="qa-c-item-buttons">
+														</div>
+													</div>
+													<div class="qa-c-item-clear">
+													</div>
+												</div> <!-- END qa-c-item -->
+											</div> <!-- END qa-c-list -->
+											
+											<input type="hidden" name="code" value="0-1516468099-b2a3d79330d0bc8308f9c940ea9a74b10af411e4">
+											<input type="hidden" name="qa_click" value="">
+										</form>
+										<div class="qa-c-form">
+										</div> <!-- END qa-c-form -->
+										
+									</div> <!-- END qa-a-item-main -->
+									<div class="qa-a-item-clear">
+									</div>
+								</div> <!-- END qa-a-list-item -->
+								
+							</div> <!-- END qa-a-list -->
+							
+						</div>
+					</div> <!-- END qa-main -->
+					
+				</div> <!-- END main-wrapper -->
+			</div> <!-- END main-shadow -->
+		</div> <!-- END body-wrapper -->
+		<!-- END footer-bottom-group -->
+		
+		<div style="position:absolute; left:-9999px; top:-9999px;">
+			<span id="qa-waiting-template" class="qa-waiting">...</span>
+		</div>
+	
+	
+
+</body><!-- Powered by Question2Answer - http://www.question2answer.org/ --></html>

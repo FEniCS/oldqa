@@ -1,0 +1,668 @@
+<html><!-- Powered by Question2Answer - http://www.question2answer.org/ --><head>
+		<meta http-equiv="content-type" content="text/html; charset=utf-8">
+		<title>How to solve coupled initial value problem with multiple dofs? - FEniCS Q&amp;A</title>
+		<meta name="description" content="Dear all, Firstly, I must say FEniCS is really an awesome software. Thanks the developer!!! I'm using the  ... 2] = value3 values[3] = value4 if x[0]">
+		<meta name="keywords" content="coupled-equations,time-dependent,initial-condition,time-stepping,functionspace">
+		<link rel="stylesheet" type="text/css" href="../../qa-theme/Snow/qa-styles.css">
+		<link rel="canonical" href="http://fenicsproject.org/qa/12067/how-solve-coupled-initial-value-problem-with-multiple-dofs">
+		<script type="text/x-mathjax-config">
+  MathJax.Hub.Config({
+    extensions: ["tex2jax.js"],
+    jax: ["input/TeX","output/HTML-CSS"],
+    tex2jax: {inlineMath: [["$","$"],["\\(","\\)"]]},
+    TeX: { extensions: ["AMSmath.js","AMSsymbols.js"]}
+  });
+</script>
+<script type="text/javascript" src="../../mathjax/MathJax.js"></script>
+		<script src="../../jquery-1.7.2.min.js" type="text/javascript"></script>
+		<script src="../../highlight.min.js"></script>
+<script type="text/javascript">
+$(function(){
+	$('.wmd-input').keypress(function(){
+		window.clearTimeout(hljs.Timeout);
+		hljs.Timeout = window.setTimeout(function() {
+			hljs.initHighlighting.called = false;
+			hljs.initHighlighting();
+		}, 500);
+	});
+	window.setTimeout(function() {
+		hljs.initHighlighting.called = false;
+		hljs.initHighlighting();
+	}, 500);
+});
+</script>
+
+
+	</head>
+	<body class="qa-template-question qa-body-js-off">
+		<div class="qa-body-wrapper">
+			
+			<div class="qa-header">
+				<div class="qa-logo">
+					<a href="../../" class="qa-logo-link" title="FEniCS Q&amp;A"><img src="../../qa-theme/fenics_qa.png" border="0" alt="FEniCS Q&amp;A"></a>
+				</div>
+				<div class="qa-header-clear">
+				</div>
+			</div> <!-- END qa-header -->
+			
+			<div class="qa-main-shadow">
+				
+				<div class="qa-main-wrapper">
+					
+					<div class="qa-sidepanel">
+						<div class="qa-sidebar">
+							This is a read only copy of the old FEniCS QA forum. Please visit the <a href="https://www.allanswered.com/community/s/fenics-project/">new QA forum</a> to ask questions
+						</div>
+						
+					</div>
+					
+					<div class="qa-main">
+						<h1>
+							<span class="entry-title">How to solve coupled initial value problem with multiple dofs?</span>
+						</h1>
+						<div class="qa-part-q-view">
+							<div class="qa-q-view  hentry question" id="q12067">
+								<form method="post" action="../../12067/how-solve-coupled-initial-value-problem-with-multiple-dofs">
+									<div class="qa-q-view-stats">
+										<div class="qa-voting qa-voting-net" id="voting_12067">
+											<div class="qa-vote-count qa-vote-count-net">
+												<span class="qa-netvote-count">
+													<span class="qa-netvote-count-data">+1<span class="votes-up"><span class="value-title" title="1"></span></span><span class="votes-down"><span class="value-title" title="0"></span></span></span><span class="qa-netvote-count-pad"> vote</span>
+												</span>
+											</div>
+											<div class="qa-vote-clear">
+											</div>
+										</div>
+									</div>
+									<input type="hidden" name="code" value="0-1516467805-18d8724b84134faddb76366c9a7ecf83aed0e250">
+								</form>
+								<div class="qa-q-view-main">
+									<form method="post" action="../../12067/how-solve-coupled-initial-value-problem-with-multiple-dofs">
+										<div class="qa-q-view-content">
+											<a name="12067"></a><div class="entry-content"><p>Dear all,<br>
+   Firstly, I must say FEniCS is really an awesome software. Thanks the developer!!!<br>
+   I'm using the new version FEniCS, but there are few tutorials about the newest version. Somethings, especially for the coupled initial value problems with multiple dofs for each node.<br>
+   I see the tutorial on Github for the reaction system(which will deal with multiple dofs, but that doesn't help me)<br>
+   For example, for some simple diffusion problem coupled with poisson equation.<br>
+   Let's consider that there are three species,$c_{1}$,$c_{2}$ and $c_{3}$. They are coupled with a potential $\phi$<br>
+   The governing equations for these four dofs(c1,c2,c3,phi) are list as below:<br>
+   $\frac{\partial c_{1}}{\partial t}=\nabla\cdot(D_{1}\nabla c_{1}+D_{1}c_{1}\nabla\Phi)$</p>
+
+<p>$\frac{\partial c_{2}}{\partial t}=\nabla\cdot(D_{2}\nabla c_{2}+\frac{D_{2}c_{2}}{1-c_{3}}\nabla c_{3}+\frac{D_{2}c_{2}}{1-c_{3}}\nabla\Phi)$</p>
+
+<p>$\frac{\partial c_{3}}{\partial t}=\nabla\cdot(D_{3}\nabla c_{3}+\frac{D_{3}c_{3}}{1-c_{2}}\nabla c_{2}+\frac{D_{3}c_{3}}{1-c_{2}}\nabla\Phi)$</p>
+
+<p>$\sigma\nabla^{2}\Phi+\sum_{i=1}^{3}c_{i}=0$</p>
+
+<p>In the old version FEniCS, I defined the function space as follow:</p>
+
+<pre><code># Mesh info
+w=10;h=0.1*w
+mesh=RectangleMesh(Point(0,0),Point(w,h),100,10)
+P1=FiniteElement('P',triangle,1)
+element=MixedElement([P1,P1,P1,P1]))
+# Is it right that how many dofs per node your are using,how many terms 
+# will be used in the MixedElement?
+
+# Function space
+V=FunctionSpace(mesh,element)
+du=TrialFunction(V)
+v1,v2,v3,v4=TestFunctions(V)
+u=Function(V)
+u0=Function(V)
+
+# In the old version, I defined the initial class as follow to compute the initial
+# value, but it dosen't work in the newest version. Why?
+# Initial Condition
+class InitialConditions(Expression):
+ def eval(self, values, x):
+    values[0] = value1
+    values[1] = value2
+    values[2] = value3
+    values[3] = value4
+    if x[0]&lt;w/2.0:
+      values[0] = value5
+      values[1] = value6
+      values[2] = value7
+      values[3] = value8
+ def value_shape(self):
+   return (4,)
+ # Then use the interpolation, I can obtain the initial u0 as follow(but it can't work in the newest version, I don't know why?):
+ u0.interpolate(InitialConditions())
+</code></pre>
+
+<p>So, my question is:<br>
+  1. How to define the function space for a multiple dofs problem(each node has multiple dofs), not a vector field but a multiple scalar components(For example: c1,c2,c3...,cn).<br>
+  2. How to use some high order element or other different element for these c1,c2,c3,phi? For my case, I don't need to consider VectorFunctionspace or other things. Just some simple 2D-4Node rectangle element or 2D-8Nodes rectangle element for all the c1,c2,c3,phi.<br>
+I tried use higher order, but FEniCS given me some warning like "too much gauss points...", some thing like that. How to solve it?<br>
+  3. How to use Functionspace to interpolate the initial value for each dof. In the old version, I can use the self-defined class (class InitialConditions(...):) and use </p>
+
+<pre><code>u0.interpolate(InitialConditions())
+</code></pre>
+
+<p>but now it gives me the errors.<br>
+  4. To my understanding, for a multiple dofs problem,For example 4 dofs each node. Then I can define the test function as follow:</p>
+
+<pre><code>v1,v2,v3,v4=Functions(V)
+du=TrialFunction(V)
+u0=Function(V)
+u0.interpolate(InitialCondition())
+c10,c20,c30,phi0=split(u0)
+u=Function(V)
+c1,c2,c3,phi=split(u)
+</code></pre>
+
+<p>then after I defined the weak form $L$ for this problem use (v1,v2,v3,v4),(c10,c20,c30,phi0) and<br>
+(c1,c2,c3,phi). I can compute the Jacobian of this system in each time step as follow:</p>
+
+<pre><code>a=derivative(L,u,du)
+problem=NonlinearVariationalProblem(L,u,bcs=bc,J=a)
+solver=NonlinearVariationalSolver(problem)
+solver.solve()
+u0.assign(u)
+</code></pre>
+
+<p>Is this understanding right? Because I did some simple test and it seems every is OK. But for a complex case, it's not so easy to do the simulation.</p>
+
+<p>Any helpful suggestion is welcome.</p>
+
+<p>Thank you!</p>
+</div>
+										</div>
+										<div class="qa-q-view-tags">
+											<ul class="qa-q-view-tag-list">
+												<li class="qa-q-view-tag-item"><a href="../../tag/coupled-equations" rel="tag" class="qa-tag-link">coupled-equations</a></li>
+												<li class="qa-q-view-tag-item"><a href="../../tag/time-dependent" rel="tag" class="qa-tag-link">time-dependent</a></li>
+												<li class="qa-q-view-tag-item"><a href="../../tag/initial-condition" rel="tag" class="qa-tag-link">initial-condition</a></li>
+												<li class="qa-q-view-tag-item"><a href="../../tag/time-stepping" rel="tag" class="qa-tag-link">time-stepping</a></li>
+												<li class="qa-q-view-tag-item"><a href="../../tag/functionspace" rel="tag" class="qa-tag-link">functionspace</a></li>
+											</ul>
+										</div>
+										<span class="qa-q-view-avatar-meta">
+											<span class="qa-q-view-meta">
+												<a href="../../12067/how-solve-coupled-initial-value-problem-with-multiple-dofs" class="qa-q-view-what">asked</a>
+												<span class="qa-q-view-when">
+													<span class="qa-q-view-when-data"><span class="published"><span class="value-title" title="2017-01-05T11:46:33+0000"></span>Jan 5, 2017</span></span>
+												</span>
+												<span class="qa-q-view-who">
+													<span class="qa-q-view-who-pad">by </span>
+													<span class="qa-q-view-who-data"><span class="vcard author"><a href="../../user/walkandthink" class="qa-user-link url nickname">walkandthink</a></span></span>
+													<span class="qa-q-view-who-title">FEniCS Novice</span>
+													<span class="qa-q-view-who-points">
+														<span class="qa-q-view-who-points-pad">(</span><span class="qa-q-view-who-points-data">320</span><span class="qa-q-view-who-points-pad"> points)</span>
+													</span>
+												</span>
+											</span>
+										</span>
+										<div class="qa-q-view-buttons">
+										</div>
+										
+										<div class="qa-q-view-c-list" style="display:none;" id="c12067_list">
+										</div> <!-- END qa-c-list -->
+										
+										<input type="hidden" name="code" value="0-1516467805-68e7b5d91c1cd31ebaeaa9ac298d5514f3054622">
+										<input type="hidden" name="qa_click" value="">
+									</form>
+									<div class="qa-c-form">
+									</div> <!-- END qa-c-form -->
+									
+								</div> <!-- END qa-q-view-main -->
+								<div class="qa-q-view-clear">
+								</div>
+							</div> <!-- END qa-q-view -->
+							
+						</div>
+						<div class="qa-part-a-list">
+							<h2 id="a_list_title">1 Answer</h2>
+							<div class="qa-a-list" id="a_list">
+								
+								<div class="qa-a-list-item  hentry answer answer-selected qa-a-list-item-selected" id="a12080">
+									<form method="post" action="../../12067/how-solve-coupled-initial-value-problem-with-multiple-dofs">
+										<div class="qa-voting qa-voting-net" id="voting_12080">
+											<div class="qa-vote-count qa-vote-count-net">
+												<span class="qa-netvote-count">
+													<span class="qa-netvote-count-data">+1<span class="votes-up"><span class="value-title" title="1"></span></span><span class="votes-down"><span class="value-title" title="0"></span></span></span><span class="qa-netvote-count-pad"> vote</span>
+												</span>
+											</div>
+											<div class="qa-vote-clear">
+											</div>
+										</div>
+										<input type="hidden" name="code" value="0-1516467805-18d8724b84134faddb76366c9a7ecf83aed0e250">
+									</form>
+									<div class="qa-a-item-main">
+										<form method="post" action="../../12067/how-solve-coupled-initial-value-problem-with-multiple-dofs">
+											<div class="qa-a-item-selected">
+												<div class="qa-a-selection">
+													<div class="qa-a-selected">&#160;</div>
+													<div class="qa-a-selected-text">Best answer</div>
+												</div>
+												<div class="qa-a-item-content">
+													<a name="12080"></a><div class="entry-content"><p>Hi, </p>
+
+<p>Maybe there is some misconception of your DOF or how this translates to FEniCS, because every function you get from your mixed space adds dofs to the entire mesh in every function, or maybe I didn't quite get your question. Regarding the concrete questions:</p>
+
+<ol>
+<li>How to define the function space for a multiple dofs problem(each node has multiple dofs), not a vector field but a multiple scalar components(For example: c1,c2,c3...,cn).</li>
+</ol>
+
+<p>If your problem is having multiple scalar components in each node, your code already does that, dofs are defined for each c_i separately. If your problem is having an arbitrary number of functions, you could do something like</p>
+
+<pre><code>element = MixedElement([P1 for i in range(n)])
+</code></pre>
+
+<p>and then use that to solve the problem, but it sounds weird. Also I am not sure if 'P' gives the same result as 'CG' (continuous galerkin), so maybe you could change it.</p>
+
+<hr>
+
+<ol>
+<li>How to use some high order element or other different element for these c1,c2,c3,phi? For my case, I don't need to consider VectorFunctionspace or other things. Just some simple 2D-4Node rectangle element or 2D-8Nodes rectangle element for all the c1,c2,c3,phi.<br>
+I tried use higher order, but FEniCS given me some warning like "too much gauss points...", some thing like that. How to solve it?</li>
+</ol>
+
+<p>This is controled by your element definition. As far as I know, only triangle elements are supportetd by fenics.</p>
+
+<pre><code>P1=FiniteElement('CG',triangle,3)
+</code></pre>
+
+<p>would use third order Lagrange elements.</p>
+
+<hr>
+
+<ol>
+<li>How to use Functionspace to interpolate the initial value for each dof. In the old version, I can use the self-defined class (class InitialConditions(...):) and use</li>
+</ol>
+
+<p>u0.interpolate(InitialConditions())<br>
+but now it gives me the errors.</p>
+
+<p>When you create the DirichletBC class (for setting boundary conditions) you need only to give give an expression to evaluate on the boundary. It is important what you mentioned about evaluating in many points, which is why when you create an Expression, you have to set the degree, so that the correct number of quadrature points is used. Having said this, there is no need for you to interpolate the initial condition. If you want to set an initial pointyou could do it by solving a linearized version of your problem or by setting a function explicitly, which wouldn't require splitting.</p>
+
+<ol>
+<li>To my understanding, for a multiple dofs problem,For example 4 dofs each node. Then I can define the test function as follow:</li>
+</ol>
+
+<p>So it is algoritymically correct but for you forms it shouold use  TestFunction explicitly, just for readability. Not quite sure though. </p>
+
+<p>Best regards!!</p>
+</div>
+												</div>
+												<span class="qa-a-item-avatar-meta">
+													<span class="qa-a-item-avatar">
+														<a href="../../user/nabarnaf" class="qa-avatar-link"><img src="../../?qa=image&amp;qa_blobid=6623124104544180019&amp;qa_size=40" width="40" height="29" class="qa-avatar-image" alt=""></a>
+													</span>
+													<span class="qa-a-item-meta">
+														<a href="../../12067/how-solve-coupled-initial-value-problem-with-multiple-dofs?show=12080#a12080" class="qa-a-item-what">answered</a>
+														<span class="qa-a-item-when">
+															<span class="qa-a-item-when-data"><span class="published"><span class="value-title" title="2017-01-05T19:02:47+0000"></span>Jan 5, 2017</span></span>
+														</span>
+														<span class="qa-a-item-who">
+															<span class="qa-a-item-who-pad">by </span>
+															<span class="qa-a-item-who-data"><span class="vcard author"><a href="../../user/nabarnaf" class="qa-user-link url nickname">nabarnaf</a></span></span>
+															<span class="qa-a-item-who-title">FEniCS User</span>
+															<span class="qa-a-item-who-points">
+																<span class="qa-a-item-who-points-pad">(</span><span class="qa-a-item-who-points-data">2,940</span><span class="qa-a-item-who-points-pad"> points)</span>
+															</span>
+														</span>
+														<br>
+														<span class="qa-a-item-what">selected</span>
+														<span class="qa-a-item-when">
+															<span class="qa-a-item-when-data"><span class="updated"><span class="value-title" title="2017-01-07T08:58:14+0000"></span>Jan 7, 2017</span></span>
+														</span>
+														<span class="qa-a-item-who">
+															<span class="qa-a-item-who-pad">by </span><span class="qa-a-item-who-data"><a href="../../user/walkandthink" class="qa-user-link url nickname">walkandthink</a></span>
+														</span>
+													</span>
+												</span>
+											</div>
+											<div class="qa-a-item-buttons">
+												</div>
+											
+											<div class="qa-a-item-c-list" id="c12080_list">
+												<div class="qa-c-list-item  hentry comment" id="c12084">
+													<div class="qa-c-item-content">
+														<a name="12084"></a><div class="entry-content"><p>Thank you sincerely for the answer. That's really helpful!!! Thank you!</p>
+
+<blockquote>
+  <p>If you want to set an initial point you could do it by solving a linearized version of your problem or by setting a function explicitly, which wouldn't require splitting</p>
+</blockquote>
+
+<p>Sorry, I don't get your point. Not splitting is required?</p>
+
+<p>For the initial condition, now I can define an expression like this:</p>
+
+<pre><code>u_init=Expression(('x[0]&lt;=w/8.0?C1a:C1b','x[0]&lt;=w/8.0?C2a:C2b','x[0]&lt;=w/8.0?1.0:1.e-6','0.0'),\
+degree=1,w=w,C1a=calpha[0],C1b=cbeta[0],C2a=calpha[1],C2b=cbeta[1])
+</code></pre>
+
+<p>and then use the Functionspace to interpolate the initial value as follow:</p>
+
+<pre><code>u0=interpolate(u_init,V)
+c1,c2,eta,phi=split(u)
+c10,c20,eta0,phi0=split(u0)
+</code></pre>
+
+<p>why I split the u and u0 here is that I want to use Backward Euler time integration method.<br>
+For example:</p>
+
+<pre><code>L1=c1*v1*dx-c10*v1*dx+dt*D1*dot(grad(c1),grad(v1))*dx
+L2=c2*v2*dx-c20*v2*dx+D2*dt*dot(grad(c2),grad(v2))*dx
+</code></pre>
+
+<p>This is not correct? Or there are other ways to implement the time dependent problem?</p>
+
+<p>Thank you!</p>
+</div>
+													</div>
+													<div class="qa-c-item-footer">
+														<span class="qa-c-item-avatar-meta">
+															<span class="qa-c-item-meta">
+																<a href="../../12067/how-solve-coupled-initial-value-problem-with-multiple-dofs?show=12084#c12084" class="qa-c-item-what">commented</a>
+																<span class="qa-c-item-when">
+																	<span class="qa-c-item-when-data"><span class="published"><span class="value-title" title="2017-01-06T08:20:38+0000"></span>Jan 6, 2017</span></span>
+																</span>
+																<span class="qa-c-item-who">
+																	<span class="qa-c-item-who-pad">by </span>
+																	<span class="qa-c-item-who-data"><span class="vcard author"><a href="../../user/walkandthink" class="qa-user-link url nickname">walkandthink</a></span></span>
+																	<span class="qa-c-item-who-title">FEniCS Novice</span>
+																	<span class="qa-c-item-who-points">
+																		<span class="qa-c-item-who-points-pad">(</span><span class="qa-c-item-who-points-data">320</span><span class="qa-c-item-who-points-pad"> points)</span>
+																	</span>
+																</span>
+															</span>
+														</span>
+														<div class="qa-c-item-buttons">
+														</div>
+													</div>
+													<div class="qa-c-item-clear">
+													</div>
+												</div> <!-- END qa-c-item -->
+												<div class="qa-c-list-item  hentry comment" id="c12085">
+													<div class="qa-c-item-content">
+														<a name="12085"></a><div class="entry-content"><p>Hi,</p>
+
+<p>Sorry, I understood something else. I don't think you need splitting for this, because you can just define each i itial condition as a separate expression. If you really want to follow the splitting scheme, that is used for splitting in mixed spaces (as far as I know, no idea if it works how you want). It seems more natural to me to just use the corresponding coordinates as </p>
+
+<pre><code>c10 = u0[0]
+</code></pre>
+
+<p>And so on. Let me know if it doesn't work.</p>
+
+<p>Best regards</p>
+</div>
+													</div>
+													<div class="qa-c-item-footer">
+														<span class="qa-c-item-avatar-meta">
+															<span class="qa-c-item-avatar">
+																<a href="../../user/nabarnaf" class="qa-avatar-link"><img src="../../?qa=image&amp;qa_blobid=6623124104544180019&amp;qa_size=20" width="20" height="14" class="qa-avatar-image" alt=""></a>
+															</span>
+															<span class="qa-c-item-meta">
+																<a href="../../12067/how-solve-coupled-initial-value-problem-with-multiple-dofs?show=12085#c12085" class="qa-c-item-what">commented</a>
+																<span class="qa-c-item-when">
+																	<span class="qa-c-item-when-data"><span class="published"><span class="value-title" title="2017-01-06T13:26:02+0000"></span>Jan 6, 2017</span></span>
+																</span>
+																<span class="qa-c-item-who">
+																	<span class="qa-c-item-who-pad">by </span>
+																	<span class="qa-c-item-who-data"><span class="vcard author"><a href="../../user/nabarnaf" class="qa-user-link url nickname">nabarnaf</a></span></span>
+																	<span class="qa-c-item-who-title">FEniCS User</span>
+																	<span class="qa-c-item-who-points">
+																		<span class="qa-c-item-who-points-pad">(</span><span class="qa-c-item-who-points-data">2,940</span><span class="qa-c-item-who-points-pad"> points)</span>
+																	</span>
+																</span>
+															</span>
+														</span>
+														<div class="qa-c-item-buttons">
+														</div>
+													</div>
+													<div class="qa-c-item-clear">
+													</div>
+												</div> <!-- END qa-c-item -->
+												<div class="qa-c-list-item  hentry comment" id="c12087">
+													<div class="qa-c-item-content">
+														<a name="12087"></a><div class="entry-content"><p>Thank you so much for the reply! Thank you!</p>
+
+<p>I tried </p>
+
+<pre><code>c10=u0[0]
+</code></pre>
+
+<p>and it works!</p>
+
+<p>As you mentioned "Split for mixed spaces"...oh, actually, I'm a lit bit confused about it.</p>
+
+<p>For a very simple case, if I have 3 dofs for each node(c1,c2,c3). <br>
+Both of them are scalar. I have three different diffusion equations for them.<br>
+So, first I will define a mesh like:</p>
+
+<pre><code>mesh=RectangleMesh(Point1,Point2,nx,ny)
+</code></pre>
+
+<p>then define the element as follow:</p>
+
+<pre><code>P1=FiniteElement('P',triangle,order)
+</code></pre>
+
+<p>Since I have three dofs for each node, I'll define a MixedElement or MixdeFunctionspace like this:</p>
+
+<pre><code>element=MixedElement([P1,P1])
+</code></pre>
+
+<p>then the FunctionSpace can be defined as follow:</p>
+
+<pre><code>V=FunctionSpace(mesh,element)
+</code></pre>
+
+<p>then the TestFunction can be defined as follow:</p>
+
+<pre><code> v1,v2=TestFunctions(V)
+</code></pre>
+
+<p>Is it right for a multiple dofs problem,a coupled problem? If I have 6 dofs(i.e. c1,c2,c3,u1,u2,u3),then I should use</p>
+
+<pre><code> element=MixedElement([P1,P1,P1,P1,P1,P1])
+ V=FunctionSpace(mesh,element)
+ v1,v2,v3,v4,v5,v6=TestFunction(V)
+</code></pre>
+
+<p>I tried to define separate initial condition expression for each c, but can't use a correct Function to do the interpolate work.</p>
+
+<pre><code> c10=interplote(c1_init,v1)
+</code></pre>
+
+<p>can't work.</p>
+
+<p>Another question, if I run the following code in FEniCS, it will give me the " WARNING: The number of integration points for each cell will be: 256 Consider using the option 'quadrature_degree' to reduce the number of points"</p>
+
+<pre><code> P1=FiniteElement('P',triangle,2)
+ element=MixedElement([P1,P1,P1,P1,P1])
+ V=FunctionSpace(mesh,element)
+</code></pre>
+
+<p>it seems the MixedElement lead to this problem, some duplicated things happened.</p>
+
+<p>So what makes me confused is, how to define the functionspace and element for the multiple dofs problem correctly?</p>
+
+<p>Thank you!</p>
+</div>
+													</div>
+													<div class="qa-c-item-footer">
+														<span class="qa-c-item-avatar-meta">
+															<span class="qa-c-item-meta">
+																<a href="../../12067/how-solve-coupled-initial-value-problem-with-multiple-dofs?show=12087#c12087" class="qa-c-item-what">commented</a>
+																<span class="qa-c-item-when">
+																	<span class="qa-c-item-when-data"><span class="published"><span class="value-title" title="2017-01-06T15:16:38+0000"></span>Jan 6, 2017</span></span>
+																</span>
+																<span class="qa-c-item-who">
+																	<span class="qa-c-item-who-pad">by </span>
+																	<span class="qa-c-item-who-data"><span class="vcard author"><a href="../../user/walkandthink" class="qa-user-link url nickname">walkandthink</a></span></span>
+																	<span class="qa-c-item-who-title">FEniCS Novice</span>
+																	<span class="qa-c-item-who-points">
+																		<span class="qa-c-item-who-points-pad">(</span><span class="qa-c-item-who-points-data">320</span><span class="qa-c-item-who-points-pad"> points)</span>
+																	</span>
+																</span>
+															</span>
+														</span>
+														<div class="qa-c-item-buttons">
+														</div>
+													</div>
+													<div class="qa-c-item-clear">
+													</div>
+												</div> <!-- END qa-c-item -->
+												<div class="qa-c-list-item  hentry comment" id="c12089">
+													<div class="qa-c-item-content">
+														<a name="12089"></a><div class="entry-content"><p>Fenics abstracts from the dofs in each node, so that you only focus on your variables of interest. Again, use 'CG' in your elements as I am not sure of what 'P' is, and use one of first order to reduce the number of quadrature points required. Also, as I mentioned, there is no need to interpolate your initial condition to use it in your weak formulation, Expressions are enough. </p>
+</div>
+													</div>
+													<div class="qa-c-item-footer">
+														<span class="qa-c-item-avatar-meta">
+															<span class="qa-c-item-avatar">
+																<a href="../../user/nabarnaf" class="qa-avatar-link"><img src="../../?qa=image&amp;qa_blobid=6623124104544180019&amp;qa_size=20" width="20" height="14" class="qa-avatar-image" alt=""></a>
+															</span>
+															<span class="qa-c-item-meta">
+																<a href="../../12067/how-solve-coupled-initial-value-problem-with-multiple-dofs?show=12089#c12089" class="qa-c-item-what">commented</a>
+																<span class="qa-c-item-when">
+																	<span class="qa-c-item-when-data"><span class="published"><span class="value-title" title="2017-01-07T02:31:51+0000"></span>Jan 7, 2017</span></span>
+																</span>
+																<span class="qa-c-item-who">
+																	<span class="qa-c-item-who-pad">by </span>
+																	<span class="qa-c-item-who-data"><span class="vcard author"><a href="../../user/nabarnaf" class="qa-user-link url nickname">nabarnaf</a></span></span>
+																	<span class="qa-c-item-who-title">FEniCS User</span>
+																	<span class="qa-c-item-who-points">
+																		<span class="qa-c-item-who-points-pad">(</span><span class="qa-c-item-who-points-data">2,940</span><span class="qa-c-item-who-points-pad"> points)</span>
+																	</span>
+																</span>
+															</span>
+														</span>
+														<div class="qa-c-item-buttons">
+														</div>
+													</div>
+													<div class="qa-c-item-clear">
+													</div>
+												</div> <!-- END qa-c-item -->
+												<div class="qa-c-list-item  hentry comment" id="c12091">
+													<div class="qa-c-item-content">
+														<a name="12091"></a><div class="entry-content"><p>Hi, Thank you for the reply.<br>
+Maybe I'm too stupid, I still don't understand the concept of 'Dofs' in FEniCS.</p>
+
+<p>I have one concentration(C), one electric potential($\phi$) and one order parameter($\eta$).<br>
+Which means I have a governing equation for concentration, a governing equation for electric potential and a governing equation for order parameter.</p>
+
+<p>These three governing equations are coupled together for the model. That means, for each node in the domain will have three degree of freedom(c,eta,phi). For example, for a rectangle domain, I have a lot of triangle elements('CG' element), and the total number of the nodes is 100, if each node has 3 Dofs and then the total number of Dofs is 300.</p>
+
+<p>Now, how to define the FunctionSpace correctly? Use the MixedFunctionSpace?</p>
+
+<p>Thank you!<br>
+Best regards!</p>
+</div>
+													</div>
+													<div class="qa-c-item-footer">
+														<span class="qa-c-item-avatar-meta">
+															<span class="qa-c-item-meta">
+																<a href="../../12067/how-solve-coupled-initial-value-problem-with-multiple-dofs?show=12091#c12091" class="qa-c-item-what">commented</a>
+																<span class="qa-c-item-when">
+																	<span class="qa-c-item-when-data"><span class="published"><span class="value-title" title="2017-01-07T08:50:44+0000"></span>Jan 7, 2017</span></span>
+																</span>
+																<span class="qa-c-item-who">
+																	<span class="qa-c-item-who-pad">by </span>
+																	<span class="qa-c-item-who-data"><span class="vcard author"><a href="../../user/walkandthink" class="qa-user-link url nickname">walkandthink</a></span></span>
+																	<span class="qa-c-item-who-title">FEniCS Novice</span>
+																	<span class="qa-c-item-who-points">
+																		<span class="qa-c-item-who-points-pad">(</span><span class="qa-c-item-who-points-data">320</span><span class="qa-c-item-who-points-pad"> points)</span>
+																	</span>
+																</span>
+															</span>
+														</span>
+														<div class="qa-c-item-buttons">
+														</div>
+													</div>
+													<div class="qa-c-item-clear">
+													</div>
+												</div> <!-- END qa-c-item -->
+												<div class="qa-c-list-item  hentry comment" id="c12092">
+													<div class="qa-c-item-content">
+														<a name="12092"></a><div class="entry-content"><p>Yes, to have many unknowns all you have to do is define a mixed element and split the solution afterwards. Im telling you that the dofs way of thinking isnt quite the fenics style, because you could have a problem where you want to find a scalar quantity and a vector quantity, and so you would need only two spaces, or rather a mixed space of a scalar element and a vector element. Your space would have 2 components but as there is a vector it would have n+1 dofs.</p>
+</div>
+													</div>
+													<div class="qa-c-item-footer">
+														<span class="qa-c-item-avatar-meta">
+															<span class="qa-c-item-avatar">
+																<a href="../../user/nabarnaf" class="qa-avatar-link"><img src="../../?qa=image&amp;qa_blobid=6623124104544180019&amp;qa_size=20" width="20" height="14" class="qa-avatar-image" alt=""></a>
+															</span>
+															<span class="qa-c-item-meta">
+																<a href="../../12067/how-solve-coupled-initial-value-problem-with-multiple-dofs?show=12092#c12092" class="qa-c-item-what">commented</a>
+																<span class="qa-c-item-when">
+																	<span class="qa-c-item-when-data"><span class="published"><span class="value-title" title="2017-01-07T11:10:02+0000"></span>Jan 7, 2017</span></span>
+																</span>
+																<span class="qa-c-item-who">
+																	<span class="qa-c-item-who-pad">by </span>
+																	<span class="qa-c-item-who-data"><span class="vcard author"><a href="../../user/nabarnaf" class="qa-user-link url nickname">nabarnaf</a></span></span>
+																	<span class="qa-c-item-who-title">FEniCS User</span>
+																	<span class="qa-c-item-who-points">
+																		<span class="qa-c-item-who-points-pad">(</span><span class="qa-c-item-who-points-data">2,940</span><span class="qa-c-item-who-points-pad"> points)</span>
+																	</span>
+																</span>
+															</span>
+														</span>
+														<div class="qa-c-item-buttons">
+														</div>
+													</div>
+													<div class="qa-c-item-clear">
+													</div>
+												</div> <!-- END qa-c-item -->
+												<div class="qa-c-list-item  hentry comment" id="c12093">
+													<div class="qa-c-item-content">
+														<a name="12093"></a><div class="entry-content"><p>Thank you sincerely!</p>
+</div>
+													</div>
+													<div class="qa-c-item-footer">
+														<span class="qa-c-item-avatar-meta">
+															<span class="qa-c-item-meta">
+																<a href="../../12067/how-solve-coupled-initial-value-problem-with-multiple-dofs?show=12093#c12093" class="qa-c-item-what">commented</a>
+																<span class="qa-c-item-when">
+																	<span class="qa-c-item-when-data"><span class="published"><span class="value-title" title="2017-01-07T11:39:07+0000"></span>Jan 7, 2017</span></span>
+																</span>
+																<span class="qa-c-item-who">
+																	<span class="qa-c-item-who-pad">by </span>
+																	<span class="qa-c-item-who-data"><span class="vcard author"><a href="../../user/walkandthink" class="qa-user-link url nickname">walkandthink</a></span></span>
+																	<span class="qa-c-item-who-title">FEniCS Novice</span>
+																	<span class="qa-c-item-who-points">
+																		<span class="qa-c-item-who-points-pad">(</span><span class="qa-c-item-who-points-data">320</span><span class="qa-c-item-who-points-pad"> points)</span>
+																	</span>
+																</span>
+															</span>
+														</span>
+														<div class="qa-c-item-buttons">
+														</div>
+													</div>
+													<div class="qa-c-item-clear">
+													</div>
+												</div> <!-- END qa-c-item -->
+											</div> <!-- END qa-c-list -->
+											
+											<input type="hidden" name="code" value="0-1516467805-c90fc549e88b6071dd0d85ad1066f7a5795d8011">
+											<input type="hidden" name="qa_click" value="">
+										</form>
+										<div class="qa-c-form">
+										</div> <!-- END qa-c-form -->
+										
+									</div> <!-- END qa-a-item-main -->
+									<div class="qa-a-item-clear">
+									</div>
+								</div> <!-- END qa-a-list-item -->
+								
+							</div> <!-- END qa-a-list -->
+							
+						</div>
+					</div> <!-- END qa-main -->
+					
+				</div> <!-- END main-wrapper -->
+			</div> <!-- END main-shadow -->
+		</div> <!-- END body-wrapper -->
+		<!-- END footer-bottom-group -->
+		
+		<div style="position:absolute; left:-9999px; top:-9999px;">
+			<span id="qa-waiting-template" class="qa-waiting">...</span>
+		</div>
+	
+	
+
+</body><!-- Powered by Question2Answer - http://www.question2answer.org/ --></html>

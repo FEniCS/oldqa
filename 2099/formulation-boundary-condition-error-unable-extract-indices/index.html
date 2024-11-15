@@ -1,0 +1,277 @@
+<html><!-- Powered by Question2Answer - http://www.question2answer.org/ --><head>
+		<meta http-equiv="content-type" content="text/html; charset=utf-8">
+		<title>Mixed space formulation, boundary condition, error: unable to extract indices. - FEniCS Q&amp;A</title>
+		<meta name="description" content="Thanks for your reply. I have taken care of the boundary condition. Basically I have ...  jit_compile(form, parameters=p, common_cell=common_cell)">
+		<meta name="keywords" content="mixed-function-space,boundary-conditions">
+		<link rel="stylesheet" type="text/css" href="../../qa-theme/Snow/qa-styles.css">
+		<link rel="canonical" href="http://fenicsproject.org/qa/2099/formulation-boundary-condition-error-unable-extract-indices">
+		<script type="text/x-mathjax-config">
+  MathJax.Hub.Config({
+    extensions: ["tex2jax.js"],
+    jax: ["input/TeX","output/HTML-CSS"],
+    tex2jax: {inlineMath: [["$","$"],["\\(","\\)"]]},
+    TeX: { extensions: ["AMSmath.js","AMSsymbols.js"]}
+  });
+</script>
+<script type="text/javascript" src="../../mathjax/MathJax.js"></script>
+		<script src="../../jquery-1.7.2.min.js" type="text/javascript"></script>
+		<script src="../../highlight.min.js"></script>
+<script type="text/javascript">
+$(function(){
+	$('.wmd-input').keypress(function(){
+		window.clearTimeout(hljs.Timeout);
+		hljs.Timeout = window.setTimeout(function() {
+			hljs.initHighlighting.called = false;
+			hljs.initHighlighting();
+		}, 500);
+	});
+	window.setTimeout(function() {
+		hljs.initHighlighting.called = false;
+		hljs.initHighlighting();
+	}, 500);
+});
+</script>
+
+
+	</head>
+	<body class="qa-template-question qa-body-js-off">
+		<div class="qa-body-wrapper">
+			
+			<div class="qa-header">
+				<div class="qa-logo">
+					<a href="../../" class="qa-logo-link" title="FEniCS Q&amp;A"><img src="../../qa-theme/fenics_qa.png" border="0" alt="FEniCS Q&amp;A"></a>
+				</div>
+				<div class="qa-header-clear">
+				</div>
+			</div> <!-- END qa-header -->
+			
+			<div class="qa-main-shadow">
+				
+				<div class="qa-main-wrapper">
+					
+					<div class="qa-sidepanel">
+						<div class="qa-sidebar">
+							This is a read only copy of the old FEniCS QA forum. Please visit the <a href="https://www.allanswered.com/community/s/fenics-project/">new QA forum</a> to ask questions
+						</div>
+						
+					</div>
+					
+					<div class="qa-main">
+						<h1>
+							<span class="entry-title">Mixed space formulation, boundary condition, error: unable to extract indices.</span>
+						</h1>
+						<div class="qa-part-q-view">
+							<div class="qa-q-view  hentry question" id="q2099">
+								<form method="post" action="../../2099/formulation-boundary-condition-error-unable-extract-indices">
+									<div class="qa-q-view-stats">
+										<div class="qa-voting qa-voting-net" id="voting_2099">
+											<div class="qa-vote-count qa-vote-count-net">
+												<span class="qa-netvote-count">
+													<span class="qa-netvote-count-data">0<span class="votes-up"><span class="value-title" title="0"></span></span><span class="votes-down"><span class="value-title" title="0"></span></span></span><span class="qa-netvote-count-pad"> votes</span>
+												</span>
+											</div>
+											<div class="qa-vote-clear">
+											</div>
+										</div>
+									</div>
+									<input type="hidden" name="code" value="0-1516467914-07ba706e8d346aa9051bde3c2f1631ad879ba46b">
+								</form>
+								<div class="qa-q-view-main">
+									<form method="post" action="../../2099/formulation-boundary-condition-error-unable-extract-indices">
+										<div class="qa-q-view-content">
+											<a name="2099"></a><div class="entry-content"><p>Thanks for your reply. I have taken care of the boundary condition. Basically I have a weak form with 3 weighting function spaces. These 3 spaces have 3 different dirichlet boundary conditions . My basic questions ais how to do mixed space formulation for more than 2 function spaces in fenics.  After incorporating your suggestions my code is :</p>
+
+<pre><code>`from dolfin import *
+import numpy, sys 
+degree = int(sys.argv[1])
+divisions =[int(arg) for arg in (sys.argv[2:])]
+mesh=UnitSquareMesh(*divisions)
+
+V = FunctionSpace(mesh,"Lagrange",degree) 
+Q = FunctionSpace(mesh,"Lagrange",degree) 
+L = FunctionSpace(mesh,"Lagrange",degree)  
+M = MixedFunctionSpace([V,Q,L])
+
+Test= TestFunction(M)
+(v,q,w) = split(Test)
+Trial = TrialFunction(M)
+(u,mu,lmd) = split(Trial)
+
+F=inner(nabla_grad(lmd),nabla_grad(v))*mu*dx +inner(nabla_grad(lmd),nabla_grad(u))*q*dx
+ +inner(nabla_grad(w),nabla_grad(u))*mu*dx
+
+
+def boundary_ul(x,on_boundary):
+    on_boundary and (near(x[0],0.0) or near(x[0],1.0) \
+            or near(x[1],0.0) or near(x[1],1.0))
+def boundary_mu(x,on_boundary):
+    on_boundary and (near(x[1],0.0) or near(x[0],1.0))
+
+PrescribedU=Expression("0.25*(pow(x[0],2)+pow(x[1],2))-x[0]*x[1]*0.5-x[0]+0.5*x[1]")
+bcs_u = DirichletBC(M.sub(0),PrescribedU , boundary_ul)
+PrescribedMU= Expression("(2/(exp(2)-1))*(exp(2*x[0])+2*x[1])")
+bcs_mu=DirichletBC(M.sub(1),PrescribedMU,boundary_mu)
+bcs_lmd=DirichletBC(M.sub(2),Constant(0.0),boundary_ul)
+
+bcs=[bcs_u ,bcs_mu , bcs_lmd]
+
+solution = Function(M)
+
+solve(lhs(F)==rhs(F),solution, bcs)
+</code></pre>
+
+<p>`</p>
+
+<p>With the above code I get the following error message. <br>
+Unable to extract all indices.<br>
+Traceback (most recent call last):<br>
+  File "objmin_var.py", line 82, in <br>
+    solve(lhs(F)==rhs(F),solution, bcs)<br>
+  File "/usr/lib/python2.7/dist-packages/dolfin/fem/solving.py", line 268, in solve<br>
+    _solve_varproblem(*args, **kwargs)<br>
+  File "/usr/lib/python2.7/dist-packages/dolfin/fem/solving.py", line 292, in _solve_varproblem<br>
+    form_compiler_parameters=form_compiler_parameters)<br>
+  File "/usr/lib/python2.7/dist-packages/dolfin/fem/solving.py", line 80, in __init__<br>
+    a = Form(a, form_compiler_parameters=form_compiler_parameters)<br>
+  File "/usr/lib/python2.7/dist-packages/dolfin/fem/form.py", line 56, in __init__<br>
+    common_cell)<br>
+  File "/usr/lib/python2.7/dist-packages/dolfin/compilemodules/jit.py", line 66, in mpi_jit<br>
+    return local_jit(*args, **kwargs)<br>
+  File "/usr/lib/python2.7/dist-packages/dolfin/compilemodules/jit.py", line 154, in jit<br>
+    return jit_compile(form, parameters=p, common_cell=common_cell)</p>
+</div>
+										</div>
+										<div class="qa-q-view-follows">
+											related to an answer for:
+											<a href="../../2038/mixed-function-space-formulation-same-rank-error?show=2048#a2048" class="qa-q-view-follows-link">mixed function space formulation, same rank error</a>
+										</div>
+										<div class="qa-q-view-tags">
+											<ul class="qa-q-view-tag-list">
+												<li class="qa-q-view-tag-item"><a href="../../tag/mixed-function-space" rel="tag" class="qa-tag-link">mixed-function-space</a></li>
+												<li class="qa-q-view-tag-item"><a href="../../tag/boundary-conditions" rel="tag" class="qa-tag-link">boundary-conditions</a></li>
+											</ul>
+										</div>
+										<span class="qa-q-view-avatar-meta">
+											<span class="qa-q-view-meta">
+												<a href="../../2099/formulation-boundary-condition-error-unable-extract-indices" class="qa-q-view-what">asked</a>
+												<span class="qa-q-view-when">
+													<span class="qa-q-view-when-data"><span class="published"><span class="value-title" title="2013-12-28T12:13:58+0000"></span>Dec 28, 2013</span></span>
+												</span>
+												<span class="qa-q-view-who">
+													<span class="qa-q-view-who-pad">by </span>
+													<span class="qa-q-view-who-data"><span class="vcard author"><a href="../../user/mt.fan" class="qa-user-link url nickname">mt.fan</a></span></span>
+													<span class="qa-q-view-who-title">FEniCS Novice</span>
+													<span class="qa-q-view-who-points">
+														<span class="qa-q-view-who-points-pad">(</span><span class="qa-q-view-who-points-data">260</span><span class="qa-q-view-who-points-pad"> points)</span>
+													</span>
+												</span>
+											</span>
+										</span>
+										<div class="qa-q-view-buttons">
+										</div>
+										
+										<div class="qa-q-view-c-list" style="display:none;" id="c2099_list">
+										</div> <!-- END qa-c-list -->
+										
+										<input type="hidden" name="code" value="0-1516467914-83848e86c584f70780a19334a23e8669ffbd70ab">
+										<input type="hidden" name="qa_click" value="">
+									</form>
+									<div class="qa-c-form">
+									</div> <!-- END qa-c-form -->
+									
+								</div> <!-- END qa-q-view-main -->
+								<div class="qa-q-view-clear">
+								</div>
+							</div> <!-- END qa-q-view -->
+							
+						</div>
+						<div class="qa-part-a-list">
+							<h2 id="a_list_title">1 Answer</h2>
+							<div class="qa-a-list" id="a_list">
+								
+								<div class="qa-a-list-item  hentry answer" id="a2101">
+									<form method="post" action="../../2099/formulation-boundary-condition-error-unable-extract-indices">
+										<div class="qa-voting qa-voting-net" id="voting_2101">
+											<div class="qa-vote-count qa-vote-count-net">
+												<span class="qa-netvote-count">
+													<span class="qa-netvote-count-data">+1<span class="votes-up"><span class="value-title" title="1"></span></span><span class="votes-down"><span class="value-title" title="0"></span></span></span><span class="qa-netvote-count-pad"> vote</span>
+												</span>
+											</div>
+											<div class="qa-vote-clear">
+											</div>
+										</div>
+										<input type="hidden" name="code" value="0-1516467914-07ba706e8d346aa9051bde3c2f1631ad879ba46b">
+									</form>
+									<div class="qa-a-item-main">
+										<form method="post" action="../../2099/formulation-boundary-condition-error-unable-extract-indices">
+											<div class="qa-a-selection">
+											</div>
+											<div class="qa-a-item-content">
+												<a name="2101"></a><div class="entry-content"><p>Your pronlem is nonlinear, hence <code>F</code> can't be splited into bilinear form (<code>rhs</code>) and linear form (<code>lhs</code>). To solve nonlinear problem you define linear form <code>F</code>, i.e. depending linearly on <code>TestFunction</code> and non-linearly on unknown <code>Function</code>, and you do <code>solve(F == 0, ...)</code>.</p>
+
+<pre><code>Test= TestFunction(M)
+(v,q,w) = split(Test)
+solution = Function(M)
+(u,mu,lmd) = split(solution)
+
+F=inner(nabla_grad(lmd),nabla_grad(v))*mu*dx +inner(nabla_grad(lmd),nabla_grad(u))*q*dx +inner(nabla_grad(w),nabla_grad(u))*mu*dx
+
+solve(F == 0, solution, bcs)
+</code></pre>
+
+<p>Another problem is that your problem is singular...</p>
+</div>
+											</div>
+											<span class="qa-a-item-avatar-meta">
+												<span class="qa-a-item-avatar">
+													<a href="../../user/Jan+Blechta" class="qa-avatar-link"><img src="https://www.gravatar.com/avatar/dc6f8dce77e4a0bd5adc7ff31ab83741?s=40" width="40" height="40" class="qa-avatar-image" alt=""></a>
+												</span>
+												<span class="qa-a-item-meta">
+													<a href="../../2099/formulation-boundary-condition-error-unable-extract-indices?show=2101#a2101" class="qa-a-item-what">answered</a>
+													<span class="qa-a-item-when">
+														<span class="qa-a-item-when-data"><span class="published"><span class="value-title" title="2013-12-28T13:02:14+0000"></span>Dec 28, 2013</span></span>
+													</span>
+													<span class="qa-a-item-who">
+														<span class="qa-a-item-who-pad">by </span>
+														<span class="qa-a-item-who-data"><span class="vcard author"><a href="../../user/Jan+Blechta" class="qa-user-link url nickname">Jan Blechta</a></span></span>
+														<span class="qa-a-item-who-title">FEniCS Expert</span>
+														<span class="qa-a-item-who-points">
+															<span class="qa-a-item-who-points-pad">(</span><span class="qa-a-item-who-points-data">51,420</span><span class="qa-a-item-who-points-pad"> points)</span>
+														</span>
+													</span>
+												</span>
+											</span>
+											<div class="qa-a-item-buttons">
+												</div>
+											
+											<div class="qa-a-item-c-list" style="display:none;" id="c2101_list">
+											</div> <!-- END qa-c-list -->
+											
+											<input type="hidden" name="code" value="0-1516467914-41775cb5192aca274e76cbd6d1b5351f85e1e8a9">
+											<input type="hidden" name="qa_click" value="">
+										</form>
+										<div class="qa-c-form">
+										</div> <!-- END qa-c-form -->
+										
+									</div> <!-- END qa-a-item-main -->
+									<div class="qa-a-item-clear">
+									</div>
+								</div> <!-- END qa-a-list-item -->
+								
+							</div> <!-- END qa-a-list -->
+							
+						</div>
+					</div> <!-- END qa-main -->
+					
+				</div> <!-- END main-wrapper -->
+			</div> <!-- END main-shadow -->
+		</div> <!-- END body-wrapper -->
+		<!-- END footer-bottom-group -->
+		
+		<div style="position:absolute; left:-9999px; top:-9999px;">
+			<span id="qa-waiting-template" class="qa-waiting">...</span>
+		</div>
+	
+	
+
+</body><!-- Powered by Question2Answer - http://www.question2answer.org/ --></html>

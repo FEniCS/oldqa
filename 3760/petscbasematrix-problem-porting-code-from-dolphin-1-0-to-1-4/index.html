@@ -1,0 +1,327 @@
+<html><!-- Powered by Question2Answer - http://www.question2answer.org/ --><head>
+		<meta http-equiv="content-type" content="text/html; charset=utf-8">
+		<title>PETScBaseMatrix problem porting code from  dolphin 1.0 to 1.4 - FEniCS Q&amp;A</title>
+		<meta name="description" content="Hi, I have defined a function to multiply two Petsc matrix AtB. Using dolphin 1.0 I  ... give me your expert opinion. Sincerely yours Pierre Joyot">
+		<meta name="keywords" content="petscmatrix">
+		<link rel="stylesheet" type="text/css" href="../../qa-theme/Snow/qa-styles.css">
+		<link rel="canonical" href="http://fenicsproject.org/qa/3760/petscbasematrix-problem-porting-code-from-dolphin-1-0-to-1-4">
+		<script type="text/x-mathjax-config">
+  MathJax.Hub.Config({
+    extensions: ["tex2jax.js"],
+    jax: ["input/TeX","output/HTML-CSS"],
+    tex2jax: {inlineMath: [["$","$"],["\\(","\\)"]]},
+    TeX: { extensions: ["AMSmath.js","AMSsymbols.js"]}
+  });
+</script>
+<script type="text/javascript" src="../../mathjax/MathJax.js"></script>
+		<script src="../../jquery-1.7.2.min.js" type="text/javascript"></script>
+		<script src="../../highlight.min.js"></script>
+<script type="text/javascript">
+$(function(){
+	$('.wmd-input').keypress(function(){
+		window.clearTimeout(hljs.Timeout);
+		hljs.Timeout = window.setTimeout(function() {
+			hljs.initHighlighting.called = false;
+			hljs.initHighlighting();
+		}, 500);
+	});
+	window.setTimeout(function() {
+		hljs.initHighlighting.called = false;
+		hljs.initHighlighting();
+	}, 500);
+});
+</script>
+
+
+	</head>
+	<body class="qa-template-question qa-body-js-off">
+		<div class="qa-body-wrapper">
+			
+			<div class="qa-header">
+				<div class="qa-logo">
+					<a href="../../" class="qa-logo-link" title="FEniCS Q&amp;A"><img src="../../qa-theme/fenics_qa.png" border="0" alt="FEniCS Q&amp;A"></a>
+				</div>
+				<div class="qa-header-clear">
+				</div>
+			</div> <!-- END qa-header -->
+			
+			<div class="qa-main-shadow">
+				
+				<div class="qa-main-wrapper">
+					
+					<div class="qa-sidepanel">
+						<div class="qa-sidebar">
+							This is a read only copy of the old FEniCS QA forum. Please visit the <a href="https://www.allanswered.com/community/s/fenics-project/">new QA forum</a> to ask questions
+						</div>
+						
+					</div>
+					
+					<div class="qa-main">
+						<h1>
+							<span class="entry-title">PETScBaseMatrix problem porting code from  dolphin 1.0 to 1.4</span>
+						</h1>
+						<div class="qa-part-q-view">
+							<div class="qa-q-view  hentry question" id="q3760">
+								<form method="post" action="../../3760/petscbasematrix-problem-porting-code-from-dolphin-1-0-to-1-4">
+									<div class="qa-q-view-stats">
+										<div class="qa-voting qa-voting-net" id="voting_3760">
+											<div class="qa-vote-count qa-vote-count-net">
+												<span class="qa-netvote-count">
+													<span class="qa-netvote-count-data">0<span class="votes-up"><span class="value-title" title="0"></span></span><span class="votes-down"><span class="value-title" title="0"></span></span></span><span class="qa-netvote-count-pad"> votes</span>
+												</span>
+											</div>
+											<div class="qa-vote-clear">
+											</div>
+										</div>
+									</div>
+									<input type="hidden" name="code" value="0-1516467985-24b4c14b706e54156b1be5246c7aaca9ce5f26d0">
+								</form>
+								<div class="qa-q-view-main">
+									<form method="post" action="../../3760/petscbasematrix-problem-porting-code-from-dolphin-1-0-to-1-4">
+										<div class="qa-q-view-content">
+											<a name="3760"></a><div class="entry-content"><p>Hi,</p>
+
+<p>I have defined a function to multiply two Petsc matrix AtB. Using dolphin 1.0 I write</p>
+
+<pre><code>/ /C=AtB
+    void AtB(boost::shared_ptr&lt;dolfin::PETScMatrix&gt; mA,boost::shared_ptr&lt;dolfin::PETScMatrix&gt; mB,boost::shared_ptr&lt;dolfin::PETScMatrix&gt; mC) {
+          boost::shared_ptr&lt;Mat&gt; A = mA-&gt;mat();
+          boost::shared_ptr&lt;Mat&gt; B = mB-&gt;mat();
+          boost::shared_ptr&lt;Mat&gt; C = mC-&gt;mat();
+
+          MatMatMultTranspose(*A,*B,MAT_INITIAL_MATRIX,PETSC_DEFAULT,&amp;(*C));
+
+        }
+</code></pre>
+
+<p>this code run as expected.</p>
+
+<p>With dolphin 1.4, I changed boost::shared_ptr to std::shared_ptr and MatMatMultTranspose to MatTransposeMatMult</p>
+
+<pre><code>  void AtB(std::shared_ptr&lt;const dolfin::PETScMatrix&gt; mA,std::shared_ptr&lt;const dolfin::PETScMatrix&gt; mB,std::shared_ptr&lt;dolfin::PETScMatrix&gt; mC) {
+
+      Mat* pC=&amp;(mC-&gt;mat());  //error: lvalue required as unary &#8216;&amp;&#8217; operand
+
+      MatTransposeMatMult(mA-&gt;mat(),mB-&gt;mat(),MAT_INITIAL_MATRIX,PETSC_DEFAULT,pC);
+
+    }
+</code></pre>
+
+<p>Now I obtain a unary &#8216;&amp;&#8217; operand error when I want to obtain a Mat* ith the mat() function. Note that MatTransposeMatMult want a Mat* for the C matrix.</p>
+
+<p>In fact the definition of the mat() function have changed in PETScBaseMatrix</p>
+
+<p>dolfin 1.4</p>
+
+<pre><code>class PETScBaseMatrix : .... {
+  public:
+    ......
+    /// Return PETSc Mat pointer
+    Mat mat() const
+    { return _matA; }
+    Mat* pmat() //const
+        { return &amp;_matA; }
+  protected:
+
+    // PETSc Mat pointer
+    Mat _matA;
+};
+</code></pre>
+
+<p>dolfin 1.0</p>
+
+<pre><code>class PETScBaseMatrix : .... {
+  public:
+    ......
+
+   /// Return PETSc Mat pointer
+    boost::shared_ptr&lt;Mat&gt; mat() const
+    { return A; }
+
+    /// Return informal string representation (pretty-print)
+    virtual std::string str(bool verbose) const = 0;
+
+  protected:
+
+    // PETSc Mat pointer
+    boost::shared_ptr&lt;Mat&gt; A;
+
+};
+</code></pre>
+
+<p>To obtain a Mat* from PETScMatrix I propose to add this member function to PETScBaseMatrix</p>
+
+<pre><code>Mat* pmat() //const
+        { return &amp;_matA; }
+</code></pre>
+
+<p>Maybe this solution is too dangerous or too intrusive, or completely wrong !</p>
+
+<p>I will prefer a solution that don't change the dolfin 1.4 class.</p>
+
+<p>Please give me your expert opinion.</p>
+
+<p>Sincerely yours</p>
+
+<p>Pierre Joyot</p>
+</div>
+										</div>
+										<div class="qa-q-view-tags">
+											<ul class="qa-q-view-tag-list">
+												<li class="qa-q-view-tag-item"><a href="../../tag/petscmatrix" rel="tag" class="qa-tag-link">petscmatrix</a></li>
+											</ul>
+										</div>
+										<span class="qa-q-view-avatar-meta">
+											<span class="qa-q-view-meta">
+												<a href="../../3760/petscbasematrix-problem-porting-code-from-dolphin-1-0-to-1-4" class="qa-q-view-what">asked</a>
+												<span class="qa-q-view-when">
+													<span class="qa-q-view-when-data"><span class="published"><span class="value-title" title="2014-06-05T20:05:08+0000"></span>Jun 5, 2014</span></span>
+												</span>
+												<span class="qa-q-view-who">
+													<span class="qa-q-view-who-pad">by </span>
+													<span class="qa-q-view-who-data"><span class="vcard author"><a href="../../user/Pierre+Joyot" class="qa-user-link url nickname">Pierre Joyot</a></span></span>
+													<span class="qa-q-view-who-title">FEniCS Novice</span>
+													<span class="qa-q-view-who-points">
+														<span class="qa-q-view-who-points-pad">(</span><span class="qa-q-view-who-points-data">170</span><span class="qa-q-view-who-points-pad"> points)</span>
+													</span>
+												</span>
+											</span>
+										</span>
+										<div class="qa-q-view-buttons">
+										</div>
+										
+										<div class="qa-q-view-c-list" style="display:none;" id="c3760_list">
+										</div> <!-- END qa-c-list -->
+										
+										<input type="hidden" name="code" value="0-1516467985-5987fe1992ca5238e7260a73e3f2ede4bba93b3d">
+										<input type="hidden" name="qa_click" value="">
+									</form>
+									<div class="qa-c-form">
+									</div> <!-- END qa-c-form -->
+									
+								</div> <!-- END qa-q-view-main -->
+								<div class="qa-q-view-clear">
+								</div>
+							</div> <!-- END qa-q-view -->
+							
+						</div>
+						<div class="qa-part-a-list">
+							<h2 id="a_list_title">1 Answer</h2>
+							<div class="qa-a-list" id="a_list">
+								
+								<div class="qa-a-list-item  hentry answer" id="a3775">
+									<form method="post" action="../../3760/petscbasematrix-problem-porting-code-from-dolphin-1-0-to-1-4">
+										<div class="qa-voting qa-voting-net" id="voting_3775">
+											<div class="qa-vote-count qa-vote-count-net">
+												<span class="qa-netvote-count">
+													<span class="qa-netvote-count-data">+1<span class="votes-up"><span class="value-title" title="1"></span></span><span class="votes-down"><span class="value-title" title="0"></span></span></span><span class="qa-netvote-count-pad"> vote</span>
+												</span>
+											</div>
+											<div class="qa-vote-clear">
+											</div>
+										</div>
+										<input type="hidden" name="code" value="0-1516467985-24b4c14b706e54156b1be5246c7aaca9ce5f26d0">
+									</form>
+									<div class="qa-a-item-main">
+										<form method="post" action="../../3760/petscbasematrix-problem-porting-code-from-dolphin-1-0-to-1-4">
+											<div class="qa-a-selection">
+											</div>
+											<div class="qa-a-item-content">
+												<a name="3775"></a><div class="entry-content"><p>Here's a matmattransposemult that should work with newest dolfin:</p>
+
+<pre><code>std::shared_ptr&lt;GenericMatrix&gt; MatMatTransposeMult(GenericMatrix&amp; A, GenericMatrix&amp; B)
+  {
+    const dolfin::PETScMatrix* Ap = &amp;as_type&lt;const dolfin::PETScMatrix&gt;(A);
+    const dolfin::PETScMatrix* Bp = &amp;as_type&lt;const dolfin::PETScMatrix&gt;(B);
+    Mat CC;
+    PetscErrorCode ierr = MatMatTransposeMult(Ap-&gt;mat(), Bp-&gt;mat(), MAT_INITIAL_MATRIX, PETSC_DEFAULT, &amp;CC);
+    dolfin::PETScMatrix CCC = PETScMatrix(CC);
+    return CCC.copy();
+  }
+</code></pre>
+
+<p>Or you could do it in Python as explained <a rel="nofollow" href="http://fenicsproject.org/qa/3150/how-to-perform-a-matrix-multiply">here</a></p>
+</div>
+											</div>
+											<span class="qa-a-item-avatar-meta">
+												<span class="qa-a-item-avatar">
+													<a href="../../user/mikael-mortensen" class="qa-avatar-link"><img src="https://www.gravatar.com/avatar/d5614112a2818f1800a461e49ac229df?s=40" width="40" height="40" class="qa-avatar-image" alt=""></a>
+												</span>
+												<span class="qa-a-item-meta">
+													<a href="../../3760/petscbasematrix-problem-porting-code-from-dolphin-1-0-to-1-4?show=3775#a3775" class="qa-a-item-what">answered</a>
+													<span class="qa-a-item-when">
+														<span class="qa-a-item-when-data"><span class="published"><span class="value-title" title="2014-06-06T20:16:13+0000"></span>Jun 6, 2014</span></span>
+													</span>
+													<span class="qa-a-item-who">
+														<span class="qa-a-item-who-pad">by </span>
+														<span class="qa-a-item-who-data"><span class="vcard author"><a href="../../user/mikael-mortensen" class="qa-user-link url nickname">mikael-mortensen</a></span></span>
+														<span class="qa-a-item-who-title">FEniCS Expert</span>
+														<span class="qa-a-item-who-points">
+															<span class="qa-a-item-who-points-pad">(</span><span class="qa-a-item-who-points-data">29,340</span><span class="qa-a-item-who-points-pad"> points)</span>
+														</span>
+													</span>
+												</span>
+											</span>
+											<div class="qa-a-item-buttons">
+												</div>
+											
+											<div class="qa-a-item-c-list" id="c3775_list">
+												<div class="qa-c-list-item  hentry comment" id="c3777">
+													<div class="qa-c-item-content">
+														<a name="3777"></a><div class="entry-content"><p>Thank you, <br>
+this solution runs well</p>
+</div>
+													</div>
+													<div class="qa-c-item-footer">
+														<span class="qa-c-item-avatar-meta">
+															<span class="qa-c-item-meta">
+																<a href="../../3760/petscbasematrix-problem-porting-code-from-dolphin-1-0-to-1-4?show=3777#c3777" class="qa-c-item-what">commented</a>
+																<span class="qa-c-item-when">
+																	<span class="qa-c-item-when-data"><span class="published"><span class="value-title" title="2014-06-06T21:43:26+0000"></span>Jun 6, 2014</span></span>
+																</span>
+																<span class="qa-c-item-who">
+																	<span class="qa-c-item-who-pad">by </span>
+																	<span class="qa-c-item-who-data"><span class="vcard author"><a href="../../user/Pierre+Joyot" class="qa-user-link url nickname">Pierre Joyot</a></span></span>
+																	<span class="qa-c-item-who-title">FEniCS Novice</span>
+																	<span class="qa-c-item-who-points">
+																		<span class="qa-c-item-who-points-pad">(</span><span class="qa-c-item-who-points-data">170</span><span class="qa-c-item-who-points-pad"> points)</span>
+																	</span>
+																</span>
+															</span>
+														</span>
+														<div class="qa-c-item-buttons">
+														</div>
+													</div>
+													<div class="qa-c-item-clear">
+													</div>
+												</div> <!-- END qa-c-item -->
+											</div> <!-- END qa-c-list -->
+											
+											<input type="hidden" name="code" value="0-1516467985-60656cfa4b6efb646b5401beae479279da50604d">
+											<input type="hidden" name="qa_click" value="">
+										</form>
+										<div class="qa-c-form">
+										</div> <!-- END qa-c-form -->
+										
+									</div> <!-- END qa-a-item-main -->
+									<div class="qa-a-item-clear">
+									</div>
+								</div> <!-- END qa-a-list-item -->
+								
+							</div> <!-- END qa-a-list -->
+							
+						</div>
+					</div> <!-- END qa-main -->
+					
+				</div> <!-- END main-wrapper -->
+			</div> <!-- END main-shadow -->
+		</div> <!-- END body-wrapper -->
+		<!-- END footer-bottom-group -->
+		
+		<div style="position:absolute; left:-9999px; top:-9999px;">
+			<span id="qa-waiting-template" class="qa-waiting">...</span>
+		</div>
+	
+	
+
+</body><!-- Powered by Question2Answer - http://www.question2answer.org/ --></html>

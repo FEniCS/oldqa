@@ -1,0 +1,256 @@
+<html><!-- Powered by Question2Answer - http://www.question2answer.org/ --><head>
+		<meta http-equiv="content-type" content="text/html; charset=utf-8">
+		<title>Elasticity problem pure Neumann boundary condition. - FEniCS Q&amp;A</title>
+		<meta name="description" content="Hi, I am solving Elasticity problem with pure Neumann boundary condition. Problem definition: Square plate  ...  = True) plot(u2, interactive = True)">
+		<link rel="stylesheet" type="text/css" href="../../qa-theme/Snow/qa-styles.css">
+		<link rel="canonical" href="http://fenicsproject.org/qa/13776/elasticity-problem-pure-neumann-boundary-condition">
+		<script type="text/x-mathjax-config">
+  MathJax.Hub.Config({
+    extensions: ["tex2jax.js"],
+    jax: ["input/TeX","output/HTML-CSS"],
+    tex2jax: {inlineMath: [["$","$"],["\\(","\\)"]]},
+    TeX: { extensions: ["AMSmath.js","AMSsymbols.js"]}
+  });
+</script>
+<script type="text/javascript" src="../../mathjax/MathJax.js"></script>
+		<script src="../../jquery-1.7.2.min.js" type="text/javascript"></script>
+		<script src="../../highlight.min.js"></script>
+<script type="text/javascript">
+$(function(){
+	$('.wmd-input').keypress(function(){
+		window.clearTimeout(hljs.Timeout);
+		hljs.Timeout = window.setTimeout(function() {
+			hljs.initHighlighting.called = false;
+			hljs.initHighlighting();
+		}, 500);
+	});
+	window.setTimeout(function() {
+		hljs.initHighlighting.called = false;
+		hljs.initHighlighting();
+	}, 500);
+});
+</script>
+
+
+	</head>
+	<body class="qa-template-question qa-body-js-off">
+		<div class="qa-body-wrapper">
+			
+			<div class="qa-header">
+				<div class="qa-logo">
+					<a href="../../" class="qa-logo-link" title="FEniCS Q&amp;A"><img src="../../qa-theme/fenics_qa.png" border="0" alt="FEniCS Q&amp;A"></a>
+				</div>
+				<div class="qa-header-clear">
+				</div>
+			</div> <!-- END qa-header -->
+			
+			<div class="qa-main-shadow">
+				
+				<div class="qa-main-wrapper">
+					
+					<div class="qa-sidepanel">
+						<div class="qa-sidebar">
+							This is a read only copy of the old FEniCS QA forum. Please visit the <a href="https://www.allanswered.com/community/s/fenics-project/">new QA forum</a> to ask questions
+						</div>
+						
+					</div>
+					
+					<div class="qa-main">
+						<h1>
+							<span class="entry-title">Elasticity problem pure Neumann boundary condition.</span>
+						</h1>
+						<div class="qa-part-q-view">
+							<div class="qa-q-view  hentry question" id="q13776">
+								<form method="post" action="../../13776/elasticity-problem-pure-neumann-boundary-condition">
+									<div class="qa-q-view-stats">
+										<div class="qa-voting qa-voting-net" id="voting_13776">
+											<div class="qa-vote-count qa-vote-count-net">
+												<span class="qa-netvote-count">
+													<span class="qa-netvote-count-data">0<span class="votes-up"><span class="value-title" title="0"></span></span><span class="votes-down"><span class="value-title" title="0"></span></span></span><span class="qa-netvote-count-pad"> votes</span>
+												</span>
+											</div>
+											<div class="qa-vote-clear">
+											</div>
+										</div>
+									</div>
+									<input type="hidden" name="code" value="0-1516466494-ac6b94405cb0edd1f77468478e8f0cbf89285619">
+								</form>
+								<div class="qa-q-view-main">
+									<form method="post" action="../../13776/elasticity-problem-pure-neumann-boundary-condition">
+										<div class="qa-q-view-content">
+											<a name="13776"></a><div class="entry-content"><p>Hi, I  am solving Elasticity problem with pure Neumann boundary condition. <br>
+Problem definition: Square plate subjected to pressure (2 unit) in y-direction at top and bottom.</p>
+
+<p>But my FEniCS solution is not matching with Abaqus solution. </p>
+
+<p>Abaqus solution: at (0.0, 1.0) u1 = 0.073 and  u2 = 0.00275<br>
+FEniCS solution at (0.0,1.0) u1 = -0.4302 and u2 = -0.3206</p>
+
+<p>Can anyone point out the mistake to fix this issue.</p>
+
+<p>Thanks &amp; Regards</p>
+
+<pre><code># test elasticity 
+# purpose:
+#=======================================
+from dolfin import *
+mesh = UnitSquareMesh(2,2)
+E, nu = Constant(10.0), Constant(0.3)
+plot(mesh, title = 'mesh', interactive = True)
+ndim = mesh.geometry().dim()
+V = VectorFunctionSpace(mesh, 'Lagrange', 1)
+u = TrialFunction(V)
+v = TestFunction(V)
+du = Function(V)
+
+mu    = E/(2.0*(1.0 + nu))
+lmbda = E*nu/((1.0 + nu )*(1.0-2.0*nu))
+
+def epsilon(v):
+      return 0.5*(grad(v)  + grad(v).T)
+
+def sigma(u):
+      return 2.0*mu*epsilon(u) + lmbda*tr(epsilon(u))*Identity(2)
+
+class top(SubDomain):
+        def inside(self,x,on_boundary):
+               tol = 1e-10
+               return abs(x[1]-1.0) &lt; tol and on_boundary
+
+class bottom(SubDomain):
+          def inside(self,x,on_boundary):
+                tol = 1e-10
+                return abs(x[1]) &lt; tol and on_boundary
+Top = top()
+Bottom = bottom()
+
+
+boundaries = FacetFunction("size_t",mesh)
+boundaries.set_all(0)
+Top.mark(boundaries, 1)
+Bottom.mark(boundaries, 2)
+gR = Expression(('0.0','2'))
+gF = Expression(('0.0', '-2'))
+ds = ds(domain=mesh , subdomain_data=boundaries)
+
+E_du = inner(grad(v),sigma(u))*dx - dot(gR,v)*ds(1) - dot(gF,v)*ds(2)
+solve(lhs(E_du)==rhs(E_du), du)
+plot(du,interactive = True)
+u1, u2 = split(du)
+plot(u1, interactive = True)
+plot(u2, interactive = True)
+</code></pre>
+</div>
+										</div>
+										<span class="qa-q-view-avatar-meta">
+											<span class="qa-q-view-meta">
+												<a href="../../13776/elasticity-problem-pure-neumann-boundary-condition" class="qa-q-view-what">asked</a>
+												<span class="qa-q-view-when">
+													<span class="qa-q-view-when-data"><span class="published"><span class="value-title" title="2017-06-02T05:09:54+0000"></span>Jun 2, 2017</span></span>
+												</span>
+												<span class="qa-q-view-who">
+													<span class="qa-q-view-who-pad">by </span>
+													<span class="qa-q-view-who-data"><span class="vcard author"><a href="../../user/hirshikesh" class="qa-user-link url nickname">hirshikesh</a></span></span>
+													<span class="qa-q-view-who-title">FEniCS User</span>
+													<span class="qa-q-view-who-points">
+														<span class="qa-q-view-who-points-pad">(</span><span class="qa-q-view-who-points-data">1,890</span><span class="qa-q-view-who-points-pad"> points)</span>
+													</span>
+												</span>
+											</span>
+										</span>
+										<div class="qa-q-view-buttons">
+										</div>
+										
+										<div class="qa-q-view-c-list" style="display:none;" id="c13776_list">
+										</div> <!-- END qa-c-list -->
+										
+										<input type="hidden" name="code" value="0-1516466494-3a48e2938effa7474a29942dd439d6cb99132b86">
+										<input type="hidden" name="qa_click" value="">
+									</form>
+									<div class="qa-c-form">
+									</div> <!-- END qa-c-form -->
+									
+								</div> <!-- END qa-q-view-main -->
+								<div class="qa-q-view-clear">
+								</div>
+							</div> <!-- END qa-q-view -->
+							
+						</div>
+						<div class="qa-part-a-list">
+							<h2 id="a_list_title">1 Answer</h2>
+							<div class="qa-a-list" id="a_list">
+								
+								<div class="qa-a-list-item  hentry answer" id="a13782">
+									<form method="post" action="../../13776/elasticity-problem-pure-neumann-boundary-condition">
+										<div class="qa-voting qa-voting-net" id="voting_13782">
+											<div class="qa-vote-count qa-vote-count-net">
+												<span class="qa-netvote-count">
+													<span class="qa-netvote-count-data">0<span class="votes-up"><span class="value-title" title="0"></span></span><span class="votes-down"><span class="value-title" title="0"></span></span></span><span class="qa-netvote-count-pad"> votes</span>
+												</span>
+											</div>
+											<div class="qa-vote-clear">
+											</div>
+										</div>
+										<input type="hidden" name="code" value="0-1516466494-ac6b94405cb0edd1f77468478e8f0cbf89285619">
+									</form>
+									<div class="qa-a-item-main">
+										<form method="post" action="../../13776/elasticity-problem-pure-neumann-boundary-condition">
+											<div class="qa-a-selection">
+											</div>
+											<div class="qa-a-item-content">
+												<a name="13782"></a><div class="entry-content"><p>Hi, comparing point values for this problem should be done with care. In 2d the Neumann problem in linear elasticity has 3 singular modes, see e.g. the discussion <a rel="nofollow" href="https://fenicsproject.org/qa/8291/solve-the-linear-elasticity-problem-by-fenics?show=8291#q8291">here</a>. That is, for compatible right hand side (the one which vanishes on singular modes) the solution of your weak form is unique up to a linear combination of these modes. The direct solver invoked by <code>solve(lhs(E_du)==rhs(E_du), du)</code> finds some solution but you don't know how the modes were fixed. Consult the singular Poisson <a rel="nofollow" href="https://fenicsproject.org/qa/2406/solve-poisson-problem-with-neumann-bc?show=2406#q2406">demo</a> to see how to get more control over the obtained solution.  </p>
+</div>
+											</div>
+											<span class="qa-a-item-avatar-meta">
+												<span class="qa-a-item-avatar">
+													<a href="../../user/MiroK" class="qa-avatar-link"><img src="https://www.gravatar.com/avatar/f566be3274ec73e3a6dda27bca11631c?s=40" width="40" height="40" class="qa-avatar-image" alt=""></a>
+												</span>
+												<span class="qa-a-item-meta">
+													<a href="../../13776/elasticity-problem-pure-neumann-boundary-condition?show=13782#a13782" class="qa-a-item-what">answered</a>
+													<span class="qa-a-item-when">
+														<span class="qa-a-item-when-data"><span class="published"><span class="value-title" title="2017-06-02T09:35:18+0000"></span>Jun 2, 2017</span></span>
+													</span>
+													<span class="qa-a-item-who">
+														<span class="qa-a-item-who-pad">by </span>
+														<span class="qa-a-item-who-data"><span class="vcard author"><a href="../../user/MiroK" class="qa-user-link url nickname">MiroK</a></span></span>
+														<span class="qa-a-item-who-title">FEniCS Expert</span>
+														<span class="qa-a-item-who-points">
+															<span class="qa-a-item-who-points-pad">(</span><span class="qa-a-item-who-points-data">80,920</span><span class="qa-a-item-who-points-pad"> points)</span>
+														</span>
+													</span>
+												</span>
+											</span>
+											<div class="qa-a-item-buttons">
+												</div>
+											
+											<div class="qa-a-item-c-list" style="display:none;" id="c13782_list">
+											</div> <!-- END qa-c-list -->
+											
+											<input type="hidden" name="code" value="0-1516466494-e1ea8c7f994ad641d16b37322596abcca057a16a">
+											<input type="hidden" name="qa_click" value="">
+										</form>
+										<div class="qa-c-form">
+										</div> <!-- END qa-c-form -->
+										
+									</div> <!-- END qa-a-item-main -->
+									<div class="qa-a-item-clear">
+									</div>
+								</div> <!-- END qa-a-list-item -->
+								
+							</div> <!-- END qa-a-list -->
+							
+						</div>
+					</div> <!-- END qa-main -->
+					
+				</div> <!-- END main-wrapper -->
+			</div> <!-- END main-shadow -->
+		</div> <!-- END body-wrapper -->
+		<!-- END footer-bottom-group -->
+		
+		<div style="position:absolute; left:-9999px; top:-9999px;">
+			<span id="qa-waiting-template" class="qa-waiting">...</span>
+		</div>
+	
+	
+
+</body><!-- Powered by Question2Answer - http://www.question2answer.org/ --></html>

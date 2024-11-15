@@ -1,0 +1,436 @@
+<html><!-- Powered by Question2Answer - http://www.question2answer.org/ --><head>
+		<meta http-equiv="content-type" content="text/html; charset=utf-8">
+		<title>Nonlinear Poisson error - FEniCS Q&amp;A</title>
+		<meta name="description" content="I am trying to solve the nonlinear Poisson equation of the form $\frac{d}{d x} \left[ \left( ... coord, bool on_boundary) const { return abs(coord[0])">
+		<meta name="keywords" content="nonlinear,newton-solver,poisson,nonlinear-problem">
+		<link rel="stylesheet" type="text/css" href="../../qa-theme/Snow/qa-styles.css">
+		<link rel="canonical" href="http://fenicsproject.org/qa/11318/nonlinear-poisson-error">
+		<script type="text/x-mathjax-config">
+  MathJax.Hub.Config({
+    extensions: ["tex2jax.js"],
+    jax: ["input/TeX","output/HTML-CSS"],
+    tex2jax: {inlineMath: [["$","$"],["\\(","\\)"]]},
+    TeX: { extensions: ["AMSmath.js","AMSsymbols.js"]}
+  });
+</script>
+<script type="text/javascript" src="../../mathjax/MathJax.js"></script>
+		<script src="../../jquery-1.7.2.min.js" type="text/javascript"></script>
+		<script src="../../highlight.min.js"></script>
+<script type="text/javascript">
+$(function(){
+	$('.wmd-input').keypress(function(){
+		window.clearTimeout(hljs.Timeout);
+		hljs.Timeout = window.setTimeout(function() {
+			hljs.initHighlighting.called = false;
+			hljs.initHighlighting();
+		}, 500);
+	});
+	window.setTimeout(function() {
+		hljs.initHighlighting.called = false;
+		hljs.initHighlighting();
+	}, 500);
+});
+</script>
+
+
+	</head>
+	<body class="qa-template-question qa-body-js-off">
+		<div class="qa-body-wrapper">
+			
+			<div class="qa-header">
+				<div class="qa-logo">
+					<a href="../../" class="qa-logo-link" title="FEniCS Q&amp;A"><img src="../../qa-theme/fenics_qa.png" border="0" alt="FEniCS Q&amp;A"></a>
+				</div>
+				<div class="qa-header-clear">
+				</div>
+			</div> <!-- END qa-header -->
+			
+			<div class="qa-main-shadow">
+				
+				<div class="qa-main-wrapper">
+					
+					<div class="qa-sidepanel">
+						<div class="qa-sidebar">
+							This is a read only copy of the old FEniCS QA forum. Please visit the <a href="https://www.allanswered.com/community/s/fenics-project/">new QA forum</a> to ask questions
+						</div>
+						
+					</div>
+					
+					<div class="qa-main">
+						<h1>
+							<span class="entry-title">Nonlinear Poisson error</span>
+						</h1>
+						<div class="qa-part-q-view">
+							<div class="qa-q-view  hentry question" id="q11318">
+								<form method="post" action="../../11318/nonlinear-poisson-error">
+									<div class="qa-q-view-stats">
+										<div class="qa-voting qa-voting-net" id="voting_11318">
+											<div class="qa-vote-count qa-vote-count-net">
+												<span class="qa-netvote-count">
+													<span class="qa-netvote-count-data">0<span class="votes-up"><span class="value-title" title="0"></span></span><span class="votes-down"><span class="value-title" title="0"></span></span></span><span class="qa-netvote-count-pad"> votes</span>
+												</span>
+											</div>
+											<div class="qa-vote-clear">
+											</div>
+										</div>
+									</div>
+									<input type="hidden" name="code" value="0-1516467105-508d7f91d88e1f69ad99799b286d501154f9e566">
+								</form>
+								<div class="qa-q-view-main">
+									<form method="post" action="../../11318/nonlinear-poisson-error">
+										<div class="qa-q-view-content">
+											<a name="11318"></a><div class="entry-content"><p>I am trying to solve the nonlinear Poisson equation of the form </p>
+
+<p>$\frac{d}{d x} \left[ \left( \frac{du}{dx} \right)^2 \right] = f$</p>
+
+<p>where $f=2x$ and $u = \frac{1}{4}$ at $x=0$.  I believe the exact solution is $u=\frac{1}{2} x^2 + \frac{1}{4}$.  I have the following UFL file:</p>
+
+<pre><code>cell = interval
+
+scalar = FiniteElement("Lagrange", cell, 2)
+
+phi = TestFunction(scalar)
+u = Coefficient(scalar) 
+f = Coefficient(scalar) 
+
+F = -(u.dx(0)**2.0)*phi.dx(0)*dx - f*phi*dx
+
+du = TrialFunction(scalar)
+J = derivative(F, u, du)
+</code></pre>
+
+<p>and C++ code:</p>
+
+<pre><code>class Source : public Expression { 
+public:
+  Source() : Expression() {}
+
+  void eval(Array&lt;double&gt;&amp; values, const Array&lt;double&gt;&amp; coord) const {
+    const double x = coord[0];
+
+    values[0] = 2.0*x;
+  }
+};
+
+class LeftBoundary : public SubDomain {
+  bool inside(const Array&lt;double&gt;&amp; coord, bool on_boundary) const {
+    return abs(coord[0])&lt;DOLFIN_EPS &amp;&amp; on_boundary;
+  }
+};
+
+int main(int argc, char *argv[]) {
+// create mesh
+  auto mesh = make_shared&lt;UnitIntervalMesh&gt;(100);
+
+  // create function spaces
+  auto V = make_shared&lt;NonlinearPoisson::FunctionSpace&gt;(mesh);
+
+  // boundary condition
+  auto left = make_shared&lt;LeftBoundary&gt;();
+  auto u0 = make_shared&lt;Constant&gt;(0.25);
+  DirichletBC leftBC(V, u0, left);
+
+  // source
+  auto u = make_shared&lt;Function&gt;(V); // unknown velocity
+  auto f = make_shared&lt;Source&gt;();
+
+  // create residual form --- (nonlinear) stress balance equations
+  NonlinearPoisson::LinearForm F(V);
+  F.u = u;
+  F.f = f;
+
+  // create Jacobian form J = F' (for the nonlinear solver)
+  NonlinearPoisson::JacobianForm J(V, V);
+  J.u = u;
+
+  // solver parameters
+  Parameters params("nonlinear_variational_solver");
+  Parameters newtonParams("newton_solver");
+  newtonParams.add("relative_tolerance", 1e-6);
+  params.add(newtonParams);
+
+  // solve for the initial velocities
+  solve(F==0, *u, leftBC, J, params);
+}
+</code></pre>
+
+<p>which complies fine.  However, I get a runtime error:</p>
+
+<pre><code>Solving nonlinear variational problem.
+  Newton iteration 0: r (abs) = nan (tol = 1.000e-10) r (rel) = nan (tol = 1.000e-06)
+  Newton iteration 1: r (abs) = nan (tol = 1.000e-10) r (rel) = nan (tol = 1.000e-06)
+  Newton iteration 2: r (abs) = nan (tol = 1.000e-10) r (rel) = nan (tol = 1.000e-06)
+  Newton iteration 3: r (abs) = nan (tol = 1.000e-10) r (rel) = nan (tol = 1.000e-06)
+</code></pre>
+
+<p>Does anyone know why the solver is producing 'nan's?</p>
+</div>
+										</div>
+										<div class="qa-q-view-tags">
+											<ul class="qa-q-view-tag-list">
+												<li class="qa-q-view-tag-item"><a href="../../tag/nonlinear" rel="tag" class="qa-tag-link">nonlinear</a></li>
+												<li class="qa-q-view-tag-item"><a href="../../tag/newton-solver" rel="tag" class="qa-tag-link">newton-solver</a></li>
+												<li class="qa-q-view-tag-item"><a href="../../tag/poisson" rel="tag" class="qa-tag-link">poisson</a></li>
+												<li class="qa-q-view-tag-item"><a href="../../tag/nonlinear-problem" rel="tag" class="qa-tag-link">nonlinear-problem</a></li>
+											</ul>
+										</div>
+										<span class="qa-q-view-avatar-meta">
+											<span class="qa-q-view-meta">
+												<a href="../../11318/nonlinear-poisson-error" class="qa-q-view-what">asked</a>
+												<span class="qa-q-view-when">
+													<span class="qa-q-view-when-data"><span class="published"><span class="value-title" title="2016-10-07T18:07:22+0000"></span>Oct 7, 2016</span></span>
+												</span>
+												<span class="qa-q-view-who">
+													<span class="qa-q-view-who-pad">by </span>
+													<span class="qa-q-view-who-data"><span class="vcard author"><a href="../../user/davisad" class="qa-user-link url nickname">davisad</a></span></span>
+													<span class="qa-q-view-who-title">FEniCS Novice</span>
+													<span class="qa-q-view-who-points">
+														<span class="qa-q-view-who-points-pad">(</span><span class="qa-q-view-who-points-data">470</span><span class="qa-q-view-who-points-pad"> points)</span>
+													</span>
+												</span>
+												<br>
+												<span class="qa-q-view-what">edited</span>
+												<span class="qa-q-view-when">
+													<span class="qa-q-view-when-data"><span class="updated"><span class="value-title" title="2016-10-07T18:17:01+0000"></span>Oct 7, 2016</span></span>
+												</span>
+												<span class="qa-q-view-who">
+													<span class="qa-q-view-who-pad">by </span><span class="qa-q-view-who-data"><a href="../../user/davisad" class="qa-user-link url nickname">davisad</a></span>
+												</span>
+											</span>
+										</span>
+										<div class="qa-q-view-buttons">
+										</div>
+										
+										<div class="qa-q-view-c-list" style="display:none;" id="c11318_list">
+										</div> <!-- END qa-c-list -->
+										
+										<input type="hidden" name="code" value="0-1516467105-712cc7c942fcf09d3ec315d4c40107ebf0200a11">
+										<input type="hidden" name="qa_click" value="">
+									</form>
+									<div class="qa-c-form">
+									</div> <!-- END qa-c-form -->
+									
+								</div> <!-- END qa-q-view-main -->
+								<div class="qa-q-view-clear">
+								</div>
+							</div> <!-- END qa-q-view -->
+							
+						</div>
+						<div class="qa-part-a-list">
+							<h2 id="a_list_title">1 Answer</h2>
+							<div class="qa-a-list" id="a_list">
+								
+								<div class="qa-a-list-item  hentry answer answer-selected qa-a-list-item-selected" id="a11325">
+									<form method="post" action="../../11318/nonlinear-poisson-error">
+										<div class="qa-voting qa-voting-net" id="voting_11325">
+											<div class="qa-vote-count qa-vote-count-net">
+												<span class="qa-netvote-count">
+													<span class="qa-netvote-count-data">+1<span class="votes-up"><span class="value-title" title="1"></span></span><span class="votes-down"><span class="value-title" title="0"></span></span></span><span class="qa-netvote-count-pad"> vote</span>
+												</span>
+											</div>
+											<div class="qa-vote-clear">
+											</div>
+										</div>
+										<input type="hidden" name="code" value="0-1516467105-508d7f91d88e1f69ad99799b286d501154f9e566">
+									</form>
+									<div class="qa-a-item-main">
+										<form method="post" action="../../11318/nonlinear-poisson-error">
+											<div class="qa-a-item-selected">
+												<div class="qa-a-selection">
+													<div class="qa-a-selected">&#160;</div>
+													<div class="qa-a-selected-text">Best answer</div>
+												</div>
+												<div class="qa-a-item-content">
+													<a name="11325"></a><div class="entry-content"><p>When you create</p>
+
+<pre><code>   auto u = make_shared&lt;Function&gt;(V); // unknown velocity
+</code></pre>
+
+<p>u is set equal to 0. Then you use this value of u as initial guess for the nonlinear solver. However, the jacobian J is singular (actually equal to zero) for u = constant. You should choose a better initial guess.</p>
+</div>
+												</div>
+												<span class="qa-a-item-avatar-meta">
+													<span class="qa-a-item-meta">
+														<a href="../../11318/nonlinear-poisson-error?show=11325#a11325" class="qa-a-item-what">answered</a>
+														<span class="qa-a-item-when">
+															<span class="qa-a-item-when-data"><span class="published"><span class="value-title" title="2016-10-08T08:27:00+0000"></span>Oct 8, 2016</span></span>
+														</span>
+														<span class="qa-a-item-who">
+															<span class="qa-a-item-who-pad">by </span>
+															<span class="qa-a-item-who-data"><span class="vcard author"><a href="../../user/francesco.ballarin" class="qa-user-link url nickname">francesco.ballarin</a></span></span>
+															<span class="qa-a-item-who-title">FEniCS User</span>
+															<span class="qa-a-item-who-points">
+																<span class="qa-a-item-who-points-pad">(</span><span class="qa-a-item-who-points-data">4,070</span><span class="qa-a-item-who-points-pad"> points)</span>
+															</span>
+														</span>
+														<br>
+														<span class="qa-a-item-what">selected</span>
+														<span class="qa-a-item-when">
+															<span class="qa-a-item-when-data"><span class="updated"><span class="value-title" title="2016-10-09T00:27:31+0000"></span>Oct 9, 2016</span></span>
+														</span>
+														<span class="qa-a-item-who">
+															<span class="qa-a-item-who-pad">by </span><span class="qa-a-item-who-data"><a href="../../user/davisad" class="qa-user-link url nickname">davisad</a></span>
+														</span>
+													</span>
+												</span>
+											</div>
+											<div class="qa-a-item-buttons">
+												</div>
+											
+											<div class="qa-a-item-c-list" id="c11325_list">
+												<div class="qa-c-list-item  hentry comment" id="c11326">
+													<div class="qa-c-item-content">
+														<a name="11326"></a><div class="entry-content"><p>Thanks!  That fixed part of the problem.  I added</p>
+
+<pre><code>class UGuess : public dfn::Expression { 
+public:
+  UGuess() : dfn::Expression() {}
+
+  void eval(dfn::Array&lt;double&gt;&amp; values, const dfn::Array&lt;double&gt;&amp; coord) const {
+    const double x = coord[0];
+
+    values[0] = 0.5*x*x+0.25;
+  }
+};
+</code></pre>
+
+<p>and </p>
+
+<pre><code>  auto ug = make_shared&lt;UGuess&gt;();
+  *u = *ug;
+</code></pre>
+
+<p>which got rid of the 'nan's.  Now the initial guess should be the exact solution but I'm getting the error </p>
+
+<pre><code>Solving nonlinear variational problem.
+  *** Warning: Using PETSc native LU solver. Consider configuring PETSc with an efficient LU solver (e.g. UMFPACK, MUMPS).
+  Newton iteration 0: r (abs) = 1.000e+00 (tol = 1.000e-10) r (rel) = 1.000e+00 (tol = 1.000e-06)
+  Newton iteration 1: r (abs) = 6.004e+04 (tol = 1.000e-10) r (rel) = 6.004e+04 (tol = 1.000e-06)
+  Newton iteration 2: r (abs) = 4.220e+04 (tol = 1.000e-10) r (rel) = 4.220e+04 (tol = 1.000e-06)
+  Newton iteration 3: r (abs) = 5.567e+04 (tol = 1.000e-10) r (rel) = 5.567e+04 (tol = 1.000e-06)
+  Newton iteration 4: r (abs) = 1.400e+04 (tol = 1.000e-10) r (rel) = 1.400e+04 (tol = 1.000e-06)
+  Newton iteration 5: r (abs) = 8.913e+04 (tol = 1.000e-10) r (rel) = 8.913e+04 (tol = 1.000e-06)
+  Newton iteration 6: r (abs) = 2.244e+04 (tol = 1.000e-10) r (rel) = 2.244e+04 (tol = 1.000e-06)
+  Newton iteration 7: r (abs) = 5.713e+03 (tol = 1.000e-10) r (rel) = 5.713e+03 (tol = 1.000e-06)
+  Newton iteration 8: r (abs) = 3.762e+03 (tol = 1.000e-10) r (rel) = 3.762e+03 (tol = 1.000e-06)
+  Newton iteration 9: r (abs) = 1.913e+04 (tol = 1.000e-10) r (rel) = 1.913e+04 (tol = 1.000e-06)
+  Newton iteration 10: r (abs) = 1.166e+05 (tol = 1.000e-10) r (rel) = 1.166e+05 (tol = 1.000e-06)
+  Newton iteration 11: r (abs) = 2.916e+04 (tol = 1.000e-10) r (rel) = 2.916e+04 (tol = 1.000e-06)
+  Newton iteration 12: r (abs) = 7.297e+03 (tol = 1.000e-10) r (rel) = 7.297e+03 (tol = 1.000e-06)
+  Newton iteration 13: r (abs) = 4.652e+03 (tol = 1.000e-10) r (rel) = 4.652e+03 (tol = 1.000e-06)
+  Newton iteration 14: r (abs) = 3.134e+03 (tol = 1.000e-10) r (rel) = 3.134e+03 (tol = 1.000e-06)
+  Newton iteration 15: r (abs) = 1.183e+05 (tol = 1.000e-10) r (rel) = 1.183e+05 (tol = 1.000e-06)
+  Newton iteration 16: r (abs) = 2.962e+04 (tol = 1.000e-10) r (rel) = 2.962e+04 (tol = 1.000e-06)
+  Newton iteration 17: r (abs) = 5.478e+04 (tol = 1.000e-10) r (rel) = 5.478e+04 (tol = 1.000e-06)
+  Newton iteration 18: r (abs) = 1.463e+04 (tol = 1.000e-10) r (rel) = 1.463e+04 (tol = 1.000e-06)
+  Newton iteration 19: r (abs) = 2.578e+04 (tol = 1.000e-10) r (rel) = 2.578e+04 (tol = 1.000e-06)
+  Newton iteration 20: r (abs) = 6.819e+03 (tol = 1.000e-10) r (rel) = 6.819e+03 (tol = 1.000e-06)
+  Newton iteration 21: r (abs) = 4.139e+03 (tol = 1.000e-10) r (rel) = 4.139e+03 (tol = 1.000e-06)
+  Newton iteration 22: r (abs) = 1.407e+05 (tol = 1.000e-10) r (rel) = 1.407e+05 (tol = 1.000e-06)
+  Newton iteration 23: r (abs) = 3.522e+04 (tol = 1.000e-10) r (rel) = 3.522e+04 (tol = 1.000e-06)
+  Newton iteration 24: r (abs) = 1.915e+04 (tol = 1.000e-10) r (rel) = 1.915e+04 (tol = 1.000e-06)
+  Newton iteration 25: r (abs) = 4.059e+04 (tol = 1.000e-10) r (rel) = 4.059e+04 (tol = 1.000e-06)
+  Newton iteration 26: r (abs) = 1.653e+04 (tol = 1.000e-10) r (rel) = 1.653e+04 (tol = 1.000e-06)
+  Newton iteration 27: r (abs) = 5.030e+05 (tol = 1.000e-10) r (rel) = 5.030e+05 (tol = 1.000e-06)
+  Newton iteration 28: r (abs) = 1.258e+05 (tol = 1.000e-10) r (rel) = 1.258e+05 (tol = 1.000e-06)
+  Newton iteration 29: r (abs) = 3.164e+04 (tol = 1.000e-10) r (rel) = 3.164e+04 (tol = 1.000e-06)
+  Newton iteration 30: r (abs) = 7.918e+03 (tol = 1.000e-10) r (rel) = 7.918e+03 (tol = 1.000e-06)
+  Newton iteration 31: r (abs) = 2.149e+03 (tol = 1.000e-10) r (rel) = 2.149e+03 (tol = 1.000e-06)
+  Newton iteration 32: r (abs) = 8.087e+04 (tol = 1.000e-10) r (rel) = 8.087e+04 (tol = 1.000e-06)
+  Newton iteration 33: r (abs) = 2.750e+04 (tol = 1.000e-10) r (rel) = 2.750e+04 (tol = 1.000e-06)
+  Newton iteration 34: r (abs) = 8.274e+05 (tol = 1.000e-10) r (rel) = 8.274e+05 (tol = 1.000e-06)
+  Newton iteration 35: r (abs) = 2.067e+05 (tol = 1.000e-10) r (rel) = 2.067e+05 (tol = 1.000e-06)
+  Newton iteration 36: r (abs) = 5.382e+04 (tol = 1.000e-10) r (rel) = 5.382e+04 (tol = 1.000e-06)
+  Newton iteration 37: r (abs) = 2.963e+04 (tol = 1.000e-10) r (rel) = 2.963e+04 (tol = 1.000e-06)
+  Newton iteration 38: r (abs) = 1.208e+05 (tol = 1.000e-10) r (rel) = 1.208e+05 (tol = 1.000e-06)
+  Newton iteration 39: r (abs) = 3.021e+04 (tol = 1.000e-10) r (rel) = 3.021e+04 (tol = 1.000e-06)
+  Newton iteration 40: r (abs) = 2.607e+06 (tol = 1.000e-10) r (rel) = 2.607e+06 (tol = 1.000e-06)
+  Newton iteration 41: r (abs) = 6.518e+05 (tol = 1.000e-10) r (rel) = 6.518e+05 (tol = 1.000e-06)
+  Newton iteration 42: r (abs) = 1.630e+05 (tol = 1.000e-10) r (rel) = 1.630e+05 (tol = 1.000e-06)
+  Newton iteration 43: r (abs) = 1.389e+05 (tol = 1.000e-10) r (rel) = 1.389e+05 (tol = 1.000e-06)
+  Newton iteration 44: r (abs) = 3.472e+04 (tol = 1.000e-10) r (rel) = 3.472e+04 (tol = 1.000e-06)
+  Newton iteration 45: r (abs) = 1.345e+06 (tol = 1.000e-10) r (rel) = 1.345e+06 (tol = 1.000e-06)
+  Newton iteration 46: r (abs) = 3.371e+05 (tol = 1.000e-10) r (rel) = 3.371e+05 (tol = 1.000e-06)
+  Newton iteration 47: r (abs) = 8.775e+04 (tol = 1.000e-10) r (rel) = 8.775e+04 (tol = 1.000e-06)
+  Newton iteration 48: r (abs) = 2.076e+04 (tol = 1.000e-10) r (rel) = 2.076e+04 (tol = 1.000e-06)
+  Newton iteration 49: r (abs) = 8.666e+03 (tol = 1.000e-10) r (rel) = 8.666e+03 (tol = 1.000e-06)
+  Newton iteration 50: r (abs) = 3.828e+03 (tol = 1.000e-10) r (rel) = 3.828e+03 (tol = 1.000e-06)
+terminate called after throwing an instance of 'std::runtime_error'
+  what():  
+
+*** -------------------------------------------------------------------------
+*** DOLFIN encountered an error. If you are not able to resolve this issue
+*** using the information listed below, you can ask for help at
+***
+***     fenics-support@googlegroups.com
+***
+*** Remember to include the error message listed below and, if possible,
+*** include a *minimal* running example to reproduce the error.
+***
+*** -------------------------------------------------------------------------
+*** Error:   Unable to solve nonlinear system with NewtonSolver.
+*** Reason:  Newton solver did not converge because maximum number of iterations reached.
+*** Where:   This error was encountered inside NewtonSolver.cpp.
+*** Process: 0
+*** 
+*** DOLFIN version: 2016.2.0.dev0
+*** Git changeset:  7de058e14dd8bc4c929083f7d8dcc75ecbefa2f9
+*** -------------------------------------------------------------------------
+</code></pre>
+
+<p>Any thoughts?</p>
+</div>
+													</div>
+													<div class="qa-c-item-footer">
+														<span class="qa-c-item-avatar-meta">
+															<span class="qa-c-item-meta">
+																<a href="../../11318/nonlinear-poisson-error?show=11326#c11326" class="qa-c-item-what">commented</a>
+																<span class="qa-c-item-when">
+																	<span class="qa-c-item-when-data"><span class="published"><span class="value-title" title="2016-10-08T14:04:08+0000"></span>Oct 8, 2016</span></span>
+																</span>
+																<span class="qa-c-item-who">
+																	<span class="qa-c-item-who-pad">by </span>
+																	<span class="qa-c-item-who-data"><span class="vcard author"><a href="../../user/davisad" class="qa-user-link url nickname">davisad</a></span></span>
+																	<span class="qa-c-item-who-title">FEniCS Novice</span>
+																	<span class="qa-c-item-who-points">
+																		<span class="qa-c-item-who-points-pad">(</span><span class="qa-c-item-who-points-data">470</span><span class="qa-c-item-who-points-pad"> points)</span>
+																	</span>
+																</span>
+															</span>
+														</span>
+														<div class="qa-c-item-buttons">
+														</div>
+													</div>
+													<div class="qa-c-item-clear">
+													</div>
+												</div> <!-- END qa-c-item -->
+											</div> <!-- END qa-c-list -->
+											
+											<input type="hidden" name="code" value="0-1516467105-cc91b390ab12fed02e3b579aa7ad0dd550fe8906">
+											<input type="hidden" name="qa_click" value="">
+										</form>
+										<div class="qa-c-form">
+										</div> <!-- END qa-c-form -->
+										
+									</div> <!-- END qa-a-item-main -->
+									<div class="qa-a-item-clear">
+									</div>
+								</div> <!-- END qa-a-list-item -->
+								
+							</div> <!-- END qa-a-list -->
+							
+						</div>
+					</div> <!-- END qa-main -->
+					
+				</div> <!-- END main-wrapper -->
+			</div> <!-- END main-shadow -->
+		</div> <!-- END body-wrapper -->
+		<!-- END footer-bottom-group -->
+		
+		<div style="position:absolute; left:-9999px; top:-9999px;">
+			<span id="qa-waiting-template" class="qa-waiting">...</span>
+		</div>
+	
+	
+
+</body><!-- Powered by Question2Answer - http://www.question2answer.org/ --></html>

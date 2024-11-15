@@ -1,0 +1,365 @@
+<html><!-- Powered by Question2Answer - http://www.question2answer.org/ --><head>
+		<meta http-equiv="content-type" content="text/html; charset=utf-8">
+		<title>Determining Poisson's ratio of elastic isotropic 2D medium from simulated displacements - FEniCS Q&amp;A</title>
+		<meta name="description" content="I am trying to verify the Poisson's ratio of a linear isotropic 2D elastic medium via a &quot;stretch&quot; (&quot;creep ... /solution.pvd&quot;) #u.rename(&quot;u&quot;, &quot;u&quot;) #fid">
+		<meta name="keywords" content="linear-elasticity">
+		<link rel="stylesheet" type="text/css" href="../../qa-theme/Snow/qa-styles.css">
+		<link rel="canonical" href="http://fenicsproject.org/qa/11052/determining-poissons-isotropic-simulated-displacements">
+		<script type="text/x-mathjax-config">
+  MathJax.Hub.Config({
+    extensions: ["tex2jax.js"],
+    jax: ["input/TeX","output/HTML-CSS"],
+    tex2jax: {inlineMath: [["$","$"],["\\(","\\)"]]},
+    TeX: { extensions: ["AMSmath.js","AMSsymbols.js"]}
+  });
+</script>
+<script type="text/javascript" src="../../mathjax/MathJax.js"></script>
+		<script src="../../jquery-1.7.2.min.js" type="text/javascript"></script>
+		<script src="../../highlight.min.js"></script>
+<script type="text/javascript">
+$(function(){
+	$('.wmd-input').keypress(function(){
+		window.clearTimeout(hljs.Timeout);
+		hljs.Timeout = window.setTimeout(function() {
+			hljs.initHighlighting.called = false;
+			hljs.initHighlighting();
+		}, 500);
+	});
+	window.setTimeout(function() {
+		hljs.initHighlighting.called = false;
+		hljs.initHighlighting();
+	}, 500);
+});
+</script>
+
+
+	</head>
+	<body class="qa-template-question qa-body-js-off">
+		<div class="qa-body-wrapper">
+			
+			<div class="qa-header">
+				<div class="qa-logo">
+					<a href="../../" class="qa-logo-link" title="FEniCS Q&amp;A"><img src="../../qa-theme/fenics_qa.png" border="0" alt="FEniCS Q&amp;A"></a>
+				</div>
+				<div class="qa-header-clear">
+				</div>
+			</div> <!-- END qa-header -->
+			
+			<div class="qa-main-shadow">
+				
+				<div class="qa-main-wrapper">
+					
+					<div class="qa-sidepanel">
+						<div class="qa-sidebar">
+							This is a read only copy of the old FEniCS QA forum. Please visit the <a href="https://www.allanswered.com/community/s/fenics-project/">new QA forum</a> to ask questions
+						</div>
+						
+					</div>
+					
+					<div class="qa-main">
+						<h1>
+							<span class="entry-title">Determining Poisson's ratio of elastic isotropic 2D medium from simulated displacements</span>
+						</h1>
+						<div class="qa-part-q-view">
+							<div class="qa-q-view  hentry question" id="q11052">
+								<form method="post" action="../../11052/determining-poissons-isotropic-simulated-displacements">
+									<div class="qa-q-view-stats">
+										<div class="qa-voting qa-voting-net" id="voting_11052">
+											<div class="qa-vote-count qa-vote-count-net">
+												<span class="qa-netvote-count">
+													<span class="qa-netvote-count-data">+1<span class="votes-up"><span class="value-title" title="1"></span></span><span class="votes-down"><span class="value-title" title="0"></span></span></span><span class="qa-netvote-count-pad"> vote</span>
+												</span>
+											</div>
+											<div class="qa-vote-clear">
+											</div>
+										</div>
+									</div>
+									<input type="hidden" name="code" value="0-1516467090-ae4947132e377aaf93fbc8f9d36aeb10da86871d">
+								</form>
+								<div class="qa-q-view-main">
+									<form method="post" action="../../11052/determining-poissons-isotropic-simulated-displacements">
+										<div class="qa-q-view-content">
+											<a name="11052"></a><div class="entry-content"><p>I am trying to verify the Poisson's ratio of a linear isotropic 2D elastic medium via a "stretch" ("creep") simulation using the script below.</p>
+
+<p>The resulting "measured" Poisson's ratio (last line), however, differs from the theoretical value ("nu") with increasing difference for an increasing ratio, and I cannot find the reason why.</p>
+
+<p>I already tried different directions of diagonals in the mesh, different solvers or with/without Dirichlet boundaries, without success.</p>
+
+<p>I would be grateful if you could give me a hint whether/where I made a conceptual/programming error. </p>
+
+<pre><code>from dolfin import *
+import numpy as np
+
+# Right end point 
+xmax = 1.
+ymax = 1.
+
+# Left end point 
+xmin = -1.
+ymin = -1.
+
+# Number of elements
+nel_x = 64
+nel_y = 64
+
+# Define mesh
+mesh = RectangleMesh(Point(xmin, ymin), Point(xmax, ymax), \
+                     nel_x, nel_y, "crossed")
+#plot(mesh, interactive=True)
+
+# Define spatial tolerance
+tol_x = (xmax - xmin) / nel_x / 2.
+tol_y = (ymax - ymin) / nel_y / 2.
+
+# Create classes for defining parts of the boundaries and the interior
+# of the domain
+class Left(SubDomain):
+    def inside(self, x, on_boundary):
+        return near(x[0], xmin, tol_x) and on_boundary
+
+class Right(SubDomain):
+    def inside(self, x, on_boundary):
+        return near(x[0], xmax, tol_x) and on_boundary
+
+# Elasticity parameters
+nu = 0.45 # 0.10
+E = 1.0
+mu = Constant(E / (2.0 * (1.0 + nu)))
+lmbda = Constant(E * nu / ((1.0 + nu) * (1.0 - 2.0 * nu)))
+
+# Strain
+def eps(v):
+    return sym(grad(v))
+
+# Stress
+def sigma(v):
+    return 2.0 * mu * eps(v) + lmbda * tr(eps(v)) * Identity(len(v))
+
+# Define Dirichlet boundary (0 at (x,y) = (0,0))
+def boundary(x):
+    return (near(x[0], 0.0, tol_x) and near(x[1], 0.0, tol_y))  # for reasons
+           # of stability, otherwise the rectangle is rotated
+
+# Initialize sub-domain instances
+left = Left()
+right = Right()
+
+# Initialize mesh function for boundary domains
+boundaries = FacetFunction("size_t", mesh)
+boundaries.set_all(0)
+left.mark(boundaries, 1)
+right.mark(boundaries, 2)
+ds = Measure("ds")[boundaries]
+
+# Define active stress at boundaries
+g_L = Constant((-0.001, 0.0))
+g_R = Constant((0.001, 0.0))
+
+# Define function space and basis functions
+V = VectorFunctionSpace(mesh, "CG", 2)
+u = TrialFunction(V)
+v = TestFunction(V)
+
+# Define boundary condition
+u0 = Constant((0.0, 0.0))
+bc = DirichletBC(V, u0, boundary, method="pointwise")
+
+# Define new measures associated with the interior domains and
+# exterior boundaries
+ds = Measure("ds")[boundaries]
+
+# Define variational form
+a = inner(sigma(u), sym(grad(v))) * dx
+L = inner(g_L, v) * ds(1) + inner(g_R, v) * ds(2)
+
+# Solve problem
+u = Function(V)
+problem = dolfin.LinearVariationalProblem(a, L, u, bc)
+solver = dolfin.LinearVariationalSolver(problem)
+solver.parameters["linear_solver"] = "default"
+solver.parameters["preconditioner"] = "ilu"
+solver.solve()
+
+## Save nodal positions
+#fid = File("results/solution.pvd")
+#u.rename("u", "u")
+#fid &lt;&lt; u
+
+# Plot solution and gradient
+#plot(u, interactive=True)
+print "Theoretical Poisson's ratio: ", nu
+print "Simulated Poisson's ratio: ", \
+    - np.log(1.0 - abs(u(0., 1.)[1])) / np.log(1.0 + abs(u(1., 0.)[0]))
+</code></pre>
+</div>
+										</div>
+										<div class="qa-q-view-tags">
+											<ul class="qa-q-view-tag-list">
+												<li class="qa-q-view-tag-item"><a href="../../tag/linear-elasticity" rel="tag" class="qa-tag-link">linear-elasticity</a></li>
+											</ul>
+										</div>
+										<span class="qa-q-view-avatar-meta">
+											<span class="qa-q-view-meta">
+												<a href="../../11052/determining-poissons-isotropic-simulated-displacements" class="qa-q-view-what">asked</a>
+												<span class="qa-q-view-when">
+													<span class="qa-q-view-when-data"><span class="published"><span class="value-title" title="2016-09-06T19:09:58+0000"></span>Sep 6, 2016</span></span>
+												</span>
+												<span class="qa-q-view-who">
+													<span class="qa-q-view-who-pad">by </span>
+													<span class="qa-q-view-who-data"><span class="vcard author"><a href="../../user/dimaindahouse" class="qa-user-link url nickname">dimaindahouse</a></span></span>
+													<span class="qa-q-view-who-title">FEniCS Novice</span>
+													<span class="qa-q-view-who-points">
+														<span class="qa-q-view-who-points-pad">(</span><span class="qa-q-view-who-points-data">160</span><span class="qa-q-view-who-points-pad"> points)</span>
+													</span>
+												</span>
+											</span>
+										</span>
+										<div class="qa-q-view-buttons">
+										</div>
+										
+										<div class="qa-q-view-c-list" style="display:none;" id="c11052_list">
+										</div> <!-- END qa-c-list -->
+										
+										<input type="hidden" name="code" value="0-1516467090-e3a1063e32a0b2eaa1bb8376295ef021b1223418">
+										<input type="hidden" name="qa_click" value="">
+									</form>
+									<div class="qa-c-form">
+									</div> <!-- END qa-c-form -->
+									
+								</div> <!-- END qa-q-view-main -->
+								<div class="qa-q-view-clear">
+								</div>
+							</div> <!-- END qa-q-view -->
+							
+						</div>
+						<div class="qa-part-a-list">
+							<h2 id="a_list_title">1 Answer</h2>
+							<div class="qa-a-list" id="a_list">
+								
+								<div class="qa-a-list-item  hentry answer" id="a11074">
+									<form method="post" action="../../11052/determining-poissons-isotropic-simulated-displacements">
+										<div class="qa-voting qa-voting-net" id="voting_11074">
+											<div class="qa-vote-count qa-vote-count-net">
+												<span class="qa-netvote-count">
+													<span class="qa-netvote-count-data">+1<span class="votes-up"><span class="value-title" title="1"></span></span><span class="votes-down"><span class="value-title" title="0"></span></span></span><span class="qa-netvote-count-pad"> vote</span>
+												</span>
+											</div>
+											<div class="qa-vote-clear">
+											</div>
+										</div>
+										<input type="hidden" name="code" value="0-1516467090-ae4947132e377aaf93fbc8f9d36aeb10da86871d">
+									</form>
+									<div class="qa-a-item-main">
+										<form method="post" action="../../11052/determining-poissons-isotropic-simulated-displacements">
+											<div class="qa-a-selection">
+											</div>
+											<div class="qa-a-item-content">
+												<a name="11074"></a><div class="entry-content"><p>Hi, are there any assumptions on the formula you use to get $\nu$ from the computed displacement? Also, as $\nu$ approaches 1/2, $\lambda$ becomes large and the approximation properties of the computed displacement become poor. To avoid this, consider mixed formulation of linear elasticity.</p>
+</div>
+											</div>
+											<span class="qa-a-item-avatar-meta">
+												<span class="qa-a-item-avatar">
+													<a href="../../user/MiroK" class="qa-avatar-link"><img src="https://www.gravatar.com/avatar/f566be3274ec73e3a6dda27bca11631c?s=40" width="40" height="40" class="qa-avatar-image" alt=""></a>
+												</span>
+												<span class="qa-a-item-meta">
+													<a href="../../11052/determining-poissons-isotropic-simulated-displacements?show=11074#a11074" class="qa-a-item-what">answered</a>
+													<span class="qa-a-item-when">
+														<span class="qa-a-item-when-data"><span class="published"><span class="value-title" title="2016-09-08T19:54:48+0000"></span>Sep 8, 2016</span></span>
+													</span>
+													<span class="qa-a-item-who">
+														<span class="qa-a-item-who-pad">by </span>
+														<span class="qa-a-item-who-data"><span class="vcard author"><a href="../../user/MiroK" class="qa-user-link url nickname">MiroK</a></span></span>
+														<span class="qa-a-item-who-title">FEniCS Expert</span>
+														<span class="qa-a-item-who-points">
+															<span class="qa-a-item-who-points-pad">(</span><span class="qa-a-item-who-points-data">80,920</span><span class="qa-a-item-who-points-pad"> points)</span>
+														</span>
+													</span>
+												</span>
+											</span>
+											<div class="qa-a-item-buttons">
+												</div>
+											
+											<div class="qa-a-item-c-list" id="c11074_list">
+												<div class="qa-c-list-item  hentry comment" id="c11112">
+													<div class="qa-c-item-content">
+														<a name="11112"></a><div class="entry-content"><p>There are no assumptions on the formula. I estimate &#957; by simply comparing the strains in y and x direction.</p>
+
+<p>Thank you for the idea with the mixed formulation. I read some papers about mixed finite elements, and also tried to transfer the upper script to <a rel="nofollow" href="https://fenicsproject.org/documentation/dolfin/1.0.0/python/demo/pde/mixed-poisson/python/documentation.html">this</a> example, but have some problems with the implementation of Neumann boundaries. I will refer to those in a related question.</p>
+</div>
+													</div>
+													<div class="qa-c-item-footer">
+														<span class="qa-c-item-avatar-meta">
+															<span class="qa-c-item-meta">
+																<a href="../../11052/determining-poissons-isotropic-simulated-displacements?show=11112#c11112" class="qa-c-item-what">commented</a>
+																<span class="qa-c-item-when">
+																	<span class="qa-c-item-when-data"><span class="published"><span class="value-title" title="2016-09-12T17:15:24+0000"></span>Sep 12, 2016</span></span>
+																</span>
+																<span class="qa-c-item-who">
+																	<span class="qa-c-item-who-pad">by </span>
+																	<span class="qa-c-item-who-data"><span class="vcard author"><a href="../../user/dimaindahouse" class="qa-user-link url nickname">dimaindahouse</a></span></span>
+																	<span class="qa-c-item-who-title">FEniCS Novice</span>
+																	<span class="qa-c-item-who-points">
+																		<span class="qa-c-item-who-points-pad">(</span><span class="qa-c-item-who-points-data">160</span><span class="qa-c-item-who-points-pad"> points)</span>
+																	</span>
+																</span>
+															</span>
+														</span>
+														<div class="qa-c-item-buttons">
+														</div>
+													</div>
+													<div class="qa-c-item-clear">
+													</div>
+												</div> <!-- END qa-c-item -->
+												<div class="qa-c-list-item " id="q11117">
+													<a href="../../11117/neumann-boundary-conditions-mixed-formulation-elasticity" class="qa-c-item-link">Pure Neumann boundary conditions in mixed formulation of 2d elasticity</a>
+													<div class="qa-c-item-footer">
+														<span class="qa-c-item-avatar-meta">
+															<span class="qa-c-item-meta">
+																<span class="qa-c-item-what">asked</span>
+																<span class="qa-c-item-when">
+																	<span class="qa-c-item-when-data">Sep 12, 2016</span>
+																</span>
+																<span class="qa-c-item-who">
+																	<span class="qa-c-item-who-pad">by </span>
+																	<span class="qa-c-item-who-data"><a href="../../user/dimaindahouse" class="qa-user-link url nickname">dimaindahouse</a></span>
+																	<span class="qa-c-item-who-title">FEniCS Novice</span>
+																	<span class="qa-c-item-who-points">
+																		<span class="qa-c-item-who-points-pad">(</span><span class="qa-c-item-who-points-data">160</span><span class="qa-c-item-who-points-pad"> points)</span>
+																	</span>
+																</span>
+															</span>
+														</span>
+													</div>
+													<div class="qa-c-item-clear">
+													</div>
+												</div> <!-- END qa-c-item -->
+											</div> <!-- END qa-c-list -->
+											
+											<input type="hidden" name="code" value="0-1516467090-3dc388b24d0ab22191110a6f0aa79aaacb270f5e">
+											<input type="hidden" name="qa_click" value="">
+										</form>
+										<div class="qa-c-form">
+										</div> <!-- END qa-c-form -->
+										
+									</div> <!-- END qa-a-item-main -->
+									<div class="qa-a-item-clear">
+									</div>
+								</div> <!-- END qa-a-list-item -->
+								
+							</div> <!-- END qa-a-list -->
+							
+						</div>
+					</div> <!-- END qa-main -->
+					
+				</div> <!-- END main-wrapper -->
+			</div> <!-- END main-shadow -->
+		</div> <!-- END body-wrapper -->
+		<!-- END footer-bottom-group -->
+		
+		<div style="position:absolute; left:-9999px; top:-9999px;">
+			<span id="qa-waiting-template" class="qa-waiting">...</span>
+		</div>
+	
+	
+
+</body><!-- Powered by Question2Answer - http://www.question2answer.org/ --></html>

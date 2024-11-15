@@ -1,0 +1,405 @@
+<html><!-- Powered by Question2Answer - http://www.question2answer.org/ --><head>
+		<meta http-equiv="content-type" content="text/html; charset=utf-8">
+		<title>ALE formulation with prescribed boundary motion - FEniCS Q&amp;A</title>
+		<meta name="description" content="Dear all, I just started working with FEniCS for my master thesis. The project is about the flow  ... on this? In advance many thanks for your help!">
+		<meta name="keywords" content="updatemesh,boundary-conditions">
+		<link rel="stylesheet" type="text/css" href="../../qa-theme/Snow/qa-styles.css">
+		<link rel="canonical" href="http://fenicsproject.org/qa/8879/ale-formulation-with-prescribed-boundary-motion">
+		<script type="text/x-mathjax-config">
+  MathJax.Hub.Config({
+    extensions: ["tex2jax.js"],
+    jax: ["input/TeX","output/HTML-CSS"],
+    tex2jax: {inlineMath: [["$","$"],["\\(","\\)"]]},
+    TeX: { extensions: ["AMSmath.js","AMSsymbols.js"]}
+  });
+</script>
+<script type="text/javascript" src="../../mathjax/MathJax.js"></script>
+		<script src="../../jquery-1.7.2.min.js" type="text/javascript"></script>
+		<script src="../../highlight.min.js"></script>
+<script type="text/javascript">
+$(function(){
+	$('.wmd-input').keypress(function(){
+		window.clearTimeout(hljs.Timeout);
+		hljs.Timeout = window.setTimeout(function() {
+			hljs.initHighlighting.called = false;
+			hljs.initHighlighting();
+		}, 500);
+	});
+	window.setTimeout(function() {
+		hljs.initHighlighting.called = false;
+		hljs.initHighlighting();
+	}, 500);
+});
+</script>
+
+
+	</head>
+	<body class="qa-template-question qa-body-js-off">
+		<div class="qa-body-wrapper">
+			
+			<div class="qa-header">
+				<div class="qa-logo">
+					<a href="../../" class="qa-logo-link" title="FEniCS Q&amp;A"><img src="../../qa-theme/fenics_qa.png" border="0" alt="FEniCS Q&amp;A"></a>
+				</div>
+				<div class="qa-header-clear">
+				</div>
+			</div> <!-- END qa-header -->
+			
+			<div class="qa-main-shadow">
+				
+				<div class="qa-main-wrapper">
+					
+					<div class="qa-sidepanel">
+						<div class="qa-sidebar">
+							This is a read only copy of the old FEniCS QA forum. Please visit the <a href="https://www.allanswered.com/community/s/fenics-project/">new QA forum</a> to ask questions
+						</div>
+						
+					</div>
+					
+					<div class="qa-main">
+						<h1>
+							<span class="entry-title">ALE formulation with prescribed boundary motion</span>
+						</h1>
+						<div class="qa-part-q-view">
+							<div class="qa-q-view  hentry question" id="q8879">
+								<form method="post" action="../../8879/ale-formulation-with-prescribed-boundary-motion">
+									<div class="qa-q-view-stats">
+										<div class="qa-voting qa-voting-net" id="voting_8879">
+											<div class="qa-vote-count qa-vote-count-net">
+												<span class="qa-netvote-count">
+													<span class="qa-netvote-count-data">0<span class="votes-up"><span class="value-title" title="0"></span></span><span class="votes-down"><span class="value-title" title="0"></span></span></span><span class="qa-netvote-count-pad"> votes</span>
+												</span>
+											</div>
+											<div class="qa-vote-clear">
+											</div>
+										</div>
+									</div>
+									<input type="hidden" name="code" value="0-1516468196-8bb346e8e6d7b0e4a148f3414bf88ed027bf6a32">
+								</form>
+								<div class="qa-q-view-main">
+									<form method="post" action="../../8879/ale-formulation-with-prescribed-boundary-motion">
+										<div class="qa-q-view-content">
+											<a name="8879"></a><div class="entry-content"><p>Dear all,<br>
+I just started working with FEniCS for my master thesis. The project is about the flow simulation inside the left ventricle of the heart. Therefore, I have a moving geometry which I collected from Magnetic Resonance Imaging. Now, I am trying to use FEniCS to simulate the flow in the moving domain.<br>
+At each time step I would like to load the new mesh (which is already interpolated from the first one, all the meshes are topologically consistent, same connectivity elements), find the velocity from the mesh displacement, use this velocity inside the convective term of the weak formulation, and use it as DirichletBC on the left ventricular wall. I tried something like that, but it does not work and I do not know what I have to change:</p>
+
+<pre><code>mesh_1 = Mesh("LV_Fenics/LV_00_vol.xml")
+
+V = VectorFunctionSpace(mesh_1,"CG",3)
+# Extract dofs
+dms = [V.sub(i).dofmap().dofs() for i in range(3)]
+
+u_mesh = Function(V)
+
+while t &lt; T + DOLFIN_EPS:
+   # Load next geometry
+   mesh_2 = Mesh("LV_Fenics/LV_0"+str(i)+"_vol.xml")
+   # Compute mesh velocity
+   u_mesh_new = Function(V)
+   # Get the coordinates in dof order
+   dof_coor_1 = V.dofmap().tabulate_all_coordinates(mesh_1)
+   # Coordinates of dofs 
+   coor_x_1 = dof_coor_1[dms[0]]
+   coor_y_1 = dof_coor_1[dms[1]]
+   coor_z_1 = dof_coor_1[dms[2]]
+
+   dof_coor_2 = V.dofmap().tabulate_all_coordinates(mesh_2)
+   coor_x_2 = dof_coor_2[dms[0]]
+   coor_y_2 = dof_coor_2[dms[1]]
+   coor_z_2 = dof_coor_2[dms[2]]
+
+   u_mesh_new.vector()[dms[0]] = (coor_x_2-coor_x_1)/dt
+   u_mesh_new.vector()[dms[1]] = (coor_y_2-coor_y_1)/dt
+   u_mesh_new.vector()[dms[2]] = (coor_z_2-coor_z_1)/dt
+
+   u_mesh.assign(u_mesh_new)
+</code></pre>
+
+<p>I perform this point at each iteration in time. The mesh velocity is present inside the weak formulation in the convective term:</p>
+
+<pre><code>    # Tentative velocity
+U = 0.5*(u0 + u)
+F1 = rho*(1/k)*inner(u-u0, v)*dx \
+   + rho*inner(grad(u0)*(u0), v)*dx \
+   + inner(sigma(U, p0), epsilon(v))*dx \
+   + inner(p0*n, v)*ds \
+   - mu*inner(grad(U).T*n, v)*ds \
+   - inner(f, v)*dx
+
+a1 = lhs(F1)
+L1 = rhs(F1)
+</code></pre>
+
+<p>As last point, I have to use the mesh velocity u_mesh as dirichlet boundary condition on the boundary mesh. Do you have any suggetions on this?<br>
+In advance many thanks for your help!</p>
+</div>
+										</div>
+										<div class="qa-q-view-tags">
+											<ul class="qa-q-view-tag-list">
+												<li class="qa-q-view-tag-item"><a href="../../tag/updatemesh" rel="tag" class="qa-tag-link">updatemesh</a></li>
+												<li class="qa-q-view-tag-item"><a href="../../tag/boundary-conditions" rel="tag" class="qa-tag-link">boundary-conditions</a></li>
+											</ul>
+										</div>
+										<span class="qa-q-view-avatar-meta">
+											<span class="qa-q-view-meta">
+												<a href="../../8879/ale-formulation-with-prescribed-boundary-motion" class="qa-q-view-what">asked</a>
+												<span class="qa-q-view-when">
+													<span class="qa-q-view-when-data"><span class="published"><span class="value-title" title="2015-12-17T19:20:39+0000"></span>Dec 17, 2015</span></span>
+												</span>
+												<span class="qa-q-view-who">
+													<span class="qa-q-view-who-pad">by </span>
+													<span class="qa-q-view-who-data"><span class="vcard author"><a href="../../user/Sebastiano" class="qa-user-link url nickname">Sebastiano</a></span></span>
+													<span class="qa-q-view-who-title">FEniCS Novice</span>
+													<span class="qa-q-view-who-points">
+														<span class="qa-q-view-who-points-pad">(</span><span class="qa-q-view-who-points-data">220</span><span class="qa-q-view-who-points-pad"> points)</span>
+													</span>
+												</span>
+											</span>
+										</span>
+										<div class="qa-q-view-buttons">
+										</div>
+										
+										<div class="qa-q-view-c-list" id="c8879_list">
+											<div class="qa-c-list-item  hentry comment" id="c8889">
+												<div class="qa-c-item-content">
+													<a name="8889"></a><div class="entry-content"><p>It is a bit hard to understand what you are trying to do with the DirichletBC and what is not working. As far as I can see it should be possible to directly use a Function as the DirichletBC value.</p>
+
+<p>If you remove all the ALE parts of the problem and reduce it to a minimum it will be easier to help. You can then post a minimal complete code example. Using a known Function as a DirichletBC is not really related to ALE and can be used also in other applications, so you can remove all the mesh handling if it is not related to the question you are asking.</p>
+
+<p>Regarding ALE, one thing to have in mind is that unless you redefine your equation F1 every time it will still be referring to the old mesh (through the function space of u). It may be better to keep the original mesh and deform it each time step according to the mesh velocities that you calculate. This may be what you are already doing.</p>
+</div>
+												</div>
+												<div class="qa-c-item-footer">
+													<span class="qa-c-item-avatar-meta">
+														<span class="qa-c-item-meta">
+															<a href="../../8879/ale-formulation-with-prescribed-boundary-motion?show=8889#c8889" class="qa-c-item-what">commented</a>
+															<span class="qa-c-item-when">
+																<span class="qa-c-item-when-data"><span class="published"><span class="value-title" title="2015-12-18T13:45:53+0000"></span>Dec 18, 2015</span></span>
+															</span>
+															<span class="qa-c-item-who">
+																<span class="qa-c-item-who-pad">by </span>
+																<span class="qa-c-item-who-data"><span class="vcard author"><a href="../../user/Tormod+Landet" class="qa-user-link url nickname">Tormod Landet</a></span></span>
+																<span class="qa-c-item-who-title">FEniCS User</span>
+																<span class="qa-c-item-who-points">
+																	<span class="qa-c-item-who-points-pad">(</span><span class="qa-c-item-who-points-data">5,130</span><span class="qa-c-item-who-points-pad"> points)</span>
+																</span>
+															</span>
+														</span>
+													</span>
+													<div class="qa-c-item-buttons">
+													</div>
+												</div>
+												<div class="qa-c-item-clear">
+												</div>
+											</div> <!-- END qa-c-item -->
+											<div class="qa-c-list-item  hentry comment" id="c8896">
+												<div class="qa-c-item-content">
+													<a name="8896"></a><div class="entry-content"><p>Thank you for your reply. I wrote also the  ALE part because the velocity u_mesh computed in this part is the one which I will use as Dirichlet boundary condition on the wall.<br>
+Therefore I define the BC as follow:</p>
+
+<pre><code>V = VectorFunctionSpace(mesh_1,"CG",1)
+bcu_wall = DirichletBC(V, u_mesh, subdomain_wall, 1)
+</code></pre>
+
+<p>where subdomain_wall is a MeshFunction to mark all the boundary facets with 1.<br>
+Now, I would like to update the BC in each time step after moving the mesh and compute the mesh velocity u_mesh:</p>
+
+<pre><code>while t &lt; T + DOLFIN_EPS:
+   bcu_wall.apply(u_mesh.vector())
+   ....
+   u_mesh.assign(u_mesh_new)
+</code></pre>
+
+<p>where u_mesh_new is computed as I wrote before in the ALE description. This formulation stops working when I try to apply the new vector of the mesh velocity to the BCs. </p>
+
+<p>Another point about the movement of the mesh. I tried to use the class move() provided by dolfin in the following way:</p>
+
+<pre><code>mesh_1.move(mesh_2)
+</code></pre>
+
+<p>And I had the following error:</p>
+
+<blockquote>
+  <p>*** Error:   Unable to access mesh data.<br>
+   *** Reason:  Mesh data array named "parent_vertex_indices" does not exist.<br>
+   *** Where:   This error was encountered inside MeshData.cpp.</p>
+</blockquote>
+
+<p>I understand that my mesh.data() object is empty but I have no idea why it has no data.<br>
+Many thanks for any help you can give me on this topic.</p>
+</div>
+												</div>
+												<div class="qa-c-item-footer">
+													<span class="qa-c-item-avatar-meta">
+														<span class="qa-c-item-meta">
+															<a href="../../8879/ale-formulation-with-prescribed-boundary-motion?show=8896#c8896" class="qa-c-item-what">commented</a>
+															<span class="qa-c-item-when">
+																<span class="qa-c-item-when-data"><span class="published"><span class="value-title" title="2015-12-19T20:21:05+0000"></span>Dec 19, 2015</span></span>
+															</span>
+															<span class="qa-c-item-who">
+																<span class="qa-c-item-who-pad">by </span>
+																<span class="qa-c-item-who-data"><span class="vcard author"><a href="../../user/Sebastiano" class="qa-user-link url nickname">Sebastiano</a></span></span>
+																<span class="qa-c-item-who-title">FEniCS Novice</span>
+																<span class="qa-c-item-who-points">
+																	<span class="qa-c-item-who-points-pad">(</span><span class="qa-c-item-who-points-data">220</span><span class="qa-c-item-who-points-pad"> points)</span>
+																</span>
+															</span>
+														</span>
+													</span>
+													<div class="qa-c-item-buttons">
+													</div>
+												</div>
+												<div class="qa-c-item-clear">
+												</div>
+											</div> <!-- END qa-c-item -->
+										</div> <!-- END qa-c-list -->
+										
+										<input type="hidden" name="code" value="0-1516468196-e4356573a904bde82114d7a425bdd52f710a46ed">
+										<input type="hidden" name="qa_click" value="">
+									</form>
+									<div class="qa-c-form">
+									</div> <!-- END qa-c-form -->
+									
+								</div> <!-- END qa-q-view-main -->
+								<div class="qa-q-view-clear">
+								</div>
+							</div> <!-- END qa-q-view -->
+							
+						</div>
+						<div class="qa-part-a-list">
+							<h2 id="a_list_title">1 Answer</h2>
+							<div class="qa-a-list" id="a_list">
+								
+								<div class="qa-a-list-item  hentry answer" id="a8908">
+									<form method="post" action="../../8879/ale-formulation-with-prescribed-boundary-motion">
+										<div class="qa-voting qa-voting-net" id="voting_8908">
+											<div class="qa-vote-count qa-vote-count-net">
+												<span class="qa-netvote-count">
+													<span class="qa-netvote-count-data">0<span class="votes-up"><span class="value-title" title="0"></span></span><span class="votes-down"><span class="value-title" title="0"></span></span></span><span class="qa-netvote-count-pad"> votes</span>
+												</span>
+											</div>
+											<div class="qa-vote-clear">
+											</div>
+										</div>
+										<input type="hidden" name="code" value="0-1516468196-8bb346e8e6d7b0e4a148f3414bf88ed027bf6a32">
+									</form>
+									<div class="qa-a-item-main">
+										<form method="post" action="../../8879/ale-formulation-with-prescribed-boundary-motion">
+											<div class="qa-a-selection">
+											</div>
+											<div class="qa-a-item-content">
+												<a name="8908"></a><div class="entry-content"><p>When you run bcu_wall.apply() you are applying the boundary conditions, either to the left hand side (if you pass a matrix) or to the right hand side (if you pass a vector). You seem to run apply in order to update the boundary condition value, previously passed to the constructor of the DirichletBC. This is not needed and is indeed not correct as this will modify u_mesh in this case, not the BC itself.</p>
+
+<p>The BC will ask the object you passed, in this case u_mesh, for the boundary values. So, as long as u_mesh is  updated by your code then the BC will be updated as well and you do not need to tell the BC about updates to u_mesh.</p>
+
+<p>For the mesh moving problem, I have never tried to move the mesh according to some other mesh. Try something like this (not tested, may contain minor errors)</p>
+
+<pre><code>V = VectorFunctionSpace(mesh_1,"CG",1)
+displacement = Function(V) # same function space as u_mesh
+
+displacement.vector().zero()
+displacement.vector().axpy(dt, u_mesh)
+
+mesh.move(displacement)
+</code></pre>
+</div>
+											</div>
+											<span class="qa-a-item-avatar-meta">
+												<span class="qa-a-item-meta">
+													<a href="../../8879/ale-formulation-with-prescribed-boundary-motion?show=8908#a8908" class="qa-a-item-what">answered</a>
+													<span class="qa-a-item-when">
+														<span class="qa-a-item-when-data"><span class="published"><span class="value-title" title="2015-12-21T14:46:03+0000"></span>Dec 21, 2015</span></span>
+													</span>
+													<span class="qa-a-item-who">
+														<span class="qa-a-item-who-pad">by </span>
+														<span class="qa-a-item-who-data"><span class="vcard author"><a href="../../user/Tormod+Landet" class="qa-user-link url nickname">Tormod Landet</a></span></span>
+														<span class="qa-a-item-who-title">FEniCS User</span>
+														<span class="qa-a-item-who-points">
+															<span class="qa-a-item-who-points-pad">(</span><span class="qa-a-item-who-points-data">5,130</span><span class="qa-a-item-who-points-pad"> points)</span>
+														</span>
+													</span>
+												</span>
+											</span>
+											<div class="qa-a-item-buttons">
+												</div>
+											
+											<div class="qa-a-item-c-list" id="c8908_list">
+												<div class="qa-c-list-item  hentry comment" id="c8921">
+													<div class="qa-c-item-content">
+														<a name="8921"></a><div class="entry-content"><p>Thank you very much for the suggestion on the boundary conditions, if I update u_mesh without calling bc.apply() it works fine.<br>
+However, using mesh.move() I always have the error about the mesh data "parent_vertex_indices" which does not exist for my mesh.<br>
+I tried to create this array like this:</p>
+
+<pre><code>mesh_1.data().create_array("parent_vertex_indices", len(mesh_1.coordinates()))
+</code></pre>
+
+<p>and also for the second mesh:</p>
+
+<pre><code>mesh_2.data().create_array("parent_vertex_indices", len(mesh_1.coordinates()))
+</code></pre>
+
+<p>But also with this I have the same error:</p>
+
+<blockquote>
+  <p>*** Error:   Unable to access mesh data.<br>
+  *** Reason:  Mesh data array named "parent_vertex_indices" does not exist.</p>
+</blockquote>
+
+<p>using mesh_1.move(displacement).<br>
+Do you have an idea about how I could create an array of indices called "parent_vertex_indices" inside the object meshdata?<br>
+Many thanks.</p>
+</div>
+													</div>
+													<div class="qa-c-item-footer">
+														<span class="qa-c-item-avatar-meta">
+															<span class="qa-c-item-meta">
+																<a href="../../8879/ale-formulation-with-prescribed-boundary-motion?show=8921#c8921" class="qa-c-item-what">commented</a>
+																<span class="qa-c-item-when">
+																	<span class="qa-c-item-when-data"><span class="published"><span class="value-title" title="2015-12-22T19:59:51+0000"></span>Dec 22, 2015</span></span>
+																</span>
+																<span class="qa-c-item-who">
+																	<span class="qa-c-item-who-pad">by </span>
+																	<span class="qa-c-item-who-data"><span class="vcard author"><a href="../../user/Sebastiano" class="qa-user-link url nickname">Sebastiano</a></span></span>
+																	<span class="qa-c-item-who-title">FEniCS Novice</span>
+																	<span class="qa-c-item-who-points">
+																		<span class="qa-c-item-who-points-pad">(</span><span class="qa-c-item-who-points-data">220</span><span class="qa-c-item-who-points-pad"> points)</span>
+																	</span>
+																</span>
+															</span>
+														</span>
+														<div class="qa-c-item-buttons">
+														</div>
+													</div>
+													<div class="qa-c-item-clear">
+													</div>
+												</div> <!-- END qa-c-item -->
+											</div> <!-- END qa-c-list -->
+											
+											<input type="hidden" name="code" value="0-1516468196-98c1c6986f78f44aa74ada441c856cd6e25b7144">
+											<input type="hidden" name="qa_click" value="">
+										</form>
+										<div class="qa-c-form">
+										</div> <!-- END qa-c-form -->
+										
+									</div> <!-- END qa-a-item-main -->
+									<div class="qa-a-item-clear">
+									</div>
+								</div> <!-- END qa-a-list-item -->
+								
+							</div> <!-- END qa-a-list -->
+							
+						</div>
+					</div> <!-- END qa-main -->
+					
+				</div> <!-- END main-wrapper -->
+			</div> <!-- END main-shadow -->
+		</div> <!-- END body-wrapper -->
+		<!-- END footer-bottom-group -->
+		
+		<div style="position:absolute; left:-9999px; top:-9999px;">
+			<span id="qa-waiting-template" class="qa-waiting">...</span>
+		</div>
+	
+	
+
+</body><!-- Powered by Question2Answer - http://www.question2answer.org/ --></html>

@@ -1,0 +1,612 @@
+<html><!-- Powered by Question2Answer - http://www.question2answer.org/ --><head>
+		<meta http-equiv="content-type" content="text/html; charset=utf-8">
+		<title>Linear elasticity problems on domains with different materials - FEniCS Q&amp;A</title>
+		<meta name="description" content="Dear all, I am trying to solve a linear elasticity problem on domains with different materials in 2D. The whole domain is  ...  (x[0]*x[0] + x[1]*x[1]">
+		<meta name="keywords" content="linear-elasticity,different-materials,subdomain">
+		<link rel="stylesheet" type="text/css" href="../../qa-theme/Snow/qa-styles.css">
+		<link rel="canonical" href="http://fenicsproject.org/qa/9248/linear-elasticity-problems-domains-with-different-materials">
+		<script type="text/x-mathjax-config">
+  MathJax.Hub.Config({
+    extensions: ["tex2jax.js"],
+    jax: ["input/TeX","output/HTML-CSS"],
+    tex2jax: {inlineMath: [["$","$"],["\\(","\\)"]]},
+    TeX: { extensions: ["AMSmath.js","AMSsymbols.js"]}
+  });
+</script>
+<script type="text/javascript" src="../../mathjax/MathJax.js"></script>
+		<script src="../../jquery-1.7.2.min.js" type="text/javascript"></script>
+		<script src="../../highlight.min.js"></script>
+<script type="text/javascript">
+$(function(){
+	$('.wmd-input').keypress(function(){
+		window.clearTimeout(hljs.Timeout);
+		hljs.Timeout = window.setTimeout(function() {
+			hljs.initHighlighting.called = false;
+			hljs.initHighlighting();
+		}, 500);
+	});
+	window.setTimeout(function() {
+		hljs.initHighlighting.called = false;
+		hljs.initHighlighting();
+	}, 500);
+});
+</script>
+
+
+	</head>
+	<body class="qa-template-question qa-body-js-off">
+		<div class="qa-body-wrapper">
+			
+			<div class="qa-header">
+				<div class="qa-logo">
+					<a href="../" class="qa-logo-link" title="FEniCS Q&amp;A"><img src="../../qa-theme/fenics_qa.png" border="0" alt="FEniCS Q&amp;A"></a>
+				</div>
+				<div class="qa-header-clear">
+				</div>
+			</div> <!-- END qa-header -->
+			
+			<div class="qa-main-shadow">
+				
+				<div class="qa-main-wrapper">
+					
+					<div class="qa-sidepanel">
+						<div class="qa-sidebar">
+							This is a read only copy of the old FEniCS QA forum. Please visit the <a href="https://www.allanswered.com/community/s/fenics-project/">new QA forum</a> to ask questions
+						</div>
+						
+					</div>
+					
+					<div class="qa-main">
+						<h1>
+							<span class="entry-title">Linear elasticity problems on domains with different materials</span>
+						</h1>
+						<div class="qa-part-q-view">
+							<div class="qa-q-view qa-q-closed hentry question" id="q9248">
+								<form method="post" action="../9248">
+									<div class="qa-q-view-stats">
+										<div class="qa-voting qa-voting-net" id="voting_9248">
+											<div class="qa-vote-count qa-vote-count-net">
+												<span class="qa-netvote-count">
+													<span class="qa-netvote-count-data">0<span class="votes-up"><span class="value-title" title="0"></span></span><span class="votes-down"><span class="value-title" title="0"></span></span></span><span class="qa-netvote-count-pad"> votes</span>
+												</span>
+											</div>
+											<div class="qa-vote-clear">
+											</div>
+										</div>
+									</div>
+									<input type="hidden" name="code" value="0-1516477980-b64ec4f52253ec49c743739432688ab0d4e0f512">
+								</form>
+								<div class="qa-q-view-main">
+									<form method="post" action="../9248">
+										<div class="qa-q-view-content">
+											<a name="9248"></a><div class="entry-content"><p>Dear all,</p>
+
+<p>I am trying to solve a linear elasticity problem on domains with different materials in 2D. The whole domain is a half disk divided into a smaller half disk and its complement. The model has both Dirichlet and Neumann boundary conditions. The Dirichlet bc corresponds to "Bottom" and Newmann "Top". Here is my code:</p>
+
+<pre><code>from __future__ import print_function
+from dolfin import *
+from mshr import *
+import sys, math, numpy
+
+# Create classes for defining parts of the boundaries and the interior
+# of the domain
+class Bottom(SubDomain):
+    def inside(self, x, on_boundary):
+        return on_boundary and near(x[1], 0.0)
+
+class Top(SubDomain):
+    def inside(self, x, on_boundary):
+        return on_boundary and (between(x[1], (0.5, 1.1)))
+
+class Obstacle(SubDomain):
+    def inside(self, x, on_boundary):
+        return (x[0]*x[0] + x[1]*x[1] &lt;= 0.25) 
+
+# Define parameters
+r = 1.0
+MeshDensity = 20
+
+# Initialize sub-domain instances
+top = Top()
+bottom = Bottom()
+obstacle = Obstacle()
+
+# Define the domain and generate the mesh
+domain = Circle(Point(0, 0), r) - Rectangle(Point(-1.0, -2.0), Point(1.0, 0.0))
+mesh = generate_mesh(domain,MeshDensity,"cgal")
+#plot(mesh, 'Mesh')
+
+# Initialize mesh function for interior domains
+domains = CellFunction("size_t", mesh)
+domains.set_all(0)
+obstacle.mark(domains, 1)
+#print(domains.array())
+
+# Initialize mesh function for boundary domains
+boundaries = FacetFunction("size_t", mesh)
+boundaries.set_all(0)
+bottom.mark(boundaries, 0)
+top.mark(boundaries, 1)
+#print(boundaries.array())
+
+# Define input data
+a1 = Constant(1.0)
+a0 = Constant(0.01)
+g = Constant((0.0, -1.0))
+f = Constant((0.0, 1.0))
+
+# Define function space and basis functions
+V = VectorFunctionSpace(mesh, "Lagrange", 1)
+u = TrialFunction(V)
+v = TestFunction(V)
+
+# Define Dirichlet boundary ( x=0, y=0 )
+c = Expression(("0.0", "0.0"))
+
+# Define Dirichlet boundary conditions at top and bottom boundaries
+bcs = DirichletBC(V, c, boundaries, 0)
+
+# Define new measures associated with the interior domains and
+# exterior boundaries
+dx = Measure('dx', domain=mesh, subdomain_data=domains)
+ds = Measure('ds', domain=mesh, subdomain_data=boundaries)
+
+# Define variational form
+F = (dot(a0*grad(u), grad(v))*dx(0) + (dot(a1*grad(u), grad(v)))*dx(1)
+     - inner(g, v)*ds(1)
+     - inner(f, v)*dx(0) - inner(f, v)*dx(1))
+
+# Separate left and right hand sides of equation
+a, L = lhs(F), rhs(F)
+
+# Solve problem
+u_h = Function(V)
+solve(a == L, u_h.vector(), bcs)
+
+# Plot solution
+plot(u, title="u")
+interactive()
+</code></pre>
+
+<p>The error message goes as follows:</p>
+
+<p>Can only integrate scalar expressions. The integrand is a tensor expression with value rank 2 and free indices ().</p>
+
+<p>Traceback (most recent call last):<br>
+  File "/home/jason/Programs/Python/Questions/08-Feb-2016.py", line 72, in <br>
+    - inner(f, v)<em>dx(0) - inner(f, v)</em>dx(1))<br>
+  File "/usr/lib/python2.7/dist-packages/ufl/measure.py", line 374, in <strong>rmul</strong><br>
+    error(msg % (integrand.rank(), integrand.ufl_free_indices))<br>
+  File "/usr/lib/python2.7/dist-packages/ufl/log.py", line 151, in error<br>
+    raise self._exception_type(self._format_raw(*message))<br>
+UFLException: Can only integrate scalar expressions. The integrand is a tensor expression with value rank 2 and free indices ().</p>
+
+<p>The way I see it, after taking the dot product (inner product), all of my integrands are scalars. Is it because the way I define the expression or the function space is wrong, maybe both? It would be really appreciated if you could tell me how to modify it to make it work. </p>
+</div>
+										</div>
+										<div class="qa-q-view-closed">
+											closed with the note:
+											<span class="qa-q-view-closed-content">
+												This question has been wonderfully answered.
+											</span>
+										</div>
+										<div class="qa-q-view-tags">
+											<ul class="qa-q-view-tag-list">
+												<li class="qa-q-view-tag-item"><a href="../tag/linear-elasticity" rel="tag" class="qa-tag-link">linear-elasticity</a></li>
+												<li class="qa-q-view-tag-item"><a href="../tag/different-materials" rel="tag" class="qa-tag-link">different-materials</a></li>
+												<li class="qa-q-view-tag-item"><a href="../tag/subdomain" rel="tag" class="qa-tag-link">subdomain</a></li>
+											</ul>
+										</div>
+										<span class="qa-q-view-avatar-meta">
+											<span class="qa-q-view-meta">
+												<a href="../9248/linear-elasticity-problems-domains-with-different-materials" class="qa-q-view-what">asked</a>
+												<span class="qa-q-view-when">
+													<span class="qa-q-view-when-data"><span class="published"><span class="value-title" title="2016-02-08T23:11:03+0000"></span>Feb 9, 2016</span></span>
+												</span>
+												<span class="qa-q-view-who">
+													<span class="qa-q-view-who-pad">by </span>
+													<span class="qa-q-view-who-data"><span class="vcard author"><a href="../../user/Riemannstein" class="qa-user-link url nickname">Riemannstein</a></span></span>
+													<span class="qa-q-view-who-title">FEniCS Novice</span>
+													<span class="qa-q-view-who-points">
+														<span class="qa-q-view-who-points-pad">(</span><span class="qa-q-view-who-points-data">210</span><span class="qa-q-view-who-points-pad"> points)</span>
+													</span>
+												</span>
+												<br>
+												<span class="qa-q-view-what">closed</span>
+												<span class="qa-q-view-when">
+													<span class="qa-q-view-when-data"><span class="updated"><span class="value-title" title="2016-02-10T20:56:13+0000"></span>Feb 10, 2016</span></span>
+												</span>
+												<span class="qa-q-view-who">
+													<span class="qa-q-view-who-pad">by </span><span class="qa-q-view-who-data"><a href="../../user/Riemannstein" class="qa-user-link url nickname">Riemannstein</a></span>
+												</span>
+											</span>
+										</span>
+										<div class="qa-q-view-buttons">
+										</div>
+										
+										<div class="qa-q-view-c-list" style="display:none;" id="c9248_list">
+										</div> <!-- END qa-c-list -->
+										
+										<input type="hidden" name="code" value="0-1516477980-0b5a26b1392b3fbadfa82fd98235461a5350e69d">
+										<input type="hidden" name="qa_click" value="">
+									</form>
+									<div class="qa-c-form">
+									</div> <!-- END qa-c-form -->
+									
+								</div> <!-- END qa-q-view-main -->
+								<div class="qa-q-view-clear">
+								</div>
+							</div> <!-- END qa-q-view -->
+							
+						</div>
+						<div class="qa-part-a-list">
+							<h2 id="a_list_title">1 Answer</h2>
+							<div class="qa-a-list" id="a_list">
+								
+								<div class="qa-a-list-item  hentry answer answer-selected qa-a-list-item-selected" id="a9253">
+									<form method="post" action="../9248">
+										<div class="qa-voting qa-voting-net" id="voting_9253">
+											<div class="qa-vote-count qa-vote-count-net">
+												<span class="qa-netvote-count">
+													<span class="qa-netvote-count-data">+1<span class="votes-up"><span class="value-title" title="1"></span></span><span class="votes-down"><span class="value-title" title="0"></span></span></span><span class="qa-netvote-count-pad"> vote</span>
+												</span>
+											</div>
+											<div class="qa-vote-clear">
+											</div>
+										</div>
+										<input type="hidden" name="code" value="0-1516477980-b64ec4f52253ec49c743739432688ab0d4e0f512">
+									</form>
+									<div class="qa-a-item-main">
+										<form method="post" action="../9248">
+											<div class="qa-a-item-selected">
+												<div class="qa-a-selection">
+													<div class="qa-a-selected">&#160;</div>
+													<div class="qa-a-selected-text">Best answer</div>
+												</div>
+												<div class="qa-a-item-content">
+													<a name="9253"></a><div class="entry-content"><p>Maybe use the <code>inner</code> operation instead  of <code>dot</code> product:</p>
+
+<pre><code>F = (inner(a0*grad(u), grad(v))*dx(0) + (inner(a1*grad(u), grad(v)))*dx(1)
+     - inner(g, v)*ds(1)
+     - inner(f, v)*dx(0) - inner(f, v)*dx(1))
+</code></pre>
+</div>
+												</div>
+												<span class="qa-a-item-avatar-meta">
+													<span class="qa-a-item-avatar">
+														<a href="../../user/hernan_mella" class="qa-avatar-link"><img src="../?qa=image&amp;qa_blobid=14920815903966845416&amp;qa_size=40" width="40" height="22" class="qa-avatar-image" alt=""></a>
+													</span>
+													<span class="qa-a-item-meta">
+														<a href="../9248/linear-elasticity-problems-domains-with-different-materials?show=9253#a9253" class="qa-a-item-what">answered</a>
+														<span class="qa-a-item-when">
+															<span class="qa-a-item-when-data"><span class="published"><span class="value-title" title="2016-02-09T11:53:09+0000"></span>Feb 9, 2016</span></span>
+														</span>
+														<span class="qa-a-item-who">
+															<span class="qa-a-item-who-pad">by </span>
+															<span class="qa-a-item-who-data"><span class="vcard author"><a href="../../user/hernan_mella" class="qa-user-link url nickname">hernan_mella</a></span></span>
+															<span class="qa-a-item-who-title">FEniCS Expert</span>
+															<span class="qa-a-item-who-points">
+																<span class="qa-a-item-who-points-pad">(</span><span class="qa-a-item-who-points-data">19,460</span><span class="qa-a-item-who-points-pad"> points)</span>
+															</span>
+														</span>
+														<br>
+														<span class="qa-a-item-what">selected</span>
+														<span class="qa-a-item-when">
+															<span class="qa-a-item-when-data"><span class="updated"><span class="value-title" title="2016-02-09T16:18:10+0000"></span>Feb 9, 2016</span></span>
+														</span>
+														<span class="qa-a-item-who">
+															<span class="qa-a-item-who-pad">by </span><span class="qa-a-item-who-data"><a href="../../user/Riemannstein" class="qa-user-link url nickname">Riemannstein</a></span>
+														</span>
+													</span>
+												</span>
+											</div>
+											<div class="qa-a-item-buttons">
+												</div>
+											
+											<div class="qa-a-item-c-list" id="c9253_list">
+												<div class="qa-c-list-item  hentry comment" id="c9256">
+													<div class="qa-c-item-content">
+														<a name="9256"></a><div class="entry-content"><p>Thank you very much for the reply. I have tried your expression and it seems that the compiler no longer complains about the integrand. Instead, there goes the following error message saying that the equations cannot be solved:</p>
+
+<p>Traceback (most recent call last):<br>
+  File "/home/jason/Programs/Python/Questions/08-Feb-2016-ans1.py", line 80, in <br>
+    solve(a == L, u_h.vector(), bcs)<br>
+  File "/usr/lib/python2.7/dist-packages/dolfin/fem/solving.py", line 297, in solve<br>
+    _solve_varproblem(*args, **kwargs)<br>
+  File "/usr/lib/python2.7/dist-packages/dolfin/fem/solving.py", line 314, in _solve_varproblem<br>
+    = _extract_args(*args, **kwargs)<br>
+  File "/usr/lib/python2.7/dist-packages/dolfin/fem/solving.py", line 421, in _extract_args<br>
+    u = _extract_u(args[1])<br>
+  File "/usr/lib/python2.7/dist-packages/dolfin/fem/solving.py", line 471, in _extract_u<br>
+    "Expecting second argument to be a Function")<br>
+  File "/usr/lib/python2.7/dist-packages/dolfin/cpp/common.py", line 2611, in dolfin_error<br>
+    return _common.dolfin_error(location, task, reason)<br>
+RuntimeError: </p>
+
+<p>*** -------------------------------------------------------------------------<br>
+*** DOLFIN encountered an error. If you are not able to resolve this issue<br>
+*** using the information listed below, you can ask for help at</p>
+
+<hr>
+
+<p>***     fenics@fenicsproject.org</p>
+
+<hr>
+
+<p>*** Remember to include the error message listed below and, if possible,<br>
+*** include a <em>minimal</em> running example to reproduce the error.</p>
+
+<hr>
+
+<p>*** -------------------------------------------------------------------------<br>
+*** Error:   Unable to solve variational problem.<br>
+*** Reason:  Expecting second argument to be a Function.<br>
+*** Where:   This error was encountered inside solving.py.<br>
+*** Process: 0</p>
+
+<hr>
+
+<p>*** DOLFIN version: 1.6.0<br>
+*** Git changeset:  unknown<br>
+*** -------------------------------------------------------------------------</p>
+
+<p>May I ask further for the reason? Thanks again!</p>
+</div>
+													</div>
+													<div class="qa-c-item-footer">
+														<span class="qa-c-item-avatar-meta">
+															<span class="qa-c-item-meta">
+																<a href="../9248/linear-elasticity-problems-domains-with-different-materials?show=9256#c9256" class="qa-c-item-what">commented</a>
+																<span class="qa-c-item-when">
+																	<span class="qa-c-item-when-data"><span class="published"><span class="value-title" title="2016-02-09T14:55:54+0000"></span>Feb 9, 2016</span></span>
+																</span>
+																<span class="qa-c-item-who">
+																	<span class="qa-c-item-who-pad">by </span>
+																	<span class="qa-c-item-who-data"><span class="vcard author"><a href="../../user/Riemannstein" class="qa-user-link url nickname">Riemannstein</a></span></span>
+																	<span class="qa-c-item-who-title">FEniCS Novice</span>
+																	<span class="qa-c-item-who-points">
+																		<span class="qa-c-item-who-points-pad">(</span><span class="qa-c-item-who-points-data">210</span><span class="qa-c-item-who-points-pad"> points)</span>
+																	</span>
+																</span>
+															</span>
+														</span>
+														<div class="qa-c-item-buttons">
+														</div>
+													</div>
+													<div class="qa-c-item-clear">
+													</div>
+												</div> <!-- END qa-c-item -->
+												<div class="qa-c-list-item  hentry comment" id="c9257">
+													<div class="qa-c-item-content">
+														<a name="9257"></a><div class="entry-content"><p>The solve function expects a <code>Function</code> object as second argument (<code>u_h.vector()</code> is a <code>GenericVector</code>).</p>
+
+<p>Consider this:</p>
+
+<pre><code>solve(a == L, u_h, bcs)
+</code></pre>
+</div>
+													</div>
+													<div class="qa-c-item-footer">
+														<span class="qa-c-item-avatar-meta">
+															<span class="qa-c-item-avatar">
+																<a href="../../user/hernan_mella" class="qa-avatar-link"><img src="../?qa=image&amp;qa_blobid=14920815903966845416&amp;qa_size=20" width="20" height="11" class="qa-avatar-image" alt=""></a>
+															</span>
+															<span class="qa-c-item-meta">
+																<a href="../9248/linear-elasticity-problems-domains-with-different-materials?show=9257#c9257" class="qa-c-item-what">commented</a>
+																<span class="qa-c-item-when">
+																	<span class="qa-c-item-when-data"><span class="published"><span class="value-title" title="2016-02-09T15:09:43+0000"></span>Feb 9, 2016</span></span>
+																</span>
+																<span class="qa-c-item-who">
+																	<span class="qa-c-item-who-pad">by </span>
+																	<span class="qa-c-item-who-data"><span class="vcard author"><a href="../../user/hernan_mella" class="qa-user-link url nickname">hernan_mella</a></span></span>
+																	<span class="qa-c-item-who-title">FEniCS Expert</span>
+																	<span class="qa-c-item-who-points">
+																		<span class="qa-c-item-who-points-pad">(</span><span class="qa-c-item-who-points-data">19,460</span><span class="qa-c-item-who-points-pad"> points)</span>
+																	</span>
+																</span>
+															</span>
+														</span>
+														<div class="qa-c-item-buttons">
+														</div>
+													</div>
+													<div class="qa-c-item-clear">
+													</div>
+												</div> <!-- END qa-c-item -->
+												<div class="qa-c-list-item  hentry comment" id="c9258">
+													<div class="qa-c-item-content">
+														<a name="9258"></a><div class="entry-content"><p>I changed my second argument into a function. Now the "Reason" of the error message says:</p>
+
+<p>*** Error:   Unable to assemble system.<br>
+*** Reason:  expected a linear form for L.<br>
+*** Where:   This error was encountered inside SystemAssembler.cpp.</p>
+
+<p>According to my expression, "L" should be a linear form right? What is the reason for this? Thanks again!</p>
+</div>
+													</div>
+													<div class="qa-c-item-footer">
+														<span class="qa-c-item-avatar-meta">
+															<span class="qa-c-item-meta">
+																<a href="../9248/linear-elasticity-problems-domains-with-different-materials?show=9258#c9258" class="qa-c-item-what">commented</a>
+																<span class="qa-c-item-when">
+																	<span class="qa-c-item-when-data"><span class="published"><span class="value-title" title="2016-02-09T15:43:42+0000"></span>Feb 9, 2016</span></span>
+																</span>
+																<span class="qa-c-item-who">
+																	<span class="qa-c-item-who-pad">by </span>
+																	<span class="qa-c-item-who-data"><span class="vcard author"><a href="../../user/Riemannstein" class="qa-user-link url nickname">Riemannstein</a></span></span>
+																	<span class="qa-c-item-who-title">FEniCS Novice</span>
+																	<span class="qa-c-item-who-points">
+																		<span class="qa-c-item-who-points-pad">(</span><span class="qa-c-item-who-points-data">210</span><span class="qa-c-item-who-points-pad"> points)</span>
+																	</span>
+																</span>
+															</span>
+														</span>
+														<div class="qa-c-item-buttons">
+														</div>
+													</div>
+													<div class="qa-c-item-clear">
+													</div>
+												</div> <!-- END qa-c-item -->
+												<div class="qa-c-list-item  hentry comment" id="c9273">
+													<div class="qa-c-item-content">
+														<a name="9273"></a><div class="entry-content"><p>Change</p>
+
+<pre><code>plot(u, title="u")
+</code></pre>
+
+<p>to</p>
+
+<pre><code>plot(u_h, title="u")
+</code></pre>
+</div>
+													</div>
+													<div class="qa-c-item-footer">
+														<span class="qa-c-item-avatar-meta">
+															<span class="qa-c-item-avatar">
+																<a href="../../user/hernan_mella" class="qa-avatar-link"><img src="../?qa=image&amp;qa_blobid=14920815903966845416&amp;qa_size=20" width="20" height="11" class="qa-avatar-image" alt=""></a>
+															</span>
+															<span class="qa-c-item-meta">
+																<a href="../9248/linear-elasticity-problems-domains-with-different-materials?show=9273#c9273" class="qa-c-item-what">commented</a>
+																<span class="qa-c-item-when">
+																	<span class="qa-c-item-when-data"><span class="published"><span class="value-title" title="2016-02-10T15:33:59+0000"></span>Feb 10, 2016</span></span>
+																</span>
+																<span class="qa-c-item-who">
+																	<span class="qa-c-item-who-pad">by </span>
+																	<span class="qa-c-item-who-data"><span class="vcard author"><a href="../../user/hernan_mella" class="qa-user-link url nickname">hernan_mella</a></span></span>
+																	<span class="qa-c-item-who-title">FEniCS Expert</span>
+																	<span class="qa-c-item-who-points">
+																		<span class="qa-c-item-who-points-pad">(</span><span class="qa-c-item-who-points-data">19,460</span><span class="qa-c-item-who-points-pad"> points)</span>
+																	</span>
+																</span>
+															</span>
+														</span>
+														<div class="qa-c-item-buttons">
+														</div>
+													</div>
+													<div class="qa-c-item-clear">
+													</div>
+												</div> <!-- END qa-c-item -->
+												<div class="qa-c-list-item  hentry comment" id="c9274">
+													<div class="qa-c-item-content">
+														<a name="9274"></a><div class="entry-content"><p>Thank you so much! It worked just as expected and the results are very nice! Yet, the error message "Unable to assemble system" doesn't seem to point me to the right direction. I mean plotting the solution and computing it are more or less separated tasks. That's exactly what makes your advice so valuable. </p>
+</div>
+													</div>
+													<div class="qa-c-item-footer">
+														<span class="qa-c-item-avatar-meta">
+															<span class="qa-c-item-meta">
+																<a href="../9248/linear-elasticity-problems-domains-with-different-materials?show=9274#c9274" class="qa-c-item-what">commented</a>
+																<span class="qa-c-item-when">
+																	<span class="qa-c-item-when-data"><span class="published"><span class="value-title" title="2016-02-10T15:51:31+0000"></span>Feb 10, 2016</span></span>
+																</span>
+																<span class="qa-c-item-who">
+																	<span class="qa-c-item-who-pad">by </span>
+																	<span class="qa-c-item-who-data"><span class="vcard author"><a href="../../user/Riemannstein" class="qa-user-link url nickname">Riemannstein</a></span></span>
+																	<span class="qa-c-item-who-title">FEniCS Novice</span>
+																	<span class="qa-c-item-who-points">
+																		<span class="qa-c-item-who-points-pad">(</span><span class="qa-c-item-who-points-data">210</span><span class="qa-c-item-who-points-pad"> points)</span>
+																	</span>
+																</span>
+																<br>
+																<span class="qa-c-item-what">edited</span>
+																<span class="qa-c-item-when">
+																	<span class="qa-c-item-when-data"><span class="updated"><span class="value-title" title="2016-02-10T20:56:43+0000"></span>Feb 10, 2016</span></span>
+																</span>
+																<span class="qa-c-item-who">
+																	<span class="qa-c-item-who-pad">by </span><span class="qa-c-item-who-data"><a href="../../user/Riemannstein" class="qa-user-link url nickname">Riemannstein</a></span>
+																</span>
+															</span>
+														</span>
+														<div class="qa-c-item-buttons">
+														</div>
+													</div>
+													<div class="qa-c-item-clear">
+													</div>
+												</div> <!-- END qa-c-item -->
+												<div class="qa-c-list-item  hentry comment" id="c9276">
+													<div class="qa-c-item-content">
+														<a name="9276"></a><div class="entry-content"><p>Glad to hear! (i think the same about the error message...)</p>
+</div>
+													</div>
+													<div class="qa-c-item-footer">
+														<span class="qa-c-item-avatar-meta">
+															<span class="qa-c-item-avatar">
+																<a href="../../user/hernan_mella" class="qa-avatar-link"><img src="../?qa=image&amp;qa_blobid=14920815903966845416&amp;qa_size=20" width="20" height="11" class="qa-avatar-image" alt=""></a>
+															</span>
+															<span class="qa-c-item-meta">
+																<a href="../9248/linear-elasticity-problems-domains-with-different-materials?show=9276#c9276" class="qa-c-item-what">commented</a>
+																<span class="qa-c-item-when">
+																	<span class="qa-c-item-when-data"><span class="published"><span class="value-title" title="2016-02-10T16:20:01+0000"></span>Feb 10, 2016</span></span>
+																</span>
+																<span class="qa-c-item-who">
+																	<span class="qa-c-item-who-pad">by </span>
+																	<span class="qa-c-item-who-data"><span class="vcard author"><a href="../../user/hernan_mella" class="qa-user-link url nickname">hernan_mella</a></span></span>
+																	<span class="qa-c-item-who-title">FEniCS Expert</span>
+																	<span class="qa-c-item-who-points">
+																		<span class="qa-c-item-who-points-pad">(</span><span class="qa-c-item-who-points-data">19,460</span><span class="qa-c-item-who-points-pad"> points)</span>
+																	</span>
+																</span>
+															</span>
+														</span>
+														<div class="qa-c-item-buttons">
+														</div>
+													</div>
+													<div class="qa-c-item-clear">
+													</div>
+												</div> <!-- END qa-c-item -->
+												<div class="qa-c-list-item  hentry comment" id="c10833">
+													<div class="qa-c-item-content">
+														<a name="10833"></a><div class="entry-content"><p>I am novice in Fenics. I have followed this code and got solution i got null, can any one help, thanks in advance</p>
+</div>
+													</div>
+													<div class="qa-c-item-footer">
+														<span class="qa-c-item-avatar-meta">
+															<span class="qa-c-item-meta">
+																<a href="../9248/linear-elasticity-problems-domains-with-different-materials?show=10833#c10833" class="qa-c-item-what">commented</a>
+																<span class="qa-c-item-when">
+																	<span class="qa-c-item-when-data"><span class="published"><span class="value-title" title="2016-08-08T09:22:55+0000"></span>Aug 8, 2016</span></span>
+																</span>
+																<span class="qa-c-item-who">
+																	<span class="qa-c-item-who-pad">by </span>
+																	<span class="qa-c-item-who-data"><span class="vcard author"><a href="../../user/hirshikesh" class="qa-user-link url nickname">hirshikesh</a></span></span>
+																	<span class="qa-c-item-who-title">FEniCS User</span>
+																	<span class="qa-c-item-who-points">
+																		<span class="qa-c-item-who-points-pad">(</span><span class="qa-c-item-who-points-data">1,890</span><span class="qa-c-item-who-points-pad"> points)</span>
+																	</span>
+																</span>
+															</span>
+														</span>
+														<div class="qa-c-item-buttons">
+														</div>
+													</div>
+													<div class="qa-c-item-clear">
+													</div>
+												</div> <!-- END qa-c-item -->
+											</div> <!-- END qa-c-list -->
+											
+											<input type="hidden" name="code" value="0-1516477980-d84924fec70ae6916166c34277b326ef983c812d">
+											<input type="hidden" name="qa_click" value="">
+										</form>
+										<div class="qa-c-form">
+										</div> <!-- END qa-c-form -->
+										
+									</div> <!-- END qa-a-item-main -->
+									<div class="qa-a-item-clear">
+									</div>
+								</div> <!-- END qa-a-list-item -->
+								
+							</div> <!-- END qa-a-list -->
+							
+						</div>
+					</div> <!-- END qa-main -->
+					
+				</div> <!-- END main-wrapper -->
+			</div> <!-- END main-shadow -->
+		</div> <!-- END body-wrapper -->
+		<!-- END footer-bottom-group -->
+		
+		<div style="position:absolute; left:-9999px; top:-9999px;">
+			<span id="qa-waiting-template" class="qa-waiting">...</span>
+		</div>
+	
+	
+
+</body><!-- Powered by Question2Answer - http://www.question2answer.org/ --></html>

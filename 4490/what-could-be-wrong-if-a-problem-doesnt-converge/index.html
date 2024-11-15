@@ -1,0 +1,237 @@
+<html><!-- Powered by Question2Answer - http://www.question2answer.org/ --><head>
+		<meta http-equiv="content-type" content="text/html; charset=utf-8">
+		<title>What could be wrong if a problem doesn't converge? - FEniCS Q&amp;A</title>
+		<meta name="description" content="Hi there, I'm not sure if I could post a really detailed question here, but I'm really stuck here now. This  ... *dx -dt*f2*r*dx F = F1 + F2 while t">
+		<meta name="keywords" content="convergence">
+		<link rel="stylesheet" type="text/css" href="../../qa-theme/Snow/qa-styles.css">
+		<link rel="canonical" href="http://fenicsproject.org/qa/4490/what-could-be-wrong-if-a-problem-doesnt-converge">
+		<script type="text/x-mathjax-config">
+  MathJax.Hub.Config({
+    extensions: ["tex2jax.js"],
+    jax: ["input/TeX","output/HTML-CSS"],
+    tex2jax: {inlineMath: [["$","$"],["\\(","\\)"]]},
+    TeX: { extensions: ["AMSmath.js","AMSsymbols.js"]}
+  });
+</script>
+<script type="text/javascript" src="../../mathjax/MathJax.js"></script>
+		<script src="../../jquery-1.7.2.min.js" type="text/javascript"></script>
+		<script src="../../highlight.min.js"></script>
+<script type="text/javascript">
+$(function(){
+	$('.wmd-input').keypress(function(){
+		window.clearTimeout(hljs.Timeout);
+		hljs.Timeout = window.setTimeout(function() {
+			hljs.initHighlighting.called = false;
+			hljs.initHighlighting();
+		}, 500);
+	});
+	window.setTimeout(function() {
+		hljs.initHighlighting.called = false;
+		hljs.initHighlighting();
+	}, 500);
+});
+</script>
+
+
+	</head>
+	<body class="qa-template-question qa-body-js-off">
+		<div class="qa-body-wrapper">
+			
+			<div class="qa-header">
+				<div class="qa-logo">
+					<a href="../../" class="qa-logo-link" title="FEniCS Q&amp;A"><img src="../../qa-theme/fenics_qa.png" border="0" alt="FEniCS Q&amp;A"></a>
+				</div>
+				<div class="qa-header-clear">
+				</div>
+			</div> <!-- END qa-header -->
+			
+			<div class="qa-main-shadow">
+				
+				<div class="qa-main-wrapper">
+					
+					<div class="qa-sidepanel">
+						<div class="qa-sidebar">
+							This is a read only copy of the old FEniCS QA forum. Please visit the <a href="https://www.allanswered.com/community/s/fenics-project/">new QA forum</a> to ask questions
+						</div>
+						
+					</div>
+					
+					<div class="qa-main">
+						<h1>
+							<span class="entry-title">What could be wrong if a problem doesn't converge?</span>
+						</h1>
+						<div class="qa-part-q-view">
+							<div class="qa-q-view  hentry question" id="q4490">
+								<form method="post" action="../../4490/what-could-be-wrong-if-a-problem-doesnt-converge">
+									<div class="qa-q-view-stats">
+										<div class="qa-voting qa-voting-net" id="voting_4490">
+											<div class="qa-vote-count qa-vote-count-net">
+												<span class="qa-netvote-count">
+													<span class="qa-netvote-count-data">+3<span class="votes-up"><span class="value-title" title="3"></span></span><span class="votes-down"><span class="value-title" title="0"></span></span></span><span class="qa-netvote-count-pad"> votes</span>
+												</span>
+											</div>
+											<div class="qa-vote-clear">
+											</div>
+										</div>
+									</div>
+									<input type="hidden" name="code" value="0-1516468014-6c90e4e40d12cefd46e743aa0c77bf7f0ad1f5da">
+								</form>
+								<div class="qa-q-view-main">
+									<form method="post" action="../../4490/what-could-be-wrong-if-a-problem-doesnt-converge">
+										<div class="qa-q-view-content">
+											<a name="4490"></a><div class="entry-content"><p>Hi there,</p>
+
+<p>I'm not sure if I could post a really detailed question here, but I'm really stuck here now. </p>
+
+<p>This time-dependent non-linear problem doesn't converge. I don't know what kind of techniques I can use to solve this problem. It will be greatly appreciated if you happen to have time to look at it, and give me some advice. Thanks. </p>
+
+<hr>
+
+<p>The equations are like:</p>
+
+<pre><code>d(s*p,t) - div(p*s*grad(p)) = f1
+d(s,t)   - div(p*grad(s))   = f2
+</code></pre>
+
+<p>where <code>s</code> and <code>p</code> are unknowns, and essential boundary conditions are applied on the boundary.<br>
+I created a manufactured solution to this system and it is expressed as:</p>
+
+<pre><code>p_exact = 1 + x*x + y*y + t
+s_exact = 1 + x*x + y*y + t
+</code></pre>
+
+<p>and the RHS source terms <code>f1</code> and <code>f2</code> are calculated according to this manufactured solution.<br>
+I tried the following code to calculate it, but it failed to converge at time around 254(s). Even before this break point, there is always a small difference between the analytical solution and calculation solution.</p>
+
+<pre><code>from dolfin import *
+import numpy
+
+mesh = UnitSquareMesh(12,12)
+
+def boundaries(x, on_boundary):
+    return on_boundary
+
+Q = FunctionSpace(mesh, "CG", 1)
+S = FunctionSpace(mesh, "CG", 1)
+W = Q*S
+
+# exact solution
+g = Expression(("1 + x[0]*x[0] + x[1]*x[1] + t","1 + x[0]*x[0] + x[1]*x[1] + t"), t = 0)
+
+# previous and current solution
+w0 = interpolate(g, W)
+w  = interpolate(g, W)
+
+(p,s) = split(w)
+(p0,s0)= split(w0)
+
+# time variables
+dt = Constant(0.1); t = float(dt); T = 2000.0
+
+# test functions:
+ q, r = TestFunctions(W)
+
+ # right hand side source term
+f1 = Expression("2*t - 8*x[0]*x[0]*(x[0]*x[0] + x[1]*x[1] + t +1)-8*x[1]*(x[0]*x[0] + x[1]*x[1] + t +1)+2*x[0]*x[0]+2*x[1]*x[1]-4*(x[0]*x[0] + x[1]*x[1] + t +1)*(x[0]*x[0] + x[1]*x[1] + t +1)+2", t = 0)
+f2 = Expression("-8*x[0]*x[0] - 8*x[1]*x[1]-4*t-3", t = 0)
+
+# essential boundary condition
+bc = DirichletBC(W, g, boundaries)
+# weak form
+F1 = s*p*q*dx+ p*s*q*dx - s*p0*q*dx - p*s0*q*dx + dt*p*s*inner(nabla_grad(p),    nabla_grad(q))*dx -dt*f1*q*dx
+F2 = p*s*r*dx- p*s0*r*dx                        + dt*p*inner(nabla_grad(s), nabla_grad(r))*dx   -dt*f2*r*dx
+F = F1 + F2
+
+while t &lt;= T:
+    print t
+    g.t = t
+    f1.t = t
+    f2.t = t
+    solve(F == 0, w, bc, solver_parameters={"newton_solver":{"maximum_iterations": 20, "relative_tolerance": 1e-9,"absolute_tolerance":1e-9}})
+
+    # verify accuracy
+    w_e = interpolate(g, W)
+    maxdiff = numpy.abs(w_e.vector().array() - w.vector().array()).max()
+    print 'Max error, t=%.2f: %-10.3f' % (t, maxdiff)
+
+    # time increase
+    w0.vector()[:] = w.vector()
+    t += float(dt)
+</code></pre>
+</div>
+										</div>
+										<div class="qa-q-view-follows">
+											related to an answer for:
+											<a href="../../4479/manufactured-solutions-verify-accuracy-function-problem?show=4480#a4480" class="qa-q-view-follows-link">Using manufactured solutions to verify the accuracy of a mixed function space problem</a>
+										</div>
+										<div class="qa-q-view-tags">
+											<ul class="qa-q-view-tag-list">
+												<li class="qa-q-view-tag-item"><a href="../../tag/convergence" rel="tag" class="qa-tag-link">convergence</a></li>
+											</ul>
+										</div>
+										<span class="qa-q-view-avatar-meta">
+											<span class="qa-q-view-avatar">
+												<a href="../../user/Chao+Zhang" class="qa-avatar-link"><img src="https://www.gravatar.com/avatar/a50d81c60676e9ac40552912720d7b96?s=50" width="50" height="50" class="qa-avatar-image" alt=""></a>
+											</span>
+											<span class="qa-q-view-meta">
+												<a href="../../4490/what-could-be-wrong-if-a-problem-doesnt-converge" class="qa-q-view-what">asked</a>
+												<span class="qa-q-view-when">
+													<span class="qa-q-view-when-data"><span class="published"><span class="value-title" title="2014-08-21T01:22:10+0000"></span>Aug 21, 2014</span></span>
+												</span>
+												<span class="qa-q-view-who">
+													<span class="qa-q-view-who-pad">by </span>
+													<span class="qa-q-view-who-data"><span class="vcard author"><a href="../../user/Chao+Zhang" class="qa-user-link url nickname">Chao Zhang</a></span></span>
+													<span class="qa-q-view-who-title">FEniCS User</span>
+													<span class="qa-q-view-who-points">
+														<span class="qa-q-view-who-points-pad">(</span><span class="qa-q-view-who-points-data">1,180</span><span class="qa-q-view-who-points-pad"> points)</span>
+													</span>
+												</span>
+												<br>
+												<span class="qa-q-view-what">edited</span>
+												<span class="qa-q-view-when">
+													<span class="qa-q-view-when-data"><span class="updated"><span class="value-title" title="2014-08-21T01:30:10+0000"></span>Aug 21, 2014</span></span>
+												</span>
+												<span class="qa-q-view-who">
+													<span class="qa-q-view-who-pad">by </span><span class="qa-q-view-who-data"><a href="../../user/Chao+Zhang" class="qa-user-link url nickname">Chao Zhang</a></span>
+												</span>
+											</span>
+										</span>
+										<div class="qa-q-view-buttons">
+										</div>
+										
+										<div class="qa-q-view-c-list" style="display:none;" id="c4490_list">
+										</div> <!-- END qa-c-list -->
+										
+										<input type="hidden" name="code" value="0-1516468014-98a2be5c913ebce19d1e6cdcb705c34a26634e59">
+										<input type="hidden" name="qa_click" value="">
+									</form>
+									<div class="qa-c-form">
+									</div> <!-- END qa-c-form -->
+									
+								</div> <!-- END qa-q-view-main -->
+								<div class="qa-q-view-clear">
+								</div>
+							</div> <!-- END qa-q-view -->
+							
+						</div>
+						<div class="qa-part-a-list">
+							<h2 id="a_list_title" style="display:none;"></h2>
+							<div class="qa-a-list" id="a_list">
+								
+							</div> <!-- END qa-a-list -->
+							
+						</div>
+					</div> <!-- END qa-main -->
+					
+				</div> <!-- END main-wrapper -->
+			</div> <!-- END main-shadow -->
+		</div> <!-- END body-wrapper -->
+		<!-- END footer-bottom-group -->
+		
+		<div style="position:absolute; left:-9999px; top:-9999px;">
+			<span id="qa-waiting-template" class="qa-waiting">...</span>
+		</div>
+	
+	
+
+</body><!-- Powered by Question2Answer - http://www.question2answer.org/ --></html>

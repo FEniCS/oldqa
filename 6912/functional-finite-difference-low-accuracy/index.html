@@ -1,0 +1,313 @@
+<html><!-- Powered by Question2Answer - http://www.question2answer.org/ --><head>
+		<meta http-equiv="content-type" content="text/html; charset=utf-8">
+		<title>Functional finite difference: low accuracy - FEniCS Q&amp;A</title>
+		<meta name="description" content="Finite difference approximation of functionals seems to have some unusual behavior. Usually the rule of thumb ...  going on here? Thanks for any help.">
+		<meta name="keywords" content="derivative,accuracy">
+		<link rel="stylesheet" type="text/css" href="../../qa-theme/Snow/qa-styles.css">
+		<link rel="canonical" href="http://fenicsproject.org/qa/6912/functional-finite-difference-low-accuracy">
+		<script type="text/x-mathjax-config">
+  MathJax.Hub.Config({
+    extensions: ["tex2jax.js"],
+    jax: ["input/TeX","output/HTML-CSS"],
+    tex2jax: {inlineMath: [["$","$"],["\\(","\\)"]]},
+    TeX: { extensions: ["AMSmath.js","AMSsymbols.js"]}
+  });
+</script>
+<script type="text/javascript" src="../../mathjax/MathJax.js"></script>
+		<script src="../../jquery-1.7.2.min.js" type="text/javascript"></script>
+		<script src="../../highlight.min.js"></script>
+<script type="text/javascript">
+$(function(){
+	$('.wmd-input').keypress(function(){
+		window.clearTimeout(hljs.Timeout);
+		hljs.Timeout = window.setTimeout(function() {
+			hljs.initHighlighting.called = false;
+			hljs.initHighlighting();
+		}, 500);
+	});
+	window.setTimeout(function() {
+		hljs.initHighlighting.called = false;
+		hljs.initHighlighting();
+	}, 500);
+});
+</script>
+
+
+	</head>
+	<body class="qa-template-question qa-body-js-off">
+		<div class="qa-body-wrapper">
+			
+			<div class="qa-header">
+				<div class="qa-logo">
+					<a href="../../" class="qa-logo-link" title="FEniCS Q&amp;A"><img src="../../qa-theme/fenics_qa.png" border="0" alt="FEniCS Q&amp;A"></a>
+				</div>
+				<div class="qa-header-clear">
+				</div>
+			</div> <!-- END qa-header -->
+			
+			<div class="qa-main-shadow">
+				
+				<div class="qa-main-wrapper">
+					
+					<div class="qa-sidepanel">
+						<div class="qa-sidebar">
+							This is a read only copy of the old FEniCS QA forum. Please visit the <a href="https://www.allanswered.com/community/s/fenics-project/">new QA forum</a> to ask questions
+						</div>
+						
+					</div>
+					
+					<div class="qa-main">
+						<h1>
+							<span class="entry-title">Functional finite difference: low accuracy</span>
+						</h1>
+						<div class="qa-part-q-view">
+							<div class="qa-q-view  hentry question" id="q6912">
+								<form method="post" action="../../6912/functional-finite-difference-low-accuracy">
+									<div class="qa-q-view-stats">
+										<div class="qa-voting qa-voting-net" id="voting_6912">
+											<div class="qa-vote-count qa-vote-count-net">
+												<span class="qa-netvote-count">
+													<span class="qa-netvote-count-data">0<span class="votes-up"><span class="value-title" title="0"></span></span><span class="votes-down"><span class="value-title" title="0"></span></span></span><span class="qa-netvote-count-pad"> votes</span>
+												</span>
+											</div>
+											<div class="qa-vote-clear">
+											</div>
+										</div>
+									</div>
+									<input type="hidden" name="code" value="0-1516468092-0e78a976a1d52f91a66d2ee6ca840972e276ab7b">
+								</form>
+								<div class="qa-q-view-main">
+									<form method="post" action="../../6912/functional-finite-difference-low-accuracy">
+										<div class="qa-q-view-content">
+											<a name="6912"></a><div class="entry-content"><p>Finite difference approximation of functionals seems to have some unusual behavior. Usually the rule of thumb is that you can take functional finite differences down to around the square root of machine precision ($\approx 10^{-7}$) or often lower without a problem, but in my tests I observe that in Fenics, functional finite differences break down way earlier, around a stepsize of $10^{-2}$(!)</p>
+
+<p>I've seen this in several situations, but heres a simple "minimal example" demonstrating the issue. One defines <br>
+$$f(u):=\int_{\partial \Omega} \nabla u \cdot n ds,$$<br>
+and computes the finite difference,<br>
+$$f'(u) \delta u \approx (f(u+s\delta u) - f(u))/s.$$<br>
+The dolfin code is as follows:</p>
+
+<pre><code>from dolfin import *
+
+mesh = UnitSquareMesh(30,30)
+V = FunctionSpace(mesh,'Lagrange',1)
+u = Function(V)
+
+n = FacetNormal(mesh)
+f = dot(nabla_grad(u), n)*ds
+
+u0 = project(Expression('sin(2*pi*x[0]+1)+cos(2*pi*x[1]-1)+x[0]*x[1]+x[1]'),V) #Some random function I made up
+f0 = replace(f,{u:u0})
+
+delta_u = project(Expression('1.3-tan(x[0])+sin(2*pi*x[0])*exp(x[1])'),V)
+set_log_level(50)
+print 's', 'form','diff'
+for k in range(9):
+    s = pow(10,-k)
+    u1 = project(u0 + s*delta_u)
+    f1 = replace(f,{u:u1})
+    df_diff = (assemble(f1) - assemble(f0))/s
+
+    df = derivative(f,u,delta_u)
+    df_form = assemble(df)
+
+    print s, df_form, df_diff
+</code></pre>
+
+<p>When run it outputs the following:</p>
+
+<pre><code>Solving linear system of size 961 x 961 (PETSc Krylov solver).
+Solving linear system of size 961 x 961 (PETSc Krylov solver).
+s form diff
+1 -2.61447044141 -2.61445236177
+0.1 -2.61447044141 -2.61439465518
+0.01 -2.61447044141 -2.61379277866
+0.001 -2.61447044141 -2.60777870884
+0.0001 -2.61447044141 -2.54763865842
+1e-05 -2.61447044141 -1.94623822025
+1e-06 -2.61447044141 4.06776613726
+1e-07 -2.61447044141 64.2078098556
+1e-08 -2.61447044141 665.608249162
+</code></pre>
+
+<p>In the right column you can see the accuracy of the finite difference deteriorating as the stepsize is made smaller, far before one would expect it to.</p>
+
+<p>What is going on here? </p>
+
+<p>Thanks for any help.</p>
+</div>
+										</div>
+										<div class="qa-q-view-tags">
+											<ul class="qa-q-view-tag-list">
+												<li class="qa-q-view-tag-item"><a href="../../tag/derivative" rel="tag" class="qa-tag-link">derivative</a></li>
+												<li class="qa-q-view-tag-item"><a href="../../tag/accuracy" rel="tag" class="qa-tag-link">accuracy</a></li>
+											</ul>
+										</div>
+										<span class="qa-q-view-avatar-meta">
+											<span class="qa-q-view-meta">
+												<a href="../../6912/functional-finite-difference-low-accuracy" class="qa-q-view-what">asked</a>
+												<span class="qa-q-view-when">
+													<span class="qa-q-view-when-data"><span class="published"><span class="value-title" title="2015-04-02T08:55:42+0000"></span>Apr 2, 2015</span></span>
+												</span>
+												<span class="qa-q-view-who">
+													<span class="qa-q-view-who-pad">by </span>
+													<span class="qa-q-view-who-data"><span class="vcard author"><a href="../../user/Nick+Alger" class="qa-user-link url nickname">Nick Alger</a></span></span>
+													<span class="qa-q-view-who-title">FEniCS User</span>
+													<span class="qa-q-view-who-points">
+														<span class="qa-q-view-who-points-pad">(</span><span class="qa-q-view-who-points-data">1,490</span><span class="qa-q-view-who-points-pad"> points)</span>
+													</span>
+												</span>
+												<br>
+												<span class="qa-q-view-what">edited</span>
+												<span class="qa-q-view-when">
+													<span class="qa-q-view-when-data"><span class="updated"><span class="value-title" title="2015-04-02T10:00:57+0000"></span>Apr 2, 2015</span></span>
+												</span>
+												<span class="qa-q-view-who">
+													<span class="qa-q-view-who-pad">by </span><span class="qa-q-view-who-data"><a href="../../user/Nick+Alger" class="qa-user-link url nickname">Nick Alger</a></span>
+												</span>
+											</span>
+										</span>
+										<div class="qa-q-view-buttons">
+										</div>
+										
+										<div class="qa-q-view-c-list" style="display:none;" id="c6912_list">
+										</div> <!-- END qa-c-list -->
+										
+										<input type="hidden" name="code" value="0-1516468092-e739d5950896d27ab47929f18808e24e5e416fae">
+										<input type="hidden" name="qa_click" value="">
+									</form>
+									<div class="qa-c-form">
+									</div> <!-- END qa-c-form -->
+									
+								</div> <!-- END qa-q-view-main -->
+								<div class="qa-q-view-clear">
+								</div>
+							</div> <!-- END qa-q-view -->
+							
+						</div>
+						<div class="qa-part-a-list">
+							<h2 id="a_list_title">1 Answer</h2>
+							<div class="qa-a-list" id="a_list">
+								
+								<div class="qa-a-list-item  hentry answer answer-selected qa-a-list-item-selected" id="a6921">
+									<form method="post" action="../../6912/functional-finite-difference-low-accuracy">
+										<div class="qa-voting qa-voting-net" id="voting_6921">
+											<div class="qa-vote-count qa-vote-count-net">
+												<span class="qa-netvote-count">
+													<span class="qa-netvote-count-data">+1<span class="votes-up"><span class="value-title" title="1"></span></span><span class="votes-down"><span class="value-title" title="0"></span></span></span><span class="qa-netvote-count-pad"> vote</span>
+												</span>
+											</div>
+											<div class="qa-vote-clear">
+											</div>
+										</div>
+										<input type="hidden" name="code" value="0-1516468092-0e78a976a1d52f91a66d2ee6ca840972e276ab7b">
+									</form>
+									<div class="qa-a-item-main">
+										<form method="post" action="../../6912/functional-finite-difference-low-accuracy">
+											<div class="qa-a-item-selected">
+												<div class="qa-a-selection">
+													<div class="qa-a-selected">&#160;</div>
+													<div class="qa-a-selected-text">Best answer</div>
+												</div>
+												<div class="qa-a-item-content">
+													<a name="6921"></a><div class="entry-content"><p>Figured out the answer to my own question. </p>
+
+<p>It appears that <strong>project() is only linear up to single-precision floating point accuracy</strong>. That is, </p>
+
+<p>project(u + project(v-u)) - project(v) $\approx$ 1e-8 (rather than 1e-16). </p>
+
+<p>For example, the following code,</p>
+
+<pre><code>from dolfin import *
+mesh = UnitSquareMesh(10,10)
+V = FunctionSpace(mesh,'Lagrange',1)
+
+u0 = project(Expression('x[0]*x[1]'),V)
+delta_u = project(Expression('x[0] + 2*x[1]'),V)
+
+print assemble(project(project(u0 + delta_u,V) - u0)*dx) - assemble(delta_u*dx)
+</code></pre>
+
+<p>outputs:</p>
+
+<pre><code>5.79858969729e-8
+</code></pre>
+
+<p>Small stepsizes in finite differences make this loss of accuracy even worse, leading to the issues seen in the original question. </p>
+
+<hr>
+
+<p>To remedy the problem, essentially you have to</p>
+
+<ol>
+<li><p>be very careful about when and where you call "project" and "interpolate", either not calling it at all if possible, or delaying it until the last possible moment.</p></li>
+<li><p>add functions in the same space by adding their vectors, rather than adding the functions then projecting. Ie.,</p>
+
+<p>u1 = Function(V)<br>
+u1.vector()[:] = u0.vector() + s*delta_u.vector() # &lt;--- GOOD</p>
+
+<p>u1 = project(u0 + s*delta_u, V) # &lt;-- BAD</p></li>
+</ol>
+
+<p>Making these changes to remove calls to project() in the original code fixes the problem.</p>
+</div>
+												</div>
+												<span class="qa-a-item-avatar-meta">
+													<span class="qa-a-item-meta">
+														<a href="../../6912/functional-finite-difference-low-accuracy?show=6921#a6921" class="qa-a-item-what">answered</a>
+														<span class="qa-a-item-when">
+															<span class="qa-a-item-when-data"><span class="published"><span class="value-title" title="2015-04-04T07:09:23+0000"></span>Apr 4, 2015</span></span>
+														</span>
+														<span class="qa-a-item-who">
+															<span class="qa-a-item-who-pad">by </span>
+															<span class="qa-a-item-who-data"><span class="vcard author"><a href="../../user/Nick+Alger" class="qa-user-link url nickname">Nick Alger</a></span></span>
+															<span class="qa-a-item-who-title">FEniCS User</span>
+															<span class="qa-a-item-who-points">
+																<span class="qa-a-item-who-points-pad">(</span><span class="qa-a-item-who-points-data">1,490</span><span class="qa-a-item-who-points-pad"> points)</span>
+															</span>
+														</span>
+														<br>
+														<span class="qa-a-item-what">edited</span>
+														<span class="qa-a-item-when">
+															<span class="qa-a-item-when-data"><span class="updated"><span class="value-title" title="2015-04-07T19:17:37+0000"></span>Apr 7, 2015</span></span>
+														</span>
+														<span class="qa-a-item-who">
+															<span class="qa-a-item-who-pad">by </span><span class="qa-a-item-who-data"><a href="../../user/Nick+Alger" class="qa-user-link url nickname">Nick Alger</a></span>
+														</span>
+													</span>
+												</span>
+											</div>
+											<div class="qa-a-item-buttons">
+												</div>
+											
+											<div class="qa-a-item-c-list" style="display:none;" id="c6921_list">
+											</div> <!-- END qa-c-list -->
+											
+											<input type="hidden" name="code" value="0-1516468092-f56b3b06f13155018cc77d08c8989607243a8000">
+											<input type="hidden" name="qa_click" value="">
+										</form>
+										<div class="qa-c-form">
+										</div> <!-- END qa-c-form -->
+										
+									</div> <!-- END qa-a-item-main -->
+									<div class="qa-a-item-clear">
+									</div>
+								</div> <!-- END qa-a-list-item -->
+								
+							</div> <!-- END qa-a-list -->
+							
+						</div>
+					</div> <!-- END qa-main -->
+					
+				</div> <!-- END main-wrapper -->
+			</div> <!-- END main-shadow -->
+		</div> <!-- END body-wrapper -->
+		<!-- END footer-bottom-group -->
+		
+		<div style="position:absolute; left:-9999px; top:-9999px;">
+			<span id="qa-waiting-template" class="qa-waiting">...</span>
+		</div>
+	
+	
+
+</body><!-- Powered by Question2Answer - http://www.question2answer.org/ --></html>

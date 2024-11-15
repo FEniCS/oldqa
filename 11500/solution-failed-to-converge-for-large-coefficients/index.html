@@ -1,0 +1,239 @@
+<html><!-- Powered by Question2Answer - http://www.question2answer.org/ --><head>
+		<meta http-equiv="content-type" content="text/html; charset=utf-8">
+		<title>Solution failed to converge for large coefficients - FEniCS Q&amp;A</title>
+		<meta name="description" content='I wrote a simple code below to illustrate my problem. I want to solve this PDE, but with large  ... solver.solve() filet = File("test.pvd") filet'>
+		<meta name="keywords" content="preconditioner,newton-solver">
+		<link rel="stylesheet" type="text/css" href="../../qa-theme/Snow/qa-styles.css">
+		<link rel="canonical" href="http://fenicsproject.org/qa/11500/solution-failed-to-converge-for-large-coefficients">
+		<script type="text/x-mathjax-config">
+  MathJax.Hub.Config({
+    extensions: ["tex2jax.js"],
+    jax: ["input/TeX","output/HTML-CSS"],
+    tex2jax: {inlineMath: [["$","$"],["\\(","\\)"]]},
+    TeX: { extensions: ["AMSmath.js","AMSsymbols.js"]}
+  });
+</script>
+<script type="text/javascript" src="../../mathjax/MathJax.js"></script>
+		<script src="../../jquery-1.7.2.min.js" type="text/javascript"></script>
+		<script src="../../highlight.min.js"></script>
+<script type="text/javascript">
+$(function(){
+	$('.wmd-input').keypress(function(){
+		window.clearTimeout(hljs.Timeout);
+		hljs.Timeout = window.setTimeout(function() {
+			hljs.initHighlighting.called = false;
+			hljs.initHighlighting();
+		}, 500);
+	});
+	window.setTimeout(function() {
+		hljs.initHighlighting.called = false;
+		hljs.initHighlighting();
+	}, 500);
+});
+</script>
+
+
+	</head>
+	<body class="qa-template-question qa-body-js-off">
+		<div class="qa-body-wrapper">
+			
+			<div class="qa-header">
+				<div class="qa-logo">
+					<a href="../../" class="qa-logo-link" title="FEniCS Q&amp;A"><img src="../../qa-theme/fenics_qa.png" border="0" alt="FEniCS Q&amp;A"></a>
+				</div>
+				<div class="qa-header-clear">
+				</div>
+			</div> <!-- END qa-header -->
+			
+			<div class="qa-main-shadow">
+				
+				<div class="qa-main-wrapper">
+					
+					<div class="qa-sidepanel">
+						<div class="qa-sidebar">
+							This is a read only copy of the old FEniCS QA forum. Please visit the <a href="https://www.allanswered.com/community/s/fenics-project/">new QA forum</a> to ask questions
+						</div>
+						
+					</div>
+					
+					<div class="qa-main">
+						<h1>
+							<span class="entry-title">Solution failed to converge for large coefficients</span>
+						</h1>
+						<div class="qa-part-q-view">
+							<div class="qa-q-view  hentry question" id="q11500">
+								<form method="post" action="../../11500/solution-failed-to-converge-for-large-coefficients">
+									<div class="qa-q-view-stats">
+										<div class="qa-voting qa-voting-net" id="voting_11500">
+											<div class="qa-vote-count qa-vote-count-net">
+												<span class="qa-netvote-count">
+													<span class="qa-netvote-count-data">0<span class="votes-up"><span class="value-title" title="0"></span></span><span class="votes-down"><span class="value-title" title="0"></span></span></span><span class="qa-netvote-count-pad"> votes</span>
+												</span>
+											</div>
+											<div class="qa-vote-clear">
+											</div>
+										</div>
+									</div>
+									<input type="hidden" name="code" value="0-1516467769-26233fb65fb00a998e7db635f687e38b011dd324">
+								</form>
+								<div class="qa-q-view-main">
+									<form method="post" action="../../11500/solution-failed-to-converge-for-large-coefficients">
+										<div class="qa-q-view-content">
+											<a name="11500"></a><div class="entry-content"><p>I wrote a simple code below to illustrate my problem. I want to solve this PDE, but with large coefficients <em>a</em> and <em>b</em>. In the example below, a = 10 and b = 10, and the solution looks symmetric, as it should be. If you change the coefficients to  a = 100 and b = 100, already the solution is not symmetric. If you change to  a = 1000 and b = 1000, then the solution fails to converge.</p>
+
+<p>My question is, do you know which solver and preconditionner I should use to solve this problem for large a and b? Thanks.</p>
+
+<pre><code>from dolfin import *
+import pdb
+
+mesh = RectangleMesh(Point(0.0, 0.0),Point(1.0,1.0), 50,50,'crossed')
+T = FunctionSpace(mesh, "CG", 1)  
+
+class Omega(SubDomain):
+    def inside(self, x, on_boundary):
+        return between(x[0], (.0, 1.0)) and between(x[1], (.0, 1.0)) and (x[1]-0.5)**2 &lt; 0.03
+
+class Winlet2D(SubDomain):
+    def inside(self, x, on_boundary):
+        return near(x[0], 0.0) and (x[1]-0.5)**2 &lt; 0.03 and  on_boundary
+
+domains = CellFunction("size_t", mesh)
+omega = Omega()
+domains.set_all(0)    
+omega.mark(domains, 1)
+dx = Measure('dx')[domains]  
+
+# Boundary conditions
+boundaries = FacetFunction("size_t", mesh)
+winlet = Winlet2D()
+winlet.mark(boundaries, 1)
+
+inlet_temp = Constant(280.0) 
+bc = DirichletBC(T, inlet_temp, boundaries, 1)   
+
+a = Constant('100.0') 
+b = Constant('100.0')
+ka = Constant('10.0')
+kw = Constant('1.0')
+f  = Expression('10.0')
+u = project(Expression('x[0]+x[1]'),T)
+
+t = Function(T)      
+v = TestFunction(T)
+dT = TrialFunction(T)  
+
+# Define variational form
+F = (inner( ka*grad(t), grad(v) )*dx(0)\
++ inner( kw*grad(t), grad(v) )*dx(1)\
++ inner( a*dot(grad(u),grad(t)), v )*dx(0)\
++ inner( b*dot(grad(u),grad(t)), v )*dx(1)\
+- inner( f, v )*dx(0)\
+- inner( f, v )*dx(1))
+
+# Solve problem
+J = derivative(F,t,dT)
+problem = NonlinearVariationalProblem(F,t,bc,J)
+solver = NonlinearVariationalSolver(problem)
+prm = solver.parameters
+prm['newton_solver']['linear_solver'] = 'gmres'
+prm['newton_solver']['preconditioner'] = 'hypre_amg'
+prm['newton_solver']['relative_tolerance'] = 1e-12
+solver.solve()
+
+filet  = File("test.pvd")
+filet &lt;&lt; t
+</code></pre>
+</div>
+										</div>
+										<div class="qa-q-view-tags">
+											<ul class="qa-q-view-tag-list">
+												<li class="qa-q-view-tag-item"><a href="../../tag/preconditioner" rel="tag" class="qa-tag-link">preconditioner</a></li>
+												<li class="qa-q-view-tag-item"><a href="../../tag/newton-solver" rel="tag" class="qa-tag-link">newton-solver</a></li>
+											</ul>
+										</div>
+										<span class="qa-q-view-avatar-meta">
+											<span class="qa-q-view-avatar">
+												<a href="../../user/Antoine" class="qa-avatar-link"><img src="../../?qa=image&amp;qa_blobid=2611928258096667348&amp;qa_size=50" width="50" height="33" class="qa-avatar-image" alt=""></a>
+											</span>
+											<span class="qa-q-view-meta">
+												<a href="../../11500/solution-failed-to-converge-for-large-coefficients" class="qa-q-view-what">asked</a>
+												<span class="qa-q-view-when">
+													<span class="qa-q-view-when-data"><span class="published"><span class="value-title" title="2016-11-01T14:45:47+0000"></span>Nov 1, 2016</span></span>
+												</span>
+												<span class="qa-q-view-who">
+													<span class="qa-q-view-who-pad">by </span>
+													<span class="qa-q-view-who-data"><span class="vcard author"><a href="../../user/Antoine" class="qa-user-link url nickname">Antoine</a></span></span>
+													<span class="qa-q-view-who-title">FEniCS Novice</span>
+													<span class="qa-q-view-who-points">
+														<span class="qa-q-view-who-points-pad">(</span><span class="qa-q-view-who-points-data">810</span><span class="qa-q-view-who-points-pad"> points)</span>
+													</span>
+												</span>
+											</span>
+										</span>
+										<div class="qa-q-view-buttons">
+										</div>
+										
+										<div class="qa-q-view-c-list" id="c11500_list">
+											<div class="qa-c-list-item  hentry comment" id="c11514">
+												<div class="qa-c-item-content">
+													<a name="11514"></a><div class="entry-content"><p>Have a look to any Finite Element book in the chapter where they discuss stabilization techniques for convection dominated problems.</p>
+</div>
+												</div>
+												<div class="qa-c-item-footer">
+													<span class="qa-c-item-avatar-meta">
+														<span class="qa-c-item-meta">
+															<a href="../../11500/solution-failed-to-converge-for-large-coefficients?show=11514#c11514" class="qa-c-item-what">commented</a>
+															<span class="qa-c-item-when">
+																<span class="qa-c-item-when-data"><span class="published"><span class="value-title" title="2016-11-02T21:19:24+0000"></span>Nov 2, 2016</span></span>
+															</span>
+															<span class="qa-c-item-who">
+																<span class="qa-c-item-who-pad">by </span>
+																<span class="qa-c-item-who-data"><span class="vcard author"><a href="../../user/umberto" class="qa-user-link url nickname">umberto</a></span></span>
+																<span class="qa-c-item-who-title">FEniCS User</span>
+																<span class="qa-c-item-who-points">
+																	<span class="qa-c-item-who-points-pad">(</span><span class="qa-c-item-who-points-data">6,440</span><span class="qa-c-item-who-points-pad"> points)</span>
+																</span>
+															</span>
+														</span>
+													</span>
+													<div class="qa-c-item-buttons">
+													</div>
+												</div>
+												<div class="qa-c-item-clear">
+												</div>
+											</div> <!-- END qa-c-item -->
+										</div> <!-- END qa-c-list -->
+										
+										<input type="hidden" name="code" value="0-1516467769-6621c13be14c1acc7bbcbcd600123982f3e2e3d7">
+										<input type="hidden" name="qa_click" value="">
+									</form>
+									<div class="qa-c-form">
+									</div> <!-- END qa-c-form -->
+									
+								</div> <!-- END qa-q-view-main -->
+								<div class="qa-q-view-clear">
+								</div>
+							</div> <!-- END qa-q-view -->
+							
+						</div>
+						<div class="qa-part-a-list">
+							<h2 id="a_list_title" style="display:none;"></h2>
+							<div class="qa-a-list" id="a_list">
+								
+							</div> <!-- END qa-a-list -->
+							
+						</div>
+					</div> <!-- END qa-main -->
+					
+				</div> <!-- END main-wrapper -->
+			</div> <!-- END main-shadow -->
+		</div> <!-- END body-wrapper -->
+		<!-- END footer-bottom-group -->
+		
+		<div style="position:absolute; left:-9999px; top:-9999px;">
+			<span id="qa-waiting-template" class="qa-waiting">...</span>
+		</div>
+	
+	
+
+</body><!-- Powered by Question2Answer - http://www.question2answer.org/ --></html>

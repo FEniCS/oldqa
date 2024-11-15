@@ -1,0 +1,330 @@
+<html><!-- Powered by Question2Answer - http://www.question2answer.org/ --><head>
+		<meta http-equiv="content-type" content="text/html; charset=utf-8">
+		<title>Navier Stokes with Mixed BDM/DG: invalid ranks - FEniCS Q&amp;A</title>
+		<meta name="description" content="I was trying to solve Navier Stokes Equation in a cavity using the following code: from dolfin import * # Print log  ... T, grad(v)) \ - div(u)*q \ #">
+		<link rel="stylesheet" type="text/css" href="../../qa-theme/Snow/qa-styles.css">
+		<link rel="canonical" href="http://fenicsproject.org/qa/8577/navier-stokes-with-mixed-bdm-dg-invalid-ranks">
+		<script type="text/x-mathjax-config">
+  MathJax.Hub.Config({
+    extensions: ["tex2jax.js"],
+    jax: ["input/TeX","output/HTML-CSS"],
+    tex2jax: {inlineMath: [["$","$"],["\\(","\\)"]]},
+    TeX: { extensions: ["AMSmath.js","AMSsymbols.js"]}
+  });
+</script>
+<script type="text/javascript" src="../../mathjax/MathJax.js"></script>
+		<script src="../../jquery-1.7.2.min.js" type="text/javascript"></script>
+		<script src="../../highlight.min.js"></script>
+<script type="text/javascript">
+$(function(){
+	$('.wmd-input').keypress(function(){
+		window.clearTimeout(hljs.Timeout);
+		hljs.Timeout = window.setTimeout(function() {
+			hljs.initHighlighting.called = false;
+			hljs.initHighlighting();
+		}, 500);
+	});
+	window.setTimeout(function() {
+		hljs.initHighlighting.called = false;
+		hljs.initHighlighting();
+	}, 500);
+});
+</script>
+
+
+	</head>
+	<body class="qa-template-question qa-body-js-off">
+		<div class="qa-body-wrapper">
+			
+			<div class="qa-header">
+				<div class="qa-logo">
+					<a href="../../" class="qa-logo-link" title="FEniCS Q&amp;A"><img src="../../qa-theme/fenics_qa.png" border="0" alt="FEniCS Q&amp;A"></a>
+				</div>
+				<div class="qa-header-clear">
+				</div>
+			</div> <!-- END qa-header -->
+			
+			<div class="qa-main-shadow">
+				
+				<div class="qa-main-wrapper">
+					
+					<div class="qa-sidepanel">
+						<div class="qa-sidebar">
+							This is a read only copy of the old FEniCS QA forum. Please visit the <a href="https://www.allanswered.com/community/s/fenics-project/">new QA forum</a> to ask questions
+						</div>
+						
+					</div>
+					
+					<div class="qa-main">
+						<h1>
+							<span class="entry-title">Navier Stokes with Mixed BDM/DG: invalid ranks</span>
+						</h1>
+						<div class="qa-part-q-view">
+							<div class="qa-q-view  hentry question" id="q8577">
+								<form method="post" action="../../8577/navier-stokes-with-mixed-bdm-dg-invalid-ranks">
+									<div class="qa-q-view-stats">
+										<div class="qa-voting qa-voting-net" id="voting_8577">
+											<div class="qa-vote-count qa-vote-count-net">
+												<span class="qa-netvote-count">
+													<span class="qa-netvote-count-data">0<span class="votes-up"><span class="value-title" title="0"></span></span><span class="votes-down"><span class="value-title" title="0"></span></span></span><span class="qa-netvote-count-pad"> votes</span>
+												</span>
+											</div>
+											<div class="qa-vote-clear">
+											</div>
+										</div>
+									</div>
+									<input type="hidden" name="code" value="0-1516468180-0b305e575ed76ebe73a543e7f8f8554962585968">
+								</form>
+								<div class="qa-q-view-main">
+									<form method="post" action="../../8577/navier-stokes-with-mixed-bdm-dg-invalid-ranks">
+										<div class="qa-q-view-content">
+											<a name="8577"></a><div class="entry-content"><p>I was trying to solve Navier Stokes Equation in a cavity using the following code:</p>
+
+<pre><code>from dolfin import *
+
+# Print log messages only from the root process in parallel
+parameters["std_out_all_processes"] = False;
+
+# Load mesh from file
+Lx = 1.
+Ly = 1.
+nx = 20*10
+ny = 20*10
+mesh = RectangleMesh(Point(0., 0.), Point(Lx, Ly), nx, ny, 'left')
+
+# Define function spaces (BDM-DG)
+V = FunctionSpace(mesh, "BDM", 1)
+Q = FunctionSpace(mesh, "DG", 0)    
+W = V * Q
+
+# Define test functions
+(v, q) = TestFunctions(W)
+# Define trial functions
+w       = Function(W)
+(u, p)  = TrialFunctions(W)
+
+# Set parameter values
+nu = 1.
+
+# Define boundary conditions
+def boundary_noslip(x,on_boundary):
+    return on_boundary and (near(x[0],0.0) or near(x[0],Lx) \
+        or near(x[1],0.0))
+
+def boundary_fflow(x,on_boundary):
+    return on_boundary and (near(x[1],Ly))
+
+noslip = DirichletBC(W.sub(0), (0., 0.), boundary_noslip)
+
+fflow  = DirichletBC(W.sub(0), (1., 0.), boundary_fflow )
+
+bcu = [noslip, fflow]
+
+# Stress tensor
+T = nu*(grad(u) + grad(u).T) - p*Identity(2)
+
+# Weak form
+F = ( inner(u*grad(u), v) \
+    + inner(nu*grad(u), grad(v)) \
+    + inner(T, grad(v))   \
+    - div(u)*q \ # &lt;------ ERROR
+    )*dx
+
+# Solve
+solve(F == 0, w, bcu, solver_parameters={ "newton_solver": 
+                                     { "absolute_tolerance": 1.0e-10,
+                                       "relative_tolerance": 1.0e-6 } })
+
+# Plot sigma and u
+(uF, pF) = w.split()
+plot(uF)
+plot(pF)
+interactive()
+</code></pre>
+
+<p>But I have an error where the weak formulation is defined:</p>
+
+<pre><code>ufl.log.UFLException: Invalid ranks 1 and 2 in product.
+</code></pre>
+
+<p>Both q and div(u) seem to have a rank equal to 0 (using *.rank() ). Where is the problem?</p>
+</div>
+										</div>
+										<span class="qa-q-view-avatar-meta">
+											<span class="qa-q-view-meta">
+												<a href="../../8577/navier-stokes-with-mixed-bdm-dg-invalid-ranks" class="qa-q-view-what">asked</a>
+												<span class="qa-q-view-when">
+													<span class="qa-q-view-when-data"><span class="published"><span class="value-title" title="2015-11-16T19:11:59+0000"></span>Nov 16, 2015</span></span>
+												</span>
+												<span class="qa-q-view-who">
+													<span class="qa-q-view-who-pad">by </span>
+													<span class="qa-q-view-who-data"><span class="vcard author"><a href="../../user/Mixart" class="qa-user-link url nickname">Mixart</a></span></span>
+													<span class="qa-q-view-who-title">FEniCS Novice</span>
+													<span class="qa-q-view-who-points">
+														<span class="qa-q-view-who-points-pad">(</span><span class="qa-q-view-who-points-data">120</span><span class="qa-q-view-who-points-pad"> points)</span>
+													</span>
+												</span>
+											</span>
+										</span>
+										<div class="qa-q-view-buttons">
+										</div>
+										
+										<div class="qa-q-view-c-list" id="c8577_list">
+											<div class="qa-c-list-item  hentry comment" id="c10260">
+												<div class="qa-c-item-content">
+													<a name="10260"></a><div class="entry-content"><p>Hi, Mixart.<br>
+I guess I met the same problem as what you indicated here. The problem can be in weak form, <strong>u*grad(u)</strong>. In my case, u has rank 1 and grad(u) has rank 2.<br>
+If you have fixed this problem, could you share some experience here?</p>
+</div>
+												</div>
+												<div class="qa-c-item-footer">
+													<span class="qa-c-item-avatar-meta">
+														<span class="qa-c-item-meta">
+															<a href="../../8577/navier-stokes-with-mixed-bdm-dg-invalid-ranks?show=10260#c10260" class="qa-c-item-what">commented</a>
+															<span class="qa-c-item-when">
+																<span class="qa-c-item-when-data"><span class="published"><span class="value-title" title="2016-06-04T17:12:23+0000"></span>Jun 4, 2016</span></span>
+															</span>
+															<span class="qa-c-item-who">
+																<span class="qa-c-item-who-pad">by </span>
+																<span class="qa-c-item-who-data"><span class="vcard author"><a href="../../user/xiyang" class="qa-user-link url nickname">xiyang</a></span></span>
+																<span class="qa-c-item-who-title">FEniCS Novice</span>
+																<span class="qa-c-item-who-points">
+																	<span class="qa-c-item-who-points-pad">(</span><span class="qa-c-item-who-points-data">410</span><span class="qa-c-item-who-points-pad"> points)</span>
+																</span>
+															</span>
+														</span>
+													</span>
+													<div class="qa-c-item-buttons">
+													</div>
+												</div>
+												<div class="qa-c-item-clear">
+												</div>
+											</div> <!-- END qa-c-item -->
+											<div class="qa-c-list-item  hentry comment" id="c11424">
+												<div class="qa-c-item-content">
+													<a name="11424"></a><div class="entry-content"><p>Hi Mixart,<br>
+I am also getting the same problem in the weak form, where I'm multiplying rank 1 to rank 2 tensor. if you are able to fix the problem, do share it?</p>
+</div>
+												</div>
+												<div class="qa-c-item-footer">
+													<span class="qa-c-item-avatar-meta">
+														<span class="qa-c-item-meta">
+															<a href="../../8577/navier-stokes-with-mixed-bdm-dg-invalid-ranks?show=11424#c11424" class="qa-c-item-what">commented</a>
+															<span class="qa-c-item-when">
+																<span class="qa-c-item-when-data"><span class="published"><span class="value-title" title="2016-10-19T11:04:01+0000"></span>Oct 19, 2016</span></span>
+															</span>
+															<span class="qa-c-item-who">
+																<span class="qa-c-item-who-pad">by </span>
+																<span class="qa-c-item-who-data"><span class="vcard author"><a href="../../user/shr" class="qa-user-link url nickname">shr</a></span></span>
+																<span class="qa-c-item-who-title">FEniCS Novice</span>
+																<span class="qa-c-item-who-points">
+																	<span class="qa-c-item-who-points-pad">(</span><span class="qa-c-item-who-points-data">160</span><span class="qa-c-item-who-points-pad"> points)</span>
+																</span>
+															</span>
+														</span>
+													</span>
+													<div class="qa-c-item-buttons">
+													</div>
+												</div>
+												<div class="qa-c-item-clear">
+												</div>
+											</div> <!-- END qa-c-item -->
+										</div> <!-- END qa-c-list -->
+										
+										<input type="hidden" name="code" value="0-1516468180-fb69ab61f77450a3d7f5aad9e5336c9a1ddfbbf4">
+										<input type="hidden" name="qa_click" value="">
+									</form>
+									<div class="qa-c-form">
+									</div> <!-- END qa-c-form -->
+									
+								</div> <!-- END qa-q-view-main -->
+								<div class="qa-q-view-clear">
+								</div>
+							</div> <!-- END qa-q-view -->
+							
+						</div>
+						<div class="qa-part-a-list">
+							<h2 id="a_list_title">1 Answer</h2>
+							<div class="qa-a-list" id="a_list">
+								
+								<div class="qa-a-list-item  hentry answer" id="a8585">
+									<form method="post" action="../../8577/navier-stokes-with-mixed-bdm-dg-invalid-ranks">
+										<div class="qa-voting qa-voting-net" id="voting_8585">
+											<div class="qa-vote-count qa-vote-count-net">
+												<span class="qa-netvote-count">
+													<span class="qa-netvote-count-data">+2<span class="votes-up"><span class="value-title" title="2"></span></span><span class="votes-down"><span class="value-title" title="0"></span></span></span><span class="qa-netvote-count-pad"> votes</span>
+												</span>
+											</div>
+											<div class="qa-vote-clear">
+											</div>
+										</div>
+										<input type="hidden" name="code" value="0-1516468180-0b305e575ed76ebe73a543e7f8f8554962585968">
+									</form>
+									<div class="qa-a-item-main">
+										<form method="post" action="../../8577/navier-stokes-with-mixed-bdm-dg-invalid-ranks">
+											<div class="qa-a-selection">
+											</div>
+											<div class="qa-a-item-content">
+												<a name="8585"></a><div class="entry-content"><p>I think the problem could be anywhere in your definition since it is a multiline form. You should split the terms to narrow down which one is causing problems. I suspect the u*grad(u)-Term could be the problem, since the div-term looks okay.</p>
+
+<p>Anyway, the bigger problem with your formulation is that it will most certainly not produce meaningful results. You cannot take an H1-Problem, use an Hdiv-space and get away with it. The built-in inter-element continuities do not match, thus the lack of tangential continuity has to be compensated by DG-like interior penalty  terms if you want this to be stable. If you cannot find suitable references I can provide some.</p>
+</div>
+											</div>
+											<span class="qa-a-item-avatar-meta">
+												<span class="qa-a-item-meta">
+													<a href="../../8577/navier-stokes-with-mixed-bdm-dg-invalid-ranks?show=8585#a8585" class="qa-a-item-what">answered</a>
+													<span class="qa-a-item-when">
+														<span class="qa-a-item-when-data"><span class="published"><span class="value-title" title="2015-11-17T06:23:25+0000"></span>Nov 17, 2015</span></span>
+													</span>
+													<span class="qa-a-item-who">
+														<span class="qa-a-item-who-pad">by </span>
+														<span class="qa-a-item-who-data"><span class="vcard author"><a href="../../user/Christian+Waluga" class="qa-user-link url nickname">Christian Waluga</a></span></span>
+														<span class="qa-a-item-who-title">FEniCS Expert</span>
+														<span class="qa-a-item-who-points">
+															<span class="qa-a-item-who-points-pad">(</span><span class="qa-a-item-who-points-data">12,310</span><span class="qa-a-item-who-points-pad"> points)</span>
+														</span>
+													</span>
+													<br>
+													<span class="qa-a-item-what">edited</span>
+													<span class="qa-a-item-when">
+														<span class="qa-a-item-when-data"><span class="updated"><span class="value-title" title="2015-11-17T06:32:19+0000"></span>Nov 17, 2015</span></span>
+													</span>
+													<span class="qa-a-item-who">
+														<span class="qa-a-item-who-pad">by </span><span class="qa-a-item-who-data"><a href="../../user/Christian+Waluga" class="qa-user-link url nickname">Christian Waluga</a></span>
+													</span>
+												</span>
+											</span>
+											<div class="qa-a-item-buttons">
+												</div>
+											
+											<div class="qa-a-item-c-list" style="display:none;" id="c8585_list">
+											</div> <!-- END qa-c-list -->
+											
+											<input type="hidden" name="code" value="0-1516468180-5e5991595a11d9c0f9bf3cabd332f5a6431a31f3">
+											<input type="hidden" name="qa_click" value="">
+										</form>
+										<div class="qa-c-form">
+										</div> <!-- END qa-c-form -->
+										
+									</div> <!-- END qa-a-item-main -->
+									<div class="qa-a-item-clear">
+									</div>
+								</div> <!-- END qa-a-list-item -->
+								
+							</div> <!-- END qa-a-list -->
+							
+						</div>
+					</div> <!-- END qa-main -->
+					
+				</div> <!-- END main-wrapper -->
+			</div> <!-- END main-shadow -->
+		</div> <!-- END body-wrapper -->
+		<!-- END footer-bottom-group -->
+		
+		<div style="position:absolute; left:-9999px; top:-9999px;">
+			<span id="qa-waiting-template" class="qa-waiting">...</span>
+		</div>
+	
+	
+
+</body><!-- Powered by Question2Answer - http://www.question2answer.org/ --></html>

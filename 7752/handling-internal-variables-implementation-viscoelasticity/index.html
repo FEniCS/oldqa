@@ -1,0 +1,336 @@
+<html><!-- Powered by Question2Answer - http://www.question2answer.org/ --><head>
+		<meta http-equiv="content-type" content="text/html; charset=utf-8">
+		<title>Handling history (internal ) variables in implementation of viscoelasticity - FEniCS Q&amp;A</title>
+		<meta name="description" content="In solid mechanics it is usual to define a routine as a material model and usually in non elastic ... Any help on this issue is very welcomed. Regards">
+		<link rel="stylesheet" type="text/css" href="../../qa-theme/Snow/qa-styles.css">
+		<link rel="canonical" href="http://fenicsproject.org/qa/7752/handling-internal-variables-implementation-viscoelasticity">
+		<script type="text/x-mathjax-config">
+  MathJax.Hub.Config({
+    extensions: ["tex2jax.js"],
+    jax: ["input/TeX","output/HTML-CSS"],
+    tex2jax: {inlineMath: [["$","$"],["\\(","\\)"]]},
+    TeX: { extensions: ["AMSmath.js","AMSsymbols.js"]}
+  });
+</script>
+<script type="text/javascript" src="../../mathjax/MathJax.js"></script>
+		<script src="../../jquery-1.7.2.min.js" type="text/javascript"></script>
+		<script src="../../highlight.min.js"></script>
+<script type="text/javascript">
+$(function(){
+	$('.wmd-input').keypress(function(){
+		window.clearTimeout(hljs.Timeout);
+		hljs.Timeout = window.setTimeout(function() {
+			hljs.initHighlighting.called = false;
+			hljs.initHighlighting();
+		}, 500);
+	});
+	window.setTimeout(function() {
+		hljs.initHighlighting.called = false;
+		hljs.initHighlighting();
+	}, 500);
+});
+</script>
+
+
+	</head>
+	<body class="qa-template-question qa-body-js-off">
+		<div class="qa-body-wrapper">
+			
+			<div class="qa-header">
+				<div class="qa-logo">
+					<a href="../../" class="qa-logo-link" title="FEniCS Q&amp;A"><img src="../../qa-theme/fenics_qa.png" border="0" alt="FEniCS Q&amp;A"></a>
+				</div>
+				<div class="qa-header-clear">
+				</div>
+			</div> <!-- END qa-header -->
+			
+			<div class="qa-main-shadow">
+				
+				<div class="qa-main-wrapper">
+					
+					<div class="qa-sidepanel">
+						<div class="qa-sidebar">
+							This is a read only copy of the old FEniCS QA forum. Please visit the <a href="https://www.allanswered.com/community/s/fenics-project/">new QA forum</a> to ask questions
+						</div>
+						
+					</div>
+					
+					<div class="qa-main">
+						<h1>
+							<span class="entry-title">Handling history (internal ) variables in implementation of viscoelasticity</span>
+						</h1>
+						<div class="qa-part-q-view">
+							<div class="qa-q-view  hentry question" id="q7752">
+								<form method="post" action="../../7752/handling-internal-variables-implementation-viscoelasticity">
+									<div class="qa-q-view-stats">
+										<div class="qa-voting qa-voting-net" id="voting_7752">
+											<div class="qa-vote-count qa-vote-count-net">
+												<span class="qa-netvote-count">
+													<span class="qa-netvote-count-data">+3<span class="votes-up"><span class="value-title" title="3"></span></span><span class="votes-down"><span class="value-title" title="0"></span></span></span><span class="qa-netvote-count-pad"> votes</span>
+												</span>
+											</div>
+											<div class="qa-vote-clear">
+											</div>
+										</div>
+									</div>
+									<input type="hidden" name="code" value="0-1516468136-f6bba10abcb571b550be1df1ec30d292e27a40a6">
+								</form>
+								<div class="qa-q-view-main">
+									<form method="post" action="../../7752/handling-internal-variables-implementation-viscoelasticity">
+										<div class="qa-q-view-content">
+											<a name="7752"></a><div class="entry-content"><p>In solid mechanics it is usual to define a routine as a material model and usually in non elastic models some history variables should be kept.  In order to handle this I defined a function for keeping the history variable in the system. The following code shows what I did: </p>
+
+<h2>---  Define variational problem</h2>
+
+<p>du = TrialFunction(V)           # Incremental displacement<br>
+v  = TestFunction(V)            # Test function<br>
+u  = TrialFunction(V)           # Displacement at time n+1<br>
+u_n= Function(V)                # Displacement at time n<br>
+Du = Function(V)                # Function for u_(n+1)=u_n - Du</p>
+
+<p>alpha  = Function(H2)               # History variables at time n+1<br>
+alpha_n= Function(H2)               # History variables at time n<br>
+alpha_n = project(Constant( ((0,0),(0,0)) ), H2)</p>
+
+<h2>Kinematics and material model</h2>
+
+<p>epsilon = sym(grad(u)) </p>
+
+<h2>Material model routine calculates sigma_(n+1) and alpha_(n+1)</h2>
+
+<p>mat = material_model(epsilon,alpha_n,parameters) <br>
+sigma = mat['sigma']  <br>
+alpha = mat['alpha']</p>
+
+<h2>Bilinear form definitions</h2>
+
+<p>L  = inner(Sigma, nabla_grad(v))<em>dx <br>
+F  = dot(Tr, v)</em>ds(1)  <br>
+B  = L - F</p>
+
+<h2>Jacobian is int (B^T j B) but for now I use numerical jacobian !!</h2>
+
+<p>J  = derivative(B, u, du)  </p>
+
+<p>Now having the above form I want to integrate over time the equation and in each time step I should solve  a nonlinear equation </p>
+
+<h2>--- Compute time dependent solution</h2>
+
+<p>T = 0.22           # total simulation time<br>
+dt= 0.001          <br>
+t = dt             # initial time step</p>
+
+<p>while t &lt;= T:<br>
+    Tr.t = t</p>
+
+<pre><code>omega = 1.0       # relaxation parameter
+eps = 1.0
+tol = 1.0E-5
+iter = 0
+maxiter = 25
+while eps &gt; tol and iter &lt; maxiter:
+    iter += 1
+    j, b = assemble_system(J, B, bc)
+    solve(j, Du.vector(), b)
+    eps = numpy.linalg.norm(Du.vector().array(), ord=numpy.Inf)
+    print 'Norm:', eps
+    u.vector()[:] = u_n.vector() - omega*Du.vector()
+    u_n.assign(u)
+    alpha_n.assign(mat['alpha'])
+
+t += dt
+</code></pre>
+
+<p>The problem is that I do not know how to make sure that the line <br>
+        alpha_n.assign(mat['alpha'])<br>
+works.  I do not call material routine directly in the iterations and  assemble_system function does this behind the scene, so I do not have a direct access to alpha here.</p>
+
+<p>Any help on this issue is very welcomed. </p>
+
+<p>Regards</p>
+</div>
+										</div>
+										<span class="qa-q-view-avatar-meta">
+											<span class="qa-q-view-meta">
+												<a href="../../7752/handling-internal-variables-implementation-viscoelasticity" class="qa-q-view-what">asked</a>
+												<span class="qa-q-view-when">
+													<span class="qa-q-view-when-data"><span class="published"><span class="value-title" title="2015-08-03T16:06:17+0000"></span>Aug 3, 2015</span></span>
+												</span>
+												<span class="qa-q-view-who">
+													<span class="qa-q-view-who-pad">by </span>
+													<span class="qa-q-view-who-data"><span class="vcard author"><a href="../../user/Khosrownejad" class="qa-user-link url nickname">Khosrownejad</a></span></span>
+													<span class="qa-q-view-who-title">FEniCS Novice</span>
+													<span class="qa-q-view-who-points">
+														<span class="qa-q-view-who-points-pad">(</span><span class="qa-q-view-who-points-data">190</span><span class="qa-q-view-who-points-pad"> points)</span>
+													</span>
+												</span>
+											</span>
+										</span>
+										<div class="qa-q-view-buttons">
+										</div>
+										
+										<div class="qa-q-view-c-list" style="display:none;" id="c7752_list">
+										</div> <!-- END qa-c-list -->
+										
+										<input type="hidden" name="code" value="0-1516468136-e6683a11efd0a326cc9d2f7fd5dffa89ee632114">
+										<input type="hidden" name="qa_click" value="">
+									</form>
+									<div class="qa-c-form">
+									</div> <!-- END qa-c-form -->
+									
+								</div> <!-- END qa-q-view-main -->
+								<div class="qa-q-view-clear">
+								</div>
+							</div> <!-- END qa-q-view -->
+							
+						</div>
+						<div class="qa-part-a-list">
+							<h2 id="a_list_title">2 Answers</h2>
+							<div class="qa-a-list" id="a_list">
+								
+								<div class="qa-a-list-item  hentry answer answer-selected qa-a-list-item-selected" id="a7815">
+									<form method="post" action="../../7752/handling-internal-variables-implementation-viscoelasticity">
+										<div class="qa-voting qa-voting-net" id="voting_7815">
+											<div class="qa-vote-count qa-vote-count-net">
+												<span class="qa-netvote-count">
+													<span class="qa-netvote-count-data">+2<span class="votes-up"><span class="value-title" title="2"></span></span><span class="votes-down"><span class="value-title" title="0"></span></span></span><span class="qa-netvote-count-pad"> votes</span>
+												</span>
+											</div>
+											<div class="qa-vote-clear">
+											</div>
+										</div>
+										<input type="hidden" name="code" value="0-1516468136-f6bba10abcb571b550be1df1ec30d292e27a40a6">
+									</form>
+									<div class="qa-a-item-main">
+										<form method="post" action="../../7752/handling-internal-variables-implementation-viscoelasticity">
+											<div class="qa-a-item-selected">
+												<div class="qa-a-selection">
+													<div class="qa-a-selected">&#160;</div>
+													<div class="qa-a-selected-text">Best answer</div>
+												</div>
+												<div class="qa-a-item-content">
+													<a name="7815"></a><div class="entry-content"><p>A reasonably efficient visco-elastic implementation <br>
+is described in detail here: <br>
+<a rel="nofollow" href="https://www.duo.uio.no/handle/10852/41825">https://www.duo.uio.no/handle/10852/41825</a><br>
+code on bitbucket is here: <br>
+<a rel="nofollow" href="https://bitbucket.org/nkylstad/master_thesis_src">https://bitbucket.org/nkylstad/master_thesis_src</a></p>
+</div>
+												</div>
+												<span class="qa-a-item-avatar-meta">
+													<span class="qa-a-item-meta">
+														<a href="../../7752/handling-internal-variables-implementation-viscoelasticity?show=7815#a7815" class="qa-a-item-what">answered</a>
+														<span class="qa-a-item-when">
+															<span class="qa-a-item-when-data"><span class="published"><span class="value-title" title="2015-08-14T13:10:52+0000"></span>Aug 14, 2015</span></span>
+														</span>
+														<span class="qa-a-item-who">
+															<span class="qa-a-item-who-pad">by </span>
+															<span class="qa-a-item-who-data"><span class="vcard author"><a href="../../user/Kent-Andre+Mardal" class="qa-user-link url nickname">Kent-Andre Mardal</a></span></span>
+															<span class="qa-a-item-who-title">FEniCS Expert</span>
+															<span class="qa-a-item-who-points">
+																<span class="qa-a-item-who-points-pad">(</span><span class="qa-a-item-who-points-data">14,380</span><span class="qa-a-item-who-points-pad"> points)</span>
+															</span>
+														</span>
+														<br>
+														<span class="qa-a-item-what">selected</span>
+														<span class="qa-a-item-when">
+															<span class="qa-a-item-when-data"><span class="updated"><span class="value-title" title="2015-08-14T13:50:32+0000"></span>Aug 14, 2015</span></span>
+														</span>
+														<span class="qa-a-item-who">
+															<span class="qa-a-item-who-pad">by </span><span class="qa-a-item-who-data"><a href="../../user/Khosrownejad" class="qa-user-link url nickname">Khosrownejad</a></span>
+														</span>
+													</span>
+												</span>
+											</div>
+											<div class="qa-a-item-buttons">
+												</div>
+											
+											<div class="qa-a-item-c-list" style="display:none;" id="c7815_list">
+											</div> <!-- END qa-c-list -->
+											
+											<input type="hidden" name="code" value="0-1516468136-a0a005a508210414dba0e36109d599f52df0990b">
+											<input type="hidden" name="qa_click" value="">
+										</form>
+										<div class="qa-c-form">
+										</div> <!-- END qa-c-form -->
+										
+									</div> <!-- END qa-a-item-main -->
+									<div class="qa-a-item-clear">
+									</div>
+								</div> <!-- END qa-a-list-item -->
+								
+								<div class="qa-a-list-item  hentry answer" id="a7756">
+									<form method="post" action="../../7752/handling-internal-variables-implementation-viscoelasticity">
+										<div class="qa-voting qa-voting-net" id="voting_7756">
+											<div class="qa-vote-count qa-vote-count-net">
+												<span class="qa-netvote-count">
+													<span class="qa-netvote-count-data">+1<span class="votes-up"><span class="value-title" title="1"></span></span><span class="votes-down"><span class="value-title" title="0"></span></span></span><span class="qa-netvote-count-pad"> vote</span>
+												</span>
+											</div>
+											<div class="qa-vote-clear">
+											</div>
+										</div>
+										<input type="hidden" name="code" value="0-1516468136-f6bba10abcb571b550be1df1ec30d292e27a40a6">
+									</form>
+									<div class="qa-a-item-main">
+										<form method="post" action="../../7752/handling-internal-variables-implementation-viscoelasticity">
+											<div class="qa-a-selection">
+											</div>
+											<div class="qa-a-item-content">
+												<a name="7756"></a><div class="entry-content"><p>Have you looked at fenics solid mechanics...</p>
+
+<p><a rel="nofollow" href="https://bitbucket.org/fenics-apps/fenics-solid-mechanics">https://bitbucket.org/fenics-apps/fenics-solid-mechanics</a></p>
+</div>
+											</div>
+											<span class="qa-a-item-avatar-meta">
+												<span class="qa-a-item-avatar">
+													<a href="../../user/chris_richardson" class="qa-avatar-link"><img src="https://www.gravatar.com/avatar/d779daeb727bcec8f6b2c505810042db?s=40" width="40" height="40" class="qa-avatar-image" alt=""></a>
+												</span>
+												<span class="qa-a-item-meta">
+													<a href="../../7752/handling-internal-variables-implementation-viscoelasticity?show=7756#a7756" class="qa-a-item-what">answered</a>
+													<span class="qa-a-item-when">
+														<span class="qa-a-item-when-data"><span class="published"><span class="value-title" title="2015-08-04T09:49:17+0000"></span>Aug 4, 2015</span></span>
+													</span>
+													<span class="qa-a-item-who">
+														<span class="qa-a-item-who-pad">by </span>
+														<span class="qa-a-item-who-data"><span class="vcard author"><a href="../../user/chris_richardson" class="qa-user-link url nickname">chris_richardson</a></span></span>
+														<span class="qa-a-item-who-title">FEniCS Expert</span>
+														<span class="qa-a-item-who-points">
+															<span class="qa-a-item-who-points-pad">(</span><span class="qa-a-item-who-points-data">31,740</span><span class="qa-a-item-who-points-pad"> points)</span>
+														</span>
+													</span>
+												</span>
+											</span>
+											<div class="qa-a-item-buttons">
+												</div>
+											
+											<div class="qa-a-item-c-list" style="display:none;" id="c7756_list">
+											</div> <!-- END qa-c-list -->
+											
+											<input type="hidden" name="code" value="0-1516468136-ebed52f97c304828df2eed06c88e495ed75ddc3a">
+											<input type="hidden" name="qa_click" value="">
+										</form>
+										<div class="qa-c-form">
+										</div> <!-- END qa-c-form -->
+										
+									</div> <!-- END qa-a-item-main -->
+									<div class="qa-a-item-clear">
+									</div>
+								</div> <!-- END qa-a-list-item -->
+								
+							</div> <!-- END qa-a-list -->
+							
+						</div>
+					</div> <!-- END qa-main -->
+					
+				</div> <!-- END main-wrapper -->
+			</div> <!-- END main-shadow -->
+		</div> <!-- END body-wrapper -->
+		<!-- END footer-bottom-group -->
+		
+		<div style="position:absolute; left:-9999px; top:-9999px;">
+			<span id="qa-waiting-template" class="qa-waiting">...</span>
+		</div>
+	
+	
+
+</body><!-- Powered by Question2Answer - http://www.question2answer.org/ --></html>

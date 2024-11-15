@@ -1,0 +1,596 @@
+<html><!-- Powered by Question2Answer - http://www.question2answer.org/ --><head>
+		<meta http-equiv="content-type" content="text/html; charset=utf-8">
+		<title>Assembly performance with Lagrange multipliers - FEniCS Q&amp;A</title>
+		<meta name="description" content="I am interested in solving the Stokes equations with fluxes constraints on the boundary of say, a square  ... /global-dofs-aka-reals-should-not-be) ?*">
+		<meta name="keywords" content="mixed-function-space,lagrange-multiplier,assembly,performance">
+		<link rel="stylesheet" type="text/css" href="../../qa-theme/Snow/qa-styles.css">
+		<link rel="canonical" href="http://fenicsproject.org/qa/6494/assembly-performance-with-lagrange-multipliers">
+		<script type="text/x-mathjax-config">
+  MathJax.Hub.Config({
+    extensions: ["tex2jax.js"],
+    jax: ["input/TeX","output/HTML-CSS"],
+    tex2jax: {inlineMath: [["$","$"],["\\(","\\)"]]},
+    TeX: { extensions: ["AMSmath.js","AMSsymbols.js"]}
+  });
+</script>
+<script type="text/javascript" src="../../mathjax/MathJax.js"></script>
+		<script src="../../jquery-1.7.2.min.js" type="text/javascript"></script>
+		<script src="../../highlight.min.js"></script>
+<script type="text/javascript">
+$(function(){
+	$('.wmd-input').keypress(function(){
+		window.clearTimeout(hljs.Timeout);
+		hljs.Timeout = window.setTimeout(function() {
+			hljs.initHighlighting.called = false;
+			hljs.initHighlighting();
+		}, 500);
+	});
+	window.setTimeout(function() {
+		hljs.initHighlighting.called = false;
+		hljs.initHighlighting();
+	}, 500);
+});
+</script>
+
+
+	</head>
+	<body class="qa-template-question qa-body-js-off">
+		<div class="qa-body-wrapper">
+			
+			<div class="qa-header">
+				<div class="qa-logo">
+					<a href="../../" class="qa-logo-link" title="FEniCS Q&amp;A"><img src="../../qa-theme/fenics_qa.png" border="0" alt="FEniCS Q&amp;A"></a>
+				</div>
+				<div class="qa-header-clear">
+				</div>
+			</div> <!-- END qa-header -->
+			
+			<div class="qa-main-shadow">
+				
+				<div class="qa-main-wrapper">
+					
+					<div class="qa-sidepanel">
+						<div class="qa-sidebar">
+							This is a read only copy of the old FEniCS QA forum. Please visit the <a href="https://www.allanswered.com/community/s/fenics-project/">new QA forum</a> to ask questions
+						</div>
+						
+					</div>
+					
+					<div class="qa-main">
+						<h1>
+							<span class="entry-title">Assembly performance with Lagrange multipliers</span>
+						</h1>
+						<div class="qa-part-q-view">
+							<div class="qa-q-view  hentry question" id="q6494">
+								<form method="post" action="../../6494/assembly-performance-with-lagrange-multipliers">
+									<div class="qa-q-view-stats">
+										<div class="qa-voting qa-voting-net" id="voting_6494">
+											<div class="qa-vote-count qa-vote-count-net">
+												<span class="qa-netvote-count">
+													<span class="qa-netvote-count-data">+9<span class="votes-up"><span class="value-title" title="9"></span></span><span class="votes-down"><span class="value-title" title="0"></span></span></span><span class="qa-netvote-count-pad"> votes</span>
+												</span>
+											</div>
+											<div class="qa-vote-clear">
+											</div>
+										</div>
+									</div>
+									<input type="hidden" name="code" value="0-1516468074-d9b782571c6960ed98711a58a23d85c1ff56b998">
+								</form>
+								<div class="qa-q-view-main">
+									<form method="post" action="../../6494/assembly-performance-with-lagrange-multipliers">
+										<div class="qa-q-view-content">
+											<a name="6494"></a><div class="entry-content"><p>I am interested in solving the Stokes equations with fluxes constraints on the boundary of say, a square domain, like $\int_e v[0] = C$ for some edge $e$. For this I use a mixed formulation, with velocity, pressure and a Lagrange multiplier. The latter is a constant function on the whole domain: <code>FunctionSpace(mesh, 'R', 0)</code>.<br>
+Doing so, I have noticed that this severely impact performance of assembly (time) and resolution of the system (time + memory), compared with 'strong' Dirichlet BCs. And looking for a base case, I came up with the following problem : solve the Laplace equation on a square with homogeneous Neumann BCs, with a zero mean constraint on the solution. The snippet below looks at assembly of the $\int \nabla u \cdot \nabla v$ term only.</p>
+
+<pre><code># coding: utf-8
+from dolfin import *
+from time import clock
+
+# track assembly progress, as suggested by debmukh
+set_log_level(PROGRESS)
+
+N = 600
+
+side_length = 10
+
+mesh = UnitSquareMesh(N, N)
+mesh.coordinates()[:] = mesh.coordinates()*side_length
+
+V = FunctionSpace(mesh, 'P', 1)
+L = FunctionSpace(mesh, 'R', 0)
+
+u = TrialFunction(V)
+v = TestFunction(V)
+
+tic = clock()
+assemble(inner(grad(u), grad(v))*dx)
+elapsed_simple = clock() - tic
+
+W = MixedFunctionSpace([V, L])
+u, p = split(TrialFunction(W))
+v, q = split(TestFunction(W))
+
+tic = clock()
+assemble(inner(grad(u), grad(v))*dx)
+elapsed_mixed = clock() - tic
+
+slow = elapsed_mixed/elapsed_simple
+dofs = V.dofmap().global_dimension()
+
+print 'Simple assembly time: {0}s'.format(elapsed_simple)
+print ' Mixed assembly time: {0}s (x{1})'.format(elapsed_mixed, int(slow))
+print ' Slow down / #DOFs&#178; = {0}'.format(slow/dofs**2)
+</code></pre>
+
+<p>To assemble the Dirichlet form in the snippet above, <em>in which the Lagrange multiplier is not involved in any way</em> apart from the function space, the time required with the mixed function space is ~300 times larger than with the simple function space (250s up from 0.7). Then it seems that assembling the stiffness matrix by hand, <em>i.e.</em> by assembling the blocks $\int_\Omega \nabla u \cdot \nabla v\; dx$ and $\int_e u\, v\; ds$ individually and gluing them together afterwards, would be much faster.</p>
+
+<p>Is this expected, or am I doing something silly here? Shouldn't it be possible to optimize assembly in some way so it is both speedy and automatic?</p>
+
+<p><strong>Edits</strong>:</p>
+
+<ol>
+<li><p><em>I should mention that this was tested using FEniCS</em> 1.4. <em>I'm not able to try version 1.5 since I'm using an academic, shared system at the moment. Could someone with access to 1.5 try to see if this has changed?</em></p></li>
+<li><p><em>Could this be related to FFC <a rel="nofollow" href="https://bitbucket.org/fenics-project/ffc/issue/61/global-dofs-aka-reals-should-not-be">issue #61</a> ?</em></p></li>
+</ol>
+</div>
+										</div>
+										<div class="qa-q-view-tags">
+											<ul class="qa-q-view-tag-list">
+												<li class="qa-q-view-tag-item"><a href="../../tag/mixed-function-space" rel="tag" class="qa-tag-link">mixed-function-space</a></li>
+												<li class="qa-q-view-tag-item"><a href="../../tag/lagrange-multiplier" rel="tag" class="qa-tag-link">lagrange-multiplier</a></li>
+												<li class="qa-q-view-tag-item"><a href="../../tag/assembly" rel="tag" class="qa-tag-link">assembly</a></li>
+												<li class="qa-q-view-tag-item"><a href="../../tag/performance" rel="tag" class="qa-tag-link">performance</a></li>
+											</ul>
+										</div>
+										<span class="qa-q-view-avatar-meta">
+											<span class="qa-q-view-avatar">
+												<a href="../../user/gjankowiak" class="qa-avatar-link"><img src="https://www.gravatar.com/avatar/443a144004e32cd89e9ad03d3f01c881?s=50" width="50" height="50" class="qa-avatar-image" alt=""></a>
+											</span>
+											<span class="qa-q-view-meta">
+												<a href="../../6494/assembly-performance-with-lagrange-multipliers" class="qa-q-view-what">asked</a>
+												<span class="qa-q-view-when">
+													<span class="qa-q-view-when-data"><span class="published"><span class="value-title" title="2015-02-11T15:53:48+0000"></span>Feb 11, 2015</span></span>
+												</span>
+												<span class="qa-q-view-who">
+													<span class="qa-q-view-who-pad">by </span>
+													<span class="qa-q-view-who-data"><span class="vcard author"><a href="../../user/gjankowiak" class="qa-user-link url nickname">gjankowiak</a></span></span>
+													<span class="qa-q-view-who-title">FEniCS Novice</span>
+													<span class="qa-q-view-who-points">
+														<span class="qa-q-view-who-points-pad">(</span><span class="qa-q-view-who-points-data">880</span><span class="qa-q-view-who-points-pad"> points)</span>
+													</span>
+												</span>
+												<br>
+												<span class="qa-q-view-what">edited</span>
+												<span class="qa-q-view-when">
+													<span class="qa-q-view-when-data"><span class="updated"><span class="value-title" title="2015-02-12T13:49:21+0000"></span>Feb 12, 2015</span></span>
+												</span>
+												<span class="qa-q-view-who">
+													<span class="qa-q-view-who-pad">by </span><span class="qa-q-view-who-data"><a href="../../user/gjankowiak" class="qa-user-link url nickname">gjankowiak</a></span>
+												</span>
+											</span>
+										</span>
+										<div class="qa-q-view-buttons">
+										</div>
+										
+										<div class="qa-q-view-c-list" id="c6494_list">
+											<div class="qa-c-list-item  hentry comment" id="c6497">
+												<div class="qa-c-item-content">
+													<a name="6497"></a><div class="entry-content"><p>I am trying a similar problem, in which I solve the steady Stokes flow with a constrained velocity field within a spherical region in the a cuboidal box domain. I use Lagrange multipliers for the constraints, and my system takes an inordinately long time to solve the problem. It does give me the right results - but it takes a really long time. Since I am trying to extend this to a time-dynamic Stokes solver, I would be very interested to know what the responses are to the question posted here.<br>
+<strong>Edit</strong>: I tried the problem above. You can get a true sense of how different the performance is by setting <code>set_log_level(PROGRESS)</code> to track the assembly process.</p>
+</div>
+												</div>
+												<div class="qa-c-item-footer">
+													<span class="qa-c-item-avatar-meta">
+														<span class="qa-c-item-meta">
+															<a href="../../6494/assembly-performance-with-lagrange-multipliers?show=6497#c6497" class="qa-c-item-what">commented</a>
+															<span class="qa-c-item-when">
+																<span class="qa-c-item-when-data"><span class="published"><span class="value-title" title="2015-02-12T08:48:03+0000"></span>Feb 12, 2015</span></span>
+															</span>
+															<span class="qa-c-item-who">
+																<span class="qa-c-item-who-pad">by </span>
+																<span class="qa-c-item-who-data"><span class="vcard author"><a href="../../user/debmukh" class="qa-user-link url nickname">debmukh</a></span></span>
+																<span class="qa-c-item-who-title">FEniCS Novice</span>
+																<span class="qa-c-item-who-points">
+																	<span class="qa-c-item-who-points-pad">(</span><span class="qa-c-item-who-points-data">880</span><span class="qa-c-item-who-points-pad"> points)</span>
+																</span>
+															</span>
+															<br>
+															<span class="qa-c-item-what">edited</span>
+															<span class="qa-c-item-when">
+																<span class="qa-c-item-when-data"><span class="updated"><span class="value-title" title="2015-02-12T09:14:33+0000"></span>Feb 12, 2015</span></span>
+															</span>
+															<span class="qa-c-item-who">
+																<span class="qa-c-item-who-pad">by </span><span class="qa-c-item-who-data"><a href="../../user/debmukh" class="qa-user-link url nickname">debmukh</a></span>
+															</span>
+														</span>
+													</span>
+													<div class="qa-c-item-buttons">
+													</div>
+												</div>
+												<div class="qa-c-item-clear">
+												</div>
+											</div> <!-- END qa-c-item -->
+											<div class="qa-c-list-item  hentry comment" id="c10996">
+												<div class="qa-c-item-content">
+													<a name="10996"></a><div class="entry-content"><p>Any updates on assembly performance or possible timeline of a change?<br>
+I don't understand what the changes here<br>
+    <a rel="nofollow" href="https://bitbucket.org/fenics-project/ffc/issues/61"></a><a rel="nofollow" href="https://bitbucket.org/fenics-project/ffc/issues/61">https://bitbucket.org/fenics-project/ffc/issues/61</a><br>
+mean.</p>
+
+<p>My Python3 build of version '1.7.0dev' still yields pretty terrible assembly slowdown with only 1 multiplier.</p>
+
+<p><strong>test_lagrange.py</strong>:<br>
+</p><pre><code><br>
+from dolfin import *<br>
+from time import process_time as tic
+
+def run_test(max_kk=10):<br>
+    for kk in range(max_kk):<br>
+        print(kk)<br>
+        mesh=UnitSquareMesh(2<strong>kk,2</strong>kk)
+
+<code>    VV=FunctionSpace(mesh,'CG',1)
+    uu=TrialFunction(VV)
+    vv=TestFunction(VV)
+    t0 = tic()
+    AA=assemble(inner(grad(uu),grad(vv))*dx)
+    tt_regular = tic()-t0
+    print('    {:3e}'.format(tt_regular))
+
+    WV=FiniteElement('CG',mesh.ufl_cell(),1)
+    WR=FiniteElement('R',mesh.ufl_cell(),0)
+    WW=FunctionSpace(mesh,WV*WR)
+    uu, pp=TrialFunctions(WW)
+    vv, qq=TestFunctions(WW)
+
+    t0 = tic()
+    BB=assemble(inner(grad(uu),grad(vv))*dx)
+    tt_mixed = tic()-t0
+    print('    {:3e} = [{:3e}] x {:3e}'.format(tt_mixed,tt_mixed/tt_regular,tt_regular))
+</code></code></pre>
+
+<p>if <strong>name</strong> == '<strong>main</strong>':<br>
+    run_test(10)<br>
+</p>
+
+<p>gives me</p>
+
+<pre><code>
+python3 test_lagrange.py 
+0
+    8.426476e-03
+    8.174785e-03 = [9.701309e-01] x 8.426476e-03
+1
+    1.485301e-03
+    1.475770e-03 = [9.935831e-01] x 1.485301e-03
+2
+    1.351443e-03
+    1.499427e-03 = [1.109501e+00] x 1.351443e-03
+3
+    1.402676e-03
+    1.604185e-03 = [1.143660e+00] x 1.402676e-03
+4
+    1.651917e-03
+    2.096831e-03 = [1.269332e+00] x 1.651917e-03
+5
+    2.751507e-03
+    5.385470e-03 = [1.957280e+00] x 2.751507e-03
+6
+    6.401713e-03
+    4.104263e-02 = [6.411196e+00] x 6.401713e-03
+7
+    2.097235e-02
+    5.321132e-01 = [2.537213e+01] x 2.097235e-02
+8
+    8.642358e-02
+    8.525300e+00 = [9.864553e+01] x 8.642358e-02
+9
+    3.771716e-01
+    1.378740e+02 = [3.655471e+02] x 3.771716e-01
+</code></pre>
+</div>
+												</div>
+												<div class="qa-c-item-footer">
+													<span class="qa-c-item-avatar-meta">
+														<span class="qa-c-item-meta">
+															<a href="../../6494/assembly-performance-with-lagrange-multipliers?show=10996#c10996" class="qa-c-item-what">commented</a>
+															<span class="qa-c-item-when">
+																<span class="qa-c-item-when-data"><span class="published"><span class="value-title" title="2016-08-26T17:41:24+0000"></span>Aug 26, 2016</span></span>
+															</span>
+															<span class="qa-c-item-who">
+																<span class="qa-c-item-who-pad">by </span>
+																<span class="qa-c-item-who-data"><span class="vcard author"><a href="../../user/Sa+Wu" class="qa-user-link url nickname">Sa Wu</a></span></span>
+																<span class="qa-c-item-who-title">FEniCS Novice</span>
+																<span class="qa-c-item-who-points">
+																	<span class="qa-c-item-who-points-pad">(</span><span class="qa-c-item-who-points-data">200</span><span class="qa-c-item-who-points-pad"> points)</span>
+																</span>
+															</span>
+														</span>
+													</span>
+													<div class="qa-c-item-buttons">
+													</div>
+												</div>
+												<div class="qa-c-item-clear">
+												</div>
+											</div> <!-- END qa-c-item -->
+										</div> <!-- END qa-c-list -->
+										
+										<input type="hidden" name="code" value="0-1516468074-07810a6af3ce87dc839fc15c4ce9f0553dcdd4da">
+										<input type="hidden" name="qa_click" value="">
+									</form>
+									<div class="qa-c-form">
+									</div> <!-- END qa-c-form -->
+									
+								</div> <!-- END qa-q-view-main -->
+								<div class="qa-q-view-clear">
+								</div>
+							</div> <!-- END qa-q-view -->
+							
+						</div>
+						<div class="qa-part-a-list">
+							<h2 id="a_list_title">1 Answer</h2>
+							<div class="qa-a-list" id="a_list">
+								
+								<div class="qa-a-list-item  hentry answer answer-selected qa-a-list-item-selected" id="a6499">
+									<form method="post" action="../../6494/assembly-performance-with-lagrange-multipliers">
+										<div class="qa-voting qa-voting-net" id="voting_6499">
+											<div class="qa-vote-count qa-vote-count-net">
+												<span class="qa-netvote-count">
+													<span class="qa-netvote-count-data">+1<span class="votes-up"><span class="value-title" title="1"></span></span><span class="votes-down"><span class="value-title" title="0"></span></span></span><span class="qa-netvote-count-pad"> vote</span>
+												</span>
+											</div>
+											<div class="qa-vote-clear">
+											</div>
+										</div>
+										<input type="hidden" name="code" value="0-1516468074-d9b782571c6960ed98711a58a23d85c1ff56b998">
+									</form>
+									<div class="qa-a-item-main">
+										<form method="post" action="../../6494/assembly-performance-with-lagrange-multipliers">
+											<div class="qa-a-item-selected">
+												<div class="qa-a-selection">
+													<div class="qa-a-selected">&#160;</div>
+													<div class="qa-a-selected-text">Best answer</div>
+												</div>
+												<div class="qa-a-item-content">
+													<a name="6499"></a><div class="entry-content"><ol>
+<li><p>I  can try if you provide me with <em>complete code</em> reporting the timing results and reproducing poor performance using your system. I expect that there can be a substantial difference in 1.5 as DofMapBuilder has been refactored from a big part.</p>
+
+<p><strong>Reproduced slowdown of cca 500 (see below) with DOLFIN 1.5.0+.</strong></p></li>
+<li><p>I don't think so. This is just a weakness in UFC design which has to be fixed to handle a recognition of global dofs in a natural way without hacks.</p></li>
+</ol>
+
+<p>Also note that this topic has already been discussed here <a rel="nofollow" href="http://fenicsproject.org/pipermail/fenics/2013-September/000526.html.">http://fenicsproject.org/pipermail/fenics/2013-September/000526.html.</a></p>
+</div>
+												</div>
+												<span class="qa-a-item-avatar-meta">
+													<span class="qa-a-item-avatar">
+														<a href="../../user/Jan+Blechta" class="qa-avatar-link"><img src="https://www.gravatar.com/avatar/dc6f8dce77e4a0bd5adc7ff31ab83741?s=40" width="40" height="40" class="qa-avatar-image" alt=""></a>
+													</span>
+													<span class="qa-a-item-meta">
+														<a href="../../6494/assembly-performance-with-lagrange-multipliers?show=6499#a6499" class="qa-a-item-what">answered</a>
+														<span class="qa-a-item-when">
+															<span class="qa-a-item-when-data"><span class="published"><span class="value-title" title="2015-02-12T13:20:34+0000"></span>Feb 12, 2015</span></span>
+														</span>
+														<span class="qa-a-item-who">
+															<span class="qa-a-item-who-pad">by </span>
+															<span class="qa-a-item-who-data"><span class="vcard author"><a href="../../user/Jan+Blechta" class="qa-user-link url nickname">Jan Blechta</a></span></span>
+															<span class="qa-a-item-who-title">FEniCS Expert</span>
+															<span class="qa-a-item-who-points">
+																<span class="qa-a-item-who-points-pad">(</span><span class="qa-a-item-who-points-data">51,420</span><span class="qa-a-item-who-points-pad"> points)</span>
+															</span>
+														</span>
+														<br>
+														<span class="qa-a-item-what">selected</span>
+														<span class="qa-a-item-when">
+															<span class="qa-a-item-when-data"><span class="updated"><span class="value-title" title="2015-02-17T13:51:25+0000"></span>Feb 17, 2015</span></span>
+														</span>
+														<span class="qa-a-item-who">
+															<span class="qa-a-item-who-pad">by </span><span class="qa-a-item-who-data"><a href="../../user/gjankowiak" class="qa-user-link url nickname">gjankowiak</a></span>
+														</span>
+													</span>
+												</span>
+											</div>
+											<div class="qa-a-item-buttons">
+												</div>
+											
+											<div class="qa-a-item-c-list" id="c6499_list">
+												<div class="qa-c-list-item ">
+													<a href="?state=showcomments-6499&amp;show=6499#a6499" onclick="return qa_show_comments(6494, 6499, this);" class="qa-c-item-expand">Show 14 previous comments</a>
+													<div class="qa-c-item-footer">
+														<span class="qa-c-item-avatar-meta">
+															<span class="qa-c-item-meta">
+															</span>
+														</span>
+													</div>
+													<div class="qa-c-item-clear">
+													</div>
+												</div> <!-- END qa-c-item -->
+												<div class="qa-c-list-item  hentry comment" id="c6587">
+													<div class="qa-c-item-content">
+														<a name="6587"></a><div class="entry-content"><p>I've updated the page with a link to the code. The DOFs thing was a typo, it's actually the number of non zero coefficients, which is virtually identical, so the 'blackness' of the spy plot for the FEnics mesh is only significant in terms of sparsity pattern, not sparsity itself.</p>
+</div>
+													</div>
+													<div class="qa-c-item-footer">
+														<span class="qa-c-item-avatar-meta">
+															<span class="qa-c-item-avatar">
+																<a href="../../user/gjankowiak" class="qa-avatar-link"><img src="https://www.gravatar.com/avatar/443a144004e32cd89e9ad03d3f01c881?s=20" width="20" height="20" class="qa-avatar-image" alt=""></a>
+															</span>
+															<span class="qa-c-item-meta">
+																<a href="../../6494/assembly-performance-with-lagrange-multipliers?show=6587#c6587" class="qa-c-item-what">commented</a>
+																<span class="qa-c-item-when">
+																	<span class="qa-c-item-when-data"><span class="published"><span class="value-title" title="2015-02-21T12:57:09+0000"></span>Feb 21, 2015</span></span>
+																</span>
+																<span class="qa-c-item-who">
+																	<span class="qa-c-item-who-pad">by </span>
+																	<span class="qa-c-item-who-data"><span class="vcard author"><a href="../../user/gjankowiak" class="qa-user-link url nickname">gjankowiak</a></span></span>
+																	<span class="qa-c-item-who-title">FEniCS Novice</span>
+																	<span class="qa-c-item-who-points">
+																		<span class="qa-c-item-who-points-pad">(</span><span class="qa-c-item-who-points-data">880</span><span class="qa-c-item-who-points-pad"> points)</span>
+																	</span>
+																</span>
+															</span>
+														</span>
+														<div class="qa-c-item-buttons">
+														</div>
+													</div>
+													<div class="qa-c-item-clear">
+													</div>
+												</div> <!-- END qa-c-item -->
+												<div class="qa-c-list-item  hentry comment" id="c6590">
+													<div class="qa-c-item-content">
+														<a name="6590"></a><div class="entry-content"><p>Added your meshes and 1.4.0 patterns to <code>http://www.karlin.mff.cuni.cz/~blechta/q6494/</code>. Please add DOLFIN 1.5.0 figures for comparison to your web to make things clear. Don't you mind I'm reusing your <code>fenics_spy</code> function under LGPL license?</p>
+</div>
+													</div>
+													<div class="qa-c-item-footer">
+														<span class="qa-c-item-avatar-meta">
+															<span class="qa-c-item-avatar">
+																<a href="../../user/Jan+Blechta" class="qa-avatar-link"><img src="https://www.gravatar.com/avatar/dc6f8dce77e4a0bd5adc7ff31ab83741?s=20" width="20" height="20" class="qa-avatar-image" alt=""></a>
+															</span>
+															<span class="qa-c-item-meta">
+																<a href="../../6494/assembly-performance-with-lagrange-multipliers?show=6590#c6590" class="qa-c-item-what">commented</a>
+																<span class="qa-c-item-when">
+																	<span class="qa-c-item-when-data"><span class="published"><span class="value-title" title="2015-02-21T16:00:12+0000"></span>Feb 21, 2015</span></span>
+																</span>
+																<span class="qa-c-item-who">
+																	<span class="qa-c-item-who-pad">by </span>
+																	<span class="qa-c-item-who-data"><span class="vcard author"><a href="../../user/Jan+Blechta" class="qa-user-link url nickname">Jan Blechta</a></span></span>
+																	<span class="qa-c-item-who-title">FEniCS Expert</span>
+																	<span class="qa-c-item-who-points">
+																		<span class="qa-c-item-who-points-pad">(</span><span class="qa-c-item-who-points-data">51,420</span><span class="qa-c-item-who-points-pad"> points)</span>
+																	</span>
+																</span>
+															</span>
+														</span>
+														<div class="qa-c-item-buttons">
+														</div>
+													</div>
+													<div class="qa-c-item-clear">
+													</div>
+												</div> <!-- END qa-c-item -->
+												<div class="qa-c-list-item  hentry comment" id="c6591">
+													<div class="qa-c-item-content">
+														<a name="6591"></a><div class="entry-content"><p>Thanks for the graphs, I've added them. It looks much better with v1.5.0.</p>
+
+<p>As for the license, do as you please, <a rel="nofollow" href="http://wtfpl.net">WTFPL</a> style! Which license do you publish the "spy Stokes matrices for all the meshes" python snippet under?</p>
+</div>
+													</div>
+													<div class="qa-c-item-footer">
+														<span class="qa-c-item-avatar-meta">
+															<span class="qa-c-item-avatar">
+																<a href="../../user/gjankowiak" class="qa-avatar-link"><img src="https://www.gravatar.com/avatar/443a144004e32cd89e9ad03d3f01c881?s=20" width="20" height="20" class="qa-avatar-image" alt=""></a>
+															</span>
+															<span class="qa-c-item-meta">
+																<a href="../../6494/assembly-performance-with-lagrange-multipliers?show=6591#c6591" class="qa-c-item-what">commented</a>
+																<span class="qa-c-item-when">
+																	<span class="qa-c-item-when-data"><span class="published"><span class="value-title" title="2015-02-21T16:47:08+0000"></span>Feb 21, 2015</span></span>
+																</span>
+																<span class="qa-c-item-who">
+																	<span class="qa-c-item-who-pad">by </span>
+																	<span class="qa-c-item-who-data"><span class="vcard author"><a href="../../user/gjankowiak" class="qa-user-link url nickname">gjankowiak</a></span></span>
+																	<span class="qa-c-item-who-title">FEniCS Novice</span>
+																	<span class="qa-c-item-who-points">
+																		<span class="qa-c-item-who-points-pad">(</span><span class="qa-c-item-who-points-data">880</span><span class="qa-c-item-who-points-pad"> points)</span>
+																	</span>
+																</span>
+															</span>
+														</span>
+														<div class="qa-c-item-buttons">
+														</div>
+													</div>
+													<div class="qa-c-item-clear">
+													</div>
+												</div> <!-- END qa-c-item -->
+												<div class="qa-c-list-item  hentry comment" id="c6593">
+													<div class="qa-c-item-content">
+														<a name="6593"></a><div class="entry-content"><p>Thanks.</p>
+
+<p>It's LGPL, see <a rel="nofollow" href="http://www.karlin.mff.cuni.cz/~blechta/q6494/test.py">http://www.karlin.mff.cuni.cz/~blechta/q6494/test.py</a></p>
+</div>
+													</div>
+													<div class="qa-c-item-footer">
+														<span class="qa-c-item-avatar-meta">
+															<span class="qa-c-item-avatar">
+																<a href="../../user/Jan+Blechta" class="qa-avatar-link"><img src="https://www.gravatar.com/avatar/dc6f8dce77e4a0bd5adc7ff31ab83741?s=20" width="20" height="20" class="qa-avatar-image" alt=""></a>
+															</span>
+															<span class="qa-c-item-meta">
+																<a href="../../6494/assembly-performance-with-lagrange-multipliers?show=6593#c6593" class="qa-c-item-what">commented</a>
+																<span class="qa-c-item-when">
+																	<span class="qa-c-item-when-data"><span class="published"><span class="value-title" title="2015-02-21T18:42:12+0000"></span>Feb 21, 2015</span></span>
+																</span>
+																<span class="qa-c-item-who">
+																	<span class="qa-c-item-who-pad">by </span>
+																	<span class="qa-c-item-who-data"><span class="vcard author"><a href="../../user/Jan+Blechta" class="qa-user-link url nickname">Jan Blechta</a></span></span>
+																	<span class="qa-c-item-who-title">FEniCS Expert</span>
+																	<span class="qa-c-item-who-points">
+																		<span class="qa-c-item-who-points-pad">(</span><span class="qa-c-item-who-points-data">51,420</span><span class="qa-c-item-who-points-pad"> points)</span>
+																	</span>
+																</span>
+															</span>
+														</span>
+														<div class="qa-c-item-buttons">
+														</div>
+													</div>
+													<div class="qa-c-item-clear">
+													</div>
+												</div> <!-- END qa-c-item -->
+												<div class="qa-c-list-item  hentry comment" id="c6594">
+													<div class="qa-c-item-content">
+														<a name="6594"></a><div class="entry-content"><p>But if you need it with any less restrictive license, feel free to relicense snippets from discussion here with WTFPL.</p>
+</div>
+													</div>
+													<div class="qa-c-item-footer">
+														<span class="qa-c-item-avatar-meta">
+															<span class="qa-c-item-avatar">
+																<a href="../../user/Jan+Blechta" class="qa-avatar-link"><img src="https://www.gravatar.com/avatar/dc6f8dce77e4a0bd5adc7ff31ab83741?s=20" width="20" height="20" class="qa-avatar-image" alt=""></a>
+															</span>
+															<span class="qa-c-item-meta">
+																<a href="../../6494/assembly-performance-with-lagrange-multipliers?show=6594#c6594" class="qa-c-item-what">commented</a>
+																<span class="qa-c-item-when">
+																	<span class="qa-c-item-when-data"><span class="published"><span class="value-title" title="2015-02-21T19:00:21+0000"></span>Feb 21, 2015</span></span>
+																</span>
+																<span class="qa-c-item-who">
+																	<span class="qa-c-item-who-pad">by </span>
+																	<span class="qa-c-item-who-data"><span class="vcard author"><a href="../../user/Jan+Blechta" class="qa-user-link url nickname">Jan Blechta</a></span></span>
+																	<span class="qa-c-item-who-title">FEniCS Expert</span>
+																	<span class="qa-c-item-who-points">
+																		<span class="qa-c-item-who-points-pad">(</span><span class="qa-c-item-who-points-data">51,420</span><span class="qa-c-item-who-points-pad"> points)</span>
+																	</span>
+																</span>
+															</span>
+														</span>
+														<div class="qa-c-item-buttons">
+														</div>
+													</div>
+													<div class="qa-c-item-clear">
+													</div>
+												</div> <!-- END qa-c-item -->
+											</div> <!-- END qa-c-list -->
+											
+											<input type="hidden" name="code" value="0-1516468074-69912e1e3d0cd9fe5691a05e6d8ee03547d5ff28">
+											<input type="hidden" name="qa_click" value="">
+										</form>
+										<div class="qa-c-form">
+										</div> <!-- END qa-c-form -->
+										
+									</div> <!-- END qa-a-item-main -->
+									<div class="qa-a-item-clear">
+									</div>
+								</div> <!-- END qa-a-list-item -->
+								
+							</div> <!-- END qa-a-list -->
+							
+						</div>
+					</div> <!-- END qa-main -->
+					
+				</div> <!-- END main-wrapper -->
+			</div> <!-- END main-shadow -->
+		</div> <!-- END body-wrapper -->
+		<!-- END footer-bottom-group -->
+		
+		<div style="position:absolute; left:-9999px; top:-9999px;">
+			<span id="qa-waiting-template" class="qa-waiting">...</span>
+		</div>
+	
+	
+
+</body><!-- Powered by Question2Answer - http://www.question2answer.org/ --></html>

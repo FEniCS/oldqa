@@ -1,0 +1,576 @@
+<html><!-- Powered by Question2Answer - http://www.question2answer.org/ --><head>
+		<meta http-equiv="content-type" content="text/html; charset=utf-8">
+		<title>Different materials implementation via Expression - FEniCS Q&amp;A</title>
+		<meta name="description" content="Hi, based on the answer in http://fenicsproject.org/qa/9099/ I am trying to implement an example ... with eval_cell(). Any ideas, what the problem is?">
+		<meta name="keywords" content="class,expression,different-materials">
+		<link rel="stylesheet" type="text/css" href="../../qa-theme/Snow/qa-styles.css">
+		<link rel="canonical" href="http://fenicsproject.org/qa/10369/different-materials-implementation-via-expression">
+		<script type="text/x-mathjax-config">
+  MathJax.Hub.Config({
+    extensions: ["tex2jax.js"],
+    jax: ["input/TeX","output/HTML-CSS"],
+    tex2jax: {inlineMath: [["$","$"],["\\(","\\)"]]},
+    TeX: { extensions: ["AMSmath.js","AMSsymbols.js"]}
+  });
+</script>
+<script type="text/javascript" src="../../mathjax/MathJax.js"></script>
+		<script src="../../jquery-1.7.2.min.js" type="text/javascript"></script>
+		<script src="../../highlight.min.js"></script>
+<script type="text/javascript">
+$(function(){
+	$('.wmd-input').keypress(function(){
+		window.clearTimeout(hljs.Timeout);
+		hljs.Timeout = window.setTimeout(function() {
+			hljs.initHighlighting.called = false;
+			hljs.initHighlighting();
+		}, 500);
+	});
+	window.setTimeout(function() {
+		hljs.initHighlighting.called = false;
+		hljs.initHighlighting();
+	}, 500);
+});
+</script>
+
+
+	</head>
+	<body class="qa-template-question qa-body-js-off">
+		<div class="qa-body-wrapper">
+			
+			<div class="qa-header">
+				<div class="qa-logo">
+					<a href="../../" class="qa-logo-link" title="FEniCS Q&amp;A"><img src="../../qa-theme/fenics_qa.png" border="0" alt="FEniCS Q&amp;A"></a>
+				</div>
+				<div class="qa-header-clear">
+				</div>
+			</div> <!-- END qa-header -->
+			
+			<div class="qa-main-shadow">
+				
+				<div class="qa-main-wrapper">
+					
+					<div class="qa-sidepanel">
+						<div class="qa-sidebar">
+							This is a read only copy of the old FEniCS QA forum. Please visit the <a href="https://www.allanswered.com/community/s/fenics-project/">new QA forum</a> to ask questions
+						</div>
+						
+					</div>
+					
+					<div class="qa-main">
+						<h1>
+							<span class="entry-title">Different materials implementation via Expression</span>
+						</h1>
+						<div class="qa-part-q-view">
+							<div class="qa-q-view  hentry question" id="q10369">
+								<form method="post" action="../../10369/different-materials-implementation-via-expression">
+									<div class="qa-q-view-stats">
+										<div class="qa-voting qa-voting-net" id="voting_10369">
+											<div class="qa-vote-count qa-vote-count-net">
+												<span class="qa-netvote-count">
+													<span class="qa-netvote-count-data">0<span class="votes-up"><span class="value-title" title="0"></span></span><span class="votes-down"><span class="value-title" title="0"></span></span></span><span class="qa-netvote-count-pad"> votes</span>
+												</span>
+											</div>
+											<div class="qa-vote-clear">
+											</div>
+										</div>
+									</div>
+									<input type="hidden" name="code" value="0-1516467055-e2310cb9f8029d93a3eb19149ee65996c053ae20">
+								</form>
+								<div class="qa-q-view-main">
+									<form method="post" action="../../10369/different-materials-implementation-via-expression">
+										<div class="qa-q-view-content">
+											<a name="10369"></a><div class="entry-content"><p>Hi, based on the answer in <a rel="nofollow" href="http://fenicsproject.org/qa/9099/">http://fenicsproject.org/qa/9099/</a> I am trying to implement an example with several domains of different materials and facing a problem. Here is the shortest version, which indicates clearly the problem that I cannot solve:</p>
+
+<pre><code>from fenics import *
+
+class material_parameters_rank4(Expression):
+    def __init__(self, cell_function, params, domain):
+        self.cell_function = cell_function
+        self.params = params
+        self._domain = domain
+    def eval_cell(self, values, x, cell):
+        domain_id = self.cell_function[cell.index] - 1
+        values = self.params[domain_id]
+    def value_shape(self):
+        return (3,3,3,3)
+
+xl,yl,zl = 500.,100.,100.
+mesh = BoxMesh(Point(0, 0, 0), Point(xl, yl, zl), 25, 5, 5)
+cells = CellFunction('size_t', mesh)
+facets = FacetFunction('size_t', mesh)
+N = FacetNormal(mesh)
+
+Space = VectorFunctionSpace(mesh, 'P', 1)
+dA = Measure('ds', domain=mesh, subdomain_data=facets)
+dV = Measure('dx', domain=mesh, subdomain_data=cells)
+
+left = CompiledSubDomain('near(x[0], 0) &amp;&amp; on_boundary')
+right = CompiledSubDomain('near(x[0], length) &amp;&amp; on_boundary', length=xl)
+facets.set_all(0)
+right.mark(facets, 1)
+left.mark(facets, 2)
+bc1 = DirichletBC(Space.sub(1), 1.0, facets, 1)
+bc2 = DirichletBC(Space, Constant((0.0, 0.0, 0.0)), facets, 2)
+bc = [bc1,bc2]
+
+mat1 = CompiledSubDomain('x[0] &gt; half',half=xl/2.)
+cells.set_all(1)
+mat1.mark(cells,2)
+
+i, j, k, l = indices(4)
+delta = Identity(3)
+C_b = as_tensor(10E10*delta[i,j]*delta[k,l] + 1E10*delta[i,k]*delta[j,l] + 1E10*delta[i,l]*delta[j,k], (i,j,k,l))
+
+C =  material_parameters_rank4(cells, [C_b, C_b], domain=mesh)
+#C=C_b
+
+du = TrialFunction(Space)
+del_u = TestFunction(Space)
+u = Function(Space)
+
+eps = sym(grad(u))
+tau = as_tensor(C[j,i,k,l]*eps[k,l] , (j,i))
+
+F_u =  tau[j,i]*del_u[i].dx(j) *(dV(1)+dV(2))
+
+Form = F_u 
+Gain = derivative(Form, u, du)
+
+solve(Form == 0, u, bc, J=Gain, \
+    solver_parameters={"newton_solver":{"linear_solver": "mumps", "relative_tolerance": 1e-3} }, \
+    form_compiler_parameters={"cpp_optimize": True, "representation": "quadrature", "quadrature_degree": 2}  )
+</code></pre>
+
+<p>By changing C=C_b everything works as expected. Obviously, the problem is in the subclass implementation. I need a solution, where I can use as input to the Expression an object like: as_tensor(). This is why I am giving the extra piece of information domain=mesh and not using Constant() with eval_cell().</p>
+
+<p>Any ideas, what the problem is?</p>
+</div>
+										</div>
+										<div class="qa-q-view-tags">
+											<ul class="qa-q-view-tag-list">
+												<li class="qa-q-view-tag-item"><a href="../../tag/class" rel="tag" class="qa-tag-link">class</a></li>
+												<li class="qa-q-view-tag-item"><a href="../../tag/expression" rel="tag" class="qa-tag-link">expression</a></li>
+												<li class="qa-q-view-tag-item"><a href="../../tag/different-materials" rel="tag" class="qa-tag-link">different-materials</a></li>
+											</ul>
+										</div>
+										<span class="qa-q-view-avatar-meta">
+											<span class="qa-q-view-meta">
+												<a href="../../10369/different-materials-implementation-via-expression" class="qa-q-view-what">asked</a>
+												<span class="qa-q-view-when">
+													<span class="qa-q-view-when-data"><span class="published"><span class="value-title" title="2016-06-15T09:50:51+0000"></span>Jun 15, 2016</span></span>
+												</span>
+												<span class="qa-q-view-who">
+													<span class="qa-q-view-who-pad">by </span>
+													<span class="qa-q-view-who-data"><span class="vcard author"><a href="../../user/emek" class="qa-user-link url nickname">emek</a></span></span>
+													<span class="qa-q-view-who-title">FEniCS Novice</span>
+													<span class="qa-q-view-who-points">
+														<span class="qa-q-view-who-points-pad">(</span><span class="qa-q-view-who-points-data">170</span><span class="qa-q-view-who-points-pad"> points)</span>
+													</span>
+												</span>
+												<br>
+												<span class="qa-q-view-what">edited</span>
+												<span class="qa-q-view-when">
+													<span class="qa-q-view-when-data"><span class="updated"><span class="value-title" title="2016-06-15T09:58:03+0000"></span>Jun 15, 2016</span></span>
+												</span>
+												<span class="qa-q-view-who">
+													<span class="qa-q-view-who-pad">by </span><span class="qa-q-view-who-data"><a href="../../user/emek" class="qa-user-link url nickname">emek</a></span>
+												</span>
+											</span>
+										</span>
+										<div class="qa-q-view-buttons">
+										</div>
+										
+										<div class="qa-q-view-c-list" id="c10369_list">
+											<div class="qa-c-list-item  hentry comment" id="c10406">
+												<div class="qa-c-item-content">
+													<a name="10406"></a><div class="entry-content"><p>Hi, evaluating expression is expected to return computed values (numbers) while in your code you set values to something that needs to be further evaluated (C_b). So you have a design decision to make: implement the problem in such a way that C_b is returned, e.g. conditional, or modify the current solution such that C_b can be evaluated and then values=evaluate(C_b).</p>
+</div>
+												</div>
+												<div class="qa-c-item-footer">
+													<span class="qa-c-item-avatar-meta">
+														<span class="qa-c-item-avatar">
+															<a href="../../user/MiroK" class="qa-avatar-link"><img src="https://www.gravatar.com/avatar/f566be3274ec73e3a6dda27bca11631c?s=20" width="20" height="20" class="qa-avatar-image" alt=""></a>
+														</span>
+														<span class="qa-c-item-meta">
+															<a href="../../10369/different-materials-implementation-via-expression?show=10406#c10406" class="qa-c-item-what">commented</a>
+															<span class="qa-c-item-when">
+																<span class="qa-c-item-when-data"><span class="published"><span class="value-title" title="2016-06-17T09:37:36+0000"></span>Jun 17, 2016</span></span>
+															</span>
+															<span class="qa-c-item-who">
+																<span class="qa-c-item-who-pad">by </span>
+																<span class="qa-c-item-who-data"><span class="vcard author"><a href="../../user/MiroK" class="qa-user-link url nickname">MiroK</a></span></span>
+																<span class="qa-c-item-who-title">FEniCS Expert</span>
+																<span class="qa-c-item-who-points">
+																	<span class="qa-c-item-who-points-pad">(</span><span class="qa-c-item-who-points-data">80,920</span><span class="qa-c-item-who-points-pad"> points)</span>
+																</span>
+															</span>
+														</span>
+													</span>
+													<div class="qa-c-item-buttons">
+													</div>
+												</div>
+												<div class="qa-c-item-clear">
+												</div>
+											</div> <!-- END qa-c-item -->
+											<div class="qa-c-list-item  hentry comment" id="c10407">
+												<div class="qa-c-item-content">
+													<a name="10407"></a><div class="entry-content"><p>Hi, I have thought that values in eval_cell is the necessary evaluation. </p>
+
+<p>Can you modify the example script above such that C is the first object in [C_b, C_b] for the first material and the second object for the second material?</p>
+
+<p>An interpolation or projection cannot be done since C is a tensor of rank 4. If you can implement the conditional operator and show it here, that would be a great help!</p>
+
+<p>By the way I found out that the problem is in the nonlinear iteration. The same code is working by solving the linear problem, which is possible in the toy example here (but not in general). Thus, I guess that you are somehow right but I cannot follow. Please, for my understanding, modify the example and post it as an answer.</p>
+</div>
+												</div>
+												<div class="qa-c-item-footer">
+													<span class="qa-c-item-avatar-meta">
+														<span class="qa-c-item-meta">
+															<a href="../../10369/different-materials-implementation-via-expression?show=10407#c10407" class="qa-c-item-what">commented</a>
+															<span class="qa-c-item-when">
+																<span class="qa-c-item-when-data"><span class="published"><span class="value-title" title="2016-06-17T10:55:42+0000"></span>Jun 17, 2016</span></span>
+															</span>
+															<span class="qa-c-item-who">
+																<span class="qa-c-item-who-pad">by </span>
+																<span class="qa-c-item-who-data"><span class="vcard author"><a href="../../user/emek" class="qa-user-link url nickname">emek</a></span></span>
+																<span class="qa-c-item-who-title">FEniCS Novice</span>
+																<span class="qa-c-item-who-points">
+																	<span class="qa-c-item-who-points-pad">(</span><span class="qa-c-item-who-points-data">170</span><span class="qa-c-item-who-points-pad"> points)</span>
+																</span>
+															</span>
+														</span>
+													</span>
+													<div class="qa-c-item-buttons">
+													</div>
+												</div>
+												<div class="qa-c-item-clear">
+												</div>
+											</div> <!-- END qa-c-item -->
+										</div> <!-- END qa-c-list -->
+										
+										<input type="hidden" name="code" value="0-1516467055-7877825c0468febbc9f98831f63b293e763f1b5d">
+										<input type="hidden" name="qa_click" value="">
+									</form>
+									<div class="qa-c-form">
+									</div> <!-- END qa-c-form -->
+									
+								</div> <!-- END qa-q-view-main -->
+								<div class="qa-q-view-clear">
+								</div>
+							</div> <!-- END qa-q-view -->
+							
+						</div>
+						<div class="qa-part-a-list">
+							<h2 id="a_list_title">2 Answers</h2>
+							<div class="qa-a-list" id="a_list">
+								
+								<div class="qa-a-list-item  hentry answer answer-selected qa-a-list-item-selected" id="a10413">
+									<form method="post" action="../../10369/different-materials-implementation-via-expression">
+										<div class="qa-voting qa-voting-net" id="voting_10413">
+											<div class="qa-vote-count qa-vote-count-net">
+												<span class="qa-netvote-count">
+													<span class="qa-netvote-count-data">0<span class="votes-up"><span class="value-title" title="0"></span></span><span class="votes-down"><span class="value-title" title="0"></span></span></span><span class="qa-netvote-count-pad"> votes</span>
+												</span>
+											</div>
+											<div class="qa-vote-clear">
+											</div>
+										</div>
+										<input type="hidden" name="code" value="0-1516467055-e2310cb9f8029d93a3eb19149ee65996c053ae20">
+									</form>
+									<div class="qa-a-item-main">
+										<form method="post" action="../../10369/different-materials-implementation-via-expression">
+											<div class="qa-a-item-selected">
+												<div class="qa-a-selection">
+													<div class="qa-a-selected">&#160;</div>
+													<div class="qa-a-selected-text">Best answer</div>
+												</div>
+												<div class="qa-a-item-content">
+													<a name="10413"></a><div class="entry-content"><p>Hi, my understanding is that you want different rank4 tensors in different domains. One possibility is to implement this with UFL. Consider something like this </p>
+
+<pre><code>from dolfin import *
+
+mesh = UnitCubeMesh(4, 4, 4)
+
+# The domains will be marked by DG0 function
+S = FunctionSpace(mesh, 'DG', 0)
+domains = interpolate(Expression('(x[2] &gt; 0.5-DOLFIN_EPS) ? 1 : 2', degree=1), S)
+
+# Let the tensor depend on domains
+def tensor_conditional(predicate, tvalue, fvalue):
+    '''
+    tensor_conditional is a generalization of UFL.conditional. The latter allows
+    the return values to be scalars only. In tensor_functional the true and 
+    false value can have arbitrary (matching) shape.
+    '''
+    assert tvalue.ufl_shape == fvalue.ufl_shape
+
+    rank = len(tvalue.ufl_shape)
+    # Scalar case
+    if rank == 0: return conditional(predicate, tvalue, fvalue)
+    # Vector base case
+    if rank == 1:
+        dim = tvalue.ufl_shape[0]
+        conds = [conditional(predicate, tvalue[i], fvalue[i]) for i in range(dim)]
+        return as_vector(conds)
+    # Higher order recursively
+    else:
+        dim = tvalue.ufl_shape[0]
+        return as_vector([tensor_conditional(predicate, tvalue[i, Ellipsis], fvalue[i, Ellipsis])
+                          for i in range(dim)])
+
+
+i, j, k, l = indices(4)
+delta = Identity(3)
+C_1 = as_tensor(delta[i,j]*delta[k,l], (i, j, k, l))  # value for domain 1
+C_2 = as_tensor(delta[i,k]*delta[j,l], (i, j, k, l))  # ... for domain 2
+C = tensor_conditional(lt(domains, 1.5), C_1, C_2)    # switch on indicator
+
+V = VectorFunctionSpace(mesh, 'P', 1)
+du = TrialFunction(V)
+del_u = TestFunction(V)
+u = Function(V)
+
+eps = sym(grad(u))
+tau = as_tensor(C[j,i,k,l]*eps[k,l] , (j,i))
+
+F_u = tau[j,i]*del_u[i].dx(j)*dx
+
+Form = F_u 
+Gain = derivative(Form, u, du)
+
+A = assemble(Gain)
+assert A.norm('linf') &gt; 0
+</code></pre>
+</div>
+												</div>
+												<span class="qa-a-item-avatar-meta">
+													<span class="qa-a-item-avatar">
+														<a href="../../user/MiroK" class="qa-avatar-link"><img src="https://www.gravatar.com/avatar/f566be3274ec73e3a6dda27bca11631c?s=40" width="40" height="40" class="qa-avatar-image" alt=""></a>
+													</span>
+													<span class="qa-a-item-meta">
+														<a href="../../10369/different-materials-implementation-via-expression?show=10413#a10413" class="qa-a-item-what">answered</a>
+														<span class="qa-a-item-when">
+															<span class="qa-a-item-when-data"><span class="published"><span class="value-title" title="2016-06-17T16:54:01+0000"></span>Jun 17, 2016</span></span>
+														</span>
+														<span class="qa-a-item-who">
+															<span class="qa-a-item-who-pad">by </span>
+															<span class="qa-a-item-who-data"><span class="vcard author"><a href="../../user/MiroK" class="qa-user-link url nickname">MiroK</a></span></span>
+															<span class="qa-a-item-who-title">FEniCS Expert</span>
+															<span class="qa-a-item-who-points">
+																<span class="qa-a-item-who-points-pad">(</span><span class="qa-a-item-who-points-data">80,920</span><span class="qa-a-item-who-points-pad"> points)</span>
+															</span>
+														</span>
+														<br>
+														<span class="qa-a-item-what">selected</span>
+														<span class="qa-a-item-when">
+															<span class="qa-a-item-when-data"><span class="updated"><span class="value-title" title="2016-06-20T11:09:55+0000"></span>Jun 20, 2016</span></span>
+														</span>
+														<span class="qa-a-item-who">
+															<span class="qa-a-item-who-pad">by </span><span class="qa-a-item-who-data"><a href="../../user/emek" class="qa-user-link url nickname">emek</a></span>
+														</span>
+													</span>
+												</span>
+											</div>
+											<div class="qa-a-item-buttons">
+												</div>
+											
+											<div class="qa-a-item-c-list" id="c10413_list">
+												<div class="qa-c-list-item  hentry comment" id="c10437">
+													<div class="qa-c-item-content">
+														<a name="10437"></a><div class="entry-content"><p>Thanks, that is a nice idea! Thanks for the code. </p>
+
+<p>Is there a way of having more than just True or False, if a domain with three different materials shall be modeled?</p>
+</div>
+													</div>
+													<div class="qa-c-item-footer">
+														<span class="qa-c-item-avatar-meta">
+															<span class="qa-c-item-meta">
+																<a href="../../10369/different-materials-implementation-via-expression?show=10437#c10437" class="qa-c-item-what">commented</a>
+																<span class="qa-c-item-when">
+																	<span class="qa-c-item-when-data"><span class="published"><span class="value-title" title="2016-06-20T11:13:07+0000"></span>Jun 20, 2016</span></span>
+																</span>
+																<span class="qa-c-item-who">
+																	<span class="qa-c-item-who-pad">by </span>
+																	<span class="qa-c-item-who-data"><span class="vcard author"><a href="../../user/emek" class="qa-user-link url nickname">emek</a></span></span>
+																	<span class="qa-c-item-who-title">FEniCS Novice</span>
+																	<span class="qa-c-item-who-points">
+																		<span class="qa-c-item-who-points-pad">(</span><span class="qa-c-item-who-points-data">170</span><span class="qa-c-item-who-points-pad"> points)</span>
+																	</span>
+																</span>
+															</span>
+														</span>
+														<div class="qa-c-item-buttons">
+														</div>
+													</div>
+													<div class="qa-c-item-clear">
+													</div>
+												</div> <!-- END qa-c-item -->
+												<div class="qa-c-list-item  hentry comment" id="c10439">
+													<div class="qa-c-item-content">
+														<a name="10439"></a><div class="entry-content"><p>Yes, the conditionals can be nested. Consider</p>
+
+<pre><code>i, j, k, l = indices(4)
+delta = Identity(3)
+C_1 = as_tensor(delta[i,j]*delta[k,l], (i, j, k, l))  # value for domain 1
+C_2 = as_tensor(delta[i,k]*delta[j,l], (i, j, k, l))  # ... for domain 2
+C_3 = as_tensor(delta[i,l]*delta[j,k], (i, j, k, l))  # ... for domain 3
+
+mesh = UnitCubeMesh(4, 4, 6)
+# The domains will be marked by DG0 function
+S = FunctionSpace(mesh, 'DG', 0)
+domains = interpolate(Expression('(x[2] &gt; 0.5-DOLFIN_EPS) ? 1 : ((x[2] &gt; 0.25-DOLFIN_EPS) ? 2 : 3)', degree=1), S) 
+
+C = tensor_conditional(lt(domains, 1.5),
+                       C_1,
+                       tensor_conditional(lt(domains, 2.5),
+                                          C_2,
+                                          C_3))
+</code></pre>
+</div>
+													</div>
+													<div class="qa-c-item-footer">
+														<span class="qa-c-item-avatar-meta">
+															<span class="qa-c-item-avatar">
+																<a href="../../user/MiroK" class="qa-avatar-link"><img src="https://www.gravatar.com/avatar/f566be3274ec73e3a6dda27bca11631c?s=20" width="20" height="20" class="qa-avatar-image" alt=""></a>
+															</span>
+															<span class="qa-c-item-meta">
+																<a href="../../10369/different-materials-implementation-via-expression?show=10439#c10439" class="qa-c-item-what">commented</a>
+																<span class="qa-c-item-when">
+																	<span class="qa-c-item-when-data"><span class="published"><span class="value-title" title="2016-06-20T11:29:00+0000"></span>Jun 20, 2016</span></span>
+																</span>
+																<span class="qa-c-item-who">
+																	<span class="qa-c-item-who-pad">by </span>
+																	<span class="qa-c-item-who-data"><span class="vcard author"><a href="../../user/MiroK" class="qa-user-link url nickname">MiroK</a></span></span>
+																	<span class="qa-c-item-who-title">FEniCS Expert</span>
+																	<span class="qa-c-item-who-points">
+																		<span class="qa-c-item-who-points-pad">(</span><span class="qa-c-item-who-points-data">80,920</span><span class="qa-c-item-who-points-pad"> points)</span>
+																	</span>
+																</span>
+															</span>
+														</span>
+														<div class="qa-c-item-buttons">
+														</div>
+													</div>
+													<div class="qa-c-item-clear">
+													</div>
+												</div> <!-- END qa-c-item -->
+											</div> <!-- END qa-c-list -->
+											
+											<input type="hidden" name="code" value="0-1516467055-4999e0c877af91022dcfa6553a0cbf84eb93d861">
+											<input type="hidden" name="qa_click" value="">
+										</form>
+										<div class="qa-c-form">
+										</div> <!-- END qa-c-form -->
+										
+									</div> <!-- END qa-a-item-main -->
+									<div class="qa-a-item-clear">
+									</div>
+								</div> <!-- END qa-a-list-item -->
+								
+								<div class="qa-a-list-item  hentry answer" id="a10373">
+									<form method="post" action="../../10369/different-materials-implementation-via-expression">
+										<div class="qa-voting qa-voting-net" id="voting_10373">
+											<div class="qa-vote-count qa-vote-count-net">
+												<span class="qa-netvote-count">
+													<span class="qa-netvote-count-data">0<span class="votes-up"><span class="value-title" title="0"></span></span><span class="votes-down"><span class="value-title" title="0"></span></span></span><span class="qa-netvote-count-pad"> votes</span>
+												</span>
+											</div>
+											<div class="qa-vote-clear">
+											</div>
+										</div>
+										<input type="hidden" name="code" value="0-1516467055-e2310cb9f8029d93a3eb19149ee65996c053ae20">
+									</form>
+									<div class="qa-a-item-main">
+										<form method="post" action="../../10369/different-materials-implementation-via-expression">
+											<div class="qa-a-selection">
+											</div>
+											<div class="qa-a-item-content">
+												<a name="10373"></a><div class="entry-content"><p>How about splitting up the variational form using dx(0), dx(1) etc., where</p>
+
+<pre><code>dx = Measure("dx")[cells]
+</code></pre>
+
+<p>?</p>
+</div>
+											</div>
+											<span class="qa-a-item-avatar-meta">
+												<span class="qa-a-item-avatar">
+													<a href="../../user/KristianE" class="qa-avatar-link"><img src="https://www.gravatar.com/avatar/8e8c30d82e263e44bd8fe50055a60421?s=40" width="40" height="40" class="qa-avatar-image" alt=""></a>
+												</span>
+												<span class="qa-a-item-meta">
+													<a href="../../10369/different-materials-implementation-via-expression?show=10373#a10373" class="qa-a-item-what">answered</a>
+													<span class="qa-a-item-when">
+														<span class="qa-a-item-when-data"><span class="published"><span class="value-title" title="2016-06-15T17:01:40+0000"></span>Jun 15, 2016</span></span>
+													</span>
+													<span class="qa-a-item-who">
+														<span class="qa-a-item-who-pad">by </span>
+														<span class="qa-a-item-who-data"><span class="vcard author"><a href="../../user/KristianE" class="qa-user-link url nickname">KristianE</a></span></span>
+														<span class="qa-a-item-who-title">FEniCS Expert</span>
+														<span class="qa-a-item-who-points">
+															<span class="qa-a-item-who-points-pad">(</span><span class="qa-a-item-who-points-data">12,900</span><span class="qa-a-item-who-points-pad"> points)</span>
+														</span>
+													</span>
+												</span>
+											</span>
+											<div class="qa-a-item-buttons">
+												</div>
+											
+											<div class="qa-a-item-c-list" id="c10373_list">
+												<div class="qa-c-list-item  hentry comment" id="c10375">
+													<div class="qa-c-item-content">
+														<a name="10375"></a><div class="entry-content"><p>Although possible for this very simple problem, it is not a solution in general. This script is a short version of the problem that I cannot solve. In the "real" problem, there are jumps across the singularities (between two materials) so the material equation has to be one single function. </p>
+</div>
+													</div>
+													<div class="qa-c-item-footer">
+														<span class="qa-c-item-avatar-meta">
+															<span class="qa-c-item-meta">
+																<a href="../../10369/different-materials-implementation-via-expression?show=10375#c10375" class="qa-c-item-what">commented</a>
+																<span class="qa-c-item-when">
+																	<span class="qa-c-item-when-data"><span class="published"><span class="value-title" title="2016-06-15T18:42:02+0000"></span>Jun 15, 2016</span></span>
+																</span>
+																<span class="qa-c-item-who">
+																	<span class="qa-c-item-who-pad">by </span>
+																	<span class="qa-c-item-who-data"><span class="vcard author"><a href="../../user/emek" class="qa-user-link url nickname">emek</a></span></span>
+																	<span class="qa-c-item-who-title">FEniCS Novice</span>
+																	<span class="qa-c-item-who-points">
+																		<span class="qa-c-item-who-points-pad">(</span><span class="qa-c-item-who-points-data">170</span><span class="qa-c-item-who-points-pad"> points)</span>
+																	</span>
+																</span>
+															</span>
+														</span>
+														<div class="qa-c-item-buttons">
+														</div>
+													</div>
+													<div class="qa-c-item-clear">
+													</div>
+												</div> <!-- END qa-c-item -->
+											</div> <!-- END qa-c-list -->
+											
+											<input type="hidden" name="code" value="0-1516467055-907df0efe116e2a155cb70097345be1dd86c86f4">
+											<input type="hidden" name="qa_click" value="">
+										</form>
+										<div class="qa-c-form">
+										</div> <!-- END qa-c-form -->
+										
+									</div> <!-- END qa-a-item-main -->
+									<div class="qa-a-item-clear">
+									</div>
+								</div> <!-- END qa-a-list-item -->
+								
+							</div> <!-- END qa-a-list -->
+							
+						</div>
+					</div> <!-- END qa-main -->
+					
+				</div> <!-- END main-wrapper -->
+			</div> <!-- END main-shadow -->
+		</div> <!-- END body-wrapper -->
+		<!-- END footer-bottom-group -->
+		
+		<div style="position:absolute; left:-9999px; top:-9999px;">
+			<span id="qa-waiting-template" class="qa-waiting">...</span>
+		</div>
+	
+	
+
+</body><!-- Powered by Question2Answer - http://www.question2answer.org/ --></html>

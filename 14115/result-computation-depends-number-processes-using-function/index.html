@@ -1,0 +1,338 @@
+<html><!-- Powered by Question2Answer - http://www.question2answer.org/ --><head>
+		<meta http-equiv="content-type" content="text/html; charset=utf-8">
+		<title>Result of FEM computation depends on number of processes: issue with using a 2D function in 3D? - FEniCS Q&amp;A</title>
+		<meta name="description" content="Dear All, I have a fenics code whose results depend on the number of processes when  ... dropbox.com/sh/kp9o8cxuq0z1rgb/AADge_-tQPkj-oM0Sj4rD9zNa?dl=0">
+		<meta name="keywords" content="bug,2d,3d,parallel">
+		<link rel="stylesheet" type="text/css" href="../../qa-theme/Snow/qa-styles.css">
+		<link rel="canonical" href="http://fenicsproject.org/qa/14115/result-computation-depends-number-processes-using-function">
+		<script type="text/x-mathjax-config">
+  MathJax.Hub.Config({
+    extensions: ["tex2jax.js"],
+    jax: ["input/TeX","output/HTML-CSS"],
+    tex2jax: {inlineMath: [["$","$"],["\\(","\\)"]]},
+    TeX: { extensions: ["AMSmath.js","AMSsymbols.js"]}
+  });
+</script>
+<script type="text/javascript" src="../../mathjax/MathJax.js"></script>
+		<script src="../../jquery-1.7.2.min.js" type="text/javascript"></script>
+		<script src="../../highlight.min.js"></script>
+<script type="text/javascript">
+$(function(){
+	$('.wmd-input').keypress(function(){
+		window.clearTimeout(hljs.Timeout);
+		hljs.Timeout = window.setTimeout(function() {
+			hljs.initHighlighting.called = false;
+			hljs.initHighlighting();
+		}, 500);
+	});
+	window.setTimeout(function() {
+		hljs.initHighlighting.called = false;
+		hljs.initHighlighting();
+	}, 500);
+});
+</script>
+
+
+	</head>
+	<body class="qa-template-question qa-body-js-off">
+		<div class="qa-body-wrapper">
+			
+			<div class="qa-header">
+				<div class="qa-logo">
+					<a href="../../" class="qa-logo-link" title="FEniCS Q&amp;A"><img src="../../qa-theme/fenics_qa.png" border="0" alt="FEniCS Q&amp;A"></a>
+				</div>
+				<div class="qa-header-clear">
+				</div>
+			</div> <!-- END qa-header -->
+			
+			<div class="qa-main-shadow">
+				
+				<div class="qa-main-wrapper">
+					
+					<div class="qa-sidepanel">
+						<div class="qa-sidebar">
+							This is a read only copy of the old FEniCS QA forum. Please visit the <a href="https://www.allanswered.com/community/s/fenics-project/">new QA forum</a> to ask questions
+						</div>
+						
+					</div>
+					
+					<div class="qa-main">
+						<h1>
+							<span class="entry-title">Result of FEM computation depends on number of processes: issue with using a 2D function in 3D?</span>
+						</h1>
+						<div class="qa-part-q-view">
+							<div class="qa-q-view  hentry question" id="q14115">
+								<form method="post" action="../../14115/result-computation-depends-number-processes-using-function">
+									<div class="qa-q-view-stats">
+										<div class="qa-voting qa-voting-net" id="voting_14115">
+											<div class="qa-vote-count qa-vote-count-net">
+												<span class="qa-netvote-count">
+													<span class="qa-netvote-count-data">0<span class="votes-up"><span class="value-title" title="0"></span></span><span class="votes-down"><span class="value-title" title="0"></span></span></span><span class="qa-netvote-count-pad"> votes</span>
+												</span>
+											</div>
+											<div class="qa-vote-clear">
+											</div>
+										</div>
+									</div>
+									<input type="hidden" name="code" value="0-1516466507-90648cd708d7f12772159a868bb966a05d7176d9">
+								</form>
+								<div class="qa-q-view-main">
+									<form method="post" action="../../14115/result-computation-depends-number-processes-using-function">
+										<div class="qa-q-view-content">
+											<a name="14115"></a><div class="entry-content"><p>Dear All,</p>
+
+<p>I have a fenics code whose results depend on the number of processes when ran in parallel. Not surprisingly I am deeply concerned about this. After my analysis I am not sure whether it is a bug. Anyhow, if somebody knew about a workaround that would be great.</p>
+
+<p>I am solving a steady state advection diffusion equation in 3D with a 2D velocity u(x,y). I solve the velocity field in a separate program, load it from disk, and use Expression to define a 3D velocity g(x,y,z)=u(x,y) which I can use when I define the bilinear form.</p>
+
+<p>The general idea is outlined below. I played with my code and found that if I replace the line which is marked by #(*) below (e. g., I do not call u_old(x,y)), the problem does not occur.</p>
+
+<pre><code>from dolfin import *
+from mpi4py import MPI
+
+comm = MPI.COMM_WORLD
+rank = comm.Get_rank()
+
+#Some global variables
+Order = 2
+
+def MakeUFunction2(FlowFieldMesh="TestFlowMesh",FlowField="TestFlowField"):
+   old_mesh=Mesh(FlowFieldMesh+".xml")
+   V_old = FunctionSpace(old_mesh,"Lagrange",Order)
+   u_old = Function(V_old,FlowField+".xml")
+   u_old.set_allow_extrapolation(True)
+   class MyExpression(Expression):
+      def eval(self,value,x):
+         value[0] = u_old(x[0],x[1]) #(*)
+         #value[0]=0 #Now it is independent of number of processes
+     def value_shape(self):
+        return (1,)
+   g = MyExpression(degree=3)
+   print "Example output: rank  "+str(rank) + ".....u_old(0,0)" +str(u_old(0,0)) #(**)
+   ##########Debug lines to make sure that g/u_old was loaded correctly. 
+   uip = interpolate(g,V_old)        
+   fd = File("FlowDump.pvd")
+   d&lt;&lt;uip 
+   ##########End Debug.
+   return g
+
+
+def SolveAdvectionDiffusionEquation(...): #Example
+   #(...)
+   a = inner(grad(c),grad(v))*dx+U*u*c.dx(2)*v*dx
+   #(...)
+   L = f*v*dx() + g*v*ds()
+   #(...)
+</code></pre>
+
+<p>I suspected that it is an issue with extrapolating u_old, so I switched off the extrapolation - set_allow_extrapolation(False)). In this case, the code crashes complaining that I tried to evaluate u_old at a value outside of its domain and suggests to switch extrapolation on.</p>
+
+<p>Even more suspicious now, I added the line marked by #(**).  If extrapolation is not allowed, the code crashes if the number of processes is &gt;1, if it is allowed and the number of processes is &gt;1 most processes obtain values which do not make sense (I expect zero).</p>
+
+<p>Any ideas?</p>
+
+<hr>
+
+<p>I suspect the problem is the following:</p>
+
+<p>The function u_old is partitioned between the processes in 2D, since the mesh is 2D. Each process can evaluate u_old (and therefore g) only for those x,y-values for which it has the partition. That's why it crashes at line #(**) when extrapolation is switched off and gives some pretty far off values when extrapolation is switched on.</p>
+
+<p>I believe that (based on the vtu-files when saved for paraview) the 3D mesh for the advection diffusion equation is partitioned along the z-axes between the processes. Thus, when each process evaluates g(x,y,z) = u_old(x,y) the parts of u_old(x,y) which are not part of the processes' share have to extrapolated, which leads to inaccurate results.</p>
+
+<hr>
+
+<p>Working example: the function MakeUFunction2() should work, mesh and flow field are given <a rel="nofollow" href="https://www.dropbox.com/sh/kp9o8cxuq0z1rgb/AADge_-tQPkj-oM0Sj4rD9zNa?dl=0">here</a></p>
+</div>
+										</div>
+										<div class="qa-q-view-tags">
+											<ul class="qa-q-view-tag-list">
+												<li class="qa-q-view-tag-item"><a href="../../tag/bug" rel="tag" class="qa-tag-link">bug</a></li>
+												<li class="qa-q-view-tag-item"><a href="../../tag/2d" rel="tag" class="qa-tag-link">2d</a></li>
+												<li class="qa-q-view-tag-item"><a href="../../tag/3d" rel="tag" class="qa-tag-link">3d</a></li>
+												<li class="qa-q-view-tag-item"><a href="../../tag/parallel" rel="tag" class="qa-tag-link">parallel</a></li>
+											</ul>
+										</div>
+										<span class="qa-q-view-avatar-meta">
+											<span class="qa-q-view-meta">
+												<a href="../../14115/result-computation-depends-number-processes-using-function" class="qa-q-view-what">asked</a>
+												<span class="qa-q-view-when">
+													<span class="qa-q-view-when-data"><span class="published"><span class="value-title" title="2017-06-26T16:14:43+0000"></span>Jun 26, 2017</span></span>
+												</span>
+												<span class="qa-q-view-who">
+													<span class="qa-q-view-who-pad">by </span>
+													<span class="qa-q-view-who-data"><span class="vcard author"><a href="../../user/merlinaetzold" class="qa-user-link url nickname">merlinaetzold</a></span></span>
+													<span class="qa-q-view-who-title">FEniCS Novice</span>
+													<span class="qa-q-view-who-points">
+														<span class="qa-q-view-who-points-pad">(</span><span class="qa-q-view-who-points-data">520</span><span class="qa-q-view-who-points-pad"> points)</span>
+													</span>
+												</span>
+												<br>
+												<span class="qa-q-view-what">edited</span>
+												<span class="qa-q-view-when">
+													<span class="qa-q-view-when-data"><span class="updated"><span class="value-title" title="2017-06-27T10:07:43+0000"></span>Jun 27, 2017</span></span>
+												</span>
+												<span class="qa-q-view-who">
+													<span class="qa-q-view-who-pad">by </span><span class="qa-q-view-who-data"><a href="../../user/merlinaetzold" class="qa-user-link url nickname">merlinaetzold</a></span>
+												</span>
+											</span>
+										</span>
+										<div class="qa-q-view-buttons">
+										</div>
+										
+										<div class="qa-q-view-c-list" id="c14115_list">
+											<div class="qa-c-list-item  hentry comment" id="c14125">
+												<div class="qa-c-item-content">
+													<a name="14125"></a><div class="entry-content"><p>"Thus, when each process evaluates g(x,y,z) = u_old(x,y) the parts of u_old(x,y) which are not part of the processes' share have to extrapolated, which leads to inaccurate results."</p>
+
+<p>-&gt; I had an identical issue, I think that's the point. Unfortunately, I haven't solved the problem completely since I worked on other things in the last time. Despite, I don't understand why you are using the u_old Function to set values in an expression to interpolate this expression on the same Functionspace again.</p>
+</div>
+												</div>
+												<div class="qa-c-item-footer">
+													<span class="qa-c-item-avatar-meta">
+														<span class="qa-c-item-meta">
+															<a href="../../14115/result-computation-depends-number-processes-using-function?show=14125#c14125" class="qa-c-item-what">commented</a>
+															<span class="qa-c-item-when">
+																<span class="qa-c-item-when-data"><span class="published"><span class="value-title" title="2017-06-27T10:00:29+0000"></span>Jun 27, 2017</span></span>
+															</span>
+															<span class="qa-c-item-who">
+																<span class="qa-c-item-who-pad">by </span>
+																<span class="qa-c-item-who-data"><span class="vcard author"><a href="../../user/RR" class="qa-user-link url nickname">RR</a></span></span>
+																<span class="qa-c-item-who-title">FEniCS User</span>
+																<span class="qa-c-item-who-points">
+																	<span class="qa-c-item-who-points-pad">(</span><span class="qa-c-item-who-points-data">3,330</span><span class="qa-c-item-who-points-pad"> points)</span>
+																</span>
+															</span>
+														</span>
+													</span>
+													<div class="qa-c-item-buttons">
+													</div>
+												</div>
+												<div class="qa-c-item-clear">
+												</div>
+											</div> <!-- END qa-c-item -->
+											<div class="qa-c-list-item  hentry comment" id="c14126">
+												<div class="qa-c-item-content">
+													<a name="14126"></a><div class="entry-content"><p>Thank you for your reply - glad to see that I am not the only one with the problem and sad that you have not solved it yet. For some of the geometries I am interested in I have an analytical solution which I am using now, for the others I have to see... will probably project on a 3D mesh :(</p>
+
+<blockquote>
+  <p>Despite, I don't understand why you are using the u_old Function to set values in an expression to interpolate this expression on the same Functionspace again.&lt;</p>
+</blockquote>
+
+<p>Thank you for your comment - this was for debugging purposes only and I forgot to remove the line. I am going to update my initial question accordingly.</p>
+</div>
+												</div>
+												<div class="qa-c-item-footer">
+													<span class="qa-c-item-avatar-meta">
+														<span class="qa-c-item-meta">
+															<a href="../../14115/result-computation-depends-number-processes-using-function?show=14126#c14126" class="qa-c-item-what">commented</a>
+															<span class="qa-c-item-when">
+																<span class="qa-c-item-when-data"><span class="published"><span class="value-title" title="2017-06-27T10:04:16+0000"></span>Jun 27, 2017</span></span>
+															</span>
+															<span class="qa-c-item-who">
+																<span class="qa-c-item-who-pad">by </span>
+																<span class="qa-c-item-who-data"><span class="vcard author"><a href="../../user/merlinaetzold" class="qa-user-link url nickname">merlinaetzold</a></span></span>
+																<span class="qa-c-item-who-title">FEniCS Novice</span>
+																<span class="qa-c-item-who-points">
+																	<span class="qa-c-item-who-points-pad">(</span><span class="qa-c-item-who-points-data">520</span><span class="qa-c-item-who-points-pad"> points)</span>
+																</span>
+															</span>
+														</span>
+													</span>
+													<div class="qa-c-item-buttons">
+													</div>
+												</div>
+												<div class="qa-c-item-clear">
+												</div>
+											</div> <!-- END qa-c-item -->
+										</div> <!-- END qa-c-list -->
+										
+										<input type="hidden" name="code" value="0-1516466507-c40fd90f9eb93f533fdc71093a572a9cfc155108">
+										<input type="hidden" name="qa_click" value="">
+									</form>
+									<div class="qa-c-form">
+									</div> <!-- END qa-c-form -->
+									
+								</div> <!-- END qa-q-view-main -->
+								<div class="qa-q-view-clear">
+								</div>
+							</div> <!-- END qa-q-view -->
+							
+						</div>
+						<div class="qa-part-a-list">
+							<h2 id="a_list_title">1 Answer</h2>
+							<div class="qa-a-list" id="a_list">
+								
+								<div class="qa-a-list-item  hentry answer" id="a14149">
+									<form method="post" action="../../14115/result-computation-depends-number-processes-using-function">
+										<div class="qa-voting qa-voting-net" id="voting_14149">
+											<div class="qa-vote-count qa-vote-count-net">
+												<span class="qa-netvote-count">
+													<span class="qa-netvote-count-data">0<span class="votes-up"><span class="value-title" title="0"></span></span><span class="votes-down"><span class="value-title" title="0"></span></span></span><span class="qa-netvote-count-pad"> votes</span>
+												</span>
+											</div>
+											<div class="qa-vote-clear">
+											</div>
+										</div>
+										<input type="hidden" name="code" value="0-1516466507-90648cd708d7f12772159a868bb966a05d7176d9">
+									</form>
+									<div class="qa-a-item-main">
+										<form method="post" action="../../14115/result-computation-depends-number-processes-using-function">
+											<div class="qa-a-selection">
+											</div>
+											<div class="qa-a-item-content">
+												<a name="14149"></a><div class="entry-content"><p>Try defining:</p>
+
+<pre><code>old_mesh=Mesh(mpi_comm_self(), FlowFieldMesh+".xml")
+</code></pre>
+</div>
+											</div>
+											<span class="qa-a-item-avatar-meta">
+												<span class="qa-a-item-meta">
+													<a href="../../14115/result-computation-depends-number-processes-using-function?show=14149#a14149" class="qa-a-item-what">answered</a>
+													<span class="qa-a-item-when">
+														<span class="qa-a-item-when-data"><span class="published"><span class="value-title" title="2017-06-28T17:10:31+0000"></span>Jun 28, 2017</span></span>
+													</span>
+													<span class="qa-a-item-who">
+														<span class="qa-a-item-who-pad">by </span>
+														<span class="qa-a-item-who-data"><span class="vcard author"><a href="../../user/umberto" class="qa-user-link url nickname">umberto</a></span></span>
+														<span class="qa-a-item-who-title">FEniCS User</span>
+														<span class="qa-a-item-who-points">
+															<span class="qa-a-item-who-points-pad">(</span><span class="qa-a-item-who-points-data">6,440</span><span class="qa-a-item-who-points-pad"> points)</span>
+														</span>
+													</span>
+												</span>
+											</span>
+											<div class="qa-a-item-buttons">
+												</div>
+											
+											<div class="qa-a-item-c-list" style="display:none;" id="c14149_list">
+											</div> <!-- END qa-c-list -->
+											
+											<input type="hidden" name="code" value="0-1516466507-750922bb73f98e42dd6c6f2b5b6e73d9a29f410c">
+											<input type="hidden" name="qa_click" value="">
+										</form>
+										<div class="qa-c-form">
+										</div> <!-- END qa-c-form -->
+										
+									</div> <!-- END qa-a-item-main -->
+									<div class="qa-a-item-clear">
+									</div>
+								</div> <!-- END qa-a-list-item -->
+								
+							</div> <!-- END qa-a-list -->
+							
+						</div>
+					</div> <!-- END qa-main -->
+					
+				</div> <!-- END main-wrapper -->
+			</div> <!-- END main-shadow -->
+		</div> <!-- END body-wrapper -->
+		<!-- END footer-bottom-group -->
+		
+		<div style="position:absolute; left:-9999px; top:-9999px;">
+			<span id="qa-waiting-template" class="qa-waiting">...</span>
+		</div>
+	
+	
+
+</body><!-- Powered by Question2Answer - http://www.question2answer.org/ --></html>

@@ -1,0 +1,573 @@
+<html><!-- Powered by Question2Answer - http://www.question2answer.org/ --><head>
+		<meta http-equiv="content-type" content="text/html; charset=utf-8">
+		<title>Plot blank with Ubuntu 14.04 Fenics1.6 - FEniCS Q&amp;A</title>
+		<meta name="description" content="Hi! I'm new to Ubuntu and Fenics and got problems with the display of my plot. Is there any  ... 1.0, boundaryRight) # Initial condition for t=0 x">
+		<link rel="stylesheet" type="text/css" href="../../qa-theme/Snow/qa-styles.css">
+		<link rel="canonical" href="http://fenicsproject.org/qa/9018/plot-blank-with-ubuntu-14-04-fenics1-6">
+		<script type="text/x-mathjax-config">
+  MathJax.Hub.Config({
+    extensions: ["tex2jax.js"],
+    jax: ["input/TeX","output/HTML-CSS"],
+    tex2jax: {inlineMath: [["$","$"],["\\(","\\)"]]},
+    TeX: { extensions: ["AMSmath.js","AMSsymbols.js"]}
+  });
+</script>
+<script type="text/javascript" src="../../mathjax/MathJax.js"></script>
+		<script src="../../jquery-1.7.2.min.js" type="text/javascript"></script>
+		<script src="../../highlight.min.js"></script>
+<script type="text/javascript">
+$(function(){
+	$('.wmd-input').keypress(function(){
+		window.clearTimeout(hljs.Timeout);
+		hljs.Timeout = window.setTimeout(function() {
+			hljs.initHighlighting.called = false;
+			hljs.initHighlighting();
+		}, 500);
+	});
+	window.setTimeout(function() {
+		hljs.initHighlighting.called = false;
+		hljs.initHighlighting();
+	}, 500);
+});
+</script>
+
+
+	</head>
+	<body class="qa-template-question qa-body-js-off">
+		<div class="qa-body-wrapper">
+			
+			<div class="qa-header">
+				<div class="qa-logo">
+					<a href="../../" class="qa-logo-link" title="FEniCS Q&amp;A"><img src="../../qa-theme/fenics_qa.png" border="0" alt="FEniCS Q&amp;A"></a>
+				</div>
+				<div class="qa-header-clear">
+				</div>
+			</div> <!-- END qa-header -->
+			
+			<div class="qa-main-shadow">
+				
+				<div class="qa-main-wrapper">
+					
+					<div class="qa-sidepanel">
+						<div class="qa-sidebar">
+							This is a read only copy of the old FEniCS QA forum. Please visit the <a href="https://www.allanswered.com/community/s/fenics-project/">new QA forum</a> to ask questions
+						</div>
+						
+					</div>
+					
+					<div class="qa-main">
+						<h1>
+							<span class="entry-title">Plot blank with Ubuntu 14.04 Fenics1.6</span>
+						</h1>
+						<div class="qa-part-q-view">
+							<div class="qa-q-view  hentry question" id="q9018">
+								<form method="post" action="../../9018/plot-blank-with-ubuntu-14-04-fenics1-6">
+									<div class="qa-q-view-stats">
+										<div class="qa-voting qa-voting-net" id="voting_9018">
+											<div class="qa-vote-count qa-vote-count-net">
+												<span class="qa-netvote-count">
+													<span class="qa-netvote-count-data">0<span class="votes-up"><span class="value-title" title="0"></span></span><span class="votes-down"><span class="value-title" title="0"></span></span></span><span class="qa-netvote-count-pad"> votes</span>
+												</span>
+											</div>
+											<div class="qa-vote-clear">
+											</div>
+										</div>
+									</div>
+									<input type="hidden" name="code" value="0-1516468203-f1d5516193b38c038f6f2d9bfe6f6ef30d089d3b">
+								</form>
+								<div class="qa-q-view-main">
+									<form method="post" action="../../9018/plot-blank-with-ubuntu-14-04-fenics1-6">
+										<div class="qa-q-view-content">
+											<a name="9018"></a><div class="entry-content"><p>Hi! I'm new to Ubuntu and Fenics and got problems with the display of my plot. Is there any special Program I have to install to get the plot to show up with command plot()? It's mostly empty or sometimes filled with glibberish. I already tried ParaViewer but that didn't really worked out either. I want to plot u[0] and u[1] for different times.<br>
+Or is my code not working at all? </p>
+
+<pre><code># Create mesh and define function space
+nx = 120
+xmax = 1
+mesh = IntervalMesh(nx, 0, xmax)
+
+V = FunctionSpace(mesh, 'Lagrange', degree=1)
+W=V*V
+
+
+# Define const
+D= 0.0005
+Dc= 0.45
+lamb= 30.0
+alpha= 0.1
+h= 10.0
+k= 0.01
+cM= 40.0
+
+# Define boundary condition n=c=1 on the right side for x=1
+class BoundaryRight1(SubDomain):
+    def inside(self, x, on_boundary):
+        return on_boundary and \
+            (near(x[0], 1.0))
+
+boundaryRight = BoundaryRight()
+bsc = DirichletBC(V, 1.0, boundaryRight)
+
+# Initial condition for t=0 x&lt;1
+n0=0
+c0=0
+u0_function= Expression(("n0", "c0"), n0=n0, c0=c0, element = W.ufl_element())
+
+u0= Function(W)
+u0.interpolate(u0_function)
+
+#Def functions
+def g (n):
+ return (n*(1.0+alpha**2.0))/(n**2.0+alpha**2.0)
+
+B =(1.0+cM**2.0-2.0*h*cM)/((1.0-cM)**2.0)
+
+def s (c):
+    return ((2.0*cM*(h-B)*c)/(cM**2.0+c**2.0))+B
+
+# Vectors for saving 
+uk = Function(W)
+uk.vector()[:]=u0.vector()
+ut = Function(W)
+ut.vector()[:]=ut.vector()
+
+#saving time dependant solutions
+f = File("solution/AK.pvd")
+# timesteps
+dt=0.3
+t=0
+T=50.0
+while t &lt;= T:   
+    t = t + dt
+    v = TestFunction(W)
+    u = Function(W)
+    du= TrialFunction(W)    
+
+
+    F1 = (1.0/dt * (u[0] - ut[0])-s(u[1])*(2-u[0])*u[0]+u[0])*v[0]*dx \
+        + D*inner(nabla_grad (u[0]), nabla_grad (v[0]))*dx
+
+
+
+    F2 = (1.0/dt * (u[1] - ut[1]) -lamb*g(u[0]) +lamb*u[1])*v[1]*dx \
+        +inner(Dc*nabla_grad (u[1]), nabla_grad (v[1]))*dx
+
+
+    F=F1+F2
+
+    u.vector()[:]=uk.vector()
+
+    J=derivative(F,u,du)
+
+    # Solver
+    problem = NonlinearVariationalProblem(F, u, bsc, J)
+    solver  = NonlinearVariationalSolver(problem)
+    solver.solve()
+
+    f &lt;&lt; u
+
+plot(u[0])
+interactive()
+</code></pre>
+</div>
+										</div>
+										<span class="qa-q-view-avatar-meta">
+											<span class="qa-q-view-meta">
+												<a href="../../9018/plot-blank-with-ubuntu-14-04-fenics1-6" class="qa-q-view-what">asked</a>
+												<span class="qa-q-view-when">
+													<span class="qa-q-view-when-data"><span class="published"><span class="value-title" title="2016-01-13T00:15:47+0000"></span>Jan 13, 2016</span></span>
+												</span>
+												<span class="qa-q-view-who">
+													<span class="qa-q-view-who-pad">by </span>
+													<span class="qa-q-view-who-data"><span class="vcard author"><a href="../../user/gashi" class="qa-user-link url nickname">gashi</a></span></span>
+													<span class="qa-q-view-who-title">FEniCS Novice</span>
+													<span class="qa-q-view-who-points">
+														<span class="qa-q-view-who-points-pad">(</span><span class="qa-q-view-who-points-data">130</span><span class="qa-q-view-who-points-pad"> points)</span>
+													</span>
+												</span>
+												<br>
+												<span class="qa-q-view-what">edited</span>
+												<span class="qa-q-view-when">
+													<span class="qa-q-view-when-data"><span class="updated"><span class="value-title" title="2016-01-13T14:47:09+0000"></span>Jan 13, 2016</span></span>
+												</span>
+												<span class="qa-q-view-who">
+													<span class="qa-q-view-who-pad">by </span><span class="qa-q-view-who-data"><a href="../../user/chris_richardson" class="qa-user-link url nickname">chris_richardson</a></span>
+												</span>
+											</span>
+										</span>
+										<div class="qa-q-view-buttons">
+										</div>
+										
+										<div class="qa-q-view-c-list" id="c9018_list">
+											<div class="qa-c-list-item  hentry comment" id="c9021">
+												<div class="qa-c-item-content">
+													<a name="9021"></a><div class="entry-content"><p>Maybe you have problems with your graphic card drivers? Does <code>glxgears</code> work? It should display a set of rotating gears. You need to install the <code>mesa-utils</code> package to install <code>glxgears</code>.</p>
+</div>
+												</div>
+												<div class="qa-c-item-footer">
+													<span class="qa-c-item-avatar-meta">
+														<span class="qa-c-item-avatar">
+															<a href="../../user/johannr" class="qa-avatar-link"><img src="https://www.gravatar.com/avatar/03ca226ee8d51ad8165d455dd3abad66?s=20" width="20" height="20" class="qa-avatar-image" alt=""></a>
+														</span>
+														<span class="qa-c-item-meta">
+															<a href="../../9018/plot-blank-with-ubuntu-14-04-fenics1-6?show=9021#c9021" class="qa-c-item-what">commented</a>
+															<span class="qa-c-item-when">
+																<span class="qa-c-item-when-data"><span class="published"><span class="value-title" title="2016-01-13T17:11:21+0000"></span>Jan 13, 2016</span></span>
+															</span>
+															<span class="qa-c-item-who">
+																<span class="qa-c-item-who-pad">by </span>
+																<span class="qa-c-item-who-data"><span class="vcard author"><a href="../../user/johannr" class="qa-user-link url nickname">johannr</a></span></span>
+																<span class="qa-c-item-who-title">FEniCS Expert</span>
+																<span class="qa-c-item-who-points">
+																	<span class="qa-c-item-who-points-pad">(</span><span class="qa-c-item-who-points-data">17,350</span><span class="qa-c-item-who-points-pad"> points)</span>
+																</span>
+															</span>
+														</span>
+													</span>
+													<div class="qa-c-item-buttons">
+													</div>
+												</div>
+												<div class="qa-c-item-clear">
+												</div>
+											</div> <!-- END qa-c-item -->
+											<div class="qa-c-list-item  hentry comment" id="c9023">
+												<div class="qa-c-item-content">
+													<a name="9023"></a><div class="entry-content"><p>Thanks for the reply! glxgears is working fine, but I already had some issues with my graphic card. For matlab I have to use " -softwareopengl" to plot, is there anything similar to Fenics? I can't even plot the minimum examples..</p>
+</div>
+												</div>
+												<div class="qa-c-item-footer">
+													<span class="qa-c-item-avatar-meta">
+														<span class="qa-c-item-meta">
+															<a href="../../9018/plot-blank-with-ubuntu-14-04-fenics1-6?show=9023#c9023" class="qa-c-item-what">commented</a>
+															<span class="qa-c-item-when">
+																<span class="qa-c-item-when-data"><span class="published"><span class="value-title" title="2016-01-13T17:36:13+0000"></span>Jan 13, 2016</span></span>
+															</span>
+															<span class="qa-c-item-who">
+																<span class="qa-c-item-who-pad">by </span>
+																<span class="qa-c-item-who-data"><span class="vcard author"><a href="../../user/gashi" class="qa-user-link url nickname">gashi</a></span></span>
+																<span class="qa-c-item-who-title">FEniCS Novice</span>
+																<span class="qa-c-item-who-points">
+																	<span class="qa-c-item-who-points-pad">(</span><span class="qa-c-item-who-points-data">130</span><span class="qa-c-item-who-points-pad"> points)</span>
+																</span>
+															</span>
+														</span>
+													</span>
+													<div class="qa-c-item-buttons">
+													</div>
+												</div>
+												<div class="qa-c-item-clear">
+												</div>
+											</div> <!-- END qa-c-item -->
+											<div class="qa-c-list-item  hentry comment" id="c9025">
+												<div class="qa-c-item-content">
+													<a name="9025"></a><div class="entry-content"><p>FEniCS uses VTK to plot. Can you try some of the examples from the <code>vtk-examples</code> package? For instance, try to run <code>python /usr/share/vtk/Tutorial/Step5/Python/Cone5.py</code>.</p>
+</div>
+												</div>
+												<div class="qa-c-item-footer">
+													<span class="qa-c-item-avatar-meta">
+														<span class="qa-c-item-avatar">
+															<a href="../../user/johannr" class="qa-avatar-link"><img src="https://www.gravatar.com/avatar/03ca226ee8d51ad8165d455dd3abad66?s=20" width="20" height="20" class="qa-avatar-image" alt=""></a>
+														</span>
+														<span class="qa-c-item-meta">
+															<a href="../../9018/plot-blank-with-ubuntu-14-04-fenics1-6?show=9025#c9025" class="qa-c-item-what">commented</a>
+															<span class="qa-c-item-when">
+																<span class="qa-c-item-when-data"><span class="published"><span class="value-title" title="2016-01-13T17:59:40+0000"></span>Jan 13, 2016</span></span>
+															</span>
+															<span class="qa-c-item-who">
+																<span class="qa-c-item-who-pad">by </span>
+																<span class="qa-c-item-who-data"><span class="vcard author"><a href="../../user/johannr" class="qa-user-link url nickname">johannr</a></span></span>
+																<span class="qa-c-item-who-title">FEniCS Expert</span>
+																<span class="qa-c-item-who-points">
+																	<span class="qa-c-item-who-points-pad">(</span><span class="qa-c-item-who-points-data">17,350</span><span class="qa-c-item-who-points-pad"> points)</span>
+																</span>
+															</span>
+														</span>
+													</span>
+													<div class="qa-c-item-buttons">
+													</div>
+												</div>
+												<div class="qa-c-item-clear">
+												</div>
+											</div> <!-- END qa-c-item -->
+											<div class="qa-c-list-item  hentry comment" id="c9026">
+												<div class="qa-c-item-content">
+													<a name="9026"></a><div class="entry-content"><p>I didn't find the exact folder you are describing, but I tried this example,<br>
+<a rel="nofollow" href="http://www.vtk.org/Wiki/VTK/Examples/Python/GeometricObjects/Display/Cone">http://www.vtk.org/Wiki/VTK/Examples/Python/GeometricObjects/Display/Cone</a></p>
+
+<p>and it failed. I installed VTK  with "sudo apt-get install libvtk5-dev python-vtk"</p>
+</div>
+												</div>
+												<div class="qa-c-item-footer">
+													<span class="qa-c-item-avatar-meta">
+														<span class="qa-c-item-meta">
+															<a href="../../9018/plot-blank-with-ubuntu-14-04-fenics1-6?show=9026#c9026" class="qa-c-item-what">commented</a>
+															<span class="qa-c-item-when">
+																<span class="qa-c-item-when-data"><span class="published"><span class="value-title" title="2016-01-13T18:26:51+0000"></span>Jan 13, 2016</span></span>
+															</span>
+															<span class="qa-c-item-who">
+																<span class="qa-c-item-who-pad">by </span>
+																<span class="qa-c-item-who-data"><span class="vcard author"><a href="../../user/gashi" class="qa-user-link url nickname">gashi</a></span></span>
+																<span class="qa-c-item-who-title">FEniCS Novice</span>
+																<span class="qa-c-item-who-points">
+																	<span class="qa-c-item-who-points-pad">(</span><span class="qa-c-item-who-points-data">130</span><span class="qa-c-item-who-points-pad"> points)</span>
+																</span>
+															</span>
+														</span>
+													</span>
+													<div class="qa-c-item-buttons">
+													</div>
+												</div>
+												<div class="qa-c-item-clear">
+												</div>
+											</div> <!-- END qa-c-item -->
+											<div class="qa-c-list-item  hentry comment" id="c9027">
+												<div class="qa-c-item-content">
+													<a name="9027"></a><div class="entry-content"><p>Try installing the <code>vtk-examples</code> package: <code>sudo apt-get install vtk-examples</code>. Then try to run <code>python /usr/share/vtk/Tutorial/Step5/Python/Cone5.py</code>.</p>
+
+<p>How did you install FEniCS?</p>
+</div>
+												</div>
+												<div class="qa-c-item-footer">
+													<span class="qa-c-item-avatar-meta">
+														<span class="qa-c-item-avatar">
+															<a href="../../user/johannr" class="qa-avatar-link"><img src="https://www.gravatar.com/avatar/03ca226ee8d51ad8165d455dd3abad66?s=20" width="20" height="20" class="qa-avatar-image" alt=""></a>
+														</span>
+														<span class="qa-c-item-meta">
+															<a href="../../9018/plot-blank-with-ubuntu-14-04-fenics1-6?show=9027#c9027" class="qa-c-item-what">commented</a>
+															<span class="qa-c-item-when">
+																<span class="qa-c-item-when-data"><span class="published"><span class="value-title" title="2016-01-13T18:31:44+0000"></span>Jan 13, 2016</span></span>
+															</span>
+															<span class="qa-c-item-who">
+																<span class="qa-c-item-who-pad">by </span>
+																<span class="qa-c-item-who-data"><span class="vcard author"><a href="../../user/johannr" class="qa-user-link url nickname">johannr</a></span></span>
+																<span class="qa-c-item-who-title">FEniCS Expert</span>
+																<span class="qa-c-item-who-points">
+																	<span class="qa-c-item-who-points-pad">(</span><span class="qa-c-item-who-points-data">17,350</span><span class="qa-c-item-who-points-pad"> points)</span>
+																</span>
+															</span>
+														</span>
+													</span>
+													<div class="qa-c-item-buttons">
+													</div>
+												</div>
+												<div class="qa-c-item-clear">
+												</div>
+											</div> <!-- END qa-c-item -->
+											<div class="qa-c-list-item  hentry comment" id="c9028">
+												<div class="qa-c-item-content">
+													<a name="9028"></a><div class="entry-content"><p>Okay, the Cone5 example didn't worked either, just got an completely black box. I installed Fenics like described on the homepage with the ppa and "sudo apt-get install fenics"</p>
+</div>
+												</div>
+												<div class="qa-c-item-footer">
+													<span class="qa-c-item-avatar-meta">
+														<span class="qa-c-item-meta">
+															<a href="../../9018/plot-blank-with-ubuntu-14-04-fenics1-6?show=9028#c9028" class="qa-c-item-what">commented</a>
+															<span class="qa-c-item-when">
+																<span class="qa-c-item-when-data"><span class="published"><span class="value-title" title="2016-01-13T18:43:29+0000"></span>Jan 13, 2016</span></span>
+															</span>
+															<span class="qa-c-item-who">
+																<span class="qa-c-item-who-pad">by </span>
+																<span class="qa-c-item-who-data"><span class="vcard author"><a href="../../user/gashi" class="qa-user-link url nickname">gashi</a></span></span>
+																<span class="qa-c-item-who-title">FEniCS Novice</span>
+																<span class="qa-c-item-who-points">
+																	<span class="qa-c-item-who-points-pad">(</span><span class="qa-c-item-who-points-data">130</span><span class="qa-c-item-who-points-pad"> points)</span>
+																</span>
+															</span>
+														</span>
+													</span>
+													<div class="qa-c-item-buttons">
+													</div>
+												</div>
+												<div class="qa-c-item-clear">
+												</div>
+											</div> <!-- END qa-c-item -->
+											<div class="qa-c-list-item  hentry comment" id="c9029">
+												<div class="qa-c-item-content">
+													<a name="9029"></a><div class="entry-content"><p>Ok, then there is clearly something wrong on your side. Have you installed <a rel="nofollow" href="http://askubuntu.com/questions/47506/how-do-i-install-additional-drivers">additional drivers</a>? Once you have the VTK examples working, then plotting in FEniCS should also work fine.</p>
+</div>
+												</div>
+												<div class="qa-c-item-footer">
+													<span class="qa-c-item-avatar-meta">
+														<span class="qa-c-item-avatar">
+															<a href="../../user/johannr" class="qa-avatar-link"><img src="https://www.gravatar.com/avatar/03ca226ee8d51ad8165d455dd3abad66?s=20" width="20" height="20" class="qa-avatar-image" alt=""></a>
+														</span>
+														<span class="qa-c-item-meta">
+															<a href="../../9018/plot-blank-with-ubuntu-14-04-fenics1-6?show=9029#c9029" class="qa-c-item-what">commented</a>
+															<span class="qa-c-item-when">
+																<span class="qa-c-item-when-data"><span class="published"><span class="value-title" title="2016-01-13T19:08:06+0000"></span>Jan 13, 2016</span></span>
+															</span>
+															<span class="qa-c-item-who">
+																<span class="qa-c-item-who-pad">by </span>
+																<span class="qa-c-item-who-data"><span class="vcard author"><a href="../../user/johannr" class="qa-user-link url nickname">johannr</a></span></span>
+																<span class="qa-c-item-who-title">FEniCS Expert</span>
+																<span class="qa-c-item-who-points">
+																	<span class="qa-c-item-who-points-pad">(</span><span class="qa-c-item-who-points-data">17,350</span><span class="qa-c-item-who-points-pad"> points)</span>
+																</span>
+															</span>
+														</span>
+													</span>
+													<div class="qa-c-item-buttons">
+													</div>
+												</div>
+												<div class="qa-c-item-clear">
+												</div>
+											</div> <!-- END qa-c-item -->
+											<div class="qa-c-list-item  hentry comment" id="c9030">
+												<div class="qa-c-item-content">
+													<a name="9030"></a><div class="entry-content"><p>I already checked for drivers but didn't find anything suitable. I got a out of the box Ubuntu notebook. Maybe there is a problem with my graphic card?<br>
+Thanks for your support!</p>
+</div>
+												</div>
+												<div class="qa-c-item-footer">
+													<span class="qa-c-item-avatar-meta">
+														<span class="qa-c-item-meta">
+															<a href="../../9018/plot-blank-with-ubuntu-14-04-fenics1-6?show=9030#c9030" class="qa-c-item-what">commented</a>
+															<span class="qa-c-item-when">
+																<span class="qa-c-item-when-data"><span class="published"><span class="value-title" title="2016-01-13T19:36:21+0000"></span>Jan 13, 2016</span></span>
+															</span>
+															<span class="qa-c-item-who">
+																<span class="qa-c-item-who-pad">by </span>
+																<span class="qa-c-item-who-data"><span class="vcard author"><a href="../../user/gashi" class="qa-user-link url nickname">gashi</a></span></span>
+																<span class="qa-c-item-who-title">FEniCS Novice</span>
+																<span class="qa-c-item-who-points">
+																	<span class="qa-c-item-who-points-pad">(</span><span class="qa-c-item-who-points-data">130</span><span class="qa-c-item-who-points-pad"> points)</span>
+																</span>
+															</span>
+														</span>
+													</span>
+													<div class="qa-c-item-buttons">
+													</div>
+												</div>
+												<div class="qa-c-item-clear">
+												</div>
+											</div> <!-- END qa-c-item -->
+											<div class="qa-c-list-item  hentry comment" id="c9322">
+												<div class="qa-c-item-content">
+													<a name="9322"></a><div class="entry-content"><p>I am having the exact same problem. Are there any updates?</p>
+
+<p>I am running Linux Mint 17.2 (Ubuntu 14.04.3 LTS) on a Lenovo X1 (gen3) with Intel HD5500 graphics; glxgears is working but vtk-examples (and FEniCS plotting) is not.</p>
+</div>
+												</div>
+												<div class="qa-c-item-footer">
+													<span class="qa-c-item-avatar-meta">
+														<span class="qa-c-item-meta">
+															<a href="../../9018/plot-blank-with-ubuntu-14-04-fenics1-6?show=9322#c9322" class="qa-c-item-what">commented</a>
+															<span class="qa-c-item-when">
+																<span class="qa-c-item-when-data"><span class="published"><span class="value-title" title="2016-02-16T09:36:02+0000"></span>Feb 16, 2016</span></span>
+															</span>
+															<span class="qa-c-item-who">
+																<span class="qa-c-item-who-pad">by </span>
+																<span class="qa-c-item-who-data"><span class="vcard author"><a href="../../user/emher" class="qa-user-link url nickname">emher</a></span></span>
+																<span class="qa-c-item-who-title">FEniCS User</span>
+																<span class="qa-c-item-who-points">
+																	<span class="qa-c-item-who-points-pad">(</span><span class="qa-c-item-who-points-data">1,290</span><span class="qa-c-item-who-points-pad"> points)</span>
+																</span>
+															</span>
+														</span>
+													</span>
+													<div class="qa-c-item-buttons">
+													</div>
+												</div>
+												<div class="qa-c-item-clear">
+												</div>
+											</div> <!-- END qa-c-item -->
+										</div> <!-- END qa-c-list -->
+										
+										<input type="hidden" name="code" value="0-1516468203-40b461e7df3af0081d99eafa1c9b1fe0e7292218">
+										<input type="hidden" name="qa_click" value="">
+									</form>
+									<div class="qa-c-form">
+									</div> <!-- END qa-c-form -->
+									
+								</div> <!-- END qa-q-view-main -->
+								<div class="qa-q-view-clear">
+								</div>
+							</div> <!-- END qa-q-view -->
+							
+						</div>
+						<div class="qa-part-a-list">
+							<h2 id="a_list_title">1 Answer</h2>
+							<div class="qa-a-list" id="a_list">
+								
+								<div class="qa-a-list-item  hentry answer" id="a9632">
+									<form method="post" action="../../9018/plot-blank-with-ubuntu-14-04-fenics1-6">
+										<div class="qa-voting qa-voting-net" id="voting_9632">
+											<div class="qa-vote-count qa-vote-count-net">
+												<span class="qa-netvote-count">
+													<span class="qa-netvote-count-data">0<span class="votes-up"><span class="value-title" title="0"></span></span><span class="votes-down"><span class="value-title" title="0"></span></span></span><span class="qa-netvote-count-pad"> votes</span>
+												</span>
+											</div>
+											<div class="qa-vote-clear">
+											</div>
+										</div>
+										<input type="hidden" name="code" value="0-1516468203-f1d5516193b38c038f6f2d9bfe6f6ef30d089d3b">
+									</form>
+									<div class="qa-a-item-main">
+										<form method="post" action="../../9018/plot-blank-with-ubuntu-14-04-fenics1-6">
+											<div class="qa-a-selection">
+											</div>
+											<div class="qa-a-item-content">
+												<a name="9632"></a><div class="entry-content"><p>I am using paraview to view my vtk plots. When loading a .pvd file the name at Coloring is set to 'f_123'(f_random number). I sometimes get following problem, at the next time step the Coloring seems to have another name, for example 'f_146' but paraview selects 'solid color' at coloring and does not show any solution. maybe check if coloring is set correctly at different time steps?</p>
+
+<p>I got this problem when using your example code</p>
+
+<p>putting 'u = Function(W)' out of the while loop fixes this problem</p>
+
+<pre><code>u = Function(W)
+while t &lt;= T:
+    .....
+</code></pre>
+
+<p>function stops resetting the name in paraview, maybe this helps anyone</p>
+</div>
+											</div>
+											<span class="qa-a-item-avatar-meta">
+												<span class="qa-a-item-meta">
+													<a href="../../9018/plot-blank-with-ubuntu-14-04-fenics1-6?show=9632#a9632" class="qa-a-item-what">answered</a>
+													<span class="qa-a-item-when">
+														<span class="qa-a-item-when-data"><span class="published"><span class="value-title" title="2016-03-21T22:03:53+0000"></span>Mar 21, 2016</span></span>
+													</span>
+													<span class="qa-a-item-who">
+														<span class="qa-a-item-who-pad">by </span>
+														<span class="qa-a-item-who-data"><span class="vcard author"><a href="../../user/tobiasj" class="qa-user-link url nickname">tobiasj</a></span></span>
+														<span class="qa-a-item-who-title">FEniCS Novice</span>
+														<span class="qa-a-item-who-points">
+															<span class="qa-a-item-who-points-pad">(</span><span class="qa-a-item-who-points-data">170</span><span class="qa-a-item-who-points-pad"> points)</span>
+														</span>
+													</span>
+												</span>
+											</span>
+											<div class="qa-a-item-buttons">
+												</div>
+											
+											<div class="qa-a-item-c-list" style="display:none;" id="c9632_list">
+											</div> <!-- END qa-c-list -->
+											
+											<input type="hidden" name="code" value="0-1516468203-fc9665c3b21fcec68b268f15f2f6951cc1239809">
+											<input type="hidden" name="qa_click" value="">
+										</form>
+										<div class="qa-c-form">
+										</div> <!-- END qa-c-form -->
+										
+									</div> <!-- END qa-a-item-main -->
+									<div class="qa-a-item-clear">
+									</div>
+								</div> <!-- END qa-a-list-item -->
+								
+							</div> <!-- END qa-a-list -->
+							
+						</div>
+					</div> <!-- END qa-main -->
+					
+				</div> <!-- END main-wrapper -->
+			</div> <!-- END main-shadow -->
+		</div> <!-- END body-wrapper -->
+		<!-- END footer-bottom-group -->
+		
+		<div style="position:absolute; left:-9999px; top:-9999px;">
+			<span id="qa-waiting-template" class="qa-waiting">...</span>
+		</div>
+	
+	
+
+</body><!-- Powered by Question2Answer - http://www.question2answer.org/ --></html>

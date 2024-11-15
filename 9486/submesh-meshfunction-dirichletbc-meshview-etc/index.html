@@ -1,0 +1,403 @@
+<html><!-- Powered by Question2Answer - http://www.question2answer.org/ --><head>
+		<meta http-equiv="content-type" content="text/html; charset=utf-8">
+		<title>SubMesh, MeshFunction, DirichletBC, MeshView etc. - FEniCS Q&amp;A</title>
+		<meta name="description" content="I wrote a small example that was originally meant to ask a few questions here on the forum, but  ... def inside(self, x, on_boundary): return x[0]">
+		<meta name="keywords" content="dirichletbc,mesh,submesh,meshfunction">
+		<link rel="stylesheet" type="text/css" href="../../qa-theme/Snow/qa-styles.css">
+		<link rel="canonical" href="http://fenicsproject.org/qa/9486/submesh-meshfunction-dirichletbc-meshview-etc">
+		<script type="text/x-mathjax-config">
+  MathJax.Hub.Config({
+    extensions: ["tex2jax.js"],
+    jax: ["input/TeX","output/HTML-CSS"],
+    tex2jax: {inlineMath: [["$","$"],["\\(","\\)"]]},
+    TeX: { extensions: ["AMSmath.js","AMSsymbols.js"]}
+  });
+</script>
+<script type="text/javascript" src="../../mathjax/MathJax.js"></script>
+		<script src="../../jquery-1.7.2.min.js" type="text/javascript"></script>
+		<script src="../../highlight.min.js"></script>
+<script type="text/javascript">
+$(function(){
+	$('.wmd-input').keypress(function(){
+		window.clearTimeout(hljs.Timeout);
+		hljs.Timeout = window.setTimeout(function() {
+			hljs.initHighlighting.called = false;
+			hljs.initHighlighting();
+		}, 500);
+	});
+	window.setTimeout(function() {
+		hljs.initHighlighting.called = false;
+		hljs.initHighlighting();
+	}, 500);
+});
+</script>
+
+
+	</head>
+	<body class="qa-template-question qa-body-js-off">
+		<div class="qa-body-wrapper">
+			
+			<div class="qa-header">
+				<div class="qa-logo">
+					<a href="../../" class="qa-logo-link" title="FEniCS Q&amp;A"><img src="../../qa-theme/fenics_qa.png" border="0" alt="FEniCS Q&amp;A"></a>
+				</div>
+				<div class="qa-header-clear">
+				</div>
+			</div> <!-- END qa-header -->
+			
+			<div class="qa-main-shadow">
+				
+				<div class="qa-main-wrapper">
+					
+					<div class="qa-sidepanel">
+						<div class="qa-sidebar">
+							This is a read only copy of the old FEniCS QA forum. Please visit the <a href="https://www.allanswered.com/community/s/fenics-project/">new QA forum</a> to ask questions
+						</div>
+						
+					</div>
+					
+					<div class="qa-main">
+						<h1>
+							<span class="entry-title">SubMesh, MeshFunction, DirichletBC, MeshView etc.</span>
+						</h1>
+						<div class="qa-part-q-view">
+							<div class="qa-q-view  hentry question" id="q9486">
+								<form method="post" action="../../9486/submesh-meshfunction-dirichletbc-meshview-etc">
+									<div class="qa-q-view-stats">
+										<div class="qa-voting qa-voting-net" id="voting_9486">
+											<div class="qa-vote-count qa-vote-count-net">
+												<span class="qa-netvote-count">
+													<span class="qa-netvote-count-data">+8<span class="votes-up"><span class="value-title" title="8"></span></span><span class="votes-down"><span class="value-title" title="0"></span></span></span><span class="qa-netvote-count-pad"> votes</span>
+												</span>
+											</div>
+											<div class="qa-vote-clear">
+											</div>
+										</div>
+									</div>
+									<input type="hidden" name="code" value="0-1516468223-9e4fb14fbdaaa70f0e5d4ca30ff67f61c3a99ded">
+								</form>
+								<div class="qa-q-view-main">
+									<form method="post" action="../../9486/submesh-meshfunction-dirichletbc-meshview-etc">
+										<div class="qa-q-view-content">
+											<a name="9486"></a><div class="entry-content"><p>I wrote a small example that was originally meant to ask a few questions here on the forum, but while doing so I figured the answers out myself. I will post it anyway as a reference for others. And perhaps to hear if there is any easier way than the workarounds I use </p>
+
+<p>Included in the example are:</p>
+
+<ul>
+<li>How to define a SubMesh from a CellFunction? </li>
+<li>How to redefine MeshFunctions from the original mesh to the submesh?</li>
+<li>How to rewrite a CellFunction to a FacetFunction (to use in a DirichletBC)?</li>
+</ul>
+
+<p>Hope it is helpful to anyone</p>
+
+<p>On a related note: when will MeshView be released?</p>
+
+<pre><code>from dolfin import *
+
+# define regions and boundaries
+mesh = UnitSquareMesh(8, 16)
+regions = CellFunction('size_t', mesh)
+boundaries = FacetFunction('size_t', mesh)
+
+class A(SubDomain):
+    def inside(self, x, on_boundary):
+        return x[0] &lt;= 0.5 and x[1] &lt;= 0.75
+a = A()
+
+class B(SubDomain):
+    def inside(self, x, on_boundary):
+        return x[0] &gt;= 0.5 and x[1] &lt;= 0.75
+b = B()
+
+class C(SubDomain):
+    def inside(self, x, on_boundary):
+        return x[1] &gt;= 0.75
+c = C()
+
+class LeftBoundary(SubDomain):
+    def inside(self, x, on_boundary):
+        return near(x[0], 0.0)
+l = LeftBoundary()
+
+class RightBoundary(SubDomain):
+    def inside(self, x, on_boundary):
+        return near(x[0], 1.0)
+r = RightBoundary()
+
+regions.set_all(0)
+b.mark(regions, 1)
+c.mark(regions, 2)
+boundaries.set_all(0)
+l.mark(boundaries, 1)
+r.mark(boundaries, 2)
+plot(regions, title="Regions")
+plot(boundaries, title="Boundaries")
+
+# define a submesh, composed of region 0 and 1
+new_region = CellFunction('size_t', mesh)
+new_region.set_all(0)
+new_region.array()[regions.array() == 0] = 1
+new_region.array()[regions.array() == 1] = 1
+submesh = SubMesh(mesh, new_region, 1)
+
+# define new meshfunctions on this submesh with the same values as their original mesh
+submesh_regions = CellFunction('size_t', submesh)
+submesh_regions.set_all(0)
+submesh_boundaries = FacetFunction('size_t', submesh)
+submesh_boundaries.set_all(0)
+vmap = submesh.data().array('parent_vertex_indices', 0)
+cmap = submesh.data().array('parent_cell_indices', 2)
+for submesh_cell in cells(submesh):
+    parent_cell = cmap[submesh_cell.index()]
+    submesh_regions.array()[submesh_cell.index()] = regions.array()[parent_cell]
+for submesh_facet in facets(submesh):
+    submesh_facet_vertices = vmap[submesh_facet.entities(0)]
+    for facet in facets(mesh):
+        if set(facet.entities(0)) == set(submesh_facet_vertices):
+            submesh_boundaries.array()[submesh_facet.index()] = boundaries.array()[facet.index()]
+            break
+plot(submesh_regions, title="Submesh regions")
+plot(submesh_boundaries, title="Submesh boundaries")
+
+# solve some equation on the whole domain
+V = FunctionSpace(mesh, 'CG', 1)
+u = TrialFunction(V)
+v = TestFunction(V)
+f = Function(V)
+a = inner(grad(u), grad(v)) * dx
+L = Expression('x[0]*x[0] + 10*x[0]*x[1]*x[1]') * v * dx
+bcs = [DirichletBC(V, Constant(0.0), boundaries, 1)]
+solve(a == L, f, bcs)
+plot(f, title="Function f on the whole mesh")
+
+# use the result in a problem defined on the subdomain
+Vsub = FunctionSpace(submesh, 'CG', 1)
+u = TrialFunction(Vsub)
+v = TestFunction(Vsub)
+g = Function(Vsub)
+dx = Measure('dx')[submesh_regions]
+a = inner(grad(u), grad(v)) * dx
+class F(Expression):
+    def eval(self, value, x):
+        value[0] = f(x)
+L = F() * v * dx
+bcs = [DirichletBC(Vsub, Constant(0.0), boundaries, 1)]
+solve(a == L, g, bcs)
+plot(g, title="Function g on the submesh")
+
+# rewrite the cellfunction to a facetfunction
+new_region_facets = FacetFunction('size_t', mesh)
+new_region_facets.set_all(0)
+mesh.init(1, 2)
+for fac in facets(mesh):
+    if 1 in new_region.array()[fac.entities(2)]:
+        new_region_facets[fac.index()] = 1
+class G(Expression):
+    def eval(self, value, x):
+        value[0] = g(x)
+plot(new_region_facets, title="Facetfunction used to define a DirichletBC")
+bcs = [DirichletBC(V, G(), new_region_facets, 1)]
+
+# extrapolate the resulting function back to the whole domain
+V = FunctionSpace(mesh, 'CG', 1)
+u = TrialFunction(V)
+v = TestFunction(V)
+h = Function(V)
+dx = Measure('dx')[new_region]
+a = inner(grad(u), grad(v)) * dx
+L = Constant(0.0) * v * dx
+solve(a == L, h, bcs)
+plot(h, title="Function g, extrapolated to the whole mesh")
+
+interactive()
+</code></pre>
+</div>
+										</div>
+										<div class="qa-q-view-tags">
+											<ul class="qa-q-view-tag-list">
+												<li class="qa-q-view-tag-item"><a href="../../tag/dirichletbc" rel="tag" class="qa-tag-link">dirichletbc</a></li>
+												<li class="qa-q-view-tag-item"><a href="../../tag/mesh" rel="tag" class="qa-tag-link">mesh</a></li>
+												<li class="qa-q-view-tag-item"><a href="../../tag/submesh" rel="tag" class="qa-tag-link">submesh</a></li>
+												<li class="qa-q-view-tag-item"><a href="../../tag/meshfunction" rel="tag" class="qa-tag-link">meshfunction</a></li>
+											</ul>
+										</div>
+										<span class="qa-q-view-avatar-meta">
+											<span class="qa-q-view-meta">
+												<a href="../../9486/submesh-meshfunction-dirichletbc-meshview-etc" class="qa-q-view-what">asked</a>
+												<span class="qa-q-view-when">
+													<span class="qa-q-view-when-data"><span class="published"><span class="value-title" title="2016-03-04T13:26:12+0000"></span>Mar 4, 2016</span></span>
+												</span>
+												<span class="qa-q-view-who">
+													<span class="qa-q-view-who-pad">by </span>
+													<span class="qa-q-view-who-data"><span class="vcard author"><a href="../../user/maartent" class="qa-user-link url nickname">maartent</a></span></span>
+													<span class="qa-q-view-who-title">FEniCS User</span>
+													<span class="qa-q-view-who-points">
+														<span class="qa-q-view-who-points-pad">(</span><span class="qa-q-view-who-points-data">3,910</span><span class="qa-q-view-who-points-pad"> points)</span>
+													</span>
+												</span>
+												<br>
+												<span class="qa-q-view-what">edited</span>
+												<span class="qa-q-view-when">
+													<span class="qa-q-view-when-data"><span class="updated"><span class="value-title" title="2016-03-04T17:08:02+0000"></span>Mar 4, 2016</span></span>
+												</span>
+												<span class="qa-q-view-who">
+													<span class="qa-q-view-who-pad">by </span><span class="qa-q-view-who-data"><a href="../../user/maartent" class="qa-user-link url nickname">maartent</a></span>
+												</span>
+											</span>
+										</span>
+										<div class="qa-q-view-buttons">
+										</div>
+										
+										<div class="qa-q-view-c-list" style="display:none;" id="c9486_list">
+										</div> <!-- END qa-c-list -->
+										
+										<input type="hidden" name="code" value="0-1516468223-a90eabd014773fedcaa3aa6940bc247bafd08d05">
+										<input type="hidden" name="qa_click" value="">
+									</form>
+									<div class="qa-c-form">
+									</div> <!-- END qa-c-form -->
+									
+								</div> <!-- END qa-q-view-main -->
+								<div class="qa-q-view-clear">
+								</div>
+							</div> <!-- END qa-q-view -->
+							
+						</div>
+						<div class="qa-part-a-list">
+							<h2 id="a_list_title">1 Answer</h2>
+							<div class="qa-a-list" id="a_list">
+								
+								<div class="qa-a-list-item  hentry answer" id="a10978">
+									<form method="post" action="../../9486/submesh-meshfunction-dirichletbc-meshview-etc">
+										<div class="qa-voting qa-voting-net" id="voting_10978">
+											<div class="qa-vote-count qa-vote-count-net">
+												<span class="qa-netvote-count">
+													<span class="qa-netvote-count-data">0<span class="votes-up"><span class="value-title" title="0"></span></span><span class="votes-down"><span class="value-title" title="0"></span></span></span><span class="qa-netvote-count-pad"> votes</span>
+												</span>
+											</div>
+											<div class="qa-vote-clear">
+											</div>
+										</div>
+										<input type="hidden" name="code" value="0-1516468223-9e4fb14fbdaaa70f0e5d4ca30ff67f61c3a99ded">
+									</form>
+									<div class="qa-a-item-main">
+										<form method="post" action="../../9486/submesh-meshfunction-dirichletbc-meshview-etc">
+											<div class="qa-a-selection">
+											</div>
+											<div class="qa-a-item-content">
+												<a name="10978"></a><div class="entry-content"><p>Unfortunately does not work with 2016.1.0</p>
+
+<blockquote>
+  <p>Error:   Unable to create Dirichlet boundary condition.<br>
+  Reason:  User MeshFunction and FunctionSpace meshes are different.<br>
+  Where:   This error was encountered inside DirichletBC.cpp.</p>
+</blockquote>
+</div>
+											</div>
+											<span class="qa-a-item-avatar-meta">
+												<span class="qa-a-item-meta">
+													<a href="../../9486/submesh-meshfunction-dirichletbc-meshview-etc?show=10978#a10978" class="qa-a-item-what">answered</a>
+													<span class="qa-a-item-when">
+														<span class="qa-a-item-when-data"><span class="published"><span class="value-title" title="2016-08-24T08:51:25+0000"></span>Aug 24, 2016</span></span>
+													</span>
+													<span class="qa-a-item-who">
+														<span class="qa-a-item-who-pad">by </span>
+														<span class="qa-a-item-who-data"><span class="vcard author"><a href="../../user/meigel" class="qa-user-link url nickname">meigel</a></span></span>
+														<span class="qa-a-item-who-title">FEniCS User</span>
+														<span class="qa-a-item-who-points">
+															<span class="qa-a-item-who-points-pad">(</span><span class="qa-a-item-who-points-data">1,520</span><span class="qa-a-item-who-points-pad"> points)</span>
+														</span>
+													</span>
+												</span>
+											</span>
+											<div class="qa-a-item-buttons">
+												</div>
+											
+											<div class="qa-a-item-c-list" id="c10978_list">
+												<div class="qa-c-list-item  hentry comment" id="c10988">
+													<div class="qa-c-item-content">
+														<a name="10988"></a><div class="entry-content"><p>I am limited to version 1.4 (and occasionally 1.6) so I didn't notice yet. But good to know if I ever decide to update to the latest version... From what I read here and there, there is a less hackish solution on the roadmap for this kind of stuff, so I pin my hopes on that.</p>
+</div>
+													</div>
+													<div class="qa-c-item-footer">
+														<span class="qa-c-item-avatar-meta">
+															<span class="qa-c-item-meta">
+																<a href="../../9486/submesh-meshfunction-dirichletbc-meshview-etc?show=10988#c10988" class="qa-c-item-what">commented</a>
+																<span class="qa-c-item-when">
+																	<span class="qa-c-item-when-data"><span class="published"><span class="value-title" title="2016-08-25T12:10:58+0000"></span>Aug 25, 2016</span></span>
+																</span>
+																<span class="qa-c-item-who">
+																	<span class="qa-c-item-who-pad">by </span>
+																	<span class="qa-c-item-who-data"><span class="vcard author"><a href="../../user/maartent" class="qa-user-link url nickname">maartent</a></span></span>
+																	<span class="qa-c-item-who-title">FEniCS User</span>
+																	<span class="qa-c-item-who-points">
+																		<span class="qa-c-item-who-points-pad">(</span><span class="qa-c-item-who-points-data">3,910</span><span class="qa-c-item-who-points-pad"> points)</span>
+																	</span>
+																</span>
+															</span>
+														</span>
+														<div class="qa-c-item-buttons">
+														</div>
+													</div>
+													<div class="qa-c-item-clear">
+													</div>
+												</div> <!-- END qa-c-item -->
+												<div class="qa-c-list-item  hentry comment" id="c13480">
+													<div class="qa-c-item-content">
+														<a name="13480"></a><div class="entry-content"><p>Any news on this new solution? I just ran into the same problem.</p>
+</div>
+													</div>
+													<div class="qa-c-item-footer">
+														<span class="qa-c-item-avatar-meta">
+															<span class="qa-c-item-meta">
+																<a href="../../9486/submesh-meshfunction-dirichletbc-meshview-etc?show=13480#c13480" class="qa-c-item-what">commented</a>
+																<span class="qa-c-item-when">
+																	<span class="qa-c-item-when-data"><span class="published"><span class="value-title" title="2017-05-15T14:41:13+0000"></span>May 15, 2017</span></span>
+																</span>
+																<span class="qa-c-item-who">
+																	<span class="qa-c-item-who-pad">by </span>
+																	<span class="qa-c-item-who-data"><span class="vcard author"><a href="../../user/Massimiliano+Leoni" class="qa-user-link url nickname">Massimiliano Leoni</a></span></span>
+																	<span class="qa-c-item-who-title">FEniCS User</span>
+																	<span class="qa-c-item-who-points">
+																		<span class="qa-c-item-who-points-pad">(</span><span class="qa-c-item-who-points-data">1,760</span><span class="qa-c-item-who-points-pad"> points)</span>
+																	</span>
+																</span>
+															</span>
+														</span>
+														<div class="qa-c-item-buttons">
+														</div>
+													</div>
+													<div class="qa-c-item-clear">
+													</div>
+												</div> <!-- END qa-c-item -->
+											</div> <!-- END qa-c-list -->
+											
+											<input type="hidden" name="code" value="0-1516468223-8291b56723cc60160628dfa32e3ab63a66a620c9">
+											<input type="hidden" name="qa_click" value="">
+										</form>
+										<div class="qa-c-form">
+										</div> <!-- END qa-c-form -->
+										
+									</div> <!-- END qa-a-item-main -->
+									<div class="qa-a-item-clear">
+									</div>
+								</div> <!-- END qa-a-list-item -->
+								
+							</div> <!-- END qa-a-list -->
+							
+						</div>
+					</div> <!-- END qa-main -->
+					
+				</div> <!-- END main-wrapper -->
+			</div> <!-- END main-shadow -->
+		</div> <!-- END body-wrapper -->
+		<!-- END footer-bottom-group -->
+		
+		<div style="position:absolute; left:-9999px; top:-9999px;">
+			<span id="qa-waiting-template" class="qa-waiting">...</span>
+		</div>
+	
+	
+
+</body><!-- Powered by Question2Answer - http://www.question2answer.org/ --></html>

@@ -1,0 +1,498 @@
+<html><!-- Powered by Question2Answer - http://www.question2answer.org/ --><head>
+		<meta http-equiv="content-type" content="text/html; charset=utf-8">
+		<title>UFL: unsupported operand type(s) for +: 'Sum' and 'Form' - FEniCS Q&amp;A</title>
+		<meta name="description" content="I'm trying to write a solver to recreate the results of the following 1D polymer curing problem: https: ... simulation time: 8 minutes t = 0.0 while t">
+		<meta name="keywords" content="ufl,subdomain,error,operator">
+		<link rel="stylesheet" type="text/css" href="../../qa-theme/Snow/qa-styles.css">
+		<link rel="canonical" href="http://fenicsproject.org/qa/12909/ufl-unsupported-operand-type-s-for-sum-and-form">
+		<script type="text/x-mathjax-config">
+  MathJax.Hub.Config({
+    extensions: ["tex2jax.js"],
+    jax: ["input/TeX","output/HTML-CSS"],
+    tex2jax: {inlineMath: [["$","$"],["\\(","\\)"]]},
+    TeX: { extensions: ["AMSmath.js","AMSsymbols.js"]}
+  });
+</script>
+<script type="text/javascript" src="../../mathjax/MathJax.js"></script>
+		<script src="../../jquery-1.7.2.min.js" type="text/javascript"></script>
+		<script src="../../highlight.min.js"></script>
+<script type="text/javascript">
+$(function(){
+	$('.wmd-input').keypress(function(){
+		window.clearTimeout(hljs.Timeout);
+		hljs.Timeout = window.setTimeout(function() {
+			hljs.initHighlighting.called = false;
+			hljs.initHighlighting();
+		}, 500);
+	});
+	window.setTimeout(function() {
+		hljs.initHighlighting.called = false;
+		hljs.initHighlighting();
+	}, 500);
+});
+</script>
+
+
+	</head>
+	<body class="qa-template-question qa-body-js-off">
+		<div class="qa-body-wrapper">
+			
+			<div class="qa-header">
+				<div class="qa-logo">
+					<a href="../../" class="qa-logo-link" title="FEniCS Q&amp;A"><img src="../../qa-theme/fenics_qa.png" border="0" alt="FEniCS Q&amp;A"></a>
+				</div>
+				<div class="qa-header-clear">
+				</div>
+			</div> <!-- END qa-header -->
+			
+			<div class="qa-main-shadow">
+				
+				<div class="qa-main-wrapper">
+					
+					<div class="qa-sidepanel">
+						<div class="qa-sidebar">
+							This is a read only copy of the old FEniCS QA forum. Please visit the <a href="https://www.allanswered.com/community/s/fenics-project/">new QA forum</a> to ask questions
+						</div>
+						
+					</div>
+					
+					<div class="qa-main">
+						<h1>
+							<span class="entry-title">UFL: unsupported operand type(s) for +: 'Sum' and 'Form'</span>
+						</h1>
+						<div class="qa-part-q-view">
+							<div class="qa-q-view  hentry question" id="q12909">
+								<form method="post" action="../../12909/ufl-unsupported-operand-type-s-for-sum-and-form">
+									<div class="qa-q-view-stats">
+										<div class="qa-voting qa-voting-net" id="voting_12909">
+											<div class="qa-vote-count qa-vote-count-net">
+												<span class="qa-netvote-count">
+													<span class="qa-netvote-count-data">0<span class="votes-up"><span class="value-title" title="1"></span></span><span class="votes-down"><span class="value-title" title="1"></span></span></span><span class="qa-netvote-count-pad"> votes</span>
+												</span>
+											</div>
+											<div class="qa-vote-clear">
+											</div>
+										</div>
+									</div>
+									<input type="hidden" name="code" value="0-1516467844-b9bb2e5e488f389cbf2610aebac5b840cf63fb8c">
+								</form>
+								<div class="qa-q-view-main">
+									<form method="post" action="../../12909/ufl-unsupported-operand-type-s-for-sum-and-form">
+										<div class="qa-q-view-content">
+											<a name="12909"></a><div class="entry-content"><p>I'm trying to write a solver to recreate the results of the following 1D polymer curing problem:<br>
+<a rel="nofollow" href="https://www.comsol.com/blogs/modeling-the-thermal-curing-process/">https://www.comsol.com/blogs/modeling-the-thermal-curing-process/</a></p>
+
+<p>But I get the error:<br>
+TypeError: unsupported operand type(s) for +: 'Sum' and 'Form' <br>
+on the variational statement line</p>
+
+<p>What does the error mean and how could I fix it?</p>
+
+<p>The full code is shown below:</p>
+
+<pre><code>from dolfin import *
+
+# Constants (all in SI units)
+sf = 1.0e0 #length scale factor (m to m)
+
+rho = 1200.0/sf/sf/sf #density
+C_p = 1000.0*sf*sf    #specific heat
+k   = 0.2/sf          #thermal conductivity
+H_r = 5.0e5*sf*sf     #total heat of reaction
+k_A = 20.0e3          #frequency factor
+E_a = 50.0e3*sf*sf    #activation energy
+R   = 8.314*sf*sf     #universal gas constant
+n   = 1.4             #order of reaction
+l   = 5.0e-3*sf       #length of 1D interval
+numElems = 100        #number of finite elements
+Q_heat   = 10.0e3     #10 kW/m^2 for one m^2 which is 10 kW of heating power
+dt = 1.0     
+
+
+# Define function space for system of concentrations
+mesh = IntervalMesh(numElems, 0.0,l)
+P1 = FiniteElement('Lagrange', interval, 1)
+element = MixedElement([P1, P1])
+V = FunctionSpace(mesh, element)
+
+
+# Define test functions
+v, v_2 = TestFunctions(V)
+
+# Define functions for velocity and concentrations
+u   = Function(V)
+u_n = Function(V)
+
+# Split system functions to access components
+u, alpha     = split(u)
+u_1, alpha_1 = split(u_n)
+
+
+# Initial conditions
+u_0 = Expression(('0.0', '20.0+273.15'), degree=1)
+u_n = project(u_0, V)
+
+
+# Boundary marker
+class HeatFlux(SubDomain):
+    def inside(self, x, on_boundary):
+        return on_boundary and (x[0] &gt; (l-DOLFIN_EPS))
+
+# Initialize sub-domain instances
+right = HeatFlux()
+
+# Initialize mesh function for boundary domains
+boundaries = FacetFunction("size_t", mesh)
+boundaries.set_all(0)
+right.mark(boundaries, 1)
+dss = ds[boundaries]
+
+
+# Define source term
+f = Expression('0.0',degree=1)
+
+# Define expressions used in variational forms
+Dt  = Constant(dt)
+k_A = Constant(k_A)
+k2  = Constant(E_a/R)
+n   = Constant(n)
+rho = Constant(rho)
+C_p = Constant(C_p)
+k   = Constant(k)
+H_r = Constant(H_r)
+
+
+F = alpha - alpha_1 + Dt*k_A*exp(-k2/u)*(1-alpha)**n + \
+    alpha - alpha_1 - f*Dt + \
+    rho*C_p*u*v*dx + Dt*k*inner(nabla_grad(u), nabla_grad(v))*dx - (rho*C_p*u_1 - Dt*rho*H_r*f)*v*dx + Dt*g*v*dss(1)
+
+
+T = 2.0 # Total simulation time: 8 minutes
+t = 0.0
+while t &lt;= T:
+    print 'time = %f' % t
+
+    t += dt
+
+    # Solve variational problem for time step
+    solve(F == 0, u)
+
+    # Update previous solution
+    u_n.assign(u)
+
+
+plot(u, title="Temperature")
+interactive()
+</code></pre>
+</div>
+										</div>
+										<div class="qa-q-view-tags">
+											<ul class="qa-q-view-tag-list">
+												<li class="qa-q-view-tag-item"><a href="../../tag/ufl" rel="tag" class="qa-tag-link">ufl</a></li>
+												<li class="qa-q-view-tag-item"><a href="../../tag/subdomain" rel="tag" class="qa-tag-link">subdomain</a></li>
+												<li class="qa-q-view-tag-item"><a href="../../tag/error" rel="tag" class="qa-tag-link">error</a></li>
+												<li class="qa-q-view-tag-item"><a href="../../tag/operator" rel="tag" class="qa-tag-link">operator</a></li>
+											</ul>
+										</div>
+										<span class="qa-q-view-avatar-meta">
+											<span class="qa-q-view-meta">
+												<a href="../../12909/ufl-unsupported-operand-type-s-for-sum-and-form" class="qa-q-view-what">asked</a>
+												<span class="qa-q-view-when">
+													<span class="qa-q-view-when-data"><span class="published"><span class="value-title" title="2017-03-31T04:13:57+0000"></span>Mar 31, 2017</span></span>
+												</span>
+												<span class="qa-q-view-who">
+													<span class="qa-q-view-who-pad">by </span>
+													<span class="qa-q-view-who-data"><span class="vcard author"><a href="../../user/alexmm" class="qa-user-link url nickname">alexmm</a></span></span>
+													<span class="qa-q-view-who-title">FEniCS User</span>
+													<span class="qa-q-view-who-points">
+														<span class="qa-q-view-who-points-pad">(</span><span class="qa-q-view-who-points-data">4,240</span><span class="qa-q-view-who-points-pad"> points)</span>
+													</span>
+												</span>
+											</span>
+										</span>
+										<div class="qa-q-view-buttons">
+										</div>
+										
+										<div class="qa-q-view-c-list" style="display:none;" id="c12909_list">
+										</div> <!-- END qa-c-list -->
+										
+										<input type="hidden" name="code" value="0-1516467844-76981984e7979f6eec3664f28f2b4b12b9ce3def">
+										<input type="hidden" name="qa_click" value="">
+									</form>
+									<div class="qa-c-form">
+									</div> <!-- END qa-c-form -->
+									
+								</div> <!-- END qa-q-view-main -->
+								<div class="qa-q-view-clear">
+								</div>
+							</div> <!-- END qa-q-view -->
+							
+						</div>
+						<div class="qa-part-a-list">
+							<h2 id="a_list_title">1 Answer</h2>
+							<div class="qa-a-list" id="a_list">
+								
+								<div class="qa-a-list-item  hentry answer" id="a12917">
+									<form method="post" action="../../12909/ufl-unsupported-operand-type-s-for-sum-and-form">
+										<div class="qa-voting qa-voting-net" id="voting_12917">
+											<div class="qa-vote-count qa-vote-count-net">
+												<span class="qa-netvote-count">
+													<span class="qa-netvote-count-data">0<span class="votes-up"><span class="value-title" title="0"></span></span><span class="votes-down"><span class="value-title" title="0"></span></span></span><span class="qa-netvote-count-pad"> votes</span>
+												</span>
+											</div>
+											<div class="qa-vote-clear">
+											</div>
+										</div>
+										<input type="hidden" name="code" value="0-1516467844-b9bb2e5e488f389cbf2610aebac5b840cf63fb8c">
+									</form>
+									<div class="qa-a-item-main">
+										<form method="post" action="../../12909/ufl-unsupported-operand-type-s-for-sum-and-form">
+											<div class="qa-a-selection">
+											</div>
+											<div class="qa-a-item-content">
+												<a name="12917"></a><div class="entry-content"><p>There are components of your residual which are not correctly formulated:</p>
+
+<pre><code>alpha - alpha_1 + Dt*k_A*exp(-k2/u)*(1-alpha)**n + \
+alpha - alpha_1 - f*Dt + \
+</code></pre>
+
+<p>These need to be tested against the function <code>v</code> and integrated over the volume <code>dx</code> or boundary <code>ds</code> correctly.</p>
+</div>
+											</div>
+											<span class="qa-a-item-avatar-meta">
+												<span class="qa-a-item-avatar">
+													<a href="../../user/nate" class="qa-avatar-link"><img src="../../?qa=image&amp;qa_blobid=969593914916706065&amp;qa_size=40" width="40" height="40" class="qa-avatar-image" alt=""></a>
+												</span>
+												<span class="qa-a-item-meta">
+													<a href="../../12909/ufl-unsupported-operand-type-s-for-sum-and-form?show=12917#a12917" class="qa-a-item-what">answered</a>
+													<span class="qa-a-item-when">
+														<span class="qa-a-item-when-data"><span class="published"><span class="value-title" title="2017-03-31T10:24:41+0000"></span>Mar 31, 2017</span></span>
+													</span>
+													<span class="qa-a-item-who">
+														<span class="qa-a-item-who-pad">by </span>
+														<span class="qa-a-item-who-data"><span class="vcard author"><a href="../../user/nate" class="qa-user-link url nickname">nate</a></span></span>
+														<span class="qa-a-item-who-title">FEniCS Expert</span>
+														<span class="qa-a-item-who-points">
+															<span class="qa-a-item-who-points-pad">(</span><span class="qa-a-item-who-points-data">17,050</span><span class="qa-a-item-who-points-pad"> points)</span>
+														</span>
+													</span>
+												</span>
+											</span>
+											<div class="qa-a-item-buttons">
+												</div>
+											
+											<div class="qa-a-item-c-list" id="c12917_list">
+												<div class="qa-c-list-item  hentry comment" id="c12929">
+													<div class="qa-c-item-content">
+														<a name="12929"></a><div class="entry-content"><p>Thank you for your answer Nate. I updated the program but I still get the error:</p>
+
+<p>Error:   Unable to solve variational problem.<br>
+*** Reason:  Expecting second argument to be a Function.</p>
+
+<p>This is in the solver. I updated the program and added another trial function based on alpha. The code is shown below. I was able to get this working by solving two different systems. I think this method will be faster but I would like to get this mixed formulation method working to see it.</p>
+
+<p>The method using two different solves is:</p>
+
+<pre><code>while t &lt;= T:
+    print 'time = %f' % t
+    b = assemble(L, tensor=b)
+    solve(A, u.vector(), b)
+
+    t += dt
+
+    u_1.assign(u)
+
+    G = (alpha - alpha_1 - dt*k_A*exp(-k2/u)*(1-alpha)**n)*v_2*dx
+    solve(G == 0, alpha)
+
+    f = (alpha-alpha_1)/dt 
+    L = (rho*C_p*u_1 - dt*rho*H_r*f)*v*dx + dt*g*v*ds(1)
+
+    alpha_1.assign(alpha) 
+</code></pre>
+
+<p>This method should be faster because: the heat equation is linear in space (within the time loop) and can be solved with a linear solver and the matrix A for the heat equation is constant so it needs to be assembled once, then the nonlinear equation with alpha can be solved on its own as a nonlinear problem.</p>
+
+<p>The issue here is trying to implement the statment  f = (alpha-alpha_1)/dt in the mixed formulation. It has terms from the original heat equation and the alpha equation but no variables of its own. Do I need a third trial function for this equation?</p>
+
+<p>The updated mixed program (with the trial function for alpha) is shown below:</p>
+
+<pre><code>from dolfin import *
+
+# Constants (all in SI units)
+sf = 1.0e0 #length scale factor (m to m)
+
+rho = 1200.0/sf/sf/sf #density
+C_p = 1000.0*sf*sf    #specific heat
+k   = 0.2/sf          #thermal conductivity
+H_r = 5.0e5*sf*sf     #total heat of reaction
+k_A = 20.0e3          #frequency factor
+E_a = 50.0e3*sf*sf    #activation energy
+R   = 8.314*sf*sf     #universal gas constant
+n   = 1.4             #order of reaction
+l   = 5.0e-3*sf       #length of 1D interval
+numElems = 100        #number of finite elements
+Q_heat   = 10.0e3     #10 kW/m^2 for one m^2 which is 10 kW of heating power
+dt = 1.0     
+
+
+# Define function space for system of concentrations
+mesh = IntervalMesh(numElems, 0.0,l)
+P1 = FiniteElement('Lagrange', interval, 1)
+element = MixedElement([P1, P1])
+V = FunctionSpace(mesh, element)
+
+
+# Define test functions
+v, v_2 = TestFunctions(V)
+
+# Define functions for velocity and concentrations
+u   = Function(V)
+u_n = Function(V)
+
+# Split system functions to access components
+u, alpha     = split(u)
+u_1, alpha_1 = split(u_n)
+
+
+# Initial conditions
+u_0 = Expression(('0.0', '20.0+273.15'), degree=1)
+u_n = project(u_0, V)
+
+g = Expression('10.0e3', degree=1)
+
+
+# Boundary marker
+class HeatFlux(SubDomain):
+    def inside(self, x, on_boundary):
+        return on_boundary and (x[0] &gt; (l-DOLFIN_EPS))
+
+# Initialize sub-domain instances
+right = HeatFlux()
+
+# Initialize mesh function for boundary domains
+boundaries = FacetFunction("size_t", mesh)
+boundaries.set_all(0)
+right.mark(boundaries, 1)
+dss = ds[boundaries]
+
+
+# Define source term
+f = Expression('0.0',degree=1)
+
+# Define expressions used in variational forms
+Dt  = Constant(dt)
+k_A = Constant(k_A)
+k2  = Constant(E_a/R)
+n   = Constant(n)
+rho = Constant(rho)
+C_p = Constant(C_p)
+k   = Constant(k)
+H_r = Constant(H_r)
+
+
+F = (alpha - alpha_1)*v_2*dx + (Dt*k_A*exp(-k2/u)*(1-alpha)**n)*v_2*dx + \
+    (alpha - alpha_1)*v_2*dx - f*Dt*v_2*dx + \
+    rho*C_p*u*v*dx + Dt*k*inner(nabla_grad(u), nabla_grad(v))*dx - (rho*C_p*u_1 - Dt*rho*H_r*f)*v*dx + Dt*g*v*dss(1)
+
+
+T = 2.0 # Total simulation time: 8 minutes
+t = 0.0
+while t &lt;= T:
+    print 'time = %f' % t
+
+    t += dt
+
+    # Solve variational problem for time step
+    solve(F == 0, u)
+
+    # Update previous solution
+    u_n.assign(u)
+
+
+plot(u, title="Temperature")
+interactive()
+</code></pre>
+</div>
+													</div>
+													<div class="qa-c-item-footer">
+														<span class="qa-c-item-avatar-meta">
+															<span class="qa-c-item-meta">
+																<a href="../../12909/ufl-unsupported-operand-type-s-for-sum-and-form?show=12929#c12929" class="qa-c-item-what">commented</a>
+																<span class="qa-c-item-when">
+																	<span class="qa-c-item-when-data"><span class="published"><span class="value-title" title="2017-04-01T02:34:53+0000"></span>Apr 1, 2017</span></span>
+																</span>
+																<span class="qa-c-item-who">
+																	<span class="qa-c-item-who-pad">by </span>
+																	<span class="qa-c-item-who-data"><span class="vcard author"><a href="../../user/alexmm" class="qa-user-link url nickname">alexmm</a></span></span>
+																	<span class="qa-c-item-who-title">FEniCS User</span>
+																	<span class="qa-c-item-who-points">
+																		<span class="qa-c-item-who-points-pad">(</span><span class="qa-c-item-who-points-data">4,240</span><span class="qa-c-item-who-points-pad"> points)</span>
+																	</span>
+																</span>
+															</span>
+														</span>
+														<div class="qa-c-item-buttons">
+														</div>
+													</div>
+													<div class="qa-c-item-clear">
+													</div>
+												</div> <!-- END qa-c-item -->
+												<div class="qa-c-list-item  hentry comment" id="c12930">
+													<div class="qa-c-item-content">
+														<a name="12930"></a><div class="entry-content"><p>I tried adding a third trial function for the f = (alpha-alpha_1)/dt term and I got the same error</p>
+</div>
+													</div>
+													<div class="qa-c-item-footer">
+														<span class="qa-c-item-avatar-meta">
+															<span class="qa-c-item-meta">
+																<a href="../../12909/ufl-unsupported-operand-type-s-for-sum-and-form?show=12930#c12930" class="qa-c-item-what">commented</a>
+																<span class="qa-c-item-when">
+																	<span class="qa-c-item-when-data"><span class="published"><span class="value-title" title="2017-04-01T02:49:15+0000"></span>Apr 1, 2017</span></span>
+																</span>
+																<span class="qa-c-item-who">
+																	<span class="qa-c-item-who-pad">by </span>
+																	<span class="qa-c-item-who-data"><span class="vcard author"><a href="../../user/alexmm" class="qa-user-link url nickname">alexmm</a></span></span>
+																	<span class="qa-c-item-who-title">FEniCS User</span>
+																	<span class="qa-c-item-who-points">
+																		<span class="qa-c-item-who-points-pad">(</span><span class="qa-c-item-who-points-data">4,240</span><span class="qa-c-item-who-points-pad"> points)</span>
+																	</span>
+																</span>
+															</span>
+														</span>
+														<div class="qa-c-item-buttons">
+														</div>
+													</div>
+													<div class="qa-c-item-clear">
+													</div>
+												</div> <!-- END qa-c-item -->
+											</div> <!-- END qa-c-list -->
+											
+											<input type="hidden" name="code" value="0-1516467844-62effed7eca321fafc51c0552a00a48bcab76ac4">
+											<input type="hidden" name="qa_click" value="">
+										</form>
+										<div class="qa-c-form">
+										</div> <!-- END qa-c-form -->
+										
+									</div> <!-- END qa-a-item-main -->
+									<div class="qa-a-item-clear">
+									</div>
+								</div> <!-- END qa-a-list-item -->
+								
+							</div> <!-- END qa-a-list -->
+							
+						</div>
+					</div> <!-- END qa-main -->
+					
+				</div> <!-- END main-wrapper -->
+			</div> <!-- END main-shadow -->
+		</div> <!-- END body-wrapper -->
+		<!-- END footer-bottom-group -->
+		
+		<div style="position:absolute; left:-9999px; top:-9999px;">
+			<span id="qa-waiting-template" class="qa-waiting">...</span>
+		</div>
+	
+	
+
+</body><!-- Powered by Question2Answer - http://www.question2answer.org/ --></html>

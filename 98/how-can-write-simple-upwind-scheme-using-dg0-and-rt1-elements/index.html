@@ -1,0 +1,588 @@
+<html><!-- Powered by Question2Answer - http://www.question2answer.org/ --><head>
+		<meta http-equiv="content-type" content="text/html; charset=utf-8">
+		<title>How can I write a simple upwind scheme using DG0 and RT1 elements? - FEniCS Q&amp;A</title>
+		<meta name="description" content="I am trying to construct a simple upwind scheme, using DG0 and RT1 elements. What is the best way to do  ... -0.1,0.0))) print assemble(flux).array()">
+		<meta name="keywords" content="dg0,raviart-thomas,advection,upwind">
+		<link rel="stylesheet" type="text/css" href="../../qa-theme/Snow/qa-styles.css">
+		<link rel="canonical" href="http://fenicsproject.org/qa/98/how-can-write-simple-upwind-scheme-using-dg0-and-rt1-elements">
+		<script type="text/x-mathjax-config">
+  MathJax.Hub.Config({
+    extensions: ["tex2jax.js"],
+    jax: ["input/TeX","output/HTML-CSS"],
+    tex2jax: {inlineMath: [["$","$"],["\\(","\\)"]]},
+    TeX: { extensions: ["AMSmath.js","AMSsymbols.js"]}
+  });
+</script>
+<script type="text/javascript" src="../../mathjax/MathJax.js"></script>
+		<script src="../../jquery-1.7.2.min.js" type="text/javascript"></script>
+		<script src="../../highlight.min.js"></script>
+<script type="text/javascript">
+$(function(){
+	$('.wmd-input').keypress(function(){
+		window.clearTimeout(hljs.Timeout);
+		hljs.Timeout = window.setTimeout(function() {
+			hljs.initHighlighting.called = false;
+			hljs.initHighlighting();
+		}, 500);
+	});
+	window.setTimeout(function() {
+		hljs.initHighlighting.called = false;
+		hljs.initHighlighting();
+	}, 500);
+});
+</script>
+
+
+	</head>
+	<body class="qa-template-question qa-body-js-off">
+		<div class="qa-body-wrapper">
+			
+			<div class="qa-header">
+				<div class="qa-logo">
+					<a href="../../" class="qa-logo-link" title="FEniCS Q&amp;A"><img src="../../qa-theme/fenics_qa.png" border="0" alt="FEniCS Q&amp;A"></a>
+				</div>
+				<div class="qa-header-clear">
+				</div>
+			</div> <!-- END qa-header -->
+			
+			<div class="qa-main-shadow">
+				
+				<div class="qa-main-wrapper">
+					
+					<div class="qa-sidepanel">
+						<div class="qa-sidebar">
+							This is a read only copy of the old FEniCS QA forum. Please visit the <a href="https://www.allanswered.com/community/s/fenics-project/">new QA forum</a> to ask questions
+						</div>
+						
+					</div>
+					
+					<div class="qa-main">
+						<h1>
+							<span class="entry-title">How can I write a simple upwind scheme using DG0 and RT1 elements?</span>
+						</h1>
+						<div class="qa-part-q-view">
+							<div class="qa-q-view  hentry question" id="q98">
+								<form method="post" action="../../98/how-can-write-simple-upwind-scheme-using-dg0-and-rt1-elements">
+									<div class="qa-q-view-stats">
+										<div class="qa-voting qa-voting-net" id="voting_98">
+											<div class="qa-vote-count qa-vote-count-net">
+												<span class="qa-netvote-count">
+													<span class="qa-netvote-count-data">+10<span class="votes-up"><span class="value-title" title="10"></span></span><span class="votes-down"><span class="value-title" title="0"></span></span></span><span class="qa-netvote-count-pad"> votes</span>
+												</span>
+											</div>
+											<div class="qa-vote-clear">
+											</div>
+										</div>
+									</div>
+									<input type="hidden" name="code" value="0-1516468239-e11b70f2350dc76e7458c4f805de45b309252dc7">
+								</form>
+								<div class="qa-q-view-main">
+									<form method="post" action="../../98/how-can-write-simple-upwind-scheme-using-dg0-and-rt1-elements">
+										<div class="qa-q-view-content">
+											<a name="98"></a><div class="entry-content"><p>I am trying to construct a simple upwind scheme, using DG0 and RT1 elements.</p>
+
+<p>What is the best way to do this? I have managed to get something that seems to work,<br>
+but it seems a very inelegant way to perform a simple calculation. </p>
+
+<pre><code>from dolfin import *                         
+
+# mesh with one internal boundary                                                                                                        
+mesh = UnitSquareMesh(1,1)                                                                              
+RT = FunctionSpace(mesh, "RT", 1)                                                                       
+DG = FunctionSpace(mesh, "DG", 0)                                                                       
+
+# velocity                                                                                                        
+U = Function(RT)                                                                                        
+
+# advected quantity (1 in left cell, 2 in right cell)                                                                                         
+C = Function(DG)                                                                                        
+C.interpolate(Expression("(x[0]&gt;0.5)+1.0"))                                                             
+
+n = FacetNormal(mesh)                                                                                   
+un = dot(U,n)                                                                                           
+up = (un + abs(un))/2.0                                                                                 
+um = (un - abs(un))/2.0                                                                                 
+
+Ct = TestFunction(DG)                                                                                   
+flux = ((up*Ct*C)('+') + (up*Ct*C)('-') + (um*Ct)('+')*C('-') + (um*Ct)('-')*C('+'))*dS                 
+
+U.interpolate(Constant((0.1,0.0)))                                                                      
+print assemble(flux).array()                                                                            
+
+U.interpolate(Constant((-0.1,0.0)))                                                                     
+print assemble(flux).array()  
+</code></pre>
+</div>
+										</div>
+										<div class="qa-q-view-tags">
+											<ul class="qa-q-view-tag-list">
+												<li class="qa-q-view-tag-item"><a href="../../tag/dg0" rel="tag" class="qa-tag-link">dg0</a></li>
+												<li class="qa-q-view-tag-item"><a href="../../tag/raviart-thomas" rel="tag" class="qa-tag-link">raviart-thomas</a></li>
+												<li class="qa-q-view-tag-item"><a href="../../tag/advection" rel="tag" class="qa-tag-link">advection</a></li>
+												<li class="qa-q-view-tag-item"><a href="../../tag/upwind" rel="tag" class="qa-tag-link">upwind</a></li>
+											</ul>
+										</div>
+										<span class="qa-q-view-avatar-meta">
+											<span class="qa-q-view-avatar">
+												<a href="../../user/chris_richardson" class="qa-avatar-link"><img src="https://www.gravatar.com/avatar/d779daeb727bcec8f6b2c505810042db?s=50" width="50" height="50" class="qa-avatar-image" alt=""></a>
+											</span>
+											<span class="qa-q-view-meta">
+												<a href="../../98/how-can-write-simple-upwind-scheme-using-dg0-and-rt1-elements" class="qa-q-view-what">asked</a>
+												<span class="qa-q-view-when">
+													<span class="qa-q-view-when-data"><span class="published"><span class="value-title" title="2013-06-09T19:24:54+0000"></span>Jun 9, 2013</span></span>
+												</span>
+												<span class="qa-q-view-who">
+													<span class="qa-q-view-who-pad">by </span>
+													<span class="qa-q-view-who-data"><span class="vcard author"><a href="../../user/chris_richardson" class="qa-user-link url nickname">chris_richardson</a></span></span>
+													<span class="qa-q-view-who-title">FEniCS Expert</span>
+													<span class="qa-q-view-who-points">
+														<span class="qa-q-view-who-points-pad">(</span><span class="qa-q-view-who-points-data">31,740</span><span class="qa-q-view-who-points-pad"> points)</span>
+													</span>
+												</span>
+											</span>
+										</span>
+										<div class="qa-q-view-buttons">
+										</div>
+										
+										<div class="qa-q-view-c-list" style="display:none;" id="c98_list">
+										</div> <!-- END qa-c-list -->
+										
+										<input type="hidden" name="code" value="0-1516468239-dd147657ce05926aec2b1db0053427f4983a78f5">
+										<input type="hidden" name="qa_click" value="">
+									</form>
+									<div class="qa-c-form">
+									</div> <!-- END qa-c-form -->
+									
+								</div> <!-- END qa-q-view-main -->
+								<div class="qa-q-view-clear">
+								</div>
+							</div> <!-- END qa-q-view -->
+							
+						</div>
+						<div class="qa-part-a-list">
+							<h2 id="a_list_title">2 Answers</h2>
+							<div class="qa-a-list" id="a_list">
+								
+								<div class="qa-a-list-item  hentry answer answer-selected qa-a-list-item-selected" id="a261">
+									<form method="post" action="../../98/how-can-write-simple-upwind-scheme-using-dg0-and-rt1-elements">
+										<div class="qa-voting qa-voting-net" id="voting_261">
+											<div class="qa-vote-count qa-vote-count-net">
+												<span class="qa-netvote-count">
+													<span class="qa-netvote-count-data">+4<span class="votes-up"><span class="value-title" title="4"></span></span><span class="votes-down"><span class="value-title" title="0"></span></span></span><span class="qa-netvote-count-pad"> votes</span>
+												</span>
+											</div>
+											<div class="qa-vote-clear">
+											</div>
+										</div>
+										<input type="hidden" name="code" value="0-1516468239-e11b70f2350dc76e7458c4f805de45b309252dc7">
+									</form>
+									<div class="qa-a-item-main">
+										<form method="post" action="../../98/how-can-write-simple-upwind-scheme-using-dg0-and-rt1-elements">
+											<div class="qa-a-item-selected">
+												<div class="qa-a-selection">
+													<div class="qa-a-selected">&#160;</div>
+													<div class="qa-a-selected-text">Best answer</div>
+												</div>
+												<div class="qa-a-item-content">
+													<a name="261"></a><div class="entry-content"><p>I think this is an equivalent expression, which is simpler:</p>
+
+<pre><code>flux = dot(jump(Ct), jump(up*C))
+</code></pre>
+
+<p>where C is a DG0 Function with the field to be advected, Ct is a TestFunction<br>
+and "up" is the upwind velocity as defined above... </p>
+
+<p>This is more-or-less what is in the dg-advection-diffusion demo... </p>
+</div>
+												</div>
+												<span class="qa-a-item-avatar-meta">
+													<span class="qa-a-item-avatar">
+														<a href="../../user/chris_richardson" class="qa-avatar-link"><img src="https://www.gravatar.com/avatar/d779daeb727bcec8f6b2c505810042db?s=40" width="40" height="40" class="qa-avatar-image" alt=""></a>
+													</span>
+													<span class="qa-a-item-meta">
+														<a href="../../98/how-can-write-simple-upwind-scheme-using-dg0-and-rt1-elements?show=261#a261" class="qa-a-item-what">answered</a>
+														<span class="qa-a-item-when">
+															<span class="qa-a-item-when-data"><span class="published"><span class="value-title" title="2013-06-21T08:14:35+0000"></span>Jun 21, 2013</span></span>
+														</span>
+														<span class="qa-a-item-who">
+															<span class="qa-a-item-who-pad">by </span>
+															<span class="qa-a-item-who-data"><span class="vcard author"><a href="../../user/chris_richardson" class="qa-user-link url nickname">chris_richardson</a></span></span>
+															<span class="qa-a-item-who-title">FEniCS Expert</span>
+															<span class="qa-a-item-who-points">
+																<span class="qa-a-item-who-points-pad">(</span><span class="qa-a-item-who-points-data">31,740</span><span class="qa-a-item-who-points-pad"> points)</span>
+															</span>
+														</span>
+														<br>
+														<span class="qa-a-item-what">selected</span>
+														<span class="qa-a-item-when">
+															<span class="qa-a-item-when-data"><span class="updated"><span class="value-title" title="2013-07-12T15:07:40+0000"></span>Jul 12, 2013</span></span>
+														</span>
+														<span class="qa-a-item-who">
+															<span class="qa-a-item-who-pad">by </span><span class="qa-a-item-who-data"><a href="../../user/Jan+Blechta" class="qa-user-link url nickname">Jan Blechta</a></span>
+														</span>
+													</span>
+												</span>
+											</div>
+											<div class="qa-a-item-buttons">
+												</div>
+											
+											<div class="qa-a-item-c-list" id="c261_list">
+												<div class="qa-c-list-item  hentry comment" id="c266">
+													<div class="qa-c-item-content">
+														<a name="266"></a><div class="entry-content"><p>What is <code>C0</code>?</p>
+</div>
+													</div>
+													<div class="qa-c-item-footer">
+														<span class="qa-c-item-avatar-meta">
+															<span class="qa-c-item-avatar">
+																<a href="../../user/Jan+Blechta" class="qa-avatar-link"><img src="https://www.gravatar.com/avatar/dc6f8dce77e4a0bd5adc7ff31ab83741?s=20" width="20" height="20" class="qa-avatar-image" alt=""></a>
+															</span>
+															<span class="qa-c-item-meta">
+																<a href="../../98/how-can-write-simple-upwind-scheme-using-dg0-and-rt1-elements?show=266#c266" class="qa-c-item-what">commented</a>
+																<span class="qa-c-item-when">
+																	<span class="qa-c-item-when-data"><span class="published"><span class="value-title" title="2013-06-21T14:21:03+0000"></span>Jun 21, 2013</span></span>
+																</span>
+																<span class="qa-c-item-who">
+																	<span class="qa-c-item-who-pad">by </span>
+																	<span class="qa-c-item-who-data"><span class="vcard author"><a href="../../user/Jan+Blechta" class="qa-user-link url nickname">Jan Blechta</a></span></span>
+																	<span class="qa-c-item-who-title">FEniCS Expert</span>
+																	<span class="qa-c-item-who-points">
+																		<span class="qa-c-item-who-points-pad">(</span><span class="qa-c-item-who-points-data">51,420</span><span class="qa-c-item-who-points-pad"> points)</span>
+																	</span>
+																</span>
+															</span>
+														</span>
+														<div class="qa-c-item-buttons">
+														</div>
+													</div>
+													<div class="qa-c-item-clear">
+													</div>
+												</div> <!-- END qa-c-item -->
+												<div class="qa-c-list-item  hentry comment" id="c269">
+													<div class="qa-c-item-content">
+														<a name="269"></a><div class="entry-content"><p>Updated answer... </p>
+</div>
+													</div>
+													<div class="qa-c-item-footer">
+														<span class="qa-c-item-avatar-meta">
+															<span class="qa-c-item-avatar">
+																<a href="../../user/chris_richardson" class="qa-avatar-link"><img src="https://www.gravatar.com/avatar/d779daeb727bcec8f6b2c505810042db?s=20" width="20" height="20" class="qa-avatar-image" alt=""></a>
+															</span>
+															<span class="qa-c-item-meta">
+																<a href="../../98/how-can-write-simple-upwind-scheme-using-dg0-and-rt1-elements?show=269#c269" class="qa-c-item-what">commented</a>
+																<span class="qa-c-item-when">
+																	<span class="qa-c-item-when-data"><span class="published"><span class="value-title" title="2013-06-21T14:36:33+0000"></span>Jun 21, 2013</span></span>
+																</span>
+																<span class="qa-c-item-who">
+																	<span class="qa-c-item-who-pad">by </span>
+																	<span class="qa-c-item-who-data"><span class="vcard author"><a href="../../user/chris_richardson" class="qa-user-link url nickname">chris_richardson</a></span></span>
+																	<span class="qa-c-item-who-title">FEniCS Expert</span>
+																	<span class="qa-c-item-who-points">
+																		<span class="qa-c-item-who-points-pad">(</span><span class="qa-c-item-who-points-data">31,740</span><span class="qa-c-item-who-points-pad"> points)</span>
+																	</span>
+																</span>
+															</span>
+														</span>
+														<div class="qa-c-item-buttons">
+														</div>
+													</div>
+													<div class="qa-c-item-clear">
+													</div>
+												</div> <!-- END qa-c-item -->
+											</div> <!-- END qa-c-list -->
+											
+											<input type="hidden" name="code" value="0-1516468239-9e2fbd3385613f0d0ab363ddb0bc32c06c5a272b">
+											<input type="hidden" name="qa_click" value="">
+										</form>
+										<div class="qa-c-form">
+										</div> <!-- END qa-c-form -->
+										
+									</div> <!-- END qa-a-item-main -->
+									<div class="qa-a-item-clear">
+									</div>
+								</div> <!-- END qa-a-list-item -->
+								
+								<div class="qa-a-list-item  hentry answer" id="a108">
+									<form method="post" action="../../98/how-can-write-simple-upwind-scheme-using-dg0-and-rt1-elements">
+										<div class="qa-voting qa-voting-net" id="voting_108">
+											<div class="qa-vote-count qa-vote-count-net">
+												<span class="qa-netvote-count">
+													<span class="qa-netvote-count-data">+3<span class="votes-up"><span class="value-title" title="3"></span></span><span class="votes-down"><span class="value-title" title="0"></span></span></span><span class="qa-netvote-count-pad"> votes</span>
+												</span>
+											</div>
+											<div class="qa-vote-clear">
+											</div>
+										</div>
+										<input type="hidden" name="code" value="0-1516468239-e11b70f2350dc76e7458c4f805de45b309252dc7">
+									</form>
+									<div class="qa-a-item-main">
+										<form method="post" action="../../98/how-can-write-simple-upwind-scheme-using-dg0-and-rt1-elements">
+											<div class="qa-a-selection">
+											</div>
+											<div class="qa-a-item-content">
+												<a name="108"></a><div class="entry-content"><p>Perhaps you can use the same trick as in the <code>dg-advection-diffusion</code> demo:</p>
+
+<pre><code>un = (dot(u, n) + abs(dot(u, n))) / 2
+</code></pre>
+</div>
+											</div>
+											<span class="qa-a-item-avatar-meta">
+												<span class="qa-a-item-avatar">
+													<a href="../../user/logg" class="qa-avatar-link"><img src="https://www.gravatar.com/avatar/d2401a1635e91a5d9bf0db871a22abee?s=40" width="40" height="40" class="qa-avatar-image" alt=""></a>
+												</span>
+												<span class="qa-a-item-meta">
+													<a href="../../98/how-can-write-simple-upwind-scheme-using-dg0-and-rt1-elements?show=108#a108" class="qa-a-item-what">answered</a>
+													<span class="qa-a-item-when">
+														<span class="qa-a-item-when-data"><span class="published"><span class="value-title" title="2013-06-10T21:53:28+0000"></span>Jun 10, 2013</span></span>
+													</span>
+													<span class="qa-a-item-who">
+														<span class="qa-a-item-who-pad">by </span>
+														<span class="qa-a-item-who-data"><span class="vcard author"><a href="../../user/logg" class="qa-user-link url nickname">logg</a></span></span>
+														<span class="qa-a-item-who-title">FEniCS Expert</span>
+														<span class="qa-a-item-who-points">
+															<span class="qa-a-item-who-points-pad">(</span><span class="qa-a-item-who-points-data">11,790</span><span class="qa-a-item-who-points-pad"> points)</span>
+														</span>
+													</span>
+												</span>
+											</span>
+											<div class="qa-a-item-buttons">
+												</div>
+											
+											<div class="qa-a-item-c-list" id="c108_list">
+												<div class="qa-c-list-item  hentry comment" id="c119">
+													<div class="qa-c-item-content">
+														<a name="119"></a><div class="entry-content"><p>Yes, that's how I started out.</p>
+
+<p>The outward flux can be calculated as:</p>
+
+<p>$$ Q_{out} = (u\cdot \hat{n} + || u\cdot \hat{n}||) / 2 $$</p>
+
+<p>but when that is restricted on the facet, it (obviously) only gives a non-zero value in the cell with the outflow. That is fine for updating the cell with the outflow, but then you have to consider the inflow separately. I was just wondering if anyone had anything simpler than what I had written above (which does work). </p>
+
+<p>Also, the restriction operators are a bit 'restrictive' - it might be useful to define ('in') or ('interior') and ('out') or ('exterior') for the Facets which are inside or outside the cell, also ('all') for all Facets, and maybe an alternation operator, e.g.</p>
+
+<pre><code>alt(A, B) = A('+')*B('-') + A('-')*B('+')
+</code></pre>
+
+<p>This illustrates the simple behaviour of outflow:-</p>
+
+<pre><code>n = FacetNormal(mesh)
+un = dot(U,n)
+up = (un + abs(un))/2.0
+
+Ct = TestFunction(DG)
+
+print "u = (0.1, 0.0)"
+U.interpolate(Constant((0.1, 0.0)))
+print assemble((up*Ct)('-')*dS).array()
+print assemble((up*Ct)('+')*dS).array()
+print
+print "u = (-0.1, 0.0)"
+U.interpolate(Constant((-0.1, 0.0)))
+print assemble((up*Ct)('-')*dS).array()
+print assemble((up*Ct)('+')*dS).array()
+</code></pre>
+
+<p>outputs:</p>
+
+<pre><code>u = (0.1, 0.0)
+[ 0.   0.1]
+[ 0.  0.]
+
+u = (-0.1, 0.0)
+[ 0.  0.]
+[ 0.1  0. ]
+</code></pre>
+</div>
+													</div>
+													<div class="qa-c-item-footer">
+														<span class="qa-c-item-avatar-meta">
+															<span class="qa-c-item-avatar">
+																<a href="../../user/chris_richardson" class="qa-avatar-link"><img src="https://www.gravatar.com/avatar/d779daeb727bcec8f6b2c505810042db?s=20" width="20" height="20" class="qa-avatar-image" alt=""></a>
+															</span>
+															<span class="qa-c-item-meta">
+																<a href="../../98/how-can-write-simple-upwind-scheme-using-dg0-and-rt1-elements?show=119#c119" class="qa-c-item-what">commented</a>
+																<span class="qa-c-item-when">
+																	<span class="qa-c-item-when-data"><span class="published"><span class="value-title" title="2013-06-11T08:45:48+0000"></span>Jun 11, 2013</span></span>
+																</span>
+																<span class="qa-c-item-who">
+																	<span class="qa-c-item-who-pad">by </span>
+																	<span class="qa-c-item-who-data"><span class="vcard author"><a href="../../user/chris_richardson" class="qa-user-link url nickname">chris_richardson</a></span></span>
+																	<span class="qa-c-item-who-title">FEniCS Expert</span>
+																	<span class="qa-c-item-who-points">
+																		<span class="qa-c-item-who-points-pad">(</span><span class="qa-c-item-who-points-data">31,740</span><span class="qa-c-item-who-points-pad"> points)</span>
+																	</span>
+																</span>
+															</span>
+														</span>
+														<div class="qa-c-item-buttons">
+														</div>
+													</div>
+													<div class="qa-c-item-clear">
+													</div>
+												</div> <!-- END qa-c-item -->
+												<div class="qa-c-list-item  hentry comment" id="c1248">
+													<div class="qa-c-item-content">
+														<a name="1248"></a><div class="entry-content"><p>Hi Logg, what is the reference paper for dg-advection-diffusion demo?</p>
+</div>
+													</div>
+													<div class="qa-c-item-footer">
+														<span class="qa-c-item-avatar-meta">
+															<span class="qa-c-item-meta">
+																<a href="../../98/how-can-write-simple-upwind-scheme-using-dg0-and-rt1-elements?show=1248#c1248" class="qa-c-item-what">commented</a>
+																<span class="qa-c-item-when">
+																	<span class="qa-c-item-when-data"><span class="published"><span class="value-title" title="2013-09-23T07:01:58+0000"></span>Sep 23, 2013</span></span>
+																</span>
+																<span class="qa-c-item-who">
+																	<span class="qa-c-item-who-pad">by </span>
+																	<span class="qa-c-item-who-data"><span class="vcard author"><a href="../../user/waynezw0618" class="qa-user-link url nickname">waynezw0618</a></span></span>
+																	<span class="qa-c-item-who-title">FEniCS Novice</span>
+																	<span class="qa-c-item-who-points">
+																		<span class="qa-c-item-who-points-pad">(</span><span class="qa-c-item-who-points-data">450</span><span class="qa-c-item-who-points-pad"> points)</span>
+																	</span>
+																</span>
+															</span>
+														</span>
+														<div class="qa-c-item-buttons">
+														</div>
+													</div>
+													<div class="qa-c-item-clear">
+													</div>
+												</div> <!-- END qa-c-item -->
+												<div class="qa-c-list-item  hentry comment" id="c1253">
+													<div class="qa-c-item-content">
+														<a name="1253"></a><div class="entry-content"><p>Hi. everyone:<br>
+I think it may be helpful for me to paste my problem here. I am trying to write a simple case for advection  of Guass Function with DG method with inlet and outlet. I tried on a unitsquare mesh and try to mimic what in the dg-advection-diffussion demo in constructing flux as you guys discuss before, where I define the adevction velocity on a CG space.I am now trying Eular time stepping,which gives diverged after several steps.here is the code:</p>
+
+<pre><code>from dolfin import *
+mesh = UnitSquare(32,1)
+c=-1
+c0=Expression('exp(-pow((x[0]+a*t),2)/0.025)',a=c,t=0)
+def c0_boundary(x):
+    tol = 1E-15
+    return abs(x[0]) &lt; tol
+
+
+# Create function space constrained by periodic BC
+V_dg = FunctionSpace(mesh, 'DG',1)
+V_cg = VectorFunctionSpace(mesh,'CG',1)
+
+#define the advection velocity
+u0=Expression(('a','0'),a=c)
+U=interpolate(u0,V_cg)
+
+# Define normal component, mesh size and right-hand side
+n = FacetNormal(mesh)
+un = dot(U,n)
+up = (un + abs(un))/2.0
+
+c=TrialFunction(V_dg)
+v=TestFunction(V_dg)
+
+a_M = c*v*dx
+M=assemble(a_M)
+
+c=Function(V_dg)
+
+k=[]
+for i in range(4):
+    k.append(Function(V_dg))
+
+T = 0.2
+t = 0
+dt =0.001
+alpha=0
+while t&lt;=T:
+    a_int=-dot(grad(v),U*c)*dx 
+    a_flux=dot(jump(v), un('+')*c('+') - un('-')*c('-') )*dS  + dot(v, un*c)*ds
+    a=a_int + a_flux
+    b=assemble(a)
+
+    c0.t=t
+    bc=DirichletBC(V_dg,c0,c0_boundary)
+    bc.apply(M,b)
+    solve(M,k[0].vector(),b)
+
+    c.vector()[:]=k[0].vector()
+    t += dt
+    plot(c,rescale=True)
+ can anyone  tell me what is wrong here
+</code></pre>
+</div>
+													</div>
+													<div class="qa-c-item-footer">
+														<span class="qa-c-item-avatar-meta">
+															<span class="qa-c-item-meta">
+																<a href="../../98/how-can-write-simple-upwind-scheme-using-dg0-and-rt1-elements?show=1253#c1253" class="qa-c-item-what">commented</a>
+																<span class="qa-c-item-when">
+																	<span class="qa-c-item-when-data"><span class="published"><span class="value-title" title="2013-09-23T10:00:21+0000"></span>Sep 23, 2013</span></span>
+																</span>
+																<span class="qa-c-item-who">
+																	<span class="qa-c-item-who-pad">by </span>
+																	<span class="qa-c-item-who-data"><span class="vcard author"><a href="../../user/waynezw0618" class="qa-user-link url nickname">waynezw0618</a></span></span>
+																	<span class="qa-c-item-who-title">FEniCS Novice</span>
+																	<span class="qa-c-item-who-points">
+																		<span class="qa-c-item-who-points-pad">(</span><span class="qa-c-item-who-points-data">450</span><span class="qa-c-item-who-points-pad"> points)</span>
+																	</span>
+																</span>
+															</span>
+														</span>
+														<div class="qa-c-item-buttons">
+														</div>
+													</div>
+													<div class="qa-c-item-clear">
+													</div>
+												</div> <!-- END qa-c-item -->
+												<div class="qa-c-list-item " id="q1257">
+													<a href="../../1257/how-to-define-the-flux-by-cg-and-dg-function-in-unitinterval" class="qa-c-item-link">how to define the flux by CG and DG function in UnitInterval</a>
+													<div class="qa-c-item-footer">
+														<span class="qa-c-item-avatar-meta">
+															<span class="qa-c-item-meta">
+																<span class="qa-c-item-what">asked</span>
+																<span class="qa-c-item-when">
+																	<span class="qa-c-item-when-data">Sep 23, 2013</span>
+																</span>
+																<span class="qa-c-item-who">
+																	<span class="qa-c-item-who-pad">by </span>
+																	<span class="qa-c-item-who-data"><a href="../../user/waynezw0618" class="qa-user-link url nickname">waynezw0618</a></span>
+																	<span class="qa-c-item-who-title">FEniCS Novice</span>
+																	<span class="qa-c-item-who-points">
+																		<span class="qa-c-item-who-points-pad">(</span><span class="qa-c-item-who-points-data">450</span><span class="qa-c-item-who-points-pad"> points)</span>
+																	</span>
+																</span>
+															</span>
+														</span>
+													</div>
+													<div class="qa-c-item-clear">
+													</div>
+												</div> <!-- END qa-c-item -->
+											</div> <!-- END qa-c-list -->
+											
+											<input type="hidden" name="code" value="0-1516468239-3a19d408cec6d9d5662c845f94d10a379ab4c090">
+											<input type="hidden" name="qa_click" value="">
+										</form>
+										<div class="qa-c-form">
+										</div> <!-- END qa-c-form -->
+										
+									</div> <!-- END qa-a-item-main -->
+									<div class="qa-a-item-clear">
+									</div>
+								</div> <!-- END qa-a-list-item -->
+								
+							</div> <!-- END qa-a-list -->
+							
+						</div>
+					</div> <!-- END qa-main -->
+					
+				</div> <!-- END main-wrapper -->
+			</div> <!-- END main-shadow -->
+		</div> <!-- END body-wrapper -->
+		<!-- END footer-bottom-group -->
+		
+		<div style="position:absolute; left:-9999px; top:-9999px;">
+			<span id="qa-waiting-template" class="qa-waiting">...</span>
+		</div>
+	
+	
+
+</body><!-- Powered by Question2Answer - http://www.question2answer.org/ --></html>

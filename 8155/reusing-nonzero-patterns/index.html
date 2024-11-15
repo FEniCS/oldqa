@@ -1,0 +1,403 @@
+<html><!-- Powered by Question2Answer - http://www.question2answer.org/ --><head>
+		<meta http-equiv="content-type" content="text/html; charset=utf-8">
+		<title>Reusing nonzero patterns - FEniCS Q&amp;A</title>
+		<meta name="description" content="I am trying to solve the same PDE repeatedly, with slightly different parameters. This results in the  ...  to which, neither why one doesn't work.">
+		<meta name="keywords" content="nonzero,sparsity-pattern">
+		<link rel="stylesheet" type="text/css" href="../../qa-theme/Snow/qa-styles.css">
+		<link rel="canonical" href="http://fenicsproject.org/qa/8155/reusing-nonzero-patterns">
+		<script type="text/x-mathjax-config">
+  MathJax.Hub.Config({
+    extensions: ["tex2jax.js"],
+    jax: ["input/TeX","output/HTML-CSS"],
+    tex2jax: {inlineMath: [["$","$"],["\\(","\\)"]]},
+    TeX: { extensions: ["AMSmath.js","AMSsymbols.js"]}
+  });
+</script>
+<script type="text/javascript" src="../../mathjax/MathJax.js"></script>
+		<script src="../../jquery-1.7.2.min.js" type="text/javascript"></script>
+		<script src="../../highlight.min.js"></script>
+<script type="text/javascript">
+$(function(){
+	$('.wmd-input').keypress(function(){
+		window.clearTimeout(hljs.Timeout);
+		hljs.Timeout = window.setTimeout(function() {
+			hljs.initHighlighting.called = false;
+			hljs.initHighlighting();
+		}, 500);
+	});
+	window.setTimeout(function() {
+		hljs.initHighlighting.called = false;
+		hljs.initHighlighting();
+	}, 500);
+});
+</script>
+
+
+	</head>
+	<body class="qa-template-question qa-body-js-off">
+		<div class="qa-body-wrapper">
+			
+			<div class="qa-header">
+				<div class="qa-logo">
+					<a href="../../" class="qa-logo-link" title="FEniCS Q&amp;A"><img src="../../qa-theme/fenics_qa.png" border="0" alt="FEniCS Q&amp;A"></a>
+				</div>
+				<div class="qa-header-clear">
+				</div>
+			</div> <!-- END qa-header -->
+			
+			<div class="qa-main-shadow">
+				
+				<div class="qa-main-wrapper">
+					
+					<div class="qa-sidepanel">
+						<div class="qa-sidebar">
+							This is a read only copy of the old FEniCS QA forum. Please visit the <a href="https://www.allanswered.com/community/s/fenics-project/">new QA forum</a> to ask questions
+						</div>
+						
+					</div>
+					
+					<div class="qa-main">
+						<h1>
+							<span class="entry-title">Reusing nonzero patterns</span>
+						</h1>
+						<div class="qa-part-q-view">
+							<div class="qa-q-view  hentry question" id="q8155">
+								<form method="post" action="../../8155/reusing-nonzero-patterns">
+									<div class="qa-q-view-stats">
+										<div class="qa-voting qa-voting-net" id="voting_8155">
+											<div class="qa-vote-count qa-vote-count-net">
+												<span class="qa-netvote-count">
+													<span class="qa-netvote-count-data">0<span class="votes-up"><span class="value-title" title="0"></span></span><span class="votes-down"><span class="value-title" title="0"></span></span></span><span class="qa-netvote-count-pad"> votes</span>
+												</span>
+											</div>
+											<div class="qa-vote-clear">
+											</div>
+										</div>
+									</div>
+									<input type="hidden" name="code" value="0-1516468159-6487bdd5f2345452b448e0992152bb4369bb0a56">
+								</form>
+								<div class="qa-q-view-main">
+									<form method="post" action="../../8155/reusing-nonzero-patterns">
+										<div class="qa-q-view-content">
+											<a name="8155"></a><div class="entry-content"><p>I am trying to solve the same PDE repeatedly, with slightly different parameters. This results in the problem $Ax = B$ where $A = C + dD_i$ which I solve for plenty of different parameters $d$ and their corresponding matrix $D_i$.</p>
+
+<p>The nonzero pattern of these $D_i$ is the same, however, and I wanted to use this to my advantage. The nonzero pattern of C and the D's are different. I tried:</p>
+
+<pre><code># C and all D's have been assembled at this point and are matrices
+
+# initialize the nonzero pattern of A as the combination of C and D
+D1 = Ds[0]
+A = C.copy()
+A.axpy(1.0, D1, False) # `False` here refers to same_nonzero_pattern
+
+for d, D in zip(ds, Ds):
+    A.zero()
+    A.axpy(1.0, C, True)
+    A.axpy(d, D, True)
+    solve(A, solution.vector(), B)
+</code></pre>
+
+<p>At this point I get the error</p>
+
+<pre><code>*** -------------------------------------------------------------------------
+*** Error:   Unable to successfully call PETSc function 'KSPSolve'.
+*** Reason:  PETSc error code is: 72.
+*** Where:   This error was encountered inside &lt;path&gt;/dolfin-1.4.0/dolfin/la/PETScLUSolver.cpp.
+*** Process: unknown
+*** 
+*** DOLFIN version: 1.4.0
+*** Git changeset:  
+*** -------------------------------------------------------------------------
+</code></pre>
+
+<p><strong>EDIT</strong><br>
+Here is a small example. Did I misunderstand something, because I would expect A and C to be the same at the end.</p>
+
+<pre><code>from dolfin import *
+
+# setup
+mesh = UnitSquareMesh(1, 1)
+V = FunctionSpace(mesh, "Lagrange", 1)
+
+class LeftBoundary(SubDomain):
+    def inside(self, x, on_boundary):
+        return near(x[0], 0.0)
+lbnd = LeftBoundary()
+
+class RightBoundary(SubDomain):
+    def inside(self, x, on_boundary):
+        return near(x[0], 1.0)
+rbnd = RightBoundary()
+
+boundaries = FacetFunction('size_t', mesh)
+boundaries.set_all(0)
+lbnd.mark(boundaries, 1)
+rbnd.mark(boundaries, 2)
+ds = Measure('ds')[boundaries]
+u = TrialFunction(V)
+v = TestFunction(V)
+
+# the interesting part
+c = u * v * ds(1)
+d = u * v * ds(2)
+
+# dolfin API
+C = assemble(c)
+D = assemble(d)
+A = assemble(c + d)
+A.zero()
+A.axpy(1.0, C, True) # wrong
+print A.array(), '\n'
+
+# petsc4py API
+Cp = as_backend_type(C).mat()
+Dp = as_backend_type(D).mat()
+Ap = as_backend_type(A).mat()
+Ap.zeroEntries()
+# Ap.axpy(1.0, Cp, structure=0) # correct
+Ap.axpy(1.0, Cp, structure=1) # also correct but faster
+# Ap.axpy(1.0, Cp, structure=2) # wrong, same as `A` above
+print PETScMatrix(Ap).array(), '\n'
+
+print C.array()
+</code></pre>
+
+<p>From PETSc documentation ( <a rel="nofollow" href="http://www.mcs.anl.gov/petsc/petsc-current/docs/manualpages/Mat/MatAXPY.html">http://www.mcs.anl.gov/petsc/petsc-current/docs/manualpages/Mat/MatAXPY.html</a> ) the structure can be </p>
+
+<blockquote>
+  <p>either SAME_NONZERO_PATTERN, DIFFERENT_NONZERO_PATTERN or<br>
+  SUBSET_NONZERO_PATTERN (nonzeros of X is a subset of Y's)</p>
+</blockquote>
+
+<p>I believe that this corresponds to the <code>structure=</code> keyword argument of the petsc4py wrapping, but I haven't found which corresponds to which, neither why one doesn't work.</p>
+</div>
+										</div>
+										<div class="qa-q-view-tags">
+											<ul class="qa-q-view-tag-list">
+												<li class="qa-q-view-tag-item"><a href="../../tag/nonzero" rel="tag" class="qa-tag-link">nonzero</a></li>
+												<li class="qa-q-view-tag-item"><a href="../../tag/sparsity-pattern" rel="tag" class="qa-tag-link">sparsity-pattern</a></li>
+											</ul>
+										</div>
+										<span class="qa-q-view-avatar-meta">
+											<span class="qa-q-view-meta">
+												<a href="../../8155/reusing-nonzero-patterns" class="qa-q-view-what">asked</a>
+												<span class="qa-q-view-when">
+													<span class="qa-q-view-when-data"><span class="published"><span class="value-title" title="2015-09-16T15:21:37+0000"></span>Sep 16, 2015</span></span>
+												</span>
+												<span class="qa-q-view-who">
+													<span class="qa-q-view-who-pad">by </span>
+													<span class="qa-q-view-who-data"><span class="vcard author"><a href="../../user/maartent" class="qa-user-link url nickname">maartent</a></span></span>
+													<span class="qa-q-view-who-title">FEniCS User</span>
+													<span class="qa-q-view-who-points">
+														<span class="qa-q-view-who-points-pad">(</span><span class="qa-q-view-who-points-data">3,910</span><span class="qa-q-view-who-points-pad"> points)</span>
+													</span>
+												</span>
+												<br>
+												<span class="qa-q-view-what">edited</span>
+												<span class="qa-q-view-when">
+													<span class="qa-q-view-when-data"><span class="updated"><span class="value-title" title="2015-09-17T12:58:46+0000"></span>Sep 17, 2015</span></span>
+												</span>
+												<span class="qa-q-view-who">
+													<span class="qa-q-view-who-pad">by </span><span class="qa-q-view-who-data"><a href="../../user/maartent" class="qa-user-link url nickname">maartent</a></span>
+												</span>
+											</span>
+										</span>
+										<div class="qa-q-view-buttons">
+										</div>
+										
+										<div class="qa-q-view-c-list" id="c8155_list">
+											<div class="qa-c-list-item  hentry comment" id="c8158">
+												<div class="qa-c-item-content">
+													<a name="8158"></a><div class="entry-content"><p>Error code 72 is floating point exception and may be unrelated to the matrix axpy operations. You can check that matrices are correct before solving (perform matrix-vector products or look at the numpy arrays for small problem sizes).</p>
+</div>
+												</div>
+												<div class="qa-c-item-footer">
+													<span class="qa-c-item-avatar-meta">
+														<span class="qa-c-item-meta">
+															<a href="../../8155/reusing-nonzero-patterns?show=8158#c8158" class="qa-c-item-what">commented</a>
+															<span class="qa-c-item-when">
+																<span class="qa-c-item-when-data"><span class="published"><span class="value-title" title="2015-09-17T07:36:17+0000"></span>Sep 17, 2015</span></span>
+															</span>
+															<span class="qa-c-item-who">
+																<span class="qa-c-item-who-pad">by </span>
+																<span class="qa-c-item-who-data"><span class="vcard author"><a href="../../user/Magne+Nordaas" class="qa-user-link url nickname">Magne Nordaas</a></span></span>
+																<span class="qa-c-item-who-title">FEniCS Expert</span>
+																<span class="qa-c-item-who-points">
+																	<span class="qa-c-item-who-points-pad">(</span><span class="qa-c-item-who-points-data">13,820</span><span class="qa-c-item-who-points-pad"> points)</span>
+																</span>
+															</span>
+														</span>
+													</span>
+													<div class="qa-c-item-buttons">
+													</div>
+												</div>
+												<div class="qa-c-item-clear">
+												</div>
+											</div> <!-- END qa-c-item -->
+											<div class="qa-c-list-item  hentry comment" id="c8161">
+												<div class="qa-c-item-content">
+													<a name="8161"></a><div class="entry-content"><p>I provided a small working example that shows the problem. Either I misunderstand the method <code>axpy</code> or it sets the wrong nonzero elements (hence leaving zeros where the solver does not expect them, which leads to the error). Does that make sense?</p>
+
+<p>Another way to create a matrix with a given nonzero pattern seems to be by using a <code>TensorLayout</code> object (see also the PS at the end of this question <a rel="nofollow" href="http://fenicsproject.org/qa/2951/how-to-populate-a-dolfin-petscmatrix-using-petsc4py?show=2951)">http://fenicsproject.org/qa/2951/how-to-populate-a-dolfin-petscmatrix-using-petsc4py?show=2951)</a> but I did not find an example of how to use it?</p>
+
+<p>A last option would be to use petsc4py to create a matrix with a sparsity pattern and use that one to initialize a dolfin matrix. I assume this must be possible somehow.</p>
+</div>
+												</div>
+												<div class="qa-c-item-footer">
+													<span class="qa-c-item-avatar-meta">
+														<span class="qa-c-item-meta">
+															<a href="../../8155/reusing-nonzero-patterns?show=8161#c8161" class="qa-c-item-what">commented</a>
+															<span class="qa-c-item-when">
+																<span class="qa-c-item-when-data"><span class="published"><span class="value-title" title="2015-09-17T12:07:04+0000"></span>Sep 17, 2015</span></span>
+															</span>
+															<span class="qa-c-item-who">
+																<span class="qa-c-item-who-pad">by </span>
+																<span class="qa-c-item-who-data"><span class="vcard author"><a href="../../user/maartent" class="qa-user-link url nickname">maartent</a></span></span>
+																<span class="qa-c-item-who-title">FEniCS User</span>
+																<span class="qa-c-item-who-points">
+																	<span class="qa-c-item-who-points-pad">(</span><span class="qa-c-item-who-points-data">3,910</span><span class="qa-c-item-who-points-pad"> points)</span>
+																</span>
+															</span>
+														</span>
+													</span>
+													<div class="qa-c-item-buttons">
+													</div>
+												</div>
+												<div class="qa-c-item-clear">
+												</div>
+											</div> <!-- END qa-c-item -->
+											<div class="qa-c-list-item  hentry comment" id="c8162">
+												<div class="qa-c-item-content">
+													<a name="8162"></a><div class="entry-content"><p>I updated the working example to show the differences between dolfin and petsc4py. It seems that I can use a workaround using petsc4py, but some parts still remain a mystery to me.<br>
+If there is a better way I would be happy to hear.</p>
+</div>
+												</div>
+												<div class="qa-c-item-footer">
+													<span class="qa-c-item-avatar-meta">
+														<span class="qa-c-item-meta">
+															<a href="../../8155/reusing-nonzero-patterns?show=8162#c8162" class="qa-c-item-what">commented</a>
+															<span class="qa-c-item-when">
+																<span class="qa-c-item-when-data"><span class="published"><span class="value-title" title="2015-09-17T13:00:36+0000"></span>Sep 17, 2015</span></span>
+															</span>
+															<span class="qa-c-item-who">
+																<span class="qa-c-item-who-pad">by </span>
+																<span class="qa-c-item-who-data"><span class="vcard author"><a href="../../user/maartent" class="qa-user-link url nickname">maartent</a></span></span>
+																<span class="qa-c-item-who-title">FEniCS User</span>
+																<span class="qa-c-item-who-points">
+																	<span class="qa-c-item-who-points-pad">(</span><span class="qa-c-item-who-points-data">3,910</span><span class="qa-c-item-who-points-pad"> points)</span>
+																</span>
+															</span>
+														</span>
+													</span>
+													<div class="qa-c-item-buttons">
+													</div>
+												</div>
+												<div class="qa-c-item-clear">
+												</div>
+											</div> <!-- END qa-c-item -->
+											<div class="qa-c-list-item  hentry comment" id="c8163">
+												<div class="qa-c-item-content">
+													<a name="8163"></a><div class="entry-content"><p>A and C does not have the same sparsity. The nonzero entries of C is a proper subset of the nonzero entries of A, which is why structure=1 can be used here, but not structure=2.</p>
+
+<p>You can also write</p>
+
+<pre><code>Ap.axpy(1.0, Cp, structure = Ap.Structure.SUBSET_NONZERO_PATTERN)
+</code></pre>
+</div>
+												</div>
+												<div class="qa-c-item-footer">
+													<span class="qa-c-item-avatar-meta">
+														<span class="qa-c-item-meta">
+															<a href="../../8155/reusing-nonzero-patterns?show=8163#c8163" class="qa-c-item-what">commented</a>
+															<span class="qa-c-item-when">
+																<span class="qa-c-item-when-data"><span class="published"><span class="value-title" title="2015-09-17T13:07:30+0000"></span>Sep 17, 2015</span></span>
+															</span>
+															<span class="qa-c-item-who">
+																<span class="qa-c-item-who-pad">by </span>
+																<span class="qa-c-item-who-data"><span class="vcard author"><a href="../../user/Magne+Nordaas" class="qa-user-link url nickname">Magne Nordaas</a></span></span>
+																<span class="qa-c-item-who-title">FEniCS Expert</span>
+																<span class="qa-c-item-who-points">
+																	<span class="qa-c-item-who-points-pad">(</span><span class="qa-c-item-who-points-data">13,820</span><span class="qa-c-item-who-points-pad"> points)</span>
+																</span>
+															</span>
+															<br>
+															<span class="qa-c-item-what">edited</span>
+															<span class="qa-c-item-when">
+																<span class="qa-c-item-when-data"><span class="updated"><span class="value-title" title="2015-09-17T13:12:46+0000"></span>Sep 17, 2015</span></span>
+															</span>
+															<span class="qa-c-item-who">
+																<span class="qa-c-item-who-pad">by </span><span class="qa-c-item-who-data"><a href="../../user/Magne+Nordaas" class="qa-user-link url nickname">Magne Nordaas</a></span>
+															</span>
+														</span>
+													</span>
+													<div class="qa-c-item-buttons">
+													</div>
+												</div>
+												<div class="qa-c-item-clear">
+												</div>
+											</div> <!-- END qa-c-item -->
+											<div class="qa-c-list-item  hentry comment" id="c8164">
+												<div class="qa-c-item-content">
+													<a name="8164"></a><div class="entry-content"><p>Thanks, that seems more clear! So if I understand things now, <code>same_nonzero_pattern</code> means exactly the same; but since dolfin only offers exactly the same or different, I have to use petsc4py with the <code>subset_nonzero_pattern</code> keyword.</p>
+
+<p>Then, from the discussion above, I assume that <code>structure=0</code> corresponds to <code>different_nonzero_pattern</code> (correct but slow), <code>structure=1</code> to <code>subset_nonzero_pattern</code> and <code>structure=2</code> to <code>same_nonzero_pattern</code>?</p>
+</div>
+												</div>
+												<div class="qa-c-item-footer">
+													<span class="qa-c-item-avatar-meta">
+														<span class="qa-c-item-meta">
+															<a href="../../8155/reusing-nonzero-patterns?show=8164#c8164" class="qa-c-item-what">commented</a>
+															<span class="qa-c-item-when">
+																<span class="qa-c-item-when-data"><span class="published"><span class="value-title" title="2015-09-17T13:42:00+0000"></span>Sep 17, 2015</span></span>
+															</span>
+															<span class="qa-c-item-who">
+																<span class="qa-c-item-who-pad">by </span>
+																<span class="qa-c-item-who-data"><span class="vcard author"><a href="../../user/maartent" class="qa-user-link url nickname">maartent</a></span></span>
+																<span class="qa-c-item-who-title">FEniCS User</span>
+																<span class="qa-c-item-who-points">
+																	<span class="qa-c-item-who-points-pad">(</span><span class="qa-c-item-who-points-data">3,910</span><span class="qa-c-item-who-points-pad"> points)</span>
+																</span>
+															</span>
+														</span>
+													</span>
+													<div class="qa-c-item-buttons">
+													</div>
+												</div>
+												<div class="qa-c-item-clear">
+												</div>
+											</div> <!-- END qa-c-item -->
+										</div> <!-- END qa-c-list -->
+										
+										<input type="hidden" name="code" value="0-1516468159-3ba8152399137f624f9985a61ed3108f32461540">
+										<input type="hidden" name="qa_click" value="">
+									</form>
+									<div class="qa-c-form">
+									</div> <!-- END qa-c-form -->
+									
+								</div> <!-- END qa-q-view-main -->
+								<div class="qa-q-view-clear">
+								</div>
+							</div> <!-- END qa-q-view -->
+							
+						</div>
+						<div class="qa-part-a-list">
+							<h2 id="a_list_title" style="display:none;"></h2>
+							<div class="qa-a-list" id="a_list">
+								
+							</div> <!-- END qa-a-list -->
+							
+						</div>
+					</div> <!-- END qa-main -->
+					
+				</div> <!-- END main-wrapper -->
+			</div> <!-- END main-shadow -->
+		</div> <!-- END body-wrapper -->
+		<!-- END footer-bottom-group -->
+		
+		<div style="position:absolute; left:-9999px; top:-9999px;">
+			<span id="qa-waiting-template" class="qa-waiting">...</span>
+		</div>
+	
+	
+
+</body><!-- Powered by Question2Answer - http://www.question2answer.org/ --></html>

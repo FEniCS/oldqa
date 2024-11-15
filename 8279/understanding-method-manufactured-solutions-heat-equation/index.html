@@ -1,0 +1,260 @@
+<html><!-- Powered by Question2Answer - http://www.question2answer.org/ --><head>
+		<meta http-equiv="content-type" content="text/html; charset=utf-8">
+		<title>Understanding Method of Manufactured solutions w.r.t. heat equation - FEniCS Q&amp;A</title>
+		<meta name="description" content='Hello, I am trying to understand the MMS and also solving the heat equation for the first time. So,  ...  = DirichletBC (V, I ,"on_boundary") while (t'>
+		<meta name="keywords" content="method-manufactored-solutions,heat-equation">
+		<link rel="stylesheet" type="text/css" href="../../qa-theme/Snow/qa-styles.css">
+		<link rel="canonical" href="http://fenicsproject.org/qa/8279/understanding-method-manufactured-solutions-heat-equation">
+		<script type="text/x-mathjax-config">
+  MathJax.Hub.Config({
+    extensions: ["tex2jax.js"],
+    jax: ["input/TeX","output/HTML-CSS"],
+    tex2jax: {inlineMath: [["$","$"],["\\(","\\)"]]},
+    TeX: { extensions: ["AMSmath.js","AMSsymbols.js"]}
+  });
+</script>
+<script type="text/javascript" src="../../mathjax/MathJax.js"></script>
+		<script src="../../jquery-1.7.2.min.js" type="text/javascript"></script>
+		<script src="../../highlight.min.js"></script>
+<script type="text/javascript">
+$(function(){
+	$('.wmd-input').keypress(function(){
+		window.clearTimeout(hljs.Timeout);
+		hljs.Timeout = window.setTimeout(function() {
+			hljs.initHighlighting.called = false;
+			hljs.initHighlighting();
+		}, 500);
+	});
+	window.setTimeout(function() {
+		hljs.initHighlighting.called = false;
+		hljs.initHighlighting();
+	}, 500);
+});
+</script>
+
+
+	</head>
+	<body class="qa-template-question qa-body-js-off">
+		<div class="qa-body-wrapper">
+			
+			<div class="qa-header">
+				<div class="qa-logo">
+					<a href="../../" class="qa-logo-link" title="FEniCS Q&amp;A"><img src="../../qa-theme/fenics_qa.png" border="0" alt="FEniCS Q&amp;A"></a>
+				</div>
+				<div class="qa-header-clear">
+				</div>
+			</div> <!-- END qa-header -->
+			
+			<div class="qa-main-shadow">
+				
+				<div class="qa-main-wrapper">
+					
+					<div class="qa-sidepanel">
+						<div class="qa-sidebar">
+							This is a read only copy of the old FEniCS QA forum. Please visit the <a href="https://www.allanswered.com/community/s/fenics-project/">new QA forum</a> to ask questions
+						</div>
+						
+					</div>
+					
+					<div class="qa-main">
+						<h1>
+							<span class="entry-title">Understanding Method of Manufactured solutions w.r.t. heat equation</span>
+						</h1>
+						<div class="qa-part-q-view">
+							<div class="qa-q-view  hentry question" id="q8279">
+								<form method="post" action="../../8279/understanding-method-manufactured-solutions-heat-equation">
+									<div class="qa-q-view-stats">
+										<div class="qa-voting qa-voting-net" id="voting_8279">
+											<div class="qa-vote-count qa-vote-count-net">
+												<span class="qa-netvote-count">
+													<span class="qa-netvote-count-data">0<span class="votes-up"><span class="value-title" title="0"></span></span><span class="votes-down"><span class="value-title" title="0"></span></span></span><span class="qa-netvote-count-pad"> votes</span>
+												</span>
+											</div>
+											<div class="qa-vote-clear">
+											</div>
+										</div>
+									</div>
+									<input type="hidden" name="code" value="0-1516468165-8de2f70018e6fb2e1e207180e2ce5d8ed96f5a0c">
+								</form>
+								<div class="qa-q-view-main">
+									<form method="post" action="../../8279/understanding-method-manufactured-solutions-heat-equation">
+										<div class="qa-q-view-content">
+											<a name="8279"></a><div class="entry-content"><p>Hello,</p>
+
+<p>I am trying to understand the MMS and also solving the heat equation for the first time. </p>
+
+<p>So, I have a working code built on the equation below. I understand the superficial structure of MMS, and how the individual components of the python code below come together, but I am not able to make sense of the entire process with heat eq. comprehensively. So we chose a solution, then project it on the mesh as initial condition at t=0, then the heat source derived from the solution is used in bilinear form, and the selected solution is also used a BC (updated with time).   </p>
+
+<ol>
+<li><p>It would be very kind if someone could explain this concept in brief to make sense out of it. I have a basic idea which makes sense of the fact that we use this approach to verify the code, but still if anyone could put in a few words of conceptual simplicity, it would be awesome.</p></li>
+<li><p>In context to the heat equation, how is the physics working here? I mean, we have an initial condition of heat distribution on the mesh given by u0, and we are controlling the heat value on Boundary using the solution by updating it with time, then we are also heating the mesh from source 'f'. So the heat distribution in mesh changes from u0 at t= 0 to u1 at t = T under the influence of given source. Is that correct?    </p></li>
+</ol>
+
+<p><img src="http://i58.tinypic.com/blqg9.png" alt="gh"> </p>
+
+<p>This is the code and below that is the output I get:</p>
+
+<pre><code>mesh = UnitSquareMesh (8, 8)
+V = FunctionSpace (mesh, "Lagrange", 1)
+
+dt = Constant (0.3) ; t = float (dt) ; T = 1.8
+t0 = 0
+I = Expression ("exp(-4*DOLFIN_PI*DOLFIN_PI*t)*cos(2* DOLFIN_PI *x[0])*cos(2* DOLFIN_PI *x[1])", t=t0 )
+
+u0 = interpolate (I, V)
+u1 = Function (V)
+
+u = TrialFunction (V)
+v = TestFunction (V)
+f = Expression ("4*DOLFIN_PI*DOLFIN_PI *exp( -4* DOLFIN_PI * DOLFIN_PI *t) *cos(2* DOLFIN_PI *x[0]) *cos(2* DOLFIN_PI *x[1])",t=t0 )
+a = u*v*dx + dt* inner (grad(u), grad(v))*dx
+L = u0*v*dx + dt*f*v*dx
+bc = DirichletBC (V, I ,"on_boundary")
+
+while (t &lt;= T):
+   I.t = t
+   f.t = t
+   solve (a == L , u1 , bc)
+   u0.assign (u1)    # Update
+   t += float (dt)
+plot (u1 , title = "Approximated final solution", interactive =True)
+</code></pre>
+
+<p><img src="http://i58.tinypic.com/34t5naw.png" alt="fg"></p>
+</div>
+										</div>
+										<div class="qa-q-view-tags">
+											<ul class="qa-q-view-tag-list">
+												<li class="qa-q-view-tag-item"><a href="../../tag/method-manufactored-solutions" rel="tag" class="qa-tag-link">method-manufactored-solutions</a></li>
+												<li class="qa-q-view-tag-item"><a href="../../tag/heat-equation" rel="tag" class="qa-tag-link">heat-equation</a></li>
+											</ul>
+										</div>
+										<span class="qa-q-view-avatar-meta">
+											<span class="qa-q-view-avatar">
+												<a href="../../user/Chaitanya_Raj_Goyal" class="qa-avatar-link"><img src="../../?qa=image&amp;qa_blobid=5557427273671820211&amp;qa_size=50" width="50" height="31" class="qa-avatar-image" alt=""></a>
+											</span>
+											<span class="qa-q-view-meta">
+												<a href="../../8279/understanding-method-manufactured-solutions-heat-equation" class="qa-q-view-what">asked</a>
+												<span class="qa-q-view-when">
+													<span class="qa-q-view-when-data"><span class="published"><span class="value-title" title="2015-10-05T04:36:50+0000"></span>Oct 5, 2015</span></span>
+												</span>
+												<span class="qa-q-view-who">
+													<span class="qa-q-view-who-pad">by </span>
+													<span class="qa-q-view-who-data"><span class="vcard author"><a href="../../user/Chaitanya_Raj_Goyal" class="qa-user-link url nickname">Chaitanya_Raj_Goyal</a></span></span>
+													<span class="qa-q-view-who-title">FEniCS User</span>
+													<span class="qa-q-view-who-points">
+														<span class="qa-q-view-who-points-pad">(</span><span class="qa-q-view-who-points-data">4,150</span><span class="qa-q-view-who-points-pad"> points)</span>
+													</span>
+												</span>
+												<br>
+												<span class="qa-q-view-what">edited</span>
+												<span class="qa-q-view-when">
+													<span class="qa-q-view-when-data"><span class="updated"><span class="value-title" title="2015-10-05T14:31:29+0000"></span>Oct 5, 2015</span></span>
+												</span>
+												<span class="qa-q-view-who">
+													<span class="qa-q-view-who-pad">by </span><span class="qa-q-view-who-data"><a href="../../user/Chaitanya_Raj_Goyal" class="qa-user-link url nickname">Chaitanya_Raj_Goyal</a></span>
+												</span>
+											</span>
+										</span>
+										<div class="qa-q-view-buttons">
+										</div>
+										
+										<div class="qa-q-view-c-list" style="display:none;" id="c8279_list">
+										</div> <!-- END qa-c-list -->
+										
+										<input type="hidden" name="code" value="0-1516468165-1c95bcdddd2affad9420ef7a453e6d6c831d04ed">
+										<input type="hidden" name="qa_click" value="">
+									</form>
+									<div class="qa-c-form">
+									</div> <!-- END qa-c-form -->
+									
+								</div> <!-- END qa-q-view-main -->
+								<div class="qa-q-view-clear">
+								</div>
+							</div> <!-- END qa-q-view -->
+							
+						</div>
+						<div class="qa-part-a-list">
+							<h2 id="a_list_title">1 Answer</h2>
+							<div class="qa-a-list" id="a_list">
+								
+								<div class="qa-a-list-item  hentry answer" id="a8280">
+									<form method="post" action="../../8279/understanding-method-manufactured-solutions-heat-equation">
+										<div class="qa-voting qa-voting-net" id="voting_8280">
+											<div class="qa-vote-count qa-vote-count-net">
+												<span class="qa-netvote-count">
+													<span class="qa-netvote-count-data">+1<span class="votes-up"><span class="value-title" title="1"></span></span><span class="votes-down"><span class="value-title" title="0"></span></span></span><span class="qa-netvote-count-pad"> vote</span>
+												</span>
+											</div>
+											<div class="qa-vote-clear">
+											</div>
+										</div>
+										<input type="hidden" name="code" value="0-1516468165-8de2f70018e6fb2e1e207180e2ce5d8ed96f5a0c">
+									</form>
+									<div class="qa-a-item-main">
+										<form method="post" action="../../8279/understanding-method-manufactured-solutions-heat-equation">
+											<div class="qa-a-selection">
+											</div>
+											<div class="qa-a-item-content">
+												<a name="8280"></a><div class="entry-content"><p>MMS is typically used  to verify the code by checking wether certain error estimates<br>
+are valid. For the heat equation you should see that the error decrease in<br>
+terms of dt and h of certain powers. These tests are quite often pretty strict<br>
+in the sense that many bugs will show up as violations of the estimates. </p>
+
+<p>There is no physics in MMS. Typically, MMS solution are simplified analytical<br>
+expressions that are hard to imaging in real word examples. However, <br>
+if your program has been verified with MMS, then you typically only<br>
+need to change the BC and IC to get to a real example. The edits will be<br>
+very local and can be verified on their own. </p>
+</div>
+											</div>
+											<span class="qa-a-item-avatar-meta">
+												<span class="qa-a-item-meta">
+													<a href="../../8279/understanding-method-manufactured-solutions-heat-equation?show=8280#a8280" class="qa-a-item-what">answered</a>
+													<span class="qa-a-item-when">
+														<span class="qa-a-item-when-data"><span class="published"><span class="value-title" title="2015-10-05T07:30:30+0000"></span>Oct 5, 2015</span></span>
+													</span>
+													<span class="qa-a-item-who">
+														<span class="qa-a-item-who-pad">by </span>
+														<span class="qa-a-item-who-data"><span class="vcard author"><a href="../../user/Kent-Andre+Mardal" class="qa-user-link url nickname">Kent-Andre Mardal</a></span></span>
+														<span class="qa-a-item-who-title">FEniCS Expert</span>
+														<span class="qa-a-item-who-points">
+															<span class="qa-a-item-who-points-pad">(</span><span class="qa-a-item-who-points-data">14,380</span><span class="qa-a-item-who-points-pad"> points)</span>
+														</span>
+													</span>
+												</span>
+											</span>
+											<div class="qa-a-item-buttons">
+												</div>
+											
+											<div class="qa-a-item-c-list" style="display:none;" id="c8280_list">
+											</div> <!-- END qa-c-list -->
+											
+											<input type="hidden" name="code" value="0-1516468165-690f308cc862f768bfd6c327d2234f5183dbf7e1">
+											<input type="hidden" name="qa_click" value="">
+										</form>
+										<div class="qa-c-form">
+										</div> <!-- END qa-c-form -->
+										
+									</div> <!-- END qa-a-item-main -->
+									<div class="qa-a-item-clear">
+									</div>
+								</div> <!-- END qa-a-list-item -->
+								
+							</div> <!-- END qa-a-list -->
+							
+						</div>
+					</div> <!-- END qa-main -->
+					
+				</div> <!-- END main-wrapper -->
+			</div> <!-- END main-shadow -->
+		</div> <!-- END body-wrapper -->
+		<!-- END footer-bottom-group -->
+		
+		<div style="position:absolute; left:-9999px; top:-9999px;">
+			<span id="qa-waiting-template" class="qa-waiting">...</span>
+		</div>
+	
+	
+
+</body><!-- Powered by Question2Answer - http://www.question2answer.org/ --></html>

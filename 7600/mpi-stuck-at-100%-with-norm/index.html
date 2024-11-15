@@ -1,0 +1,286 @@
+<html><!-- Powered by Question2Answer - http://www.question2answer.org/ --><head>
+		<meta http-equiv="content-type" content="text/html; charset=utf-8">
+		<title>MPI stuck at 100% with norm - FEniCS Q&amp;A</title>
+		<meta name="description" content="Hi, this might be a stupid question, but I'm stuck at this point. I have a simple elastic problem,  ... size() vector()-&gt;norm(&quot;l2&quot;) norm(&quot;l2&quot;)">
+		<meta name="keywords" content="mpi,vector,mpirun">
+		<link rel="stylesheet" type="text/css" href="../../qa-theme/Snow/qa-styles.css">
+		<link rel="canonical" href="http://fenicsproject.org/qa/7600/mpi-stuck-at-100%25-with-norm">
+		<script type="text/x-mathjax-config">
+  MathJax.Hub.Config({
+    extensions: ["tex2jax.js"],
+    jax: ["input/TeX","output/HTML-CSS"],
+    tex2jax: {inlineMath: [["$","$"],["\\(","\\)"]]},
+    TeX: { extensions: ["AMSmath.js","AMSsymbols.js"]}
+  });
+</script>
+<script type="text/javascript" src="../../mathjax/MathJax.js"></script>
+		<script src="../../jquery-1.7.2.min.js" type="text/javascript"></script>
+		<script src="../../highlight.min.js"></script>
+<script type="text/javascript">
+$(function(){
+	$('.wmd-input').keypress(function(){
+		window.clearTimeout(hljs.Timeout);
+		hljs.Timeout = window.setTimeout(function() {
+			hljs.initHighlighting.called = false;
+			hljs.initHighlighting();
+		}, 500);
+	});
+	window.setTimeout(function() {
+		hljs.initHighlighting.called = false;
+		hljs.initHighlighting();
+	}, 500);
+});
+</script>
+
+
+	</head>
+	<body class="qa-template-question qa-body-js-off">
+		<div class="qa-body-wrapper">
+			
+			<div class="qa-header">
+				<div class="qa-logo">
+					<a href="../../" class="qa-logo-link" title="FEniCS Q&amp;A"><img src="../../qa-theme/fenics_qa.png" border="0" alt="FEniCS Q&amp;A"></a>
+				</div>
+				<div class="qa-header-clear">
+				</div>
+			</div> <!-- END qa-header -->
+			
+			<div class="qa-main-shadow">
+				
+				<div class="qa-main-wrapper">
+					
+					<div class="qa-sidepanel">
+						<div class="qa-sidebar">
+							This is a read only copy of the old FEniCS QA forum. Please visit the <a href="https://www.allanswered.com/community/s/fenics-project/">new QA forum</a> to ask questions
+						</div>
+						
+					</div>
+					
+					<div class="qa-main">
+						<h1>
+							<span class="entry-title">MPI stuck at 100% with norm</span>
+						</h1>
+						<div class="qa-part-q-view">
+							<div class="qa-q-view  hentry question" id="q7600">
+								<form method="post" action="../../7600/mpi-stuck-at-100%25-with-norm">
+									<div class="qa-q-view-stats">
+										<div class="qa-voting qa-voting-net" id="voting_7600">
+											<div class="qa-vote-count qa-vote-count-net">
+												<span class="qa-netvote-count">
+													<span class="qa-netvote-count-data">+1<span class="votes-up"><span class="value-title" title="1"></span></span><span class="votes-down"><span class="value-title" title="0"></span></span></span><span class="qa-netvote-count-pad"> vote</span>
+												</span>
+											</div>
+											<div class="qa-vote-clear">
+											</div>
+										</div>
+									</div>
+									<input type="hidden" name="code" value="0-1516468128-57a0da3a3345f76c68bb2a384dc2b9c41d1a6c51">
+								</form>
+								<div class="qa-q-view-main">
+									<form method="post" action="../../7600/mpi-stuck-at-100%25-with-norm">
+										<div class="qa-q-view-content">
+											<a name="7600"></a><div class="entry-content"><p>Hi, this might be a stupid question, but I'm stuck at this point.</p>
+
+<p>I have a simple elastic problem, computing displacement and stress. Really easy. It works in serially, but when I switch to MPI the executable halts. </p>
+
+<p>Not that it does <em>nothing</em>, I have just <strong>one</strong> MPI process running at 100%, and others at 0% (for more than 10 minutes). </p>
+
+<p>What is causing this is <em>computing the norm</em> of a vector. I've printed the size of the vector, not the norm, and it works fine.</p>
+
+<p>The code goes as follows:</p>
+
+<pre><code>    auto p = linearElastic2(mesh, pts, lambda);
+    auto q = stressRecovery2(mesh, *p);
+    if (canlog()) std::cout &lt;&lt; "&gt;&gt;&gt; VECTOR SIZE " &lt;&lt; p-&gt;vector()-&gt;size() &lt;&lt; std::endl;
+    if (canlog()) std::cout &lt;&lt; "&gt;&gt;&gt; DISPLACEMENT ERROR " &lt;&lt; p-&gt;vector()-&gt;norm("l2") &lt;&lt; std::endl;
+    if (canlog()) std::cout &lt;&lt; "&gt;&gt;&gt; STRESS       ERROR " &lt;&lt; q-&gt;vector()-&gt;norm("l2") &lt;&lt; std::endl;
+</code></pre>
+
+<p>The <code>canlog</code> function returns <code>true</code> if we're not in MPI, or if in MPI, the process is the root. The two functions <code>linearElastic2</code> and <code>stressRecovery2</code> return functions as follows:</p>
+
+<pre><code>std::shared_ptr&lt;Function&gt; linearElastic2(Mesh &amp;mesh, std::vector&lt;Point&gt; &amp;pts, double lambda, bool planeStress = true)
+{
+    auto V = std::make_shared&lt;ElasticityPoisson2D::Form_a::TestSpace&gt;(ElasticityPoisson2D::Form_a::TestSpace(mesh));
+
+    auto u = std::make_shared&lt;Function&gt;(Function(V));
+    // ...
+    PETScKrylovSolver solver("default", "default");
+
+    // Solve
+    solver.solve(A, *(u-&gt;vector()), b);
+
+    return u;
+}
+</code></pre>
+
+<p>Am I doing something not allowed here?</p>
+
+<p>Thanks!</p>
+</div>
+										</div>
+										<div class="qa-q-view-tags">
+											<ul class="qa-q-view-tag-list">
+												<li class="qa-q-view-tag-item"><a href="../../tag/mpi" rel="tag" class="qa-tag-link">mpi</a></li>
+												<li class="qa-q-view-tag-item"><a href="../../tag/vector" rel="tag" class="qa-tag-link">vector</a></li>
+												<li class="qa-q-view-tag-item"><a href="../../tag/mpirun" rel="tag" class="qa-tag-link">mpirun</a></li>
+											</ul>
+										</div>
+										<span class="qa-q-view-avatar-meta">
+											<span class="qa-q-view-meta">
+												<a href="../../7600/mpi-stuck-at-100%25-with-norm" class="qa-q-view-what">asked</a>
+												<span class="qa-q-view-when">
+													<span class="qa-q-view-when-data"><span class="published"><span class="value-title" title="2015-07-17T11:35:33+0000"></span>Jul 17, 2015</span></span>
+												</span>
+												<span class="qa-q-view-who">
+													<span class="qa-q-view-who-pad">by </span>
+													<span class="qa-q-view-who-data"><span class="vcard author"><a href="../../user/senseiwa" class="qa-user-link url nickname">senseiwa</a></span></span>
+													<span class="qa-q-view-who-title">FEniCS User</span>
+													<span class="qa-q-view-who-points">
+														<span class="qa-q-view-who-points-pad">(</span><span class="qa-q-view-who-points-data">2,620</span><span class="qa-q-view-who-points-pad"> points)</span>
+													</span>
+												</span>
+											</span>
+										</span>
+										<div class="qa-q-view-buttons">
+										</div>
+										
+										<div class="qa-q-view-c-list" style="display:none;" id="c7600_list">
+										</div> <!-- END qa-c-list -->
+										
+										<input type="hidden" name="code" value="0-1516468128-1309303beffaf17021bff711a815ba27c80315e9">
+										<input type="hidden" name="qa_click" value="">
+									</form>
+									<div class="qa-c-form">
+									</div> <!-- END qa-c-form -->
+									
+								</div> <!-- END qa-q-view-main -->
+								<div class="qa-q-view-clear">
+								</div>
+							</div> <!-- END qa-q-view -->
+							
+						</div>
+						<div class="qa-part-a-list">
+							<h2 id="a_list_title">1 Answer</h2>
+							<div class="qa-a-list" id="a_list">
+								
+								<div class="qa-a-list-item  hentry answer answer-selected qa-a-list-item-selected" id="a7601">
+									<form method="post" action="../../7600/mpi-stuck-at-100%25-with-norm">
+										<div class="qa-voting qa-voting-net" id="voting_7601">
+											<div class="qa-vote-count qa-vote-count-net">
+												<span class="qa-netvote-count">
+													<span class="qa-netvote-count-data">+1<span class="votes-up"><span class="value-title" title="1"></span></span><span class="votes-down"><span class="value-title" title="0"></span></span></span><span class="qa-netvote-count-pad"> vote</span>
+												</span>
+											</div>
+											<div class="qa-vote-clear">
+											</div>
+										</div>
+										<input type="hidden" name="code" value="0-1516468128-57a0da3a3345f76c68bb2a384dc2b9c41d1a6c51">
+									</form>
+									<div class="qa-a-item-main">
+										<form method="post" action="../../7600/mpi-stuck-at-100%25-with-norm">
+											<div class="qa-a-item-selected">
+												<div class="qa-a-selection">
+													<div class="qa-a-selected">&#160;</div>
+													<div class="qa-a-selected-text">Best answer</div>
+												</div>
+												<div class="qa-a-item-content">
+													<a name="7601"></a><div class="entry-content"><p>You cannot compute the norm of a distributed vector from a single process. Thus, in the call p-&gt;vector()-&gt;norm("l2") it is probably waiting for the other processes to communicate results.</p>
+
+<p>Try this:</p>
+
+<pre><code>std::size_t p_vec_size = p-&gt;vector()-&gt;size();
+double p_vec_norm = p-&gt;vector()-&gt;norm("l2");
+double q_vec_norm = q-&gt;vector()-&gt;norm("l2");
+if (canlog()) std::cout &lt;&lt; "&gt;&gt;&gt; VECTOR SIZE " &lt;&lt; p_vec_size &lt;&lt; std::endl;
+if (canlog()) std::cout &lt;&lt; "&gt;&gt;&gt; DISPLACEMENT ERROR " &lt;&lt; p_vec_norm &lt;&lt; std::endl;
+if (canlog()) std::cout &lt;&lt; "&gt;&gt;&gt; STRESS       ERROR " &lt;&lt; q_vec_norm &lt;&lt; std::endl;
+</code></pre>
+</div>
+												</div>
+												<span class="qa-a-item-avatar-meta">
+													<span class="qa-a-item-meta">
+														<a href="../../7600/mpi-stuck-at-100%25-with-norm?show=7601#a7601" class="qa-a-item-what">answered</a>
+														<span class="qa-a-item-when">
+															<span class="qa-a-item-when-data"><span class="published"><span class="value-title" title="2015-07-17T12:22:39+0000"></span>Jul 17, 2015</span></span>
+														</span>
+														<span class="qa-a-item-who">
+															<span class="qa-a-item-who-pad">by </span>
+															<span class="qa-a-item-who-data"><span class="vcard author"><a href="../../user/%C3%98yvind+Evju" class="qa-user-link url nickname">&#216;yvind Evju</a></span></span>
+															<span class="qa-a-item-who-title">FEniCS Expert</span>
+															<span class="qa-a-item-who-points">
+																<span class="qa-a-item-who-points-pad">(</span><span class="qa-a-item-who-points-data">17,700</span><span class="qa-a-item-who-points-pad"> points)</span>
+															</span>
+														</span>
+														<br>
+														<span class="qa-a-item-what">selected</span>
+														<span class="qa-a-item-when">
+															<span class="qa-a-item-when-data"><span class="updated"><span class="value-title" title="2015-07-17T12:32:53+0000"></span>Jul 17, 2015</span></span>
+														</span>
+														<span class="qa-a-item-who">
+															<span class="qa-a-item-who-pad">by </span><span class="qa-a-item-who-data"><a href="../../user/senseiwa" class="qa-user-link url nickname">senseiwa</a></span>
+														</span>
+													</span>
+												</span>
+											</div>
+											<div class="qa-a-item-buttons">
+												</div>
+											
+											<div class="qa-a-item-c-list" id="c7601_list">
+												<div class="qa-c-list-item  hentry comment" id="c7603">
+													<div class="qa-c-item-content">
+														<a name="7603"></a><div class="entry-content"><p>Perfect, thank you! I suspected I was doing something really stupid!</p>
+</div>
+													</div>
+													<div class="qa-c-item-footer">
+														<span class="qa-c-item-avatar-meta">
+															<span class="qa-c-item-meta">
+																<a href="../../7600/mpi-stuck-at-100%25-with-norm?show=7603#c7603" class="qa-c-item-what">commented</a>
+																<span class="qa-c-item-when">
+																	<span class="qa-c-item-when-data"><span class="published"><span class="value-title" title="2015-07-17T12:33:18+0000"></span>Jul 17, 2015</span></span>
+																</span>
+																<span class="qa-c-item-who">
+																	<span class="qa-c-item-who-pad">by </span>
+																	<span class="qa-c-item-who-data"><span class="vcard author"><a href="../../user/senseiwa" class="qa-user-link url nickname">senseiwa</a></span></span>
+																	<span class="qa-c-item-who-title">FEniCS User</span>
+																	<span class="qa-c-item-who-points">
+																		<span class="qa-c-item-who-points-pad">(</span><span class="qa-c-item-who-points-data">2,620</span><span class="qa-c-item-who-points-pad"> points)</span>
+																	</span>
+																</span>
+															</span>
+														</span>
+														<div class="qa-c-item-buttons">
+														</div>
+													</div>
+													<div class="qa-c-item-clear">
+													</div>
+												</div> <!-- END qa-c-item -->
+											</div> <!-- END qa-c-list -->
+											
+											<input type="hidden" name="code" value="0-1516468128-c9f91f42a72142f691ce723ab7481fdb579763ff">
+											<input type="hidden" name="qa_click" value="">
+										</form>
+										<div class="qa-c-form">
+										</div> <!-- END qa-c-form -->
+										
+									</div> <!-- END qa-a-item-main -->
+									<div class="qa-a-item-clear">
+									</div>
+								</div> <!-- END qa-a-list-item -->
+								
+							</div> <!-- END qa-a-list -->
+							
+						</div>
+					</div> <!-- END qa-main -->
+					
+				</div> <!-- END main-wrapper -->
+			</div> <!-- END main-shadow -->
+		</div> <!-- END body-wrapper -->
+		<!-- END footer-bottom-group -->
+		
+		<div style="position:absolute; left:-9999px; top:-9999px;">
+			<span id="qa-waiting-template" class="qa-waiting">...</span>
+		</div>
+	
+	
+
+</body><!-- Powered by Question2Answer - http://www.question2answer.org/ --></html>

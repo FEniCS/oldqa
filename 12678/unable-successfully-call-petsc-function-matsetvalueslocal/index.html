@@ -1,0 +1,295 @@
+<html><!-- Powered by Question2Answer - http://www.question2answer.org/ --><head>
+		<meta http-equiv="content-type" content="text/html; charset=utf-8">
+		<title>Unable to successfully call PETSc function 'MatSetValuesLocal'. - FEniCS Q&amp;A</title>
+		<meta name="description" content="Hi All, Could you please help with this error? The attached code is modified from this: http://www. ...  + F_vel + F_a_d # Time-stepping loop while t">
+		<meta name="keywords" content="petsc">
+		<link rel="stylesheet" type="text/css" href="../../qa-theme/Snow/qa-styles.css">
+		<link rel="canonical" href="http://fenicsproject.org/qa/12678/unable-successfully-call-petsc-function-matsetvalueslocal">
+		<script type="text/x-mathjax-config">
+  MathJax.Hub.Config({
+    extensions: ["tex2jax.js"],
+    jax: ["input/TeX","output/HTML-CSS"],
+    tex2jax: {inlineMath: [["$","$"],["\\(","\\)"]]},
+    TeX: { extensions: ["AMSmath.js","AMSsymbols.js"]}
+  });
+</script>
+<script type="text/javascript" src="../../mathjax/MathJax.js"></script>
+		<script src="../../jquery-1.7.2.min.js" type="text/javascript"></script>
+		<script src="../../highlight.min.js"></script>
+<script type="text/javascript">
+$(function(){
+	$('.wmd-input').keypress(function(){
+		window.clearTimeout(hljs.Timeout);
+		hljs.Timeout = window.setTimeout(function() {
+			hljs.initHighlighting.called = false;
+			hljs.initHighlighting();
+		}, 500);
+	});
+	window.setTimeout(function() {
+		hljs.initHighlighting.called = false;
+		hljs.initHighlighting();
+	}, 500);
+});
+</script>
+
+
+	</head>
+	<body class="qa-template-question qa-body-js-off">
+		<div class="qa-body-wrapper">
+			
+			<div class="qa-header">
+				<div class="qa-logo">
+					<a href="../../" class="qa-logo-link" title="FEniCS Q&amp;A"><img src="../../qa-theme/fenics_qa.png" border="0" alt="FEniCS Q&amp;A"></a>
+				</div>
+				<div class="qa-header-clear">
+				</div>
+			</div> <!-- END qa-header -->
+			
+			<div class="qa-main-shadow">
+				
+				<div class="qa-main-wrapper">
+					
+					<div class="qa-sidepanel">
+						<div class="qa-sidebar">
+							This is a read only copy of the old FEniCS QA forum. Please visit the <a href="https://www.allanswered.com/community/s/fenics-project/">new QA forum</a> to ask questions
+						</div>
+						
+					</div>
+					
+					<div class="qa-main">
+						<h1>
+							<span class="entry-title">Unable to successfully call PETSc function 'MatSetValuesLocal'.</span>
+						</h1>
+						<div class="qa-part-q-view">
+							<div class="qa-q-view  hentry question" id="q12678">
+								<form method="post" action="../../12678/unable-successfully-call-petsc-function-matsetvalueslocal">
+									<div class="qa-q-view-stats">
+										<div class="qa-voting qa-voting-net" id="voting_12678">
+											<div class="qa-vote-count qa-vote-count-net">
+												<span class="qa-netvote-count">
+													<span class="qa-netvote-count-data">0<span class="votes-up"><span class="value-title" title="0"></span></span><span class="votes-down"><span class="value-title" title="0"></span></span></span><span class="qa-netvote-count-pad"> votes</span>
+												</span>
+											</div>
+											<div class="qa-vote-clear">
+											</div>
+										</div>
+									</div>
+									<input type="hidden" name="code" value="0-1516467833-436a6f0568cdd861acf8002b3010403b82ea3b5d">
+								</form>
+								<div class="qa-q-view-main">
+									<form method="post" action="../../12678/unable-successfully-call-petsc-function-matsetvalueslocal">
+										<div class="qa-q-view-content">
+											<a name="12678"></a><div class="entry-content"><p>Hi All,<br>
+Could you please help with this error?<br>
+The attached code is modified from this: <a rel="nofollow" href="http://www.sciencedirect.com/science/article/pii/S0098300416302746">http://www.sciencedirect.com/science/article/pii/S0098300416302746</a><br>
+Thanks a lot!</p>
+
+<pre><code>from dolfin import *
+import numpy
+
+def gravity(u):
+    '''
+    right hand side of Eq. 7
+    '''
+    Ra = 1.0
+    val = as_vector([0.0, Ra*u])
+    return val
+
+def solver(nx, order, t, dt, T):
+    '''
+    nx: mesh density
+    order: approximation order of pressure field
+    t: simulation start time
+    dt: time step
+    T: stop time
+    '''
+    mesh =UnitSquareMesh(nx, nx)
+
+    #W = MixedFunctionSpace([DGO, BDM, DG1])
+    P1 = FiniteElement("DG", mesh.ufl_cell(), order)
+    P2 = FiniteElement("BDM", mesh.ufl_cell(), order+1)
+    P3 = FiniteElement("DG", mesh.ufl_cell(), order+1)
+
+    DGO = FunctionSpace(mesh, P1)
+    # function space for Velocity
+    BDM = FunctionSpace(mesh, P2)
+    # function space for Temperature
+    DG1 = FunctionSpace(mesh, P3)
+
+    WE = MixedElement([P1,P2,P3])
+    W = FunctionSpace(mesh, WE)
+
+    #source terms
+    f_1 = Expression('(sin(x[0]) + cos(x[1]))*cos(t)', t=t, element = DGO.ufl_element())
+    f_2 = Expression(('0.0','(-sin(x[0]) - sin(x[1]))*cos(t)'), t=t, element = BDM.ufl_element())
+    f_3 = Expression('-(sin(x[0]) +sin(x[1]))*sin(t) + (-cos(x[0])*cos(x[0]) + sin(x[1])*cos(x[1]))*cos(t)*cos(t) + (sin(x[0])+sin(x[1]))*cos(t)', t=t, element = DG1.ufl_element())
+
+    # exact solutions
+    p_exact = Expression('(sin(x[0]) + cos(x[1]))*cos(t)', t=t, element = DGO.ufl_element()) # pressure
+    uu_exact = Expression(('-cos(x[0])*cos(t)','sin(x[1])*cos(t)'), t=t, element = BDM.ufl_element()) # velocity
+    u_exact = Expression('(sin(x[0]) + sin(x[1]))*cos(t)', t=t, element = DG1.ufl_element()) # tempreture
+
+    #(p, uu, u) = TrialFunctions(W)  # store the solution for current step
+    #(p0, uu0, u0) = TrialFunctions(W) # store the solution for previous step
+    w = Function(W)
+    w0 = Function(W)
+
+    # ititialize solution according to exact solution
+    assign(w.sub(0), interpolate(p_exact, DGO))
+    assign(w.sub(1), interpolate(uu_exact, BDM))
+    assign(w.sub(2), interpolate(u_exact, DG1))
+    assign(w0.sub(0), interpolate(p_exact, DGO))
+    assign(w0.sub(1), interpolate(uu_exact, BDM))
+    assign(w0.sub(2), interpolate(u_exact, DG1))
+
+    # split w into p (pressure), uu (velocity) and u (temperature)
+    (p, uu, u) = w.split()
+    (p0, uu0, u0) = w0.split()
+
+    # define test functions
+    (q, vv, v) = TestFunctions(W)
+
+    n = FacetNormal(mesh)
+
+    # penalty weights
+    alpha = Constant(5000.0)
+    gamma = Constant(10000.0)
+
+    # cell size
+    h = CellSize(mesh)
+
+    # Eq. 20, flow
+    F_flo = nabla_div(uu)*q*dx - f_1*q*dx
+    #F_flo = inner(nabla_div(uu),q)*dx - inner(f_1,q)*dx
+
+    # Eq. 21, velocity
+    F_vel = (dot(uu,vv) - div(vv)*p - inner(gravity(u),vv) - inner(f_2,vv))*dx + dot(n,vv)*p_exact*ds
+
+    # un = un on the outflow facet, otherwise 0
+    un = (dot(uu,n) +abs(dot(uu,n))) / 2.0
+
+    # Eq. 26 , uu is not divergence-free here
+    a_a = dot(grad(v), -uu*u)*dx - u*v*nabla_div(uu)*dx - f_3*v*dx + dot(jump(v), un('+')*u('+') - un('-')*u('-'))*dS + dot(v,un*u)*ds
+
+    # Eq. 28
+    a_d = dot(grad(v),grad(u))*dx - dot(avg(grad(v)),jump(u,n))*dS - dot(jump(v,n), avg(grad(u)))*dS\
+        - dot(grad(v),n*u)*ds - dot(v*n, grad(u))*ds\
+        + (alpha('+')/h('+'))*dot(jump(v,n),jump(u,n))*dS + (gamma/h)*v*u*ds\
+        + u_exact*dot(grad(v),n)*ds - (gamma/h)*u_exact*v*ds
+
+    a_tim = (u-u0)/dt*v*dx
+
+    #Eq. 29
+    F_a_d = a_tim +a_a +a_d
+
+    #Eq. 32
+    F = F_flo + F_vel + F_a_d
+
+    # Time-stepping loop
+    while t&lt;T:
+        t += dt
+        print "nx=%d order=%d t=%f" % (nx, order, t)
+        # update time in time-dependent expressions
+        f_1.t = t; f_2.t = t; f_3.t = t
+        u_exact.t = t; p_exact.t = t; uu_exact.t = t
+        # solve the system and store solution in w
+        solve(F==0, w)
+        # update w0 with w
+        w0.vector()[:] = w.vector()
+        # save solution in .xml file
+        File('Solution.xml') &lt;&lt; w
+
+
+solver(10, 1, 0, 0.01, 0.1)
+</code></pre>
+
+<p>nx=10 order=1 t=0.010000<br>
+No Jacobian form specified for nonlinear variational problem.<br>
+Differentiating residual form F to obtain Jacobian J = F'.<br>
+Solving nonlinear variational problem.<br>
+  Newton iteration 0: r (abs) = 1.704e+00 (tol = 1.000e-10) r (rel) = 1.000e+00 (tol = 1.000e-09)<br>
+Traceback (most recent call last):<br>
+  File "hydro_thermo.py", line 125, in <br>
+    solver(10, 1, 0, 0.01, 0.1)<br>
+  File "hydro_thermo.py", line 118, in solver<br>
+    solve(F==0, w)<br>
+  File "/Users/geomechanics/opt/fenics-dev/g2jtvjzvjksg/master/lib/python2.7/site-packages/dolfin/fem/solving.py", line 300, in solve<br>
+    _solve_varproblem(*args, **kwargs)<br>
+  File "/Users/geomechanics/opt/fenics-dev/g2jtvjzvjksg/master/lib/python2.7/site-packages/dolfin/fem/solving.py", line 349, in _solve_varproblem<br>
+    solver.solve()<br>
+RuntimeError: <br>
+*** -------------------------------------------------------------------------<br>
+*** Error:   Unable to successfully call PETSc function 'MatSetValuesLocal'.<br>
+*** Reason:  PETSc error code is: 63 (Argument out of range).<br>
+*** Where:   This error was encountered inside /Users/geomechanics/dev/fenics-dev/master/dolfin/dolfin/la/PETScMatrix.cpp.<br>
+*** Process: 0</p>
+
+<hr>
+
+<p>*** DOLFIN version: 2017.1.0.dev0<br>
+*** Git changeset:  ec44213345f8397f914ec6f4b124c9d5998116f3<br>
+*** -------------------------------------------------------------------------</p>
+
+<p>Thanks!</p>
+</div>
+										</div>
+										<div class="qa-q-view-tags">
+											<ul class="qa-q-view-tag-list">
+												<li class="qa-q-view-tag-item"><a href="../../tag/petsc" rel="tag" class="qa-tag-link">petsc</a></li>
+											</ul>
+										</div>
+										<span class="qa-q-view-avatar-meta">
+											<span class="qa-q-view-meta">
+												<a href="../../12678/unable-successfully-call-petsc-function-matsetvalueslocal" class="qa-q-view-what">asked</a>
+												<span class="qa-q-view-when">
+													<span class="qa-q-view-when-data"><span class="published"><span class="value-title" title="2017-03-10T22:57:00+0000"></span>Mar 10, 2017</span></span>
+												</span>
+												<span class="qa-q-view-who">
+													<span class="qa-q-view-who-pad">by </span>
+													<span class="qa-q-view-who-data"><span class="vcard author"><a href="../../user/happycharleswang" class="qa-user-link url nickname">happycharleswang</a></span></span>
+													<span class="qa-q-view-who-title">FEniCS Novice</span>
+													<span class="qa-q-view-who-points">
+														<span class="qa-q-view-who-points-pad">(</span><span class="qa-q-view-who-points-data">120</span><span class="qa-q-view-who-points-pad"> points)</span>
+													</span>
+												</span>
+											</span>
+										</span>
+										<div class="qa-q-view-buttons">
+										</div>
+										
+										<div class="qa-q-view-c-list" style="display:none;" id="c12678_list">
+										</div> <!-- END qa-c-list -->
+										
+										<input type="hidden" name="code" value="0-1516467833-7140e538ca7ba1d0ad5e26ff35878846365fd845">
+										<input type="hidden" name="qa_click" value="">
+									</form>
+									<div class="qa-c-form">
+									</div> <!-- END qa-c-form -->
+									
+								</div> <!-- END qa-q-view-main -->
+								<div class="qa-q-view-clear">
+								</div>
+							</div> <!-- END qa-q-view -->
+							
+						</div>
+						<div class="qa-part-a-list">
+							<h2 id="a_list_title" style="display:none;"></h2>
+							<div class="qa-a-list" id="a_list">
+								
+							</div> <!-- END qa-a-list -->
+							
+						</div>
+					</div> <!-- END qa-main -->
+					
+				</div> <!-- END main-wrapper -->
+			</div> <!-- END main-shadow -->
+		</div> <!-- END body-wrapper -->
+		<!-- END footer-bottom-group -->
+		
+		<div style="position:absolute; left:-9999px; top:-9999px;">
+			<span id="qa-waiting-template" class="qa-waiting">...</span>
+		</div>
+	
+	
+
+</body><!-- Powered by Question2Answer - http://www.question2answer.org/ --></html>

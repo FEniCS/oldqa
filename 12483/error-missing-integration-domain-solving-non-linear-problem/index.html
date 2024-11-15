@@ -1,0 +1,435 @@
+<html><!-- Powered by Question2Answer - http://www.question2answer.org/ --><head>
+		<meta http-equiv="content-type" content="text/html; charset=utf-8">
+		<title>Error - Missing Integration Domain at Solving Non-Linear Problem. - FEniCS Q&amp;A</title>
+		<meta name="description" content="Hi guys. I am having a little trouble finding my error in here. I have this working code that  ... have uploaded only this to be as brief as possible.">
+		<meta name="keywords" content="nonlinearsolver,integration-domain">
+		<link rel="stylesheet" type="text/css" href="../../qa-theme/Snow/qa-styles.css">
+		<link rel="canonical" href="http://fenicsproject.org/qa/12483/error-missing-integration-domain-solving-non-linear-problem">
+		<script type="text/x-mathjax-config">
+  MathJax.Hub.Config({
+    extensions: ["tex2jax.js"],
+    jax: ["input/TeX","output/HTML-CSS"],
+    tex2jax: {inlineMath: [["$","$"],["\\(","\\)"]]},
+    TeX: { extensions: ["AMSmath.js","AMSsymbols.js"]}
+  });
+</script>
+<script type="text/javascript" src="../../mathjax/MathJax.js"></script>
+		<script src="../../jquery-1.7.2.min.js" type="text/javascript"></script>
+		<script src="../../highlight.min.js"></script>
+<script type="text/javascript">
+$(function(){
+	$('.wmd-input').keypress(function(){
+		window.clearTimeout(hljs.Timeout);
+		hljs.Timeout = window.setTimeout(function() {
+			hljs.initHighlighting.called = false;
+			hljs.initHighlighting();
+		}, 500);
+	});
+	window.setTimeout(function() {
+		hljs.initHighlighting.called = false;
+		hljs.initHighlighting();
+	}, 500);
+});
+</script>
+
+
+	</head>
+	<body class="qa-template-question qa-body-js-off">
+		<div class="qa-body-wrapper">
+			
+			<div class="qa-header">
+				<div class="qa-logo">
+					<a href="../../" class="qa-logo-link" title="FEniCS Q&amp;A"><img src="../../qa-theme/fenics_qa.png" border="0" alt="FEniCS Q&amp;A"></a>
+				</div>
+				<div class="qa-header-clear">
+				</div>
+			</div> <!-- END qa-header -->
+			
+			<div class="qa-main-shadow">
+				
+				<div class="qa-main-wrapper">
+					
+					<div class="qa-sidepanel">
+						<div class="qa-sidebar">
+							This is a read only copy of the old FEniCS QA forum. Please visit the <a href="https://www.allanswered.com/community/s/fenics-project/">new QA forum</a> to ask questions
+						</div>
+						
+					</div>
+					
+					<div class="qa-main">
+						<h1>
+							<span class="entry-title">Error - Missing Integration Domain at Solving Non-Linear Problem.</span>
+						</h1>
+						<div class="qa-part-q-view">
+							<div class="qa-q-view  hentry question" id="q12483">
+								<form method="post" action="../../12483/error-missing-integration-domain-solving-non-linear-problem">
+									<div class="qa-q-view-stats">
+										<div class="qa-voting qa-voting-net" id="voting_12483">
+											<div class="qa-vote-count qa-vote-count-net">
+												<span class="qa-netvote-count">
+													<span class="qa-netvote-count-data">+1<span class="votes-up"><span class="value-title" title="1"></span></span><span class="votes-down"><span class="value-title" title="0"></span></span></span><span class="qa-netvote-count-pad"> vote</span>
+												</span>
+											</div>
+											<div class="qa-vote-clear">
+											</div>
+										</div>
+									</div>
+									<input type="hidden" name="code" value="0-1516467825-fa92bb7df66af40b9c5a11f1310e1a8ed032d1e0">
+								</form>
+								<div class="qa-q-view-main">
+									<form method="post" action="../../12483/error-missing-integration-domain-solving-non-linear-problem">
+										<div class="qa-q-view-content">
+											<a name="12483"></a><div class="entry-content"><p>Hi guys.<br>
+I am having a little trouble finding my error in here. I have this working code that triggers no problem:</p>
+
+<pre><code>def F(mesh, boundary_parts, mu, u, z, lx, ly, Ao,p,moduleSimmetry2):
+print "Entering SearchDirection"
+parameters['allow_extrapolation' ] = True
+n = FacetNormal(mesh)
+V = VectorFunctionSpace(mesh,'Lagrange',1)
+Q = FunctionSpace(mesh,'DG',1)
+W= V * Q
+ds = Measure('ds')[boundary_parts]
+noslip = Constant((0,0))
+bc0 = DirichletBC(W.sub(0), noslip, boundary_parts,3)
+bc1 = DirichletBC(W.sub(0), noslip, boundary_parts,1)
+bc2 = DirichletBC(W.sub(0), noslip, boundary_parts,2)
+bcs = [bc0, bc1, bc2]
+(w, p) = TrialFunctions(W)
+(v, q) = TestFunctions(W)
+
+g = assemble(Constant(1.0)*dx(mesh))-(lx*ly-Ao)
+a = (inner(grad(w),grad(v))+inner(w,v))*dx+p*inner(v,n)*ds(0)+q*inner(w,n)*ds(0)
+L = (2*mu*(inner(epsilon(u),epsilon(z))))*inner(n,v)*ds(0)-g*q*ds(0)
+
+    ww = Function(W)
+solve(a == L,ww,bcs)        
+(w, p) = ww.split(True)
+</code></pre>
+
+<p>But I need to change the definition of g, hence typing:</p>
+
+<pre><code>    g = assemble(moduleSimmetry2*dx(mesh))
+print g
+a = (inner(grad(w),grad(v))+inner(w,v))*dx(mesh)+p*moduleSimmetry2*inner(v,n)*ds(0)+q*moduleSimmetry2*inner(w,n)*ds(0)
+b = (2*mu*(inner(epsilon(u),epsilon(z))))*inner(n,v)*ds(0)
+
+c=g*q*ds(0,subdomain_data=boundary_parts)
+L=b-c
+</code></pre>
+
+<p>Then solving again a==L. However, the following error triggers:</p>
+
+<blockquote>
+  <p><em>Calling FFC just-in-time (JIT) compiler, this may take some time. Notation dx[meshfunction] is deprecated. Please use<br>
+  dx(subdomain_data=meshfunction) instead.<br>
+  0.0 This integral is missing an integration domain. Traceback (most recent call last):   File "main.py", line 85, in <br>
+      w,lam = funcs.F(mesh,boundary_parts,mu,u,z,lx,ly,Ao,p,moduleSymmetry2)<br>
+  File "funcs.py", line 391, in F<br>
+      c=g</em>q<em>ds(0,subdomain_data=boundary_parts)   File "/usr/lib/python2.7/dist-packages/ufl/measure.py", line 398, in<br>
+  <strong>rmul</strong><br>
+      error("This integral is missing an integration domain.")   File "/usr/lib/python2.7/dist-packages/ufl/log.py", line 158, in error<br>
+      raise self._exception_type(self._format_raw(</em>message)) ufl.log.UFLException: This integral is missing an integration domain.<br>
+  Aborted (core dumped)*</p>
+</blockquote>
+
+<p>I have already tried printing the value of g, which is 0.0. I have also thought that error is in the definition of moduleSymmetry2, but I discarded that possibility because if I remove the term g, the solver does not trigger any error (but, of course, fails to converge).</p>
+
+<p>What am I missing?<br>
+If you need the full version of the code I can upload it, I have uploaded only this to be as brief as possible.</p>
+</div>
+										</div>
+										<div class="qa-q-view-tags">
+											<ul class="qa-q-view-tag-list">
+												<li class="qa-q-view-tag-item"><a href="../../tag/nonlinearsolver" rel="tag" class="qa-tag-link">nonlinearsolver</a></li>
+												<li class="qa-q-view-tag-item"><a href="../../tag/integration-domain" rel="tag" class="qa-tag-link">integration-domain</a></li>
+											</ul>
+										</div>
+										<span class="qa-q-view-avatar-meta">
+											<span class="qa-q-view-meta">
+												<a href="../../12483/error-missing-integration-domain-solving-non-linear-problem" class="qa-q-view-what">asked</a>
+												<span class="qa-q-view-when">
+													<span class="qa-q-view-when-data"><span class="published"><span class="value-title" title="2017-02-22T18:04:48+0000"></span>Feb 22, 2017</span></span>
+												</span>
+												<span class="qa-q-view-who">
+													<span class="qa-q-view-who-pad">by </span>
+													<span class="qa-q-view-who-data"><span class="vcard author"><a href="../../user/Iha" class="qa-user-link url nickname">Iha</a></span></span>
+													<span class="qa-q-view-who-title">FEniCS Novice</span>
+													<span class="qa-q-view-who-points">
+														<span class="qa-q-view-who-points-pad">(</span><span class="qa-q-view-who-points-data">260</span><span class="qa-q-view-who-points-pad"> points)</span>
+													</span>
+												</span>
+											</span>
+										</span>
+										<div class="qa-q-view-buttons">
+										</div>
+										
+										<div class="qa-q-view-c-list" id="c12483_list">
+											<div class="qa-c-list-item  hentry comment" id="c12491">
+												<div class="qa-c-item-content">
+													<a name="12491"></a><div class="entry-content"><p>I am my self new to Fenics, so this is a guess:<br>
+your g has a dx in it and you multiply it by ds, therefore it has two integrals, I thnik this is not allowed.</p>
+</div>
+												</div>
+												<div class="qa-c-item-footer">
+													<span class="qa-c-item-avatar-meta">
+														<span class="qa-c-item-meta">
+															<a href="../../12483/error-missing-integration-domain-solving-non-linear-problem?show=12491#c12491" class="qa-c-item-what">commented</a>
+															<span class="qa-c-item-when">
+																<span class="qa-c-item-when-data"><span class="published"><span class="value-title" title="2017-02-23T09:28:54+0000"></span>Feb 23, 2017</span></span>
+															</span>
+															<span class="qa-c-item-who">
+																<span class="qa-c-item-who-pad">by </span>
+																<span class="qa-c-item-who-data"><span class="vcard author"><a href="../../user/Weltenbrand" class="qa-user-link url nickname">Weltenbrand</a></span></span>
+																<span class="qa-c-item-who-title">FEniCS Novice</span>
+																<span class="qa-c-item-who-points">
+																	<span class="qa-c-item-who-points-pad">(</span><span class="qa-c-item-who-points-data">150</span><span class="qa-c-item-who-points-pad"> points)</span>
+																</span>
+															</span>
+														</span>
+													</span>
+													<div class="qa-c-item-buttons">
+													</div>
+												</div>
+												<div class="qa-c-item-clear">
+												</div>
+											</div> <!-- END qa-c-item -->
+											<div class="qa-c-list-item  hentry comment" id="c12501">
+												<div class="qa-c-item-content">
+													<a name="12501"></a><div class="entry-content"><p>how is moduleSymmetry2 defined?</p>
+</div>
+												</div>
+												<div class="qa-c-item-footer">
+													<span class="qa-c-item-avatar-meta">
+														<span class="qa-c-item-avatar">
+															<a href="../../user/hernan_mella" class="qa-avatar-link"><img src="../../?qa=image&amp;qa_blobid=14920815903966845416&amp;qa_size=20" width="20" height="11" class="qa-avatar-image" alt=""></a>
+														</span>
+														<span class="qa-c-item-meta">
+															<a href="../../12483/error-missing-integration-domain-solving-non-linear-problem?show=12501#c12501" class="qa-c-item-what">commented</a>
+															<span class="qa-c-item-when">
+																<span class="qa-c-item-when-data"><span class="published"><span class="value-title" title="2017-02-23T14:57:16+0000"></span>Feb 23, 2017</span></span>
+															</span>
+															<span class="qa-c-item-who">
+																<span class="qa-c-item-who-pad">by </span>
+																<span class="qa-c-item-who-data"><span class="vcard author"><a href="../../user/hernan_mella" class="qa-user-link url nickname">hernan_mella</a></span></span>
+																<span class="qa-c-item-who-title">FEniCS Expert</span>
+																<span class="qa-c-item-who-points">
+																	<span class="qa-c-item-who-points-pad">(</span><span class="qa-c-item-who-points-data">19,460</span><span class="qa-c-item-who-points-pad"> points)</span>
+																</span>
+															</span>
+														</span>
+													</span>
+													<div class="qa-c-item-buttons">
+													</div>
+												</div>
+												<div class="qa-c-item-clear">
+												</div>
+											</div> <!-- END qa-c-item -->
+											<div class="qa-c-list-item  hentry comment" id="c12504">
+												<div class="qa-c-item-content">
+													<a name="12504"></a><div class="entry-content"><p>The definition of moduleSimmetry2 is as shown below:</p>
+
+<pre><code>moduleSimmetry2=Symmetry(mesh)
+
+def Symmetry(mesh):
+V=VectorFunctionSpace(mesh,"Lagrange",1)
+X = Function(V)
+position=Expression( ("x[0]","x[1]") )
+positionV = interpolate(position,V)
+X.vector()[:]=positionV.vector().array()
+
+L=len(X.vector().array())/2
+M=X.vector().array().reshape(L,2)
+N = X.vector().array().reshape(L,2)
+for i in range(L):
+    [Xpos,Ypos]=M[i,:]
+    N[i,:]=([0,0])
+
+    for c in cells(mesh):
+        if (c.contains(Point(-Xpos, Ypos))):
+            N[i,:]=([-Xpos,Ypos])
+
+K=numpy.zeros_like(N)
+for i in range(L):
+    K[i,0]= M[i,0]+N[i,0]
+    K[i,1]= M[i,1]-N[i,1]
+
+Sym=Function(V)
+Sym.vector()[:]=K.reshape(L*2,1)
+
+Q=FunctionSpace(mesh, "Lagrange",1)
+moduleSymmetry2= Function(Q)
+array=numpy.zeros_like(moduleSimmetry2.vector().array())
+
+for i in range(L):
+    array[i]=Sym.vector().array()[2*i]**2 + Sym.vector().array()[2*i+1]**2
+moduleSymmetry2.vector()[:]=array
+
+return moduleSimmetry2
+</code></pre>
+
+<p>Although this definition is a little bit chaotic, it works (i.e., I have checked it assigns correctly the values at any point). In no case is there a derivative or what so ever.</p>
+</div>
+												</div>
+												<div class="qa-c-item-footer">
+													<span class="qa-c-item-avatar-meta">
+														<span class="qa-c-item-meta">
+															<a href="../../12483/error-missing-integration-domain-solving-non-linear-problem?show=12504#c12504" class="qa-c-item-what">commented</a>
+															<span class="qa-c-item-when">
+																<span class="qa-c-item-when-data"><span class="published"><span class="value-title" title="2017-02-23T15:47:58+0000"></span>Feb 23, 2017</span></span>
+															</span>
+															<span class="qa-c-item-who">
+																<span class="qa-c-item-who-pad">by </span>
+																<span class="qa-c-item-who-data"><span class="vcard author"><a href="../../user/Iha" class="qa-user-link url nickname">Iha</a></span></span>
+																<span class="qa-c-item-who-title">FEniCS Novice</span>
+																<span class="qa-c-item-who-points">
+																	<span class="qa-c-item-who-points-pad">(</span><span class="qa-c-item-who-points-data">260</span><span class="qa-c-item-who-points-pad"> points)</span>
+																</span>
+															</span>
+														</span>
+													</span>
+													<div class="qa-c-item-buttons">
+													</div>
+												</div>
+												<div class="qa-c-item-clear">
+												</div>
+											</div> <!-- END qa-c-item -->
+										</div> <!-- END qa-c-list -->
+										
+										<input type="hidden" name="code" value="0-1516467825-9a31795d507258a20c808012e4222d23888d2f0e">
+										<input type="hidden" name="qa_click" value="">
+									</form>
+									<div class="qa-c-form">
+									</div> <!-- END qa-c-form -->
+									
+								</div> <!-- END qa-q-view-main -->
+								<div class="qa-q-view-clear">
+								</div>
+							</div> <!-- END qa-q-view -->
+							
+						</div>
+						<div class="qa-part-a-list">
+							<h2 id="a_list_title">1 Answer</h2>
+							<div class="qa-a-list" id="a_list">
+								
+								<div class="qa-a-list-item  hentry answer answer-selected qa-a-list-item-selected" id="a12502">
+									<form method="post" action="../../12483/error-missing-integration-domain-solving-non-linear-problem">
+										<div class="qa-voting qa-voting-net" id="voting_12502">
+											<div class="qa-vote-count qa-vote-count-net">
+												<span class="qa-netvote-count">
+													<span class="qa-netvote-count-data">+1<span class="votes-up"><span class="value-title" title="1"></span></span><span class="votes-down"><span class="value-title" title="0"></span></span></span><span class="qa-netvote-count-pad"> vote</span>
+												</span>
+											</div>
+											<div class="qa-vote-clear">
+											</div>
+										</div>
+										<input type="hidden" name="code" value="0-1516467825-fa92bb7df66af40b9c5a11f1310e1a8ed032d1e0">
+									</form>
+									<div class="qa-a-item-main">
+										<form method="post" action="../../12483/error-missing-integration-domain-solving-non-linear-problem">
+											<div class="qa-a-item-selected">
+												<div class="qa-a-selection">
+													<div class="qa-a-selected">&#160;</div>
+													<div class="qa-a-selected-text">Best answer</div>
+												</div>
+												<div class="qa-a-item-content">
+													<a name="12502"></a><div class="entry-content"><p>To avoid the error message try something like this:</p>
+
+<pre><code>g = Constant(assemble(moduleSimmetry2*dx))
+</code></pre>
+
+<p>However the error could be that you are defining wrongly the function spaces (maybe in the definition of <code>moduleSymmetry2</code> you are calculating the second derivative of functions that lives in a function space of order 1, which vanishes over the whole domain)</p>
+</div>
+												</div>
+												<span class="qa-a-item-avatar-meta">
+													<span class="qa-a-item-avatar">
+														<a href="../../user/hernan_mella" class="qa-avatar-link"><img src="../../?qa=image&amp;qa_blobid=14920815903966845416&amp;qa_size=40" width="40" height="22" class="qa-avatar-image" alt=""></a>
+													</span>
+													<span class="qa-a-item-meta">
+														<a href="../../12483/error-missing-integration-domain-solving-non-linear-problem?show=12502#a12502" class="qa-a-item-what">answered</a>
+														<span class="qa-a-item-when">
+															<span class="qa-a-item-when-data"><span class="published"><span class="value-title" title="2017-02-23T15:11:10+0000"></span>Feb 23, 2017</span></span>
+														</span>
+														<span class="qa-a-item-who">
+															<span class="qa-a-item-who-pad">by </span>
+															<span class="qa-a-item-who-data"><span class="vcard author"><a href="../../user/hernan_mella" class="qa-user-link url nickname">hernan_mella</a></span></span>
+															<span class="qa-a-item-who-title">FEniCS Expert</span>
+															<span class="qa-a-item-who-points">
+																<span class="qa-a-item-who-points-pad">(</span><span class="qa-a-item-who-points-data">19,460</span><span class="qa-a-item-who-points-pad"> points)</span>
+															</span>
+														</span>
+														<br>
+														<span class="qa-a-item-what">selected</span>
+														<span class="qa-a-item-when">
+															<span class="qa-a-item-when-data"><span class="updated"><span class="value-title" title="2017-02-23T15:56:59+0000"></span>Feb 23, 2017</span></span>
+														</span>
+														<span class="qa-a-item-who">
+															<span class="qa-a-item-who-pad">by </span><span class="qa-a-item-who-data"><a href="../../user/Iha" class="qa-user-link url nickname">Iha</a></span>
+														</span>
+													</span>
+												</span>
+											</div>
+											<div class="qa-a-item-buttons">
+												</div>
+											
+											<div class="qa-a-item-c-list" id="c12502_list">
+												<div class="qa-c-list-item  hentry comment" id="c12505">
+													<div class="qa-c-item-content">
+														<a name="12505"></a><div class="entry-content"><p>Thank you very much, this works. However, it fails to converge, but that's an error in my formulation for sure, not something related to the usage of FEniCS.</p>
+
+<p>Thank you all guys for your time and help.</p>
+</div>
+													</div>
+													<div class="qa-c-item-footer">
+														<span class="qa-c-item-avatar-meta">
+															<span class="qa-c-item-meta">
+																<a href="../../12483/error-missing-integration-domain-solving-non-linear-problem?show=12505#c12505" class="qa-c-item-what">commented</a>
+																<span class="qa-c-item-when">
+																	<span class="qa-c-item-when-data"><span class="published"><span class="value-title" title="2017-02-23T15:51:53+0000"></span>Feb 23, 2017</span></span>
+																</span>
+																<span class="qa-c-item-who">
+																	<span class="qa-c-item-who-pad">by </span>
+																	<span class="qa-c-item-who-data"><span class="vcard author"><a href="../../user/Iha" class="qa-user-link url nickname">Iha</a></span></span>
+																	<span class="qa-c-item-who-title">FEniCS Novice</span>
+																	<span class="qa-c-item-who-points">
+																		<span class="qa-c-item-who-points-pad">(</span><span class="qa-c-item-who-points-data">260</span><span class="qa-c-item-who-points-pad"> points)</span>
+																	</span>
+																</span>
+															</span>
+														</span>
+														<div class="qa-c-item-buttons">
+														</div>
+													</div>
+													<div class="qa-c-item-clear">
+													</div>
+												</div> <!-- END qa-c-item -->
+											</div> <!-- END qa-c-list -->
+											
+											<input type="hidden" name="code" value="0-1516467825-9d82aa8b51485a68e359bbcf5f1762d28ffd5f13">
+											<input type="hidden" name="qa_click" value="">
+										</form>
+										<div class="qa-c-form">
+										</div> <!-- END qa-c-form -->
+										
+									</div> <!-- END qa-a-item-main -->
+									<div class="qa-a-item-clear">
+									</div>
+								</div> <!-- END qa-a-list-item -->
+								
+							</div> <!-- END qa-a-list -->
+							
+						</div>
+					</div> <!-- END qa-main -->
+					
+				</div> <!-- END main-wrapper -->
+			</div> <!-- END main-shadow -->
+		</div> <!-- END body-wrapper -->
+		<!-- END footer-bottom-group -->
+		
+		<div style="position:absolute; left:-9999px; top:-9999px;">
+			<span id="qa-waiting-template" class="qa-waiting">...</span>
+		</div>
+	
+	
+
+</body><!-- Powered by Question2Answer - http://www.question2answer.org/ --></html>

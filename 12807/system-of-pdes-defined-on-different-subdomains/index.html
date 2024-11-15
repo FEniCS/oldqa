@@ -1,0 +1,359 @@
+<html><!-- Powered by Question2Answer - http://www.question2answer.org/ --><head>
+		<meta http-equiv="content-type" content="text/html; charset=utf-8">
+		<title>System of PDEs defined on different subdomains - FEniCS Q&amp;A</title>
+		<meta name="description" content="Hi I'm trying to solve the following nonlinear coupled equations $$ (\nabla u_1,\nabla v_1)_{ ... ://fenicsproject.org/qa/544/solving-pde-on-submesh">
+		<meta name="keywords" content="submesh,subdomains,coupled-equations,coupled-regions">
+		<link rel="stylesheet" type="text/css" href="../../qa-theme/Snow/qa-styles.css">
+		<link rel="canonical" href="http://fenicsproject.org/qa/12807/system-of-pdes-defined-on-different-subdomains">
+		<script type="text/x-mathjax-config">
+  MathJax.Hub.Config({
+    extensions: ["tex2jax.js"],
+    jax: ["input/TeX","output/HTML-CSS"],
+    tex2jax: {inlineMath: [["$","$"],["\\(","\\)"]]},
+    TeX: { extensions: ["AMSmath.js","AMSsymbols.js"]}
+  });
+</script>
+<script type="text/javascript" src="../../mathjax/MathJax.js"></script>
+		<script src="../../jquery-1.7.2.min.js" type="text/javascript"></script>
+		<script src="../../highlight.min.js"></script>
+<script type="text/javascript">
+$(function(){
+	$('.wmd-input').keypress(function(){
+		window.clearTimeout(hljs.Timeout);
+		hljs.Timeout = window.setTimeout(function() {
+			hljs.initHighlighting.called = false;
+			hljs.initHighlighting();
+		}, 500);
+	});
+	window.setTimeout(function() {
+		hljs.initHighlighting.called = false;
+		hljs.initHighlighting();
+	}, 500);
+});
+</script>
+
+
+	</head>
+	<body class="qa-template-question qa-body-js-off">
+		<div class="qa-body-wrapper">
+			
+			<div class="qa-header">
+				<div class="qa-logo">
+					<a href="../../" class="qa-logo-link" title="FEniCS Q&amp;A"><img src="../../qa-theme/fenics_qa.png" border="0" alt="FEniCS Q&amp;A"></a>
+				</div>
+				<div class="qa-header-clear">
+				</div>
+			</div> <!-- END qa-header -->
+			
+			<div class="qa-main-shadow">
+				
+				<div class="qa-main-wrapper">
+					
+					<div class="qa-sidepanel">
+						<div class="qa-sidebar">
+							This is a read only copy of the old FEniCS QA forum. Please visit the <a href="https://www.allanswered.com/community/s/fenics-project/">new QA forum</a> to ask questions
+						</div>
+						
+					</div>
+					
+					<div class="qa-main">
+						<h1>
+							<span class="entry-title">System of PDEs defined on different subdomains</span>
+						</h1>
+						<div class="qa-part-q-view">
+							<div class="qa-q-view  hentry question" id="q12807">
+								<form method="post" action="../../12807/system-of-pdes-defined-on-different-subdomains">
+									<div class="qa-q-view-stats">
+										<div class="qa-voting qa-voting-net" id="voting_12807">
+											<div class="qa-vote-count qa-vote-count-net">
+												<span class="qa-netvote-count">
+													<span class="qa-netvote-count-data">+1<span class="votes-up"><span class="value-title" title="1"></span></span><span class="votes-down"><span class="value-title" title="0"></span></span></span><span class="qa-netvote-count-pad"> vote</span>
+												</span>
+											</div>
+											<div class="qa-vote-clear">
+											</div>
+										</div>
+									</div>
+									<input type="hidden" name="code" value="0-1516467839-0687f61b25b07424e424806f197e14da417d1bd3">
+								</form>
+								<div class="qa-q-view-main">
+									<form method="post" action="../../12807/system-of-pdes-defined-on-different-subdomains">
+										<div class="qa-q-view-content">
+											<a name="12807"></a><div class="entry-content"><p>Hi</p>
+
+<p>I'm trying to solve the following nonlinear coupled equations</p>
+
+<p>$$ (\nabla u_1,\nabla v_1)_{[0,1]} + (\nabla u_2, \nabla v_2)_{[0.5,1]}  = (f(u_1,u_2),v_1)_{[0,1]} + (f(u_1,u_2),v_2)_{[0.5,1]} , <br>
+ $$</p>
+
+<p>using the code sniper (testing with f = constant)</p>
+
+<pre><code>from __future__ import print_function
+from fenics import *
+import sympy as sym
+
+# Create mesh and define function space
+mesh = UnitIntervalMesh(50)
+P1 = FiniteElement('P', mesh.ufl_cell(), 2)
+element = MixedElement([P1,P1])
+W = FunctionSpace(mesh, element)
+
+# Defin subdomain
+tol = 1e-14
+class Omega0(SubDomain):
+    def inside(self, x, on_boundary):
+        return x[0] &lt;= 0.5 + tol
+class Omega1(SubDomain):
+    def inside(self, x, on_boundary):
+        return x[0] &gt;= 0.5 - tol
+subdomains = CellFunction("size_t", mesh)
+subdomain0 = Omega0()
+subdomain1 = Omega1()
+subdomain0.mark(subdomains, 0)
+subdomain1.mark(subdomains, 1)
+
+# Define boundary condition
+def boundary(x, on_boundary):
+    return on_boundary
+def boundary_right(x, on_boundary):
+    return near(x[0], 1, tol)
+
+bc0 = DirichletBC(W.sub(0), 0, boundary)
+bc1 = DirichletBC(W.sub(1), 0, boundary_right)
+bcs = [bc0, bc1]
+
+# Define variational problem
+v1, v2 = TestFunction(W)
+u = Function(W)
+u1, u2 = split(u)
+
+dx = Measure('dx', domain=mesh, subdomain_data=subdomains) 
+F = dot(grad(u1), grad(v1))*dx - v1*dx\
+   +dot(grad(u2), grad(v2))*dx(1) - v2*dx(1)
+
+# Compute solution
+solve(F == 0, uu, bcs)
+</code></pre>
+
+<p>but it doesn't work. The variable $u_1$ is defined over the whole mesh $[0,1]$, whereas $u_2$ is only defined over $[0.5,1]$. I found <a rel="nofollow" href="https://fenicsproject.org/qa/544/solving-pde-on-submesh">this</a> using submesh; my problem would then be how to mix mesh and submesh?</p>
+
+<p>Thanks</p>
+</div>
+										</div>
+										<div class="qa-q-view-tags">
+											<ul class="qa-q-view-tag-list">
+												<li class="qa-q-view-tag-item"><a href="../../tag/submesh" rel="tag" class="qa-tag-link">submesh</a></li>
+												<li class="qa-q-view-tag-item"><a href="../../tag/subdomains" rel="tag" class="qa-tag-link">subdomains</a></li>
+												<li class="qa-q-view-tag-item"><a href="../../tag/coupled-equations" rel="tag" class="qa-tag-link">coupled-equations</a></li>
+												<li class="qa-q-view-tag-item"><a href="../../tag/coupled-regions" rel="tag" class="qa-tag-link">coupled-regions</a></li>
+											</ul>
+										</div>
+										<span class="qa-q-view-avatar-meta">
+											<span class="qa-q-view-meta">
+												<a href="../../12807/system-of-pdes-defined-on-different-subdomains" class="qa-q-view-what">asked</a>
+												<span class="qa-q-view-when">
+													<span class="qa-q-view-when-data"><span class="published"><span class="value-title" title="2017-03-24T08:56:50+0000"></span>Mar 24, 2017</span></span>
+												</span>
+												<span class="qa-q-view-who">
+													<span class="qa-q-view-who-pad">by </span>
+													<span class="qa-q-view-who-data"><span class="vcard author"><a href="../../user/jazzyearrings" class="qa-user-link url nickname">jazzyearrings</a></span></span>
+													<span class="qa-q-view-who-title">FEniCS Novice</span>
+													<span class="qa-q-view-who-points">
+														<span class="qa-q-view-who-points-pad">(</span><span class="qa-q-view-who-points-data">130</span><span class="qa-q-view-who-points-pad"> points)</span>
+													</span>
+												</span>
+												<br>
+												<span class="qa-q-view-what">retagged</span>
+												<span class="qa-q-view-when">
+													<span class="qa-q-view-when-data"><span class="updated"><span class="value-title" title="2017-03-25T01:52:20+0000"></span>Mar 25, 2017</span></span>
+												</span>
+												<span class="qa-q-view-who">
+													<span class="qa-q-view-who-pad">by </span><span class="qa-q-view-who-data"><a href="../../user/jazzyearrings" class="qa-user-link url nickname">jazzyearrings</a></span>
+												</span>
+											</span>
+										</span>
+										<div class="qa-q-view-buttons">
+										</div>
+										
+										<div class="qa-q-view-c-list" id="c12807_list">
+											<div class="qa-c-list-item  hentry comment" id="c12808">
+												<div class="qa-c-item-content">
+													<a name="12808"></a><div class="entry-content"><p>What are the boundary conditions you want to enforce? Can you post a minimal working example?</p>
+</div>
+												</div>
+												<div class="qa-c-item-footer">
+													<span class="qa-c-item-avatar-meta">
+														<span class="qa-c-item-avatar">
+															<a href="../../user/nate" class="qa-avatar-link"><img src="../../?qa=image&amp;qa_blobid=969593914916706065&amp;qa_size=20" width="20" height="20" class="qa-avatar-image" alt=""></a>
+														</span>
+														<span class="qa-c-item-meta">
+															<a href="../../12807/system-of-pdes-defined-on-different-subdomains?show=12808#c12808" class="qa-c-item-what">commented</a>
+															<span class="qa-c-item-when">
+																<span class="qa-c-item-when-data"><span class="published"><span class="value-title" title="2017-03-24T10:11:41+0000"></span>Mar 24, 2017</span></span>
+															</span>
+															<span class="qa-c-item-who">
+																<span class="qa-c-item-who-pad">by </span>
+																<span class="qa-c-item-who-data"><span class="vcard author"><a href="../../user/nate" class="qa-user-link url nickname">nate</a></span></span>
+																<span class="qa-c-item-who-title">FEniCS Expert</span>
+																<span class="qa-c-item-who-points">
+																	<span class="qa-c-item-who-points-pad">(</span><span class="qa-c-item-who-points-data">17,050</span><span class="qa-c-item-who-points-pad"> points)</span>
+																</span>
+															</span>
+														</span>
+													</span>
+													<div class="qa-c-item-buttons">
+													</div>
+												</div>
+												<div class="qa-c-item-clear">
+												</div>
+											</div> <!-- END qa-c-item -->
+										</div> <!-- END qa-c-list -->
+										
+										<input type="hidden" name="code" value="0-1516467839-a5d1862a4b2440a20eb76e81746d1aeda7719cc3">
+										<input type="hidden" name="qa_click" value="">
+									</form>
+									<div class="qa-c-form">
+									</div> <!-- END qa-c-form -->
+									
+								</div> <!-- END qa-q-view-main -->
+								<div class="qa-q-view-clear">
+								</div>
+							</div> <!-- END qa-q-view -->
+							
+						</div>
+						<div class="qa-part-a-list">
+							<h2 id="a_list_title">1 Answer</h2>
+							<div class="qa-a-list" id="a_list">
+								
+								<div class="qa-a-list-item  hentry answer" id="a12815">
+									<form method="post" action="../../12807/system-of-pdes-defined-on-different-subdomains">
+										<div class="qa-voting qa-voting-net" id="voting_12815">
+											<div class="qa-vote-count qa-vote-count-net">
+												<span class="qa-netvote-count">
+													<span class="qa-netvote-count-data">0<span class="votes-up"><span class="value-title" title="0"></span></span><span class="votes-down"><span class="value-title" title="0"></span></span></span><span class="qa-netvote-count-pad"> votes</span>
+												</span>
+											</div>
+											<div class="qa-vote-clear">
+											</div>
+										</div>
+										<input type="hidden" name="code" value="0-1516467839-0687f61b25b07424e424806f197e14da417d1bd3">
+									</form>
+									<div class="qa-a-item-main">
+										<form method="post" action="../../12807/system-of-pdes-defined-on-different-subdomains">
+											<div class="qa-a-selection">
+											</div>
+											<div class="qa-a-item-content">
+												<a name="12815"></a><div class="entry-content"><p>Hi, <br>
+I think your equation is linear, so I change your code like this.</p>
+
+<pre><code>from __future__ import print_function
+from fenics import *
+
+# Create mesh and define function space
+mesh = UnitIntervalMesh(10)
+P1 = FiniteElement('P', mesh.ufl_cell(), 2)
+element = MixedElement([P1, P1])
+W = FunctionSpace(mesh, element)
+
+# Define subdomains
+tol = 1e-14
+
+class Omega1(SubDomain):
+    def inside(self, x, on_boundary):
+        return x[0] &gt;= 0.5 - tol
+
+# Mark subdomains
+domain_marker = CellFunction("size_t", mesh)
+domain_marker.set_all(0)
+
+subdomain1 = Omega1()
+subdomain1.mark(domain_marker, 1)
+
+# Redefine the integration measure on subdomain
+dx = Measure('dx', domain = mesh, subdomain_data = domain_marker) 
+
+# Define boundary condition
+def boundary(x, on_boundary):
+    return on_boundary
+
+def boundary_right(x, on_boundary):
+    return (near(x[0], 1, tol) and on_boundary)
+
+bc0 = DirichletBC(W.sub(0), 0, boundary)
+bc1 = DirichletBC(W.sub(1), 0, boundary_right)
+bcs = [bc0, bc1]
+
+
+# Define trial and test functions
+v1, v2 = split(TestFunction(W))
+u1, u2 = split(TrialFunction(W))
+
+# Define variational formulation
+F = dot(grad(u1), grad(v1))*dx - v1*dx + dot(grad(u2), grad(v2))*dx(1) - v2*dx(1)
+a, L = lhs(F), rhs(F)
+
+# Compute solution
+u_ = Function(W)
+solve(a == L, u_, bcs)
+u_1, u_2 = u_.split()
+
+# Plot information
+plot(domain_marker)
+plot(u_1, title = 'u_1')
+plot(u_2, title = 'u_2')
+
+# Hold plot
+interactive()
+</code></pre>
+</div>
+											</div>
+											<span class="qa-a-item-avatar-meta">
+												<span class="qa-a-item-meta">
+													<a href="../../12807/system-of-pdes-defined-on-different-subdomains?show=12815#a12815" class="qa-a-item-what">answered</a>
+													<span class="qa-a-item-when">
+														<span class="qa-a-item-when-data"><span class="published"><span class="value-title" title="2017-03-26T01:27:16+0000"></span>Mar 26, 2017</span></span>
+													</span>
+													<span class="qa-a-item-who">
+														<span class="qa-a-item-who-pad">by </span>
+														<span class="qa-a-item-who-data"><span class="vcard author"><a href="../../user/xuanyuan9288" class="qa-user-link url nickname">xuanyuan9288</a></span></span>
+														<span class="qa-a-item-who-title">FEniCS Novice</span>
+														<span class="qa-a-item-who-points">
+															<span class="qa-a-item-who-points-pad">(</span><span class="qa-a-item-who-points-data">290</span><span class="qa-a-item-who-points-pad"> points)</span>
+														</span>
+													</span>
+												</span>
+											</span>
+											<div class="qa-a-item-buttons">
+												</div>
+											
+											<div class="qa-a-item-c-list" style="display:none;" id="c12815_list">
+											</div> <!-- END qa-c-list -->
+											
+											<input type="hidden" name="code" value="0-1516467839-0fc74066e00429b9bcdfc7359a242a76f365744f">
+											<input type="hidden" name="qa_click" value="">
+										</form>
+										<div class="qa-c-form">
+										</div> <!-- END qa-c-form -->
+										
+									</div> <!-- END qa-a-item-main -->
+									<div class="qa-a-item-clear">
+									</div>
+								</div> <!-- END qa-a-list-item -->
+								
+							</div> <!-- END qa-a-list -->
+							
+						</div>
+					</div> <!-- END qa-main -->
+					
+				</div> <!-- END main-wrapper -->
+			</div> <!-- END main-shadow -->
+		</div> <!-- END body-wrapper -->
+		<!-- END footer-bottom-group -->
+		
+		<div style="position:absolute; left:-9999px; top:-9999px;">
+			<span id="qa-waiting-template" class="qa-waiting">...</span>
+		</div>
+	
+	
+
+</body><!-- Powered by Question2Answer - http://www.question2answer.org/ --></html>

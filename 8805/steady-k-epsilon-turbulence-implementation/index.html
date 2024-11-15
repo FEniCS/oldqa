@@ -1,0 +1,422 @@
+<html><!-- Powered by Question2Answer - http://www.question2answer.org/ --><head>
+		<meta http-equiv="content-type" content="text/html; charset=utf-8">
+		<title>Steady k-epsilon turbulence implementation - FEniCS Q&amp;A</title>
+		<meta name="description" content="Hello there, I am getting an error when I try to solve the k-epsilon equations for fluid flow.  ... 3 prm['relative_tolerance'] = 1E-3 solver.solve()">
+		<meta name="keywords" content="turbulence,navier-stokes,stationary,nonlinear,petsc">
+		<link rel="stylesheet" type="text/css" href="../../qa-theme/Snow/qa-styles.css">
+		<link rel="canonical" href="http://fenicsproject.org/qa/8805/steady-k-epsilon-turbulence-implementation">
+		<script type="text/x-mathjax-config">
+  MathJax.Hub.Config({
+    extensions: ["tex2jax.js"],
+    jax: ["input/TeX","output/HTML-CSS"],
+    tex2jax: {inlineMath: [["$","$"],["\\(","\\)"]]},
+    TeX: { extensions: ["AMSmath.js","AMSsymbols.js"]}
+  });
+</script>
+<script type="text/javascript" src="../../mathjax/MathJax.js"></script>
+		<script src="../../jquery-1.7.2.min.js" type="text/javascript"></script>
+		<script src="../../highlight.min.js"></script>
+<script type="text/javascript">
+$(function(){
+	$('.wmd-input').keypress(function(){
+		window.clearTimeout(hljs.Timeout);
+		hljs.Timeout = window.setTimeout(function() {
+			hljs.initHighlighting.called = false;
+			hljs.initHighlighting();
+		}, 500);
+	});
+	window.setTimeout(function() {
+		hljs.initHighlighting.called = false;
+		hljs.initHighlighting();
+	}, 500);
+});
+</script>
+
+
+	</head>
+	<body class="qa-template-question qa-body-js-off">
+		<div class="qa-body-wrapper">
+			
+			<div class="qa-header">
+				<div class="qa-logo">
+					<a href="../../" class="qa-logo-link" title="FEniCS Q&amp;A"><img src="../../qa-theme/fenics_qa.png" border="0" alt="FEniCS Q&amp;A"></a>
+				</div>
+				<div class="qa-header-clear">
+				</div>
+			</div> <!-- END qa-header -->
+			
+			<div class="qa-main-shadow">
+				
+				<div class="qa-main-wrapper">
+					
+					<div class="qa-sidepanel">
+						<div class="qa-sidebar">
+							This is a read only copy of the old FEniCS QA forum. Please visit the <a href="https://www.allanswered.com/community/s/fenics-project/">new QA forum</a> to ask questions
+						</div>
+						
+					</div>
+					
+					<div class="qa-main">
+						<h1>
+							<span class="entry-title">Steady k-epsilon turbulence implementation</span>
+						</h1>
+						<div class="qa-part-q-view">
+							<div class="qa-q-view  hentry question" id="q8805">
+								<form method="post" action="../../8805/steady-k-epsilon-turbulence-implementation">
+									<div class="qa-q-view-stats">
+										<div class="qa-voting qa-voting-net" id="voting_8805">
+											<div class="qa-vote-count qa-vote-count-net">
+												<span class="qa-netvote-count">
+													<span class="qa-netvote-count-data">+2<span class="votes-up"><span class="value-title" title="2"></span></span><span class="votes-down"><span class="value-title" title="0"></span></span></span><span class="qa-netvote-count-pad"> votes</span>
+												</span>
+											</div>
+											<div class="qa-vote-clear">
+											</div>
+										</div>
+									</div>
+									<input type="hidden" name="code" value="0-1516468192-a5510a8648894a8cfd517b47e3a7248c8e26224f">
+								</form>
+								<div class="qa-q-view-main">
+									<form method="post" action="../../8805/steady-k-epsilon-turbulence-implementation">
+										<div class="qa-q-view-content">
+											<a name="8805"></a><div class="entry-content"><p>Hello there,</p>
+
+<p>I am getting an error when I try to solve the k-epsilon equations for fluid flow.</p>
+
+<p>Whilst solving nonlinear variational problem, the following error comes up: </p>
+
+<pre><code>[0]PETSC ERROR: Floating point exception!
+[0]PETSC ERROR: Infinite or not-a-number generated in norm!
+</code></pre>
+
+<p>I can't figure out where this is coming from. ANY help would be hugely appreciated!</p>
+
+<p>I haven't yet figured out how to implement wall functions so to start with I am just imposing Dirichlet BCS.</p>
+
+<p>Apart from that it is all pretty standard.</p>
+
+<p>I attach my code below:</p>
+
+<pre><code>from dolfin import *
+
+parameters["form_compiler"]["cpp_optimize"] = True
+parameters["allow_extrapolation"] = True
+parameters["num_threads"] = 8
+
+
+rho = Constant(1.0)
+nu = Constant(1.0)
+Cmu = Constant(1.0)
+C1 = Constant(1.0)
+C2 = Constant(1.0)
+sigma = Constant(1.0)
+cb = Constant(1.0)
+l0 = Constant(1.0)
+
+# define mesh
+mesh = UnitSquareMesh(100, 100)
+
+
+# define functions
+V = FunctionSpace(mesh, 'CG', 1)
+W = MixedFunctionSpace([V,V,V,V,V])
+w = Function(W)
+(u, v, p, k, e) = split(w)
+(vu, vv, vp, vk, ve) = TestFunctions(W)
+
+# influx conditions
+u_inf = Constant(1.0)
+k_inf = Constant(cb*(u_inf **2))
+e_inf = Constant(Cmu*(k_inf **(3/2))/l0)
+
+
+# specify subdomains, declared in C++ for potential speed increase
+ns = CompiledSubDomain("on_boundary &amp;&amp; (x[1] &lt; DOLFIN_EPS || x[1] &gt; 1.0 - DOLFIN_EPS)")
+out = CompiledSubDomain("x[0] &gt; 1.0 - DOLFIN_EPS")
+inf = CompiledSubDomain("x[0] &lt; DOLFIN_EPS")
+
+# define boundary conditions
+# no slip
+bc_nsu  = DirichletBC(W.sub(0), Constant(0.0), ns)
+bc_nsv  = DirichletBC(W.sub(1), Constant(0.0), ns)
+bc_nsk  = DirichletBC(W.sub(3), Constant(0.0), ns)
+bc_nse  = DirichletBC(W.sub(4), Constant(0.0), ns)
+
+# influx
+bc_infu = DirichletBC(W.sub(0), u_inf, inf)
+bc_infv = DirichletBC(W.sub(1), Constant(0.0), inf)
+bc_infk = DirichletBC(W.sub(3), k_inf, inf)
+bc_infe = DirichletBC(W.sub(4), e_inf, inf)
+bc_inp = DirichletBC(W.sub(2), Constant(0.0), inf)
+
+bcs = [bc_nsu, bc_nsv, bc_nsk, bc_nse, bc_infu, bc_infv, bc_infk, bc_infe, bc_inp]
+
+# define variational form
+nu_t = Cmu * (k**2) / e
+
+Fu = (u*Dx(u,0)*vu + v*Dx(u,1)*vu - p*Dx(vu,0)/rho + (nu + nu_t)*inner(nabla_grad(u),nabla_grad(vu)) \
+      - 2*Dx(nu_t,0)*Dx(u,0)*vu - Dx(nu_t,1)*(Dx(v,0)+Dx(u,1))*vu )*dx
+
+Fv = (u*Dx(v,0)*vv + v*Dx(v,1)*vv - p*Dx(vv,1)/rho + (nu + nu_t)*inner(nabla_grad(v),nabla_grad(vv))\
+      - 2*Dx(nu_t,1)*Dx(v,1)*vv - Dx(nu_t,0)*(Dx(v,0)+Dx(u,1))*vv )*dx
+
+Fm = (Dx(u,0)*vp + Dx(v,1)*vp)*dx
+
+Fk = (Dx(u*k,0)*vk + Dx(v*k,1)*vk + nu_t*Dx(k,0)*Dx(vk,0) + nu_t*Dx(k,1)*Dx(vk,1) \
+      - nu_t*(2*Dx(u,0) **2 + (Dx(v,0)+Dx(u,1)) **2 + 2*Dx(v,1) **2)*vk + e*vk)*dx
+
+Fe = (Dx(u*e,0)*ve + Dx(v*e,1)*ve + nu_t*Dx(e,0)*Dx(ve,0)/sigma + nu_t*Dx(e,1)*Dx(ve,1)/sigma \
+      - nu_t * C1 * (2* Dx(u,0) **2 + (Dx(v,0)+Dx(u,1)) **2 + 2 * Dx(v,1) **2) * ve * e / k + 2*C2*(e **2) * ve / k)*dx
+
+F = Fu+Fv+Fm+Fk+Fe
+
+
+# find form of jacobian
+J = derivative(F, w)
+
+
+# Solve 
+problem = NonlinearVariationalProblem(F, w, bcs, J)
+solver = NonlinearVariationalSolver(problem)
+
+prm = solver.parameters['newton_solver']
+prm['maximum_iterations'] = 100
+prm['absolute_tolerance'] = 1E-3
+prm['relative_tolerance'] = 1E-3
+
+solver.solve()
+</code></pre>
+</div>
+										</div>
+										<div class="qa-q-view-tags">
+											<ul class="qa-q-view-tag-list">
+												<li class="qa-q-view-tag-item"><a href="../../tag/turbulence" rel="tag" class="qa-tag-link">turbulence</a></li>
+												<li class="qa-q-view-tag-item"><a href="../../tag/navier-stokes" rel="tag" class="qa-tag-link">navier-stokes</a></li>
+												<li class="qa-q-view-tag-item"><a href="../../tag/stationary" rel="tag" class="qa-tag-link">stationary</a></li>
+												<li class="qa-q-view-tag-item"><a href="../../tag/nonlinear" rel="tag" class="qa-tag-link">nonlinear</a></li>
+												<li class="qa-q-view-tag-item"><a href="../../tag/petsc" rel="tag" class="qa-tag-link">petsc</a></li>
+											</ul>
+										</div>
+										<span class="qa-q-view-avatar-meta">
+											<span class="qa-q-view-meta">
+												<a href="../../8805/steady-k-epsilon-turbulence-implementation" class="qa-q-view-what">asked</a>
+												<span class="qa-q-view-when">
+													<span class="qa-q-view-when-data"><span class="published"><span class="value-title" title="2015-12-07T14:39:23+0000"></span>Dec 7, 2015</span></span>
+												</span>
+												<span class="qa-q-view-who">
+													<span class="qa-q-view-who-pad">by </span>
+													<span class="qa-q-view-who-data"><span class="vcard author"><a href="../../user/graham.benham" class="qa-user-link url nickname">graham.benham</a></span></span>
+													<span class="qa-q-view-who-title">FEniCS Novice</span>
+													<span class="qa-q-view-who-points">
+														<span class="qa-q-view-who-points-pad">(</span><span class="qa-q-view-who-points-data">270</span><span class="qa-q-view-who-points-pad"> points)</span>
+													</span>
+												</span>
+												<br>
+												<span class="qa-q-view-what">edited</span>
+												<span class="qa-q-view-when">
+													<span class="qa-q-view-when-data"><span class="updated"><span class="value-title" title="2015-12-07T14:44:57+0000"></span>Dec 7, 2015</span></span>
+												</span>
+												<span class="qa-q-view-who">
+													<span class="qa-q-view-who-pad">by </span><span class="qa-q-view-who-data"><a href="../../user/graham.benham" class="qa-user-link url nickname">graham.benham</a></span>
+												</span>
+											</span>
+										</span>
+										<div class="qa-q-view-buttons">
+										</div>
+										
+										<div class="qa-q-view-c-list" style="display:none;" id="c8805_list">
+										</div> <!-- END qa-c-list -->
+										
+										<input type="hidden" name="code" value="0-1516468192-68277719c09543351afeb5317e581a2cb0acb795">
+										<input type="hidden" name="qa_click" value="">
+									</form>
+									<div class="qa-c-form">
+									</div> <!-- END qa-c-form -->
+									
+								</div> <!-- END qa-q-view-main -->
+								<div class="qa-q-view-clear">
+								</div>
+							</div> <!-- END qa-q-view -->
+							
+						</div>
+						<div class="qa-part-a-list">
+							<h2 id="a_list_title">1 Answer</h2>
+							<div class="qa-a-list" id="a_list">
+								
+								<div class="qa-a-list-item  hentry answer" id="a8811">
+									<form method="post" action="../../8805/steady-k-epsilon-turbulence-implementation">
+										<div class="qa-voting qa-voting-net" id="voting_8811">
+											<div class="qa-vote-count qa-vote-count-net">
+												<span class="qa-netvote-count">
+													<span class="qa-netvote-count-data">+2<span class="votes-up"><span class="value-title" title="2"></span></span><span class="votes-down"><span class="value-title" title="0"></span></span></span><span class="qa-netvote-count-pad"> votes</span>
+												</span>
+											</div>
+											<div class="qa-vote-clear">
+											</div>
+										</div>
+										<input type="hidden" name="code" value="0-1516468192-a5510a8648894a8cfd517b47e3a7248c8e26224f">
+									</form>
+									<div class="qa-a-item-main">
+										<form method="post" action="../../8805/steady-k-epsilon-turbulence-implementation">
+											<div class="qa-a-selection">
+											</div>
+											<div class="qa-a-item-content">
+												<a name="8811"></a><div class="entry-content"><p>I managed to fix it myself by providing an initial guess and placing a conditional expression on the eddy viscosity nu_t so that it doesn't blow up when e = 0. </p>
+
+<p>This still is only the trivial solution (dirichlet bcd everywhere!). I would love it if someone showed me how to implement wall functions!!!!</p>
+
+<h2>CODE</h2>
+
+<p>from dolfin import *<br>
+import matplotlib.pyplot as plt<br>
+import numpy as np</p>
+
+<p>parameters["form_compiler"]["cpp_optimize"] = True<br>
+parameters["allow_extrapolation"] = True<br>
+parameters["num_threads"] = 8</p>
+
+<p>rho = Constant(1.0)<br>
+nu = Constant(1.0)<br>
+Cmu = Constant(1.0)<br>
+C1 = Constant(1.0)<br>
+C2 = Constant(1.0)<br>
+sigma = Constant(1.0)<br>
+cb = Constant(1.0)<br>
+l0 = Constant(1.0)</p>
+
+<h2>define mesh</h2>
+
+<p>mesh = UnitSquareMesh(100, 100)</p>
+
+<h2>define functions</h2>
+
+<p>V = FunctionSpace(mesh, 'CG', 1)<br>
+W = MixedFunctionSpace([V,V,V,V,V])<br>
+w = Function(W)<br>
+w=interpolate(Expression(("x[0]+x[1]","x[0]+x[1]","x[0]+x[1]","x[0]+x[1]","x[0]+x[1]")),W)</p>
+
+<p>(u, v, p, k, e) = split(w)<br>
+(vu, vv, vp, vk, ve) = TestFunctions(W)</p>
+
+<p>bcs=DirichletBC(W,Constant((0.0, 0.0, 0.0, 0.0, 0.0)),DomainBoundary())</p>
+
+<h2>define variational form</h2>
+
+<p>tol=Constant(0.01)<br>
+nu_t = conditional( lt(abs(e),tol), project(Constant(0.0),V), Cmu*(k**2)/e)</p>
+
+<p>Fu = (u<em>Dx(u,0)</em>vu + v<em>Dx(u,1)</em>vu - p<em>Dx(vu,0)/rho + (nu + nu_t)</em>inner(nabla_grad(u),nabla_grad(vu)) \<br>
+      - 2<em>Dx(nu_t,0)</em>Dx(u,0)<em>vu - Dx(nu_t,1)</em>(Dx(v,0)+Dx(u,1))<em>vu )</em>dx</p>
+
+<p>Fv = (u<em>Dx(v,0)</em>vv + v<em>Dx(v,1)</em>vv - p<em>Dx(vv,1)/rho + (nu + nu_t)</em>inner(nabla_grad(v),nabla_grad(vv))\<br>
+      - 2<em>Dx(nu_t,1)</em>Dx(v,1)<em>vv - Dx(nu_t,0)</em>(Dx(v,0)+Dx(u,1))<em>vv )</em>dx</p>
+
+<p>Fm = (Dx(u,0)<em>vp + Dx(v,1)</em>vp)*dx</p>
+
+<p>Fk = ((Dx(u<em>k,0)</em>vk + Dx(v<em>k,1)</em>vk + nu_t<em>Dx(k,0)</em>Dx(vk,0) + nu_t<em>Dx(k,1)</em>Dx(vk,1) \<br>
+      - nu_t<em>(2</em>(Dx(u,0)<strong>2)+(Dx(v,0)+Dx(u,1))</strong>2+2*Dx(v,1)**2)*vk + e*vk))*dx</p>
+
+<p>Fk = ((Dx(u<em>k,0)</em>vk + Dx(v<em>k,1)</em>vk + nu_t<em>Dx(k,0)</em>Dx(vk,0)+ nu_t<em>Dx(k,1)</em>Dx(vk,1) -nu_t*Dx(u,1)**2*vk + e*vk))*dx</p>
+
+<p>Fe = ((Dx(u<em>e,0)</em>ve + Dx(v<em>e,1)</em>ve + nu_t<em>Dx(e,0)</em>Dx(ve,0)/sigma + nu_t<em>Dx(e,1)</em>Dx(ve,1)/sigma \<br>
+     -nu_t<em>C1</em>(2<em>Dx(u,0)<strong>2+(Dx(v,0)+Dx(u,1))</strong>2+2</em>Dx(v,1)<strong>2)<em>ve</em>e/k + 2<em>C2</em>(e</strong>2)<em>ve/k))</em>dx</p>
+
+<p>F = Fu+Fv+Fm+Fk+Fe</p>
+
+<h2>find form of jacobian</h2>
+
+<p>J = derivative(F, w)</p>
+
+<h2>solve</h2>
+
+<p>problem = NonlinearVariationalProblem(F, w, bcs, J)<br>
+solver = NonlinearVariationalSolver(problem)</p>
+
+<p>prm = solver.parameters['newton_solver']<br>
+prm['maximum_iterations'] = 100<br>
+prm['absolute_tolerance'] = 1E-3<br>
+prm['relative_tolerance'] = 1E-3</p>
+
+<p>solver.solve()</p>
+</div>
+											</div>
+											<span class="qa-a-item-avatar-meta">
+												<span class="qa-a-item-meta">
+													<a href="../../8805/steady-k-epsilon-turbulence-implementation?show=8811#a8811" class="qa-a-item-what">answered</a>
+													<span class="qa-a-item-when">
+														<span class="qa-a-item-when-data"><span class="published"><span class="value-title" title="2015-12-08T09:30:21+0000"></span>Dec 8, 2015</span></span>
+													</span>
+													<span class="qa-a-item-who">
+														<span class="qa-a-item-who-pad">by </span>
+														<span class="qa-a-item-who-data"><span class="vcard author"><a href="../../user/graham.benham" class="qa-user-link url nickname">graham.benham</a></span></span>
+														<span class="qa-a-item-who-title">FEniCS Novice</span>
+														<span class="qa-a-item-who-points">
+															<span class="qa-a-item-who-points-pad">(</span><span class="qa-a-item-who-points-data">270</span><span class="qa-a-item-who-points-pad"> points)</span>
+														</span>
+													</span>
+												</span>
+											</span>
+											<div class="qa-a-item-buttons">
+												</div>
+											
+											<div class="qa-a-item-c-list" id="c8811_list">
+												<div class="qa-c-list-item  hentry comment" id="c9437">
+													<div class="qa-c-item-content">
+														<a name="9437"></a><div class="entry-content"><p>Hi Graham,<br>
+May I ask have you found a way to implement wall functions?<br>
+Thanks a lot!</p>
+</div>
+													</div>
+													<div class="qa-c-item-footer">
+														<span class="qa-c-item-avatar-meta">
+															<span class="qa-c-item-meta">
+																<a href="../../8805/steady-k-epsilon-turbulence-implementation?show=9437#c9437" class="qa-c-item-what">commented</a>
+																<span class="qa-c-item-when">
+																	<span class="qa-c-item-when-data"><span class="published"><span class="value-title" title="2016-02-29T00:23:34+0000"></span>Feb 29, 2016</span></span>
+																</span>
+																<span class="qa-c-item-who">
+																	<span class="qa-c-item-who-pad">by </span>
+																	<span class="qa-c-item-who-data"><span class="vcard author"><a href="../../user/Hrunx" class="qa-user-link url nickname">Hrunx</a></span></span>
+																	<span class="qa-c-item-who-title">FEniCS Novice</span>
+																	<span class="qa-c-item-who-points">
+																		<span class="qa-c-item-who-points-pad">(</span><span class="qa-c-item-who-points-data">910</span><span class="qa-c-item-who-points-pad"> points)</span>
+																	</span>
+																</span>
+															</span>
+														</span>
+														<div class="qa-c-item-buttons">
+														</div>
+													</div>
+													<div class="qa-c-item-clear">
+													</div>
+												</div> <!-- END qa-c-item -->
+											</div> <!-- END qa-c-list -->
+											
+											<input type="hidden" name="code" value="0-1516468192-cb8e62d164e7c2e342ae2936511507b1bb9fe84b">
+											<input type="hidden" name="qa_click" value="">
+										</form>
+										<div class="qa-c-form">
+										</div> <!-- END qa-c-form -->
+										
+									</div> <!-- END qa-a-item-main -->
+									<div class="qa-a-item-clear">
+									</div>
+								</div> <!-- END qa-a-list-item -->
+								
+							</div> <!-- END qa-a-list -->
+							
+						</div>
+					</div> <!-- END qa-main -->
+					
+				</div> <!-- END main-wrapper -->
+			</div> <!-- END main-shadow -->
+		</div> <!-- END body-wrapper -->
+		<!-- END footer-bottom-group -->
+		
+		<div style="position:absolute; left:-9999px; top:-9999px;">
+			<span id="qa-waiting-template" class="qa-waiting">...</span>
+		</div>
+	
+	
+
+</body><!-- Powered by Question2Answer - http://www.question2answer.org/ --></html>

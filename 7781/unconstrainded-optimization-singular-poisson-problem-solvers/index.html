@@ -1,0 +1,514 @@
+<html><!-- Powered by Question2Answer - http://www.question2answer.org/ --><head>
+		<meta http-equiv="content-type" content="text/html; charset=utf-8">
+		<title>unconstrainded optimization aproach to singular poisson problem with tao petsc solvers - FEniCS Q&amp;A</title>
+		<meta name="description" content="I am trying to define a funcional obj = gamma * norm(u, 2) + norm(a - L, 2) in ... to use the powerfull (box constrain) PETSc TAO optimization solver?">
+		<meta name="keywords" content="ufl,singular-poisson,unconstrained-optimization,petsc-tao">
+		<link rel="stylesheet" type="text/css" href="../../qa-theme/Snow/qa-styles.css">
+		<link rel="canonical" href="http://fenicsproject.org/qa/7781/unconstrainded-optimization-singular-poisson-problem-solvers">
+		<script type="text/x-mathjax-config">
+  MathJax.Hub.Config({
+    extensions: ["tex2jax.js"],
+    jax: ["input/TeX","output/HTML-CSS"],
+    tex2jax: {inlineMath: [["$","$"],["\\(","\\)"]]},
+    TeX: { extensions: ["AMSmath.js","AMSsymbols.js"]}
+  });
+</script>
+<script type="text/javascript" src="../../mathjax/MathJax.js"></script>
+		<script src="../../jquery-1.7.2.min.js" type="text/javascript"></script>
+		<script src="../../highlight.min.js"></script>
+<script type="text/javascript">
+$(function(){
+	$('.wmd-input').keypress(function(){
+		window.clearTimeout(hljs.Timeout);
+		hljs.Timeout = window.setTimeout(function() {
+			hljs.initHighlighting.called = false;
+			hljs.initHighlighting();
+		}, 500);
+	});
+	window.setTimeout(function() {
+		hljs.initHighlighting.called = false;
+		hljs.initHighlighting();
+	}, 500);
+});
+</script>
+
+
+	</head>
+	<body class="qa-template-question qa-body-js-off">
+		<div class="qa-body-wrapper">
+			
+			<div class="qa-header">
+				<div class="qa-logo">
+					<a href="../../" class="qa-logo-link" title="FEniCS Q&amp;A"><img src="../../qa-theme/fenics_qa.png" border="0" alt="FEniCS Q&amp;A"></a>
+				</div>
+				<div class="qa-header-clear">
+				</div>
+			</div> <!-- END qa-header -->
+			
+			<div class="qa-main-shadow">
+				
+				<div class="qa-main-wrapper">
+					
+					<div class="qa-sidepanel">
+						<div class="qa-sidebar">
+							This is a read only copy of the old FEniCS QA forum. Please visit the <a href="https://www.allanswered.com/community/s/fenics-project/">new QA forum</a> to ask questions
+						</div>
+						
+					</div>
+					
+					<div class="qa-main">
+						<h1>
+							<span class="entry-title">unconstrainded optimization aproach to singular poisson problem with tao petsc solvers</span>
+						</h1>
+						<div class="qa-part-q-view">
+							<div class="qa-q-view  hentry question" id="q7781">
+								<form method="post" action="../../7781/unconstrainded-optimization-singular-poisson-problem-solvers">
+									<div class="qa-q-view-stats">
+										<div class="qa-voting qa-voting-net" id="voting_7781">
+											<div class="qa-vote-count qa-vote-count-net">
+												<span class="qa-netvote-count">
+													<span class="qa-netvote-count-data">0<span class="votes-up"><span class="value-title" title="0"></span></span><span class="votes-down"><span class="value-title" title="0"></span></span></span><span class="qa-netvote-count-pad"> votes</span>
+												</span>
+											</div>
+											<div class="qa-vote-clear">
+											</div>
+										</div>
+									</div>
+									<input type="hidden" name="code" value="0-1516468137-cb51355e4c9d16e04d700f4d09f3e48c4b6adf73">
+								</form>
+								<div class="qa-q-view-main">
+									<form method="post" action="../../7781/unconstrainded-optimization-singular-poisson-problem-solvers">
+										<div class="qa-q-view-content">
+											<a name="7781"></a><div class="entry-content"><p>I am trying to define a funcional obj = gamma * norm(u, 2) + norm(a - L, 2) <br>
+in order to use some PETSc TAO solver like tron or cg to an anternative<br>
+approach to Singular Poisson problem (singular_poisson.py). </p>
+
+<p>How can I define this functional in a correc way?</p>
+
+<pre><code>from dolfin import *
+
+parameters["linear_algebra_backend"] = "PETSc"
+
+# Create mesh
+k = 16
+mesh = UnitSquareMesh(k, k)
+
+# Create function space
+V = FunctionSpace(mesh, "Lagrange", 1)
+
+# Create solution, trial and test functions
+u, du, v = Function(V), TrialFunction(V), TestFunction(V)
+
+# Variational formulation
+f = Expression("10*exp(-(pow(x[0] - 0.5, 2) + pow(x[1] - 0.5, 2)) / 0.02)")
+g = Expression("-sin(5*x[0])")
+
+a = inner(grad(u), grad(u))*dx
+L = f * u * dx + g * u * ds
+
+gamma = 0.1
+
+obj = gamma * norm(u, 2) + norm(a - L, 2)
+
+grad_obj = derivative(obj, u, v)
+hess_obj = derivative(grad_obj, u, du)
+
+# Box constrains
+constraint_l = Expression("x_min", x_min=-1.2)
+constraint_u = Expression("x_max", x_max=1.2)
+
+u_min = interpolate(constraint_l, V)
+u_max = interpolate(constraint_u, V)
+
+# Define the minimisation problem by using OptimisationProblem class
+class Problem(OptimisationProblem):
+
+    def __init__(self):
+        OptimisationProblem.__init__(self)
+
+    # Objective function
+    def f(self, x):
+        u.vector()[:] = x
+        return assemble(obj)
+
+    # Gradient of the objective function
+    def F(self, b, x):
+        u.vector()[:] = x
+        assemble(grad_obj, tensor=b)
+
+    # Hessian of the objective function
+    def J(self, A, x):
+        u.vector()[:] = x
+        assemble(hess_obj, tensor=A)
+
+# Create the PETScTAOSolver
+solver = PETScTAOSolver()
+
+# Set some parameters
+solver.parameters["method"] = "tron"
+solver.parameters["monitor_convergence"] = True
+solver.parameters["report"] = True
+solver.parameters["maximum_iterations"] = 1000
+#info(parameters, True)    # Uncomment this line to see the available parameters
+
+# Parse (PETSc) parameters
+parameters.parse()
+
+# Solve the problem
+set_log_level(DEBUG)
+solver.solve(Problem(), u.vector(), u_min.vector(), u_max.vector())
+
+# Save solution in VTK format
+ufile_pvd = File("velocity.pvd")
+ufile_pvd &lt;&lt; u
+
+# Plot solution
+plot(u, interactive=True)
+</code></pre>
+
+<p>I get the error message:</p>
+
+<hr>
+
+<p>RuntimeError                              Traceback (most recent call last)<br>
+/Users/andremachado/Desktop/demo_singular-poisson_v4_TAO.py in ()<br>
+     23 gamma = 0.1<br>
+     24 <br>
+---&gt; 25 obj = gamma * norm(u, 2) + norm(a - L, 2)<br>
+     26 <br>
+     27 grad_obj = derivative(obj, u, v)</p>
+
+<p>/Users/andremachado/.hashdist/bld/profile/q3rqj2knkdy7/lib/python2.7/site-packages/dolfin/fem/norms.py in norm(v, norm_type, mesh)<br>
+    100         cpp.dolfin_error("norms.py",<br>
+    101                          "compute norm",<br>
+--&gt; 102                          "Norm type must be a string, not " + str(type(norm_type)))<br>
+    103     if mesh is not None and not isinstance(mesh, Mesh):<br>
+    104         cpp.dolfin_error("norms.py",</p>
+
+<p>/Users/andremachado/.hashdist/bld/profile/q3rqj2knkdy7/lib/python2.7/site-packages/dolfin/cpp/common.py in dolfin_error(location, task, reason)<br>
+   2483 <br>
+   2484     """<br>
+-&gt; 2485     return _common.dolfin_error(location, task, reason)<br>
+   2486 <br>
+   2487 def deprecation(feature, version_deprecated, version_remove, message):</p>
+
+<p>RuntimeError: </p>
+
+<p>*** -------------------------------------------------------------------------<br>
+*** DOLFIN encountered an error. If you are not able to resolve this issue<br>
+*** using the information listed below, you can ask for help at</p>
+
+<hr>
+
+<p>***     fenics@fenicsproject.org</p>
+
+<hr>
+
+<p>*** Remember to include the error message listed below and, if possible,<br>
+*** include a <em>minimal</em> running example to reproduce the error.</p>
+
+<hr>
+
+<p>*** -------------------------------------------------------------------------<br>
+*** Error:   Unable to compute norm.<br>
+*** Reason:  Norm type must be a string, not .<br>
+*** Where:   This error was encountered inside norms.py.<br>
+*** Process: unknown</p>
+
+<hr>
+
+<p>*** DOLFIN version: 1.5.0<br>
+*** Git changeset:  <br>
+*** -------------------------------------------------------------------------</p>
+
+<p>What is the correct way to set a funcional <br>
+like obj = gamma * norm(u, 2) + norm(a - L, 2), <br>
+gamma = 0.01 with ufl in order to use the <br>
+powerfull (box constrain) PETSc TAO optimization <br>
+solver?   </p>
+</div>
+										</div>
+										<div class="qa-q-view-tags">
+											<ul class="qa-q-view-tag-list">
+												<li class="qa-q-view-tag-item"><a href="../../tag/ufl" rel="tag" class="qa-tag-link">ufl</a></li>
+												<li class="qa-q-view-tag-item"><a href="../../tag/singular-poisson" rel="tag" class="qa-tag-link">singular-poisson</a></li>
+												<li class="qa-q-view-tag-item"><a href="../../tag/unconstrained-optimization" rel="tag" class="qa-tag-link">unconstrained-optimization</a></li>
+												<li class="qa-q-view-tag-item"><a href="../../tag/petsc-tao" rel="tag" class="qa-tag-link">petsc-tao</a></li>
+											</ul>
+										</div>
+										<span class="qa-q-view-avatar-meta">
+											<span class="qa-q-view-meta">
+												<a href="../../7781/unconstrainded-optimization-singular-poisson-problem-solvers" class="qa-q-view-what">asked</a>
+												<span class="qa-q-view-when">
+													<span class="qa-q-view-when-data"><span class="published"><span class="value-title" title="2015-08-06T15:14:37+0000"></span>Aug 6, 2015</span></span>
+												</span>
+												<span class="qa-q-view-who">
+													<span class="qa-q-view-who-pad">by </span>
+													<span class="qa-q-view-who-data"><span class="vcard author"><a href="../../user/Andre+Machado" class="qa-user-link url nickname">Andre Machado</a></span></span>
+													<span class="qa-q-view-who-title">FEniCS User</span>
+													<span class="qa-q-view-who-points">
+														<span class="qa-q-view-who-points-pad">(</span><span class="qa-q-view-who-points-data">1,040</span><span class="qa-q-view-who-points-pad"> points)</span>
+													</span>
+												</span>
+											</span>
+										</span>
+										<div class="qa-q-view-buttons">
+										</div>
+										
+										<div class="qa-q-view-c-list" style="display:none;" id="c7781_list">
+										</div> <!-- END qa-c-list -->
+										
+										<input type="hidden" name="code" value="0-1516468137-cc9b831c4286687ca46cdfa6da6cc7e3831e4f1c">
+										<input type="hidden" name="qa_click" value="">
+									</form>
+									<div class="qa-c-form">
+									</div> <!-- END qa-c-form -->
+									
+								</div> <!-- END qa-q-view-main -->
+								<div class="qa-q-view-clear">
+								</div>
+							</div> <!-- END qa-q-view -->
+							
+						</div>
+						<div class="qa-part-a-list">
+							<h2 id="a_list_title">1 Answer</h2>
+							<div class="qa-a-list" id="a_list">
+								
+								<div class="qa-a-list-item  hentry answer answer-selected qa-a-list-item-selected" id="a7787">
+									<form method="post" action="../../7781/unconstrainded-optimization-singular-poisson-problem-solvers">
+										<div class="qa-voting qa-voting-net" id="voting_7787">
+											<div class="qa-vote-count qa-vote-count-net">
+												<span class="qa-netvote-count">
+													<span class="qa-netvote-count-data">+1<span class="votes-up"><span class="value-title" title="1"></span></span><span class="votes-down"><span class="value-title" title="0"></span></span></span><span class="qa-netvote-count-pad"> vote</span>
+												</span>
+											</div>
+											<div class="qa-vote-clear">
+											</div>
+										</div>
+										<input type="hidden" name="code" value="0-1516468137-cb51355e4c9d16e04d700f4d09f3e48c4b6adf73">
+									</form>
+									<div class="qa-a-item-main">
+										<form method="post" action="../../7781/unconstrainded-optimization-singular-poisson-problem-solvers">
+											<div class="qa-a-item-selected">
+												<div class="qa-a-selection">
+													<div class="qa-a-selected">&#160;</div>
+													<div class="qa-a-selected-text">Best answer</div>
+												</div>
+												<div class="qa-a-item-content">
+													<a name="7787"></a><div class="entry-content"><p>The solution to the Poisson problem is a minimizer of the functional </p>
+
+<pre><code>0.5 * grad(u)**2 * dx - L,
+</code></pre>
+
+<p>so I think your objective should be defined as </p>
+
+<pre><code>obj = gamma * u**2 * dx + .5 * grad(u)**2 * dx - L
+</code></pre>
+
+<p>You should also be aware the "singular Poisson" problem your are solving only has solutions if the right hand side L annihilates the constants. This seems not to be the case here.</p>
+</div>
+												</div>
+												<span class="qa-a-item-avatar-meta">
+													<span class="qa-a-item-meta">
+														<a href="../../7781/unconstrainded-optimization-singular-poisson-problem-solvers?show=7787#a7787" class="qa-a-item-what">answered</a>
+														<span class="qa-a-item-when">
+															<span class="qa-a-item-when-data"><span class="published"><span class="value-title" title="2015-08-07T10:35:05+0000"></span>Aug 7, 2015</span></span>
+														</span>
+														<span class="qa-a-item-who">
+															<span class="qa-a-item-who-pad">by </span>
+															<span class="qa-a-item-who-data"><span class="vcard author"><a href="../../user/Magne+Nordaas" class="qa-user-link url nickname">Magne Nordaas</a></span></span>
+															<span class="qa-a-item-who-title">FEniCS Expert</span>
+															<span class="qa-a-item-who-points">
+																<span class="qa-a-item-who-points-pad">(</span><span class="qa-a-item-who-points-data">13,820</span><span class="qa-a-item-who-points-pad"> points)</span>
+															</span>
+														</span>
+														<br>
+														<span class="qa-a-item-what">selected</span>
+														<span class="qa-a-item-when">
+															<span class="qa-a-item-when-data"><span class="updated"><span class="value-title" title="2015-08-09T18:17:59+0000"></span>Aug 9, 2015</span></span>
+														</span>
+														<span class="qa-a-item-who">
+															<span class="qa-a-item-who-pad">by </span><span class="qa-a-item-who-data"><a href="../../user/Andre+Machado" class="qa-user-link url nickname">Andre Machado</a></span>
+														</span>
+													</span>
+												</span>
+											</div>
+											<div class="qa-a-item-buttons">
+												</div>
+											
+											<div class="qa-a-item-c-list" id="c7787_list">
+												<div class="qa-c-list-item  hentry comment" id="c7789">
+													<div class="qa-c-item-content">
+														<a name="7789"></a><div class="entry-content"><p>Magne, take a look at it. </p>
+
+<p>I am using a optimization solver less powerfull than TAO <br>
+one - CVXPY and I get the same solution minimizing <br>
+gamma * norm(u, 2) + norm(Ax -b, 2) with bound constrains<br>
+x &gt;= -0.5, A, b = assembler_system(a, L) via</p>
+
+<pre><code>gamma = 1.0e-4
+
+obj = cvxpy.Minimize(cvxpy.norm2(gamma * x) + cvxpy.norm2(A.array()*x-b.array()))
+
+cvxpy.constrains = [ x &gt;= -0.5 ]
+
+
+import cvxpy
+
+from dolfin import *
+
+k = 16
+mesh = UnitSquareMesh(k, k)
+
+V = FunctionSpace(mesh, "Lagrange", 1)
+
+u = TrialFunction(V)
+v = TestFunction(V)
+
+f = Expression("10*exp(-(pow(x[0] - 0.5, 2) + pow(x[1] - 0.5, 2)) / 0.02)")
+g = Expression("-sin(5*x[0])")
+
+a = inner(grad(u), grad(v))*dx
+L = f * v * dx + g * v * ds
+
+A, b = assemble_system(a, L)
+
+u = Function(V)
+
+#CVXPY solver
+n_dic = (A.array()[0, :]).size
+
+x = cvxpy.Variable(n_dic)
+
+gamma = 1.0e-4
+obj = cvxpy.Minimize(cvxpy.norm2(gamma * x) + cvxpy.norm2(A.array()*x-b.array()))
+cvxpy.constrains = [ x &gt;= -0.5 ]
+
+prob = cvxpy.Problem(obj, cvxpy.constrains)
+prob.solve(solver='ECOS', verbose=True, max_iters=250) #SCS, ECOS_BB, CVXOPT
+
+x_value = np.array(x.value)
+u.vector()[:] = x_value[:, 0]
+
+plot(u, interactive=True)
+</code></pre>
+
+<p>I have tried the functional obj = gamma * u<strong>2 * dx + 0.5 * grad(u)</strong>2 * dx - L with box constrains -0,5 &lt;= x &lt;= 10.0 and all TAO solvers tron, blmvm, nls, nm, ntr, cg but the solution is different.</p>
+
+<p>( This 0.5 * grad(u)**2 * dx - L is norm(a - L, 2) for poisson equation? )</p>
+
+<p>It doesn't make sense to me...</p>
+</div>
+													</div>
+													<div class="qa-c-item-footer">
+														<span class="qa-c-item-avatar-meta">
+															<span class="qa-c-item-meta">
+																<a href="../../7781/unconstrainded-optimization-singular-poisson-problem-solvers?show=7789#c7789" class="qa-c-item-what">commented</a>
+																<span class="qa-c-item-when">
+																	<span class="qa-c-item-when-data"><span class="published"><span class="value-title" title="2015-08-07T12:46:22+0000"></span>Aug 7, 2015</span></span>
+																</span>
+																<span class="qa-c-item-who">
+																	<span class="qa-c-item-who-pad">by </span>
+																	<span class="qa-c-item-who-data"><span class="vcard author"><a href="../../user/Andre+Machado" class="qa-user-link url nickname">Andre Machado</a></span></span>
+																	<span class="qa-c-item-who-title">FEniCS User</span>
+																	<span class="qa-c-item-who-points">
+																		<span class="qa-c-item-who-points-pad">(</span><span class="qa-c-item-who-points-data">1,040</span><span class="qa-c-item-who-points-pad"> points)</span>
+																	</span>
+																</span>
+																<br>
+																<span class="qa-c-item-what">edited</span>
+																<span class="qa-c-item-when">
+																	<span class="qa-c-item-when-data"><span class="updated"><span class="value-title" title="2015-08-08T17:20:07+0000"></span>Aug 8, 2015</span></span>
+																</span>
+																<span class="qa-c-item-who">
+																	<span class="qa-c-item-who-pad">by </span><span class="qa-c-item-who-data"><a href="../../user/Andre+Machado" class="qa-user-link url nickname">Andre Machado</a></span>
+																</span>
+															</span>
+														</span>
+														<div class="qa-c-item-buttons">
+														</div>
+													</div>
+													<div class="qa-c-item-clear">
+													</div>
+												</div> <!-- END qa-c-item -->
+												<div class="qa-c-list-item  hentry comment" id="c7797">
+													<div class="qa-c-item-content">
+														<a name="7797"></a><div class="entry-content"><p>First of all you need to fix your problem formulation since you currently try to solve a problem that doesn't have solutions. You are using the same expressions for f and g as in singular_poisson.py, but in the demo the assembled right hand side is changed to be consistent before the linear solve. </p>
+
+<p>A minimizer of the functional J defined</p>
+
+<pre><code>L = f * u * dx + g * u * ds
+J = 0.5 * grad(u)**2 * dx - L
+</code></pre>
+
+<p>is a solution to the Poisson problem. Conversely, a solution of the Poisson equation is a minimizer of J. Solutions exists if and only if the linear functional L vanishes on the constant functions. When solutions exists, they are not unique. </p>
+
+<p>Now, assume that L permits solutions. If you define your objective functional as </p>
+
+<pre><code>obj = .5 * gamma * u**2 * dx + J
+</code></pre>
+
+<p>then it can be cosidered a regularization of the functional J. For small gamma, a minimizer of obj may be close to a minimizer of J, hence close to the solution of the Poisson problem.<br>
+Note that this functional has unique minimizer, regardless of L.</p>
+
+<p>Finally, consider that you can define an iterate procedure to eliminate the dependence on gamma, for example by setting </p>
+
+<pre><code>obj = .5 * gamma * (u- u_prev)**2 * dx + J
+</code></pre>
+
+<p>This approach is equivalent solving the heat equation with implicit Euler and time step 1/gamma, until it converges to a stationary solution.</p>
+</div>
+													</div>
+													<div class="qa-c-item-footer">
+														<span class="qa-c-item-avatar-meta">
+															<span class="qa-c-item-meta">
+																<a href="../../7781/unconstrainded-optimization-singular-poisson-problem-solvers?show=7797#c7797" class="qa-c-item-what">commented</a>
+																<span class="qa-c-item-when">
+																	<span class="qa-c-item-when-data"><span class="published"><span class="value-title" title="2015-08-09T14:24:25+0000"></span>Aug 9, 2015</span></span>
+																</span>
+																<span class="qa-c-item-who">
+																	<span class="qa-c-item-who-pad">by </span>
+																	<span class="qa-c-item-who-data"><span class="vcard author"><a href="../../user/Magne+Nordaas" class="qa-user-link url nickname">Magne Nordaas</a></span></span>
+																	<span class="qa-c-item-who-title">FEniCS Expert</span>
+																	<span class="qa-c-item-who-points">
+																		<span class="qa-c-item-who-points-pad">(</span><span class="qa-c-item-who-points-data">13,820</span><span class="qa-c-item-who-points-pad"> points)</span>
+																	</span>
+																</span>
+															</span>
+														</span>
+														<div class="qa-c-item-buttons">
+														</div>
+													</div>
+													<div class="qa-c-item-clear">
+													</div>
+												</div> <!-- END qa-c-item -->
+											</div> <!-- END qa-c-list -->
+											
+											<input type="hidden" name="code" value="0-1516468137-70fe657922d2af14f8653afb82ec6c927eabba22">
+											<input type="hidden" name="qa_click" value="">
+										</form>
+										<div class="qa-c-form">
+										</div> <!-- END qa-c-form -->
+										
+									</div> <!-- END qa-a-item-main -->
+									<div class="qa-a-item-clear">
+									</div>
+								</div> <!-- END qa-a-list-item -->
+								
+							</div> <!-- END qa-a-list -->
+							
+						</div>
+					</div> <!-- END qa-main -->
+					
+				</div> <!-- END main-wrapper -->
+			</div> <!-- END main-shadow -->
+		</div> <!-- END body-wrapper -->
+		<!-- END footer-bottom-group -->
+		
+		<div style="position:absolute; left:-9999px; top:-9999px;">
+			<span id="qa-waiting-template" class="qa-waiting">...</span>
+		</div>
+	
+	
+
+</body><!-- Powered by Question2Answer - http://www.question2answer.org/ --></html>

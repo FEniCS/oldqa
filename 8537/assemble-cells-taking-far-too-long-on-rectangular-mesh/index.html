@@ -1,0 +1,346 @@
+<html><!-- Powered by Question2Answer - http://www.question2answer.org/ --><head>
+		<meta http-equiv="content-type" content="text/html; charset=utf-8">
+		<title>'assemble cells' taking far too long on rectangular mesh? - FEniCS Q&amp;A</title>
+		<meta name="description" content="Hi there, I'm having a small problem with the run times of my code. I'm trying to solve the ... (x,on_boundary): return on_boundary and abs(x[0]-xtop)">
+		<meta name="keywords" content="assemble-cells,assemble,list_timings,nonlinear">
+		<link rel="stylesheet" type="text/css" href="../../qa-theme/Snow/qa-styles.css">
+		<link rel="canonical" href="http://fenicsproject.org/qa/8537/assemble-cells-taking-far-too-long-on-rectangular-mesh">
+		<script type="text/x-mathjax-config">
+  MathJax.Hub.Config({
+    extensions: ["tex2jax.js"],
+    jax: ["input/TeX","output/HTML-CSS"],
+    tex2jax: {inlineMath: [["$","$"],["\\(","\\)"]]},
+    TeX: { extensions: ["AMSmath.js","AMSsymbols.js"]}
+  });
+</script>
+<script type="text/javascript" src="../../mathjax/MathJax.js"></script>
+		<script src="../../jquery-1.7.2.min.js" type="text/javascript"></script>
+		<script src="../../highlight.min.js"></script>
+<script type="text/javascript">
+$(function(){
+	$('.wmd-input').keypress(function(){
+		window.clearTimeout(hljs.Timeout);
+		hljs.Timeout = window.setTimeout(function() {
+			hljs.initHighlighting.called = false;
+			hljs.initHighlighting();
+		}, 500);
+	});
+	window.setTimeout(function() {
+		hljs.initHighlighting.called = false;
+		hljs.initHighlighting();
+	}, 500);
+});
+</script>
+
+
+	</head>
+	<body class="qa-template-question qa-body-js-off">
+		<div class="qa-body-wrapper">
+			
+			<div class="qa-header">
+				<div class="qa-logo">
+					<a href="../../" class="qa-logo-link" title="FEniCS Q&amp;A"><img src="../../qa-theme/fenics_qa.png" border="0" alt="FEniCS Q&amp;A"></a>
+				</div>
+				<div class="qa-header-clear">
+				</div>
+			</div> <!-- END qa-header -->
+			
+			<div class="qa-main-shadow">
+				
+				<div class="qa-main-wrapper">
+					
+					<div class="qa-sidepanel">
+						<div class="qa-sidebar">
+							This is a read only copy of the old FEniCS QA forum. Please visit the <a href="https://www.allanswered.com/community/s/fenics-project/">new QA forum</a> to ask questions
+						</div>
+						
+					</div>
+					
+					<div class="qa-main">
+						<h1>
+							<span class="entry-title">'assemble cells' taking far too long on rectangular mesh?</span>
+						</h1>
+						<div class="qa-part-q-view">
+							<div class="qa-q-view  hentry question" id="q8537">
+								<form method="post" action="../../8537/assemble-cells-taking-far-too-long-on-rectangular-mesh">
+									<div class="qa-q-view-stats">
+										<div class="qa-voting qa-voting-net" id="voting_8537">
+											<div class="qa-vote-count qa-vote-count-net">
+												<span class="qa-netvote-count">
+													<span class="qa-netvote-count-data">0<span class="votes-up"><span class="value-title" title="0"></span></span><span class="votes-down"><span class="value-title" title="0"></span></span></span><span class="qa-netvote-count-pad"> votes</span>
+												</span>
+											</div>
+											<div class="qa-vote-clear">
+											</div>
+										</div>
+									</div>
+									<input type="hidden" name="code" value="0-1516468179-e87440e40de5dfe6ec4e1abcfc921eca72068150">
+								</form>
+								<div class="qa-q-view-main">
+									<form method="post" action="../../8537/assemble-cells-taking-far-too-long-on-rectangular-mesh">
+										<div class="qa-q-view-content">
+											<a name="8537"></a><div class="entry-content"><p>Hi there,</p>
+
+<p>I'm having a small problem with the run times of my code. I'm trying to solve the equation:<br>
+d/dt(F(T) T) = nabla(kappa(T).nabla(T)) + S,<br>
+where F and kappa both depend on T and S is a constant. F and kappa are evaluated from data which is then interpolated.</p>
+
+<p>Below is a minimal code, but i have not been able to give out the data values i have been using if that's ok. </p>
+
+<p>I have run the 'list_timings' command and have found that 'Assemble cells' is taking about 20 seconds on average, repeated about 100 times per timestep???!! I'm not sure why this is as i am just using a standard rectangular mesh.... it is also taking about 10-11 newton iterations per timestep, whereas in matlab this used to run in under 4 iterations. </p>
+
+<p>Is there something crucial I am doing wrong here? I'm a newbie to fenics so i'm not sure whether i've misunderstood what 'assemble cells' is actually doing. </p>
+
+<p>thanks for your help in advance</p>
+
+<pre><code>from dolfin import *
+import sys, numpy, time
+import scipy.io
+from scipy.interpolate import interp1d
+
+
+def interpolate_table(Tvalue, data):
+    ti = data[:,0] 
+    fi = data[:,1]
+    n = len(ti)
+    retval=0
+
+    for i in range(0,n-1):
+        retval += conditional(And(ge(Tvalue,ti[i]), lt(Tvalue,ti[i+1])),
+                              fi[i] + (fi[i+1]-fi[i]) / (ti[i+1]-ti[i]) * (Tvalue-ti[i]), 0)
+    retval += conditional(le(Tvalue,ti[0]), fi[0], 0)
+    retval += conditional(ge(Tvalue,ti[-1]), fi[-1], 0)
+
+    return retval
+
+#############################################################
+
+xtop = 10000; xbottom = 0
+
+mesh = RectangleMesh(xbottom, xbottom, xtop, xtop, 30, 10)
+
+V = FunctionSpace(mesh, 'Lagrange', 1)
+
+# Boundary conditions
+tol = 1E-14
+def top_boundary(x,on_boundary):
+    return on_boundary and abs(x[0]-xtop)&lt;tol
+def bottom_boundary(x,on_boundary):
+    return on_boundary and abs(x[0]-xbottom)&lt;tol
+
+BC_top = DirichletBC(V, Constant(10.0), top_boundary)
+BC_bottom = DirichletBC(V, Constant(225.0), bottom_boundary)
+bcs = [BC_bottom, BC_top]
+
+T = Function(V)
+v = TestFunction(V)
+T_prev = Function(V)
+
+class k_data(Expression):
+    def eval(self, value, x):
+        value[0] = interpolate_table(T(x), kappa_data)
+
+class Fexp_data(Expression):
+    def eval(self, value, x):
+        value[0] = interpolate_table(T(x), F_data)
+
+class Fprev_data(Expression):
+    def eval(self, value, x):
+        value[0] = interpolate_table(T_prev(x), F_data)
+
+kappa = k_data()
+F = Fexp_data()
+F_prev = Fprev_data()
+
+class IC(Expression):
+    def eval(self,value,x):
+                  value[0]=-215.0/10000.0*x[0]+225.0
+
+
+T_prev = interpolate(IC(),V)
+
+t_final = 1E11
+dt = 1E10
+
+# Assemble equations
+
+S = Constant(0.8E-6)
+time_part = ((F*T - F_prev*T_prev)/dt ) *v*dx
+diff_part = inner(kappa*grad(T),grad(v))*dx
+source_part = S*v*dx
+
+# Stationary problem
+Res = time_part + diff_part - source_part
+J = derivative(Res,T)
+problem = NonlinearVariationalProblem(Res, T, bcs, J)
+solver  = NonlinearVariationalSolver(problem)
+
+prm = solver.parameters['newton_solver']
+prm['absolute_tolerance']=1E-6
+prm['relative_tolerance'] = 1E-6
+prm['maximum_iterations'] = 100
+prm['lu_solver']['report'] = True
+prm['linear_solver'] = 'gmres'
+prm['preconditioner'] = 'ilu'
+
+t = dt
+while t&lt;=t_final:
+    solver.solve()
+    plot(T, rescale=False, title = 't=' + str(t))
+    t += dt
+    T_prev.assign(T)
+    sol &lt;&lt; (T,t)
+    list_timings()
+
+interactive()
+</code></pre>
+</div>
+										</div>
+										<div class="qa-q-view-tags">
+											<ul class="qa-q-view-tag-list">
+												<li class="qa-q-view-tag-item"><a href="../../tag/assemble-cells" rel="tag" class="qa-tag-link">assemble-cells</a></li>
+												<li class="qa-q-view-tag-item"><a href="../../tag/assemble" rel="tag" class="qa-tag-link">assemble</a></li>
+												<li class="qa-q-view-tag-item"><a href="../../tag/list_timings" rel="tag" class="qa-tag-link">list_timings</a></li>
+												<li class="qa-q-view-tag-item"><a href="../../tag/nonlinear" rel="tag" class="qa-tag-link">nonlinear</a></li>
+											</ul>
+										</div>
+										<span class="qa-q-view-avatar-meta">
+											<span class="qa-q-view-meta">
+												<a href="../../8537/assemble-cells-taking-far-too-long-on-rectangular-mesh" class="qa-q-view-what">asked</a>
+												<span class="qa-q-view-when">
+													<span class="qa-q-view-when-data"><span class="published"><span class="value-title" title="2015-11-12T12:37:54+0000"></span>Nov 12, 2015</span></span>
+												</span>
+												<span class="qa-q-view-who">
+													<span class="qa-q-view-who-pad">by </span>
+													<span class="qa-q-view-who-data"><span class="vcard author"><a href="../../user/jel2278" class="qa-user-link url nickname">jel2278</a></span></span>
+													<span class="qa-q-view-who-title">FEniCS Novice</span>
+													<span class="qa-q-view-who-points">
+														<span class="qa-q-view-who-points-pad">(</span><span class="qa-q-view-who-points-data">220</span><span class="qa-q-view-who-points-pad"> points)</span>
+													</span>
+												</span>
+											</span>
+										</span>
+										<div class="qa-q-view-buttons">
+										</div>
+										
+										<div class="qa-q-view-c-list" style="display:none;" id="c8537_list">
+										</div> <!-- END qa-c-list -->
+										
+										<input type="hidden" name="code" value="0-1516468179-b3dac4f326a8632be070dbc486cfd2906369bb3e">
+										<input type="hidden" name="qa_click" value="">
+									</form>
+									<div class="qa-c-form">
+									</div> <!-- END qa-c-form -->
+									
+								</div> <!-- END qa-q-view-main -->
+								<div class="qa-q-view-clear">
+								</div>
+							</div> <!-- END qa-q-view -->
+							
+						</div>
+						<div class="qa-part-a-list">
+							<h2 id="a_list_title">1 Answer</h2>
+							<div class="qa-a-list" id="a_list">
+								
+								<div class="qa-a-list-item  hentry answer answer-selected qa-a-list-item-selected" id="a8546">
+									<form method="post" action="../../8537/assemble-cells-taking-far-too-long-on-rectangular-mesh">
+										<div class="qa-voting qa-voting-net" id="voting_8546">
+											<div class="qa-vote-count qa-vote-count-net">
+												<span class="qa-netvote-count">
+													<span class="qa-netvote-count-data">+1<span class="votes-up"><span class="value-title" title="1"></span></span><span class="votes-down"><span class="value-title" title="0"></span></span></span><span class="qa-netvote-count-pad"> vote</span>
+												</span>
+											</div>
+											<div class="qa-vote-clear">
+											</div>
+										</div>
+										<input type="hidden" name="code" value="0-1516468179-e87440e40de5dfe6ec4e1abcfc921eca72068150">
+									</form>
+									<div class="qa-a-item-main">
+										<form method="post" action="../../8537/assemble-cells-taking-far-too-long-on-rectangular-mesh">
+											<div class="qa-a-item-selected">
+												<div class="qa-a-selection">
+													<div class="qa-a-selected">&#160;</div>
+													<div class="qa-a-selected-text">Best answer</div>
+												</div>
+												<div class="qa-a-item-content">
+													<a name="8546"></a><div class="entry-content"><p>Hi jel2278,</p>
+
+<p>My experience is that User-defined expressions by subclassing from the dolfin class Expression are extremely slow.</p>
+
+<p>See also my previous post:</p>
+
+<p><a rel="nofollow" href="http://fenicsproject.org/qa/7857/user-defined-expressions-by-subclassing-is-extremely-slow">http://fenicsproject.org/qa/7857/user-defined-expressions-by-subclassing-is-extremely-slow</a></p>
+
+<p>The reason for this (I believe) is that UFL can not generate C++ code for expressions defined this way.</p>
+
+<p>My solution was:</p>
+
+<p>Option A: Write my expression class in C++ and use the JIT compiler to access them in python</p>
+
+<p>Option B: Write in line C++ and pass that code to the constructor of Expression.<br>
+see method 2 in <a rel="nofollow" href="http://fenicsproject.org/documentation/dolfin/dev/python/programmers-reference/functions/expression/Expression.html">http://fenicsproject.org/documentation/dolfin/dev/python/programmers-reference/functions/expression/Expression.html</a></p>
+
+<p>In either option there is not free lunch. If you want flexibility and efficiency you need to code in C++.</p>
+
+<p>For my example the wall time for the assembly was several minutes (~15min) using subclassing from Expression and less than a second using option B for a 64 by 64 mesh and P2 elements.</p>
+</div>
+												</div>
+												<span class="qa-a-item-avatar-meta">
+													<span class="qa-a-item-meta">
+														<a href="../../8537/assemble-cells-taking-far-too-long-on-rectangular-mesh?show=8546#a8546" class="qa-a-item-what">answered</a>
+														<span class="qa-a-item-when">
+															<span class="qa-a-item-when-data"><span class="published"><span class="value-title" title="2015-11-13T18:42:51+0000"></span>Nov 13, 2015</span></span>
+														</span>
+														<span class="qa-a-item-who">
+															<span class="qa-a-item-who-pad">by </span>
+															<span class="qa-a-item-who-data"><span class="vcard author"><a href="../../user/umberto" class="qa-user-link url nickname">umberto</a></span></span>
+															<span class="qa-a-item-who-title">FEniCS User</span>
+															<span class="qa-a-item-who-points">
+																<span class="qa-a-item-who-points-pad">(</span><span class="qa-a-item-who-points-data">6,440</span><span class="qa-a-item-who-points-pad"> points)</span>
+															</span>
+														</span>
+														<br>
+														<span class="qa-a-item-what">selected</span>
+														<span class="qa-a-item-when">
+															<span class="qa-a-item-when-data"><span class="updated"><span class="value-title" title="2015-11-17T11:25:38+0000"></span>Nov 17, 2015</span></span>
+														</span>
+														<span class="qa-a-item-who">
+															<span class="qa-a-item-who-pad">by </span><span class="qa-a-item-who-data"><a href="../../user/jel2278" class="qa-user-link url nickname">jel2278</a></span>
+														</span>
+													</span>
+												</span>
+											</div>
+											<div class="qa-a-item-buttons">
+												</div>
+											
+											<div class="qa-a-item-c-list" style="display:none;" id="c8546_list">
+											</div> <!-- END qa-c-list -->
+											
+											<input type="hidden" name="code" value="0-1516468179-e6c2d4ea0ca8c8bc766bd41fc2f3d3321a7affa3">
+											<input type="hidden" name="qa_click" value="">
+										</form>
+										<div class="qa-c-form">
+										</div> <!-- END qa-c-form -->
+										
+									</div> <!-- END qa-a-item-main -->
+									<div class="qa-a-item-clear">
+									</div>
+								</div> <!-- END qa-a-list-item -->
+								
+							</div> <!-- END qa-a-list -->
+							
+						</div>
+					</div> <!-- END qa-main -->
+					
+				</div> <!-- END main-wrapper -->
+			</div> <!-- END main-shadow -->
+		</div> <!-- END body-wrapper -->
+		<!-- END footer-bottom-group -->
+		
+		<div style="position:absolute; left:-9999px; top:-9999px;">
+			<span id="qa-waiting-template" class="qa-waiting">...</span>
+		</div>
+	
+	
+
+</body><!-- Powered by Question2Answer - http://www.question2answer.org/ --></html>

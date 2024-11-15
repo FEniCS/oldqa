@@ -1,0 +1,369 @@
+<html><!-- Powered by Question2Answer - http://www.question2answer.org/ --><head>
+		<meta http-equiv="content-type" content="text/html; charset=utf-8">
+		<title>Adding a Taylor test to time-dependent-wave.py - FEniCS Q&amp;A</title>
+		<meta name="description" content="I was trying to add a taylor test to this example, but before I am running into problems trying to  ... ' in sys.argv: optimize(True) else: optimize()">
+		<meta name="keywords" content="dolfin-adjoint,optimization">
+		<link rel="stylesheet" type="text/css" href="../../qa-theme/Snow/qa-styles.css">
+		<link rel="canonical" href="http://fenicsproject.org/qa/9530/adding-a-taylor-test-to-time-dependent-wave-py">
+		<script type="text/x-mathjax-config">
+  MathJax.Hub.Config({
+    extensions: ["tex2jax.js"],
+    jax: ["input/TeX","output/HTML-CSS"],
+    tex2jax: {inlineMath: [["$","$"],["\\(","\\)"]]},
+    TeX: { extensions: ["AMSmath.js","AMSsymbols.js"]}
+  });
+</script>
+<script type="text/javascript" src="../../mathjax/MathJax.js"></script>
+		<script src="../../jquery-1.7.2.min.js" type="text/javascript"></script>
+		<script src="../../highlight.min.js"></script>
+<script type="text/javascript">
+$(function(){
+	$('.wmd-input').keypress(function(){
+		window.clearTimeout(hljs.Timeout);
+		hljs.Timeout = window.setTimeout(function() {
+			hljs.initHighlighting.called = false;
+			hljs.initHighlighting();
+		}, 500);
+	});
+	window.setTimeout(function() {
+		hljs.initHighlighting.called = false;
+		hljs.initHighlighting();
+	}, 500);
+});
+</script>
+
+
+	</head>
+	<body class="qa-template-question qa-body-js-off">
+		<div class="qa-body-wrapper">
+			
+			<div class="qa-header">
+				<div class="qa-logo">
+					<a href="../../" class="qa-logo-link" title="FEniCS Q&amp;A"><img src="../../qa-theme/fenics_qa.png" border="0" alt="FEniCS Q&amp;A"></a>
+				</div>
+				<div class="qa-header-clear">
+				</div>
+			</div> <!-- END qa-header -->
+			
+			<div class="qa-main-shadow">
+				
+				<div class="qa-main-wrapper">
+					
+					<div class="qa-sidepanel">
+						<div class="qa-sidebar">
+							This is a read only copy of the old FEniCS QA forum. Please visit the <a href="https://www.allanswered.com/community/s/fenics-project/">new QA forum</a> to ask questions
+						</div>
+						
+					</div>
+					
+					<div class="qa-main">
+						<h1>
+							<span class="entry-title">Adding a Taylor test to time-dependent-wave.py</span>
+						</h1>
+						<div class="qa-part-q-view">
+							<div class="qa-q-view  hentry question" id="q9530">
+								<form method="post" action="../../9530/adding-a-taylor-test-to-time-dependent-wave-py">
+									<div class="qa-q-view-stats">
+										<div class="qa-voting qa-voting-net" id="voting_9530">
+											<div class="qa-vote-count qa-vote-count-net">
+												<span class="qa-netvote-count">
+													<span class="qa-netvote-count-data">0<span class="votes-up"><span class="value-title" title="0"></span></span><span class="votes-down"><span class="value-title" title="0"></span></span></span><span class="qa-netvote-count-pad"> votes</span>
+												</span>
+											</div>
+											<div class="qa-vote-clear">
+											</div>
+										</div>
+									</div>
+									<input type="hidden" name="code" value="0-1516468226-f038291cc4a2cc585826d5ff0c5fc5600d2a2a98">
+								</form>
+								<div class="qa-q-view-main">
+									<form method="post" action="../../9530/adding-a-taylor-test-to-time-dependent-wave-py">
+										<div class="qa-q-view-content">
+											<a name="9530"></a><div class="entry-content"><p>I was trying to add a taylor test to this example, but before I am running into problems trying to understand some dolfin-adjoint concepts.</p>
+
+<p>For instance, I cannot use the output of the function objective() in this example for the taylor test:</p>
+
+<pre><code>Jform = objective(times, u, refs)
+</code></pre>
+
+<p>because Jform is a TimeForm. Why is it a TimeForm when it is performing the sum over the sum over time steps and how can I transform it into something taylor_test() can process? </p>
+
+<p>Also, in the same example, the forward() function returns the function "u1" and the simulation times. Given that objective() iterates over all time steps and u_obs, how does "u" (which is "u_1" from forward()) know the time steps? I imagine it must be because the expression is evaluated at time step "t" with dt[t], is this correct? What I do not understand is how "u" contains the entire simulation history. Is it just because of this expression?:</p>
+
+<pre><code>u1.assign(u, annotate = annotate)
+</code></pre>
+
+<p>Does the annotate make u1 to save the new "u" next to the previous one and therefore save the entire history instead of just one time step?</p>
+
+<p>I am attaching a working code that shows the TimeForm problem</p>
+
+<p>Thanks<br>
+Miguel</p>
+
+<pre><code>from dolfin import *
+from dolfin_adjoint import *
+import numpy as np
+import os, sys
+
+# Set log level
+set_log_level(WARNING)
+
+# Prepare a mesh
+mesh = UnitIntervalMesh(50)
+
+# Choose a time step size
+k = Constant(1e-3)
+
+# Compile sub domains for boundaries
+left  = CompiledSubDomain("near(x[0], 0.)")
+right = CompiledSubDomain("near(x[0], 1.)")
+
+# Label boundaries, required for the objective
+boundary_parts = MeshFunction("size_t", mesh, mesh.topology().dim()-1)
+left.mark(boundary_parts, 0)
+right.mark(boundary_parts, 1)
+ds = Measure("ds")[boundary_parts]
+
+class Source(Expression):
+    def __init__(self, t, omega=Constant(2e2)):
+        """ Construct the source function """
+        self.t = t
+        self.omega = omega
+
+    def eval(self, value, x):
+        """ Evaluate the expression """
+        if x[0] &lt; 1e-15:
+            value[0] = np.sin(float(self.omega)*self.t)
+        else:
+            value[0] = 0.
+
+    def deval(self, value, x, coeff):
+        """ Evaluate the derivative of the expression """
+        assert coeff == self.omega, "Given coeff must be the start time"
+        if x[0] &lt; 1e-15:
+            value[0] = self.t*np.cos(float(self.omega)*self.t)
+        else:
+            value[0] = 0.
+
+    def dependencies(self):
+        """ List the dependencies of which derivatives are taken """
+        return [self.omega]
+
+    def copy(self):
+        """ Return a copy of itself """
+        return Source(self.t, self.omega)
+
+def forward(excitation, c=Constant(1.), record=False, annotate=False):
+    # Define function space
+    U = FunctionSpace(mesh, "Lagrange", 1)
+
+    # Set up initial values
+    u0 = interpolate(Expression("0."), U, name = "u0", annotate = annotate)
+    u1 = interpolate(Expression("0."), U, name = "u1", annotate = annotate)
+
+    # Define test and trial functions
+    v = TestFunction(U)
+    u = TrialFunction(U)
+
+    # Define variational formulation
+    udot = (u - 2.*u1 + u0)
+    uold = (0.25*u + 0.5*u1 +0.25*u0)
+    F = (udot*v+k*k*c*c*uold.dx(0)*v.dx(0))*dx - u*v*ds(0) + excitation*v*ds(0)
+    a = lhs(F)
+    L = rhs(F)
+
+    # Prepare solution
+    u = Function(U, name = "u", annotate = annotate)
+
+    # The actual timestepping
+    if record: rec = [u1(1.),]
+    i = 1
+    t = 0.0        # Initial time
+    T = 3.e-1      # Final time
+    times = [t,]
+    if annotate: adj_start_timestep()
+    while t &lt; T - .5*float(k):
+        print t
+        excitation.t = t + float(k)
+        solve(a == L, u, annotate = annotate)
+        u0.assign(u1, annotate = annotate)
+        u1.assign(u, annotate = annotate)
+
+        t = i*float(k)
+        times.append(t)
+        if record:
+            rec.append(u1(1.0))
+            plot(u)
+        if annotate: adj_inc_timestep(t, t &gt; T - .5*float(k))
+        i += 1
+
+    if record:
+        np.savetxt("recorded.txt", rec)
+
+    return u1, times
+
+# Callback function for the optimizer
+# Writes intermediate results to a logfile
+def eval_cb(j, m):
+    print("omega = %15.10e " % float(m[0]))
+    print("objective = %15.10e " % j)
+
+# Prepare the objective function
+def objective(times, u, observations):
+    combined = zip(times, observations)
+    area = times[-1] - times[0]
+    M = len(times)
+    I = area/M*sum(inner(u - u_obs, u - u_obs)*ds(1)*dt[t]
+                   for (t, u_obs) in combined)
+    return I
+
+# Load refs
+def loadrefs():
+
+    # Load references
+    refs = np.loadtxt("recorded.txt")
+
+    # create noise to references
+    gamma = 1.e-5
+    if gamma &gt; 0:
+        noise = np.random.normal(0, gamma, refs.shape)
+
+        # add noise to the refs
+        refs += noise
+
+    # map refs to be constant
+    refs = map(Constant, refs)
+
+    return refs
+
+def Jhat(omega):
+    # Define the control
+    source = Source(0.0, omega )
+
+    # Execute first time to annotate and record the tape
+    u, times = forward(source, 2*DOLFIN_PI, False, False)
+
+    observations = loadrefs()
+
+    # Evaluate functional
+    return objective(times,u, observations)
+
+
+def optimize(dbg=False):
+    # Define the control
+    source = Source(t = 0.0, omega = Constant(190))
+
+    # Execute first time to annotate and record the tape
+    u, times = forward(source, 2*DOLFIN_PI, False, True)
+
+    if dbg:
+        # Check the recorded tape
+        success = replay_dolfin(tol = 0.0, stop = True)
+        print "replay: ", success
+
+        # for the equations recorded on the forward run
+        adj_html("forward.html", "forward")
+        # for the equations to be assembled on the adjoint run
+        adj_html("adjoint.html", "adjoint")
+
+    refs = loadrefs()
+
+    # Define the controls
+    controls = [Control(c) for c in source.dependencies()]
+
+    Jform = objective(times, u, refs)
+    J = Functional(Jform)
+
+    # compute the gradient
+    dJd0 = compute_gradient(J, controls)
+    print float(dJd0[0])
+
+    # Check the gradient
+    conv_rate = taylor_test(Jhat,controls,Jform,dJd0)
+
+
+    # Prepare the reduced functional
+    reduced_functional = ReducedFunctional(J, controls, eval_cb_post = eval_cb)
+
+    # Run the optimisation
+    omega_opt = minimize(reduced_functional, method = "L-BFGS-B",\
+                     tol=1.0e-12, options = {"disp": True,"gtol":1.0e-12})
+
+    # Print the obtained optimal value for the controls
+    print "omega = %f" %float(omega_opt)
+
+if __name__ == "__main__":
+    if '-r' in sys.argv:
+        print "compute reference solution"
+        os.popen('rm -rf recorded.txt')
+        source = Source(t = 0.0, omega = Constant(2e2))
+        forward(source, 2*DOLFIN_PI, True)
+    print "start automatic characterization"
+    if '-dbg' in sys.argv:
+        optimize(True)
+    else:
+        optimize()
+</code></pre>
+</div>
+										</div>
+										<div class="qa-q-view-tags">
+											<ul class="qa-q-view-tag-list">
+												<li class="qa-q-view-tag-item"><a href="../../tag/dolfin-adjoint" rel="tag" class="qa-tag-link">dolfin-adjoint</a></li>
+												<li class="qa-q-view-tag-item"><a href="../../tag/optimization" rel="tag" class="qa-tag-link">optimization</a></li>
+											</ul>
+										</div>
+										<span class="qa-q-view-avatar-meta">
+											<span class="qa-q-view-meta">
+												<a href="../../9530/adding-a-taylor-test-to-time-dependent-wave-py" class="qa-q-view-what">asked</a>
+												<span class="qa-q-view-when">
+													<span class="qa-q-view-when-data"><span class="published"><span class="value-title" title="2016-03-11T01:20:53+0000"></span>Mar 11, 2016</span></span>
+												</span>
+												<span class="qa-q-view-who">
+													<span class="qa-q-view-who-pad">by </span>
+													<span class="qa-q-view-who-data"><span class="vcard author"><a href="../../user/miguelito" class="qa-user-link url nickname">miguelito</a></span></span>
+													<span class="qa-q-view-who-title">FEniCS Novice</span>
+													<span class="qa-q-view-who-points">
+														<span class="qa-q-view-who-points-pad">(</span><span class="qa-q-view-who-points-data">760</span><span class="qa-q-view-who-points-pad"> points)</span>
+													</span>
+												</span>
+											</span>
+										</span>
+										<div class="qa-q-view-buttons">
+										</div>
+										
+										<div class="qa-q-view-c-list" style="display:none;" id="c9530_list">
+										</div> <!-- END qa-c-list -->
+										
+										<input type="hidden" name="code" value="0-1516468226-c568d18bfcaa5eb8f193cecb590e09424ad048c4">
+										<input type="hidden" name="qa_click" value="">
+									</form>
+									<div class="qa-c-form">
+									</div> <!-- END qa-c-form -->
+									
+								</div> <!-- END qa-q-view-main -->
+								<div class="qa-q-view-clear">
+								</div>
+							</div> <!-- END qa-q-view -->
+							
+						</div>
+						<div class="qa-part-a-list">
+							<h2 id="a_list_title" style="display:none;"></h2>
+							<div class="qa-a-list" id="a_list">
+								
+							</div> <!-- END qa-a-list -->
+							
+						</div>
+					</div> <!-- END qa-main -->
+					
+				</div> <!-- END main-wrapper -->
+			</div> <!-- END main-shadow -->
+		</div> <!-- END body-wrapper -->
+		<!-- END footer-bottom-group -->
+		
+		<div style="position:absolute; left:-9999px; top:-9999px;">
+			<span id="qa-waiting-template" class="qa-waiting">...</span>
+		</div>
+	
+	
+
+</body><!-- Powered by Question2Answer - http://www.question2answer.org/ --></html>

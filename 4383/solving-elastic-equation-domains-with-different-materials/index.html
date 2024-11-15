@@ -1,0 +1,532 @@
+<html><!-- Powered by Question2Answer - http://www.question2answer.org/ --><head>
+		<meta http-equiv="content-type" content="text/html; charset=utf-8">
+		<title>solving the elastic wave equation in two domains with different materials - FEniCS Q&amp;A</title>
+		<meta name="description" content="My problem involves solving the equation on the form: $$\frac{\partial^2 \vec{u ... represent products of scalars. daniel@satelite:~/masteroppgave/py$">
+		<link rel="stylesheet" type="text/css" href="../../qa-theme/Snow/qa-styles.css">
+		<link rel="canonical" href="http://fenicsproject.org/qa/4383/solving-elastic-equation-domains-with-different-materials">
+		<script type="text/x-mathjax-config">
+  MathJax.Hub.Config({
+    extensions: ["tex2jax.js"],
+    jax: ["input/TeX","output/HTML-CSS"],
+    tex2jax: {inlineMath: [["$","$"],["\\(","\\)"]]},
+    TeX: { extensions: ["AMSmath.js","AMSsymbols.js"]}
+  });
+</script>
+<script type="text/javascript" src="../../mathjax/MathJax.js"></script>
+		<script src="../../jquery-1.7.2.min.js" type="text/javascript"></script>
+		<script src="../../highlight.min.js"></script>
+<script type="text/javascript">
+$(function(){
+	$('.wmd-input').keypress(function(){
+		window.clearTimeout(hljs.Timeout);
+		hljs.Timeout = window.setTimeout(function() {
+			hljs.initHighlighting.called = false;
+			hljs.initHighlighting();
+		}, 500);
+	});
+	window.setTimeout(function() {
+		hljs.initHighlighting.called = false;
+		hljs.initHighlighting();
+	}, 500);
+});
+</script>
+
+
+	</head>
+	<body class="qa-template-question qa-body-js-off">
+		<div class="qa-body-wrapper">
+			
+			<div class="qa-header">
+				<div class="qa-logo">
+					<a href="../../" class="qa-logo-link" title="FEniCS Q&amp;A"><img src="../../qa-theme/fenics_qa.png" border="0" alt="FEniCS Q&amp;A"></a>
+				</div>
+				<div class="qa-header-clear">
+				</div>
+			</div> <!-- END qa-header -->
+			
+			<div class="qa-main-shadow">
+				
+				<div class="qa-main-wrapper">
+					
+					<div class="qa-sidepanel">
+						<div class="qa-sidebar">
+							This is a read only copy of the old FEniCS QA forum. Please visit the <a href="https://www.allanswered.com/community/s/fenics-project/">new QA forum</a> to ask questions
+						</div>
+						
+					</div>
+					
+					<div class="qa-main">
+						<h1>
+							<span class="entry-title">solving the elastic wave equation in two domains with different materials</span>
+						</h1>
+						<div class="qa-part-q-view">
+							<div class="qa-q-view  hentry question" id="q4383">
+								<form method="post" action="../../4383/solving-elastic-equation-domains-with-different-materials">
+									<div class="qa-q-view-stats">
+										<div class="qa-voting qa-voting-net" id="voting_4383">
+											<div class="qa-vote-count qa-vote-count-net">
+												<span class="qa-netvote-count">
+													<span class="qa-netvote-count-data">+1<span class="votes-up"><span class="value-title" title="1"></span></span><span class="votes-down"><span class="value-title" title="0"></span></span></span><span class="qa-netvote-count-pad"> vote</span>
+												</span>
+											</div>
+											<div class="qa-vote-clear">
+											</div>
+										</div>
+									</div>
+									<input type="hidden" name="code" value="0-1516468010-6ecde656d1ac2fc25c83656bfeab1e5b1af808eb">
+								</form>
+								<div class="qa-q-view-main">
+									<form method="post" action="../../4383/solving-elastic-equation-domains-with-different-materials">
+										<div class="qa-q-view-content">
+											<a name="4383"></a><div class="entry-content"><p>My problem involves solving the equation on the form:</p>
+
+<p>$$\frac{\partial^2 \vec{u}}{\partial t^2} = \frac{1}{\rho}\nabla \cdot P$$</p>
+
+<p>Where u is the displacement vector, $\rho$ is the density and P is the stress tensor given as:</p>
+
+<p>$$P = \lambda(\nabla \cdot \vec{u})I + \mu (\nabla \vec{u} + \nabla \vec{u}^T)$$</p>
+
+<p>I solve this in two domains with different material properties $\lambda$, $\mu$ and $\rho$. I use an explicit second order difference method for the time variable, and FEM for the spatial variables. This gives a variational form:</p>
+
+<p>$$\int_{\Omega}\vec{u}^{(n+1)}\cdot \vec{v}d\Omega = \int_{\Omega}(2\vec{u}^{(n)} - \vec{u}^{(n-1)})\cdot \vec{v} d\Omega + \int_{\Gamma}\vec{n} \cdot P^{(n)} \cdot \vec{v} d\Gamma - \ <br>
+\int_{\Omega}P^{(n)} : \nabla \vec{v} d\Omega $$<br>
+ where n denotes the value at time n. I have attached a simplified code with given initial conditions. </p>
+
+<pre><code>from dolfin import *
+
+# Constants
+ys = 1
+t = 0
+dt = 0.01
+T = 10 
+rho1 = 1
+rho2 = 10
+mu1 = 1
+mu2 = 0
+lamda1 = 1
+lamda2 = 1
+
+# Mesh, functionspace, functions
+mesh = RectangleMesh(0,0,2,2,20,20)
+V = VectorFunctionSpace(mesh, "CG", 1)
+D = VectorFunctionSpace(mesh, "DG", 0)
+u = TrialFunction(V)
+v = TestFunction(V)
+
+# Define Subdomains
+cf = CellFunction("size_t", mesh, 0)
+domain1 = AutoSubDomain(lambda x: x[1] &gt; ys)
+domain1.mark(cf,1)
+
+# Define variable constants
+rhof = Expression(("x[1] &gt; ys ? rho1 : rho2",
+                   "x[1] &gt; ys ? rho1 : rho2"),
+                  ys=ys,rho1=rho1,rho2=rho2)
+muf = Expression(("x[1] &gt; ys ? mu1 : mu2",
+                  "x[1] &gt; ys ? mu1 : mu2"),
+                 ys=ys,mu1=mu1,mu2=mu2)
+lamdaf = Expression(("x[1] &gt; ys ? lamda1 : lamda2",
+                     "x[1] &gt; ys ? lamda1 : lamda2"),
+                    ys=ys,lamda1=lamda1,lamda2=lamda2)
+stepf = Expression(("x[1] &gt; ys ? pow(dt,2)/rho1 : pow(dt,2)/rho2",
+                    "x[1] &gt; ys ? pow(dt,2)/rho1 : pow(dt,2)/rho2"),
+                   ys=ys,dt=dt,rho1=rho1,rho2=rho2)
+
+rho = interpolate(rhof, D)
+mu = interpolate(muf, D)
+lamda = interpolate(lamdaf, D)
+step = interpolate(stepf, D)
+
+# Stress tensor
+def sigma(u, lamda, mu):
+    return lamda*div(u)*Identity(2) + mu*(grad(u) + grad(u).T)
+
+# Initial conditions
+Ixy = Constant((1,0))
+Vxy = Constant((2,0))
+u2 = interpolate(Ixy, V)
+u1 = interpolate(Vxy, V)
+
+# Variational forms
+F = inner(u,v)*dx - 2*inner(u1,v)*dx + inner(u2,v)*dx + \
+    step*inner(sigma(u1,lamda,mu),grad(v))*dx
+
+t = 2*dt
+left = assemble(lhs(F))
+u = Function(V)
+
+# Time stepping
+while t &lt; T + DOLFIN_EPS:
+    plot(u2, rescale=False)
+    right = assemble(rhs(F))
+    begin("solving at time step t=%g" % t)
+    solve(left, u.vector(), right)
+    end()
+
+    u2.assign(u1)
+    u1.assign(u)
+</code></pre>
+
+<p>I'm guessing fenics does not like the expression objects for the variable constants, but some advice is needed here. Is there a way to get around this with the current definitions, or is there a way to get around this by following the same logic as in the fenics tutorial for vectorized functions as described in the chapter "Handling Domains with different materials"? Any help is greatly appreciated!</p>
+
+<p>The error message is <br>
+daniel@satelite:~/masteroppgave/py$ python question.py <br>
+Product can only represent products of scalars.<br>
+Traceback (most recent call last):<br>
+  File "question.py", line 59, in <br>
+    step<em>inner(sigma(u1,lamda,mu),grad(v))</em>dx<br>
+  File "question.py", line 49, in sigma<br>
+    return lamda<em>div(u)</em>Identity(2) + mu<em>(grad(u) + grad(u).T)<br>
+  File "/usr/lib/python2.7/dist-packages/ufl/exproperators.py", line 181, in _mul<br>
+    return _mult(self, o)<br>
+  File "/usr/lib/python2.7/dist-packages/ufl/exproperators.py", line 154, in _mult<br>
+    p = Product(a, b[ii])<br>
+  File "/usr/lib/python2.7/dist-packages/ufl/algebra.py", line 174, in <strong>new</strong><br>
+    error("Product can only represent products of scalars.")<br>
+  File "/usr/lib/python2.7/dist-packages/ufl/log.py", line 154, in error<br>
+    raise self._exception_type(self._format_raw(</em>message))<br>
+ufl.log.UFLException: Product can only represent products of scalars.<br>
+daniel@satelite:~/masteroppgave/py$</p>
+</div>
+										</div>
+										<span class="qa-q-view-avatar-meta">
+											<span class="qa-q-view-meta">
+												<a href="../../4383/solving-elastic-equation-domains-with-different-materials" class="qa-q-view-what">asked</a>
+												<span class="qa-q-view-when">
+													<span class="qa-q-view-when-data"><span class="published"><span class="value-title" title="2014-08-13T11:27:08+0000"></span>Aug 13, 2014</span></span>
+												</span>
+												<span class="qa-q-view-who">
+													<span class="qa-q-view-who-pad">by </span>
+													<span class="qa-q-view-who-data"><span class="vcard author"><a href="../../user/danieljt" class="qa-user-link url nickname">danieljt</a></span></span>
+													<span class="qa-q-view-who-title">FEniCS Novice</span>
+													<span class="qa-q-view-who-points">
+														<span class="qa-q-view-who-points-pad">(</span><span class="qa-q-view-who-points-data">410</span><span class="qa-q-view-who-points-pad"> points)</span>
+													</span>
+												</span>
+												<br>
+												<span class="qa-q-view-what">edited</span>
+												<span class="qa-q-view-when">
+													<span class="qa-q-view-when-data"><span class="updated"><span class="value-title" title="2014-08-13T22:18:15+0000"></span>Aug 14, 2014</span></span>
+												</span>
+												<span class="qa-q-view-who">
+													<span class="qa-q-view-who-pad">by </span><span class="qa-q-view-who-data"><a href="../../user/danieljt" class="qa-user-link url nickname">danieljt</a></span>
+												</span>
+											</span>
+										</span>
+										<div class="qa-q-view-buttons">
+										</div>
+										
+										<div class="qa-q-view-c-list" id="c4383_list">
+											<div class="qa-c-list-item  hentry comment" id="c4384">
+												<div class="qa-c-item-content">
+													<a name="4384"></a><div class="entry-content"><p>Shouldn't your material properties be scalar expressions?</p>
+</div>
+												</div>
+												<div class="qa-c-item-footer">
+													<span class="qa-c-item-avatar-meta">
+														<span class="qa-c-item-meta">
+															<a href="../../4383/solving-elastic-equation-domains-with-different-materials?show=4384#c4384" class="qa-c-item-what">commented</a>
+															<span class="qa-c-item-when">
+																<span class="qa-c-item-when-data"><span class="published"><span class="value-title" title="2014-08-13T11:57:20+0000"></span>Aug 13, 2014</span></span>
+															</span>
+															<span class="qa-c-item-who">
+																<span class="qa-c-item-who-pad">by </span>
+																<span class="qa-c-item-who-data"><span class="vcard author"><a href="../../user/%C3%98yvind+Evju" class="qa-user-link url nickname">&#216;yvind Evju</a></span></span>
+																<span class="qa-c-item-who-title">FEniCS Expert</span>
+																<span class="qa-c-item-who-points">
+																	<span class="qa-c-item-who-points-pad">(</span><span class="qa-c-item-who-points-data">17,700</span><span class="qa-c-item-who-points-pad"> points)</span>
+																</span>
+															</span>
+														</span>
+													</span>
+													<div class="qa-c-item-buttons">
+													</div>
+												</div>
+												<div class="qa-c-item-clear">
+												</div>
+											</div> <!-- END qa-c-item -->
+											<div class="qa-c-list-item  hentry comment" id="c4393">
+												<div class="qa-c-item-content">
+													<a name="4393"></a><div class="entry-content"><p>Yes, the material properties should by definition be scalars, but fenics seems to work directly with components of the vector equation, so I am forced to set the constants for both the x and y directions for the forms to work. I have tried with scalar values by using FunctionsSpace without success, but I'll try and find the code and post the error! I think I could also be saved by defining a Constant object with variable values if this is possible, or doing the same procedure as in the tutorial for vector equations, but I'm no expert on the field!</p>
+</div>
+												</div>
+												<div class="qa-c-item-footer">
+													<span class="qa-c-item-avatar-meta">
+														<span class="qa-c-item-meta">
+															<a href="../../4383/solving-elastic-equation-domains-with-different-materials?show=4393#c4393" class="qa-c-item-what">commented</a>
+															<span class="qa-c-item-when">
+																<span class="qa-c-item-when-data"><span class="published"><span class="value-title" title="2014-08-13T22:13:14+0000"></span>Aug 14, 2014</span></span>
+															</span>
+															<span class="qa-c-item-who">
+																<span class="qa-c-item-who-pad">by </span>
+																<span class="qa-c-item-who-data"><span class="vcard author"><a href="../../user/danieljt" class="qa-user-link url nickname">danieljt</a></span></span>
+																<span class="qa-c-item-who-title">FEniCS Novice</span>
+																<span class="qa-c-item-who-points">
+																	<span class="qa-c-item-who-points-pad">(</span><span class="qa-c-item-who-points-data">410</span><span class="qa-c-item-who-points-pad"> points)</span>
+																</span>
+															</span>
+														</span>
+													</span>
+													<div class="qa-c-item-buttons">
+													</div>
+												</div>
+												<div class="qa-c-item-clear">
+												</div>
+											</div> <!-- END qa-c-item -->
+											<div class="qa-c-list-item  hentry comment" id="c4394">
+												<div class="qa-c-item-content">
+													<a name="4394"></a><div class="entry-content"><p>I also see that the last term to the right hand side of my variational form has disappeared to the right. I'll try and fix it, but the last part should be:</p>
+
+<p>$$-\int_{\Omega}P^{(n)}:\nabla \vec{v} d\Omega$$</p>
+</div>
+												</div>
+												<div class="qa-c-item-footer">
+													<span class="qa-c-item-avatar-meta">
+														<span class="qa-c-item-meta">
+															<a href="../../4383/solving-elastic-equation-domains-with-different-materials?show=4394#c4394" class="qa-c-item-what">commented</a>
+															<span class="qa-c-item-when">
+																<span class="qa-c-item-when-data"><span class="published"><span class="value-title" title="2014-08-13T22:15:10+0000"></span>Aug 14, 2014</span></span>
+															</span>
+															<span class="qa-c-item-who">
+																<span class="qa-c-item-who-pad">by </span>
+																<span class="qa-c-item-who-data"><span class="vcard author"><a href="../../user/danieljt" class="qa-user-link url nickname">danieljt</a></span></span>
+																<span class="qa-c-item-who-title">FEniCS Novice</span>
+																<span class="qa-c-item-who-points">
+																	<span class="qa-c-item-who-points-pad">(</span><span class="qa-c-item-who-points-data">410</span><span class="qa-c-item-who-points-pad"> points)</span>
+																</span>
+															</span>
+														</span>
+													</span>
+													<div class="qa-c-item-buttons">
+													</div>
+												</div>
+												<div class="qa-c-item-clear">
+												</div>
+											</div> <!-- END qa-c-item -->
+											<div class="qa-c-list-item  hentry comment" id="c4396">
+												<div class="qa-c-item-content">
+													<a name="4396"></a><div class="entry-content"><p>You can define the material properties as</p>
+
+<pre><code>D = FunctionSpace(mesh, "DG", 0)
+
+# Define variable constants
+rhof = Expression("x[1] &gt; ys ? rho1 : rho2",
+                  ys=ys,rho1=rho1,rho2=rho2)
+muf = Expression("x[1] &gt; ys ? mu1 : mu2",
+                 ys=ys,mu1=mu1,mu2=mu2)
+lamdaf = Expression("x[1] &gt; ys ? lamda1 : lamda2",
+                    ys=ys,lamda1=lamda1,lamda2=lamda2)
+
+rho = interpolate(rhof, D)
+mu = interpolate(muf, D)
+lamda = interpolate(lamdaf, D)
+</code></pre>
+
+<p>I would also (for clarity) include <em>dt</em> in the variational form:</p>
+
+<pre><code>F = inner(u,v)*dx - 2*inner(u1,v)*dx + inner(u2,v)*dx + \
+    Constant(dt)**2/rho*inner(sigma(u1,lamda,mu),grad(v))*dx
+</code></pre>
+</div>
+												</div>
+												<div class="qa-c-item-footer">
+													<span class="qa-c-item-avatar-meta">
+														<span class="qa-c-item-meta">
+															<a href="../../4383/solving-elastic-equation-domains-with-different-materials?show=4396#c4396" class="qa-c-item-what">commented</a>
+															<span class="qa-c-item-when">
+																<span class="qa-c-item-when-data"><span class="published"><span class="value-title" title="2014-08-14T09:34:58+0000"></span>Aug 14, 2014</span></span>
+															</span>
+															<span class="qa-c-item-who">
+																<span class="qa-c-item-who-pad">by </span>
+																<span class="qa-c-item-who-data"><span class="vcard author"><a href="../../user/%C3%98yvind+Evju" class="qa-user-link url nickname">&#216;yvind Evju</a></span></span>
+																<span class="qa-c-item-who-title">FEniCS Expert</span>
+																<span class="qa-c-item-who-points">
+																	<span class="qa-c-item-who-points-pad">(</span><span class="qa-c-item-who-points-data">17,700</span><span class="qa-c-item-who-points-pad"> points)</span>
+																</span>
+															</span>
+														</span>
+													</span>
+													<div class="qa-c-item-buttons">
+													</div>
+												</div>
+												<div class="qa-c-item-clear">
+												</div>
+											</div> <!-- END qa-c-item -->
+											<div class="qa-c-list-item  hentry comment" id="c4416">
+												<div class="qa-c-item-content">
+													<a name="4416"></a><div class="entry-content"><p>Thank you &#248;yvind, the program I had is now running with your fixes. I'll do some more tests on my original program, but if you set your advice as an answer I'll mark this question as solved.</p>
+</div>
+												</div>
+												<div class="qa-c-item-footer">
+													<span class="qa-c-item-avatar-meta">
+														<span class="qa-c-item-meta">
+															<a href="../../4383/solving-elastic-equation-domains-with-different-materials?show=4416#c4416" class="qa-c-item-what">commented</a>
+															<span class="qa-c-item-when">
+																<span class="qa-c-item-when-data"><span class="published"><span class="value-title" title="2014-08-15T16:16:39+0000"></span>Aug 15, 2014</span></span>
+															</span>
+															<span class="qa-c-item-who">
+																<span class="qa-c-item-who-pad">by </span>
+																<span class="qa-c-item-who-data"><span class="vcard author"><a href="../../user/danieljt" class="qa-user-link url nickname">danieljt</a></span></span>
+																<span class="qa-c-item-who-title">FEniCS Novice</span>
+																<span class="qa-c-item-who-points">
+																	<span class="qa-c-item-who-points-pad">(</span><span class="qa-c-item-who-points-data">410</span><span class="qa-c-item-who-points-pad"> points)</span>
+																</span>
+															</span>
+														</span>
+													</span>
+													<div class="qa-c-item-buttons">
+													</div>
+												</div>
+												<div class="qa-c-item-clear">
+												</div>
+											</div> <!-- END qa-c-item -->
+										</div> <!-- END qa-c-list -->
+										
+										<input type="hidden" name="code" value="0-1516468010-21e82138fea11d445db0f8ab2e73daeb86d79fac">
+										<input type="hidden" name="qa_click" value="">
+									</form>
+									<div class="qa-c-form">
+									</div> <!-- END qa-c-form -->
+									
+								</div> <!-- END qa-q-view-main -->
+								<div class="qa-q-view-clear">
+								</div>
+							</div> <!-- END qa-q-view -->
+							
+						</div>
+						<div class="qa-part-a-list">
+							<h2 id="a_list_title">1 Answer</h2>
+							<div class="qa-a-list" id="a_list">
+								
+								<div class="qa-a-list-item  hentry answer answer-selected qa-a-list-item-selected" id="a4417">
+									<form method="post" action="../../4383/solving-elastic-equation-domains-with-different-materials">
+										<div class="qa-voting qa-voting-net" id="voting_4417">
+											<div class="qa-vote-count qa-vote-count-net">
+												<span class="qa-netvote-count">
+													<span class="qa-netvote-count-data">+1<span class="votes-up"><span class="value-title" title="1"></span></span><span class="votes-down"><span class="value-title" title="0"></span></span></span><span class="qa-netvote-count-pad"> vote</span>
+												</span>
+											</div>
+											<div class="qa-vote-clear">
+											</div>
+										</div>
+										<input type="hidden" name="code" value="0-1516468010-6ecde656d1ac2fc25c83656bfeab1e5b1af808eb">
+									</form>
+									<div class="qa-a-item-main">
+										<form method="post" action="../../4383/solving-elastic-equation-domains-with-different-materials">
+											<div class="qa-a-item-selected">
+												<div class="qa-a-selection">
+													<div class="qa-a-selected">&#160;</div>
+													<div class="qa-a-selected-text">Best answer</div>
+												</div>
+												<div class="qa-a-item-content">
+													<a name="4417"></a><div class="entry-content"><p>You can define the material properties as scalars rather than vectors, like this:</p>
+
+<pre><code>D = FunctionSpace(mesh, "DG", 0)
+
+# Define variable constants
+rhof = Expression("x[1] &gt; ys ? rho1 : rho2",
+                  ys=ys,rho1=rho1,rho2=rho2)
+muf = Expression("x[1] &gt; ys ? mu1 : mu2",
+                 ys=ys,mu1=mu1,mu2=mu2)
+lamdaf = Expression("x[1] &gt; ys ? lamda1 : lamda2",
+                    ys=ys,lamda1=lamda1,lamda2=lamda2)
+
+rho = interpolate(rhof, D)
+mu = interpolate(muf, D)
+lamda = interpolate(lamdaf, D)
+</code></pre>
+
+<p>I would also (for clarity) include dt in the variational form:</p>
+
+<pre><code>F = inner(u,v)*dx - 2*inner(u1,v)*dx + inner(u2,v)*dx + \
+    Constant(dt)**2/rho*inner(sigma(u1,lamda,mu),grad(v))*dx
+</code></pre>
+</div>
+												</div>
+												<span class="qa-a-item-avatar-meta">
+													<span class="qa-a-item-meta">
+														<a href="../../4383/solving-elastic-equation-domains-with-different-materials?show=4417#a4417" class="qa-a-item-what">answered</a>
+														<span class="qa-a-item-when">
+															<span class="qa-a-item-when-data"><span class="published"><span class="value-title" title="2014-08-15T16:50:48+0000"></span>Aug 15, 2014</span></span>
+														</span>
+														<span class="qa-a-item-who">
+															<span class="qa-a-item-who-pad">by </span>
+															<span class="qa-a-item-who-data"><span class="vcard author"><a href="../../user/%C3%98yvind+Evju" class="qa-user-link url nickname">&#216;yvind Evju</a></span></span>
+															<span class="qa-a-item-who-title">FEniCS Expert</span>
+															<span class="qa-a-item-who-points">
+																<span class="qa-a-item-who-points-pad">(</span><span class="qa-a-item-who-points-data">17,700</span><span class="qa-a-item-who-points-pad"> points)</span>
+															</span>
+														</span>
+														<br>
+														<span class="qa-a-item-what">selected</span>
+														<span class="qa-a-item-when">
+															<span class="qa-a-item-when-data"><span class="updated"><span class="value-title" title="2014-08-23T11:49:00+0000"></span>Aug 23, 2014</span></span>
+														</span>
+														<span class="qa-a-item-who">
+															<span class="qa-a-item-who-pad">by </span><span class="qa-a-item-who-data"><a href="../../user/danieljt" class="qa-user-link url nickname">danieljt</a></span>
+														</span>
+													</span>
+												</span>
+											</div>
+											<div class="qa-a-item-buttons">
+												</div>
+											
+											<div class="qa-a-item-c-list" id="c4417_list">
+												<div class="qa-c-list-item  hentry comment" id="c4506">
+													<div class="qa-c-item-content">
+														<a name="4506"></a><div class="entry-content"><p>Thank you very much &#248;yvind! That solved the problem!</p>
+</div>
+													</div>
+													<div class="qa-c-item-footer">
+														<span class="qa-c-item-avatar-meta">
+															<span class="qa-c-item-meta">
+																<a href="../../4383/solving-elastic-equation-domains-with-different-materials?show=4506#c4506" class="qa-c-item-what">commented</a>
+																<span class="qa-c-item-when">
+																	<span class="qa-c-item-when-data"><span class="published"><span class="value-title" title="2014-08-23T11:50:03+0000"></span>Aug 23, 2014</span></span>
+																</span>
+																<span class="qa-c-item-who">
+																	<span class="qa-c-item-who-pad">by </span>
+																	<span class="qa-c-item-who-data"><span class="vcard author"><a href="../../user/danieljt" class="qa-user-link url nickname">danieljt</a></span></span>
+																	<span class="qa-c-item-who-title">FEniCS Novice</span>
+																	<span class="qa-c-item-who-points">
+																		<span class="qa-c-item-who-points-pad">(</span><span class="qa-c-item-who-points-data">410</span><span class="qa-c-item-who-points-pad"> points)</span>
+																	</span>
+																</span>
+															</span>
+														</span>
+														<div class="qa-c-item-buttons">
+														</div>
+													</div>
+													<div class="qa-c-item-clear">
+													</div>
+												</div> <!-- END qa-c-item -->
+											</div> <!-- END qa-c-list -->
+											
+											<input type="hidden" name="code" value="0-1516468010-f929745d908b1ead5c1588a7e2a58a347b0f9487">
+											<input type="hidden" name="qa_click" value="">
+										</form>
+										<div class="qa-c-form">
+										</div> <!-- END qa-c-form -->
+										
+									</div> <!-- END qa-a-item-main -->
+									<div class="qa-a-item-clear">
+									</div>
+								</div> <!-- END qa-a-list-item -->
+								
+							</div> <!-- END qa-a-list -->
+							
+						</div>
+					</div> <!-- END qa-main -->
+					
+				</div> <!-- END main-wrapper -->
+			</div> <!-- END main-shadow -->
+		</div> <!-- END body-wrapper -->
+		<!-- END footer-bottom-group -->
+		
+		<div style="position:absolute; left:-9999px; top:-9999px;">
+			<span id="qa-waiting-template" class="qa-waiting">...</span>
+		</div>
+	
+	
+
+</body><!-- Powered by Question2Answer - http://www.question2answer.org/ --></html>

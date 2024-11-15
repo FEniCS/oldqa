@@ -1,0 +1,567 @@
+<html><!-- Powered by Question2Answer - http://www.question2answer.org/ --><head>
+		<meta http-equiv="content-type" content="text/html; charset=utf-8">
+		<title>interpolate only works for functionspaces with degree=1 polynomials - FEniCS Q&amp;A</title>
+		<meta name="description" content="The code below is from [http://fenicsproject.org/qa/7607/working-with-boundarymesh?show= ... .org/qa/7607/working-with-boundarymesh?show=7607#q7607">
+		<meta name="keywords" content="interpolate,project,submesh">
+		<link rel="stylesheet" type="text/css" href="../../qa-theme/Snow/qa-styles.css">
+		<link rel="canonical" href="http://fenicsproject.org/qa/7923/interpolate-works-functionspaces-with-degree-polynomials">
+		<script type="text/x-mathjax-config">
+  MathJax.Hub.Config({
+    extensions: ["tex2jax.js"],
+    jax: ["input/TeX","output/HTML-CSS"],
+    tex2jax: {inlineMath: [["$","$"],["\\(","\\)"]]},
+    TeX: { extensions: ["AMSmath.js","AMSsymbols.js"]}
+  });
+</script>
+<script type="text/javascript" src="../../mathjax/MathJax.js"></script>
+		<script src="../../jquery-1.7.2.min.js" type="text/javascript"></script>
+		<script src="../../highlight.min.js"></script>
+<script type="text/javascript">
+$(function(){
+	$('.wmd-input').keypress(function(){
+		window.clearTimeout(hljs.Timeout);
+		hljs.Timeout = window.setTimeout(function() {
+			hljs.initHighlighting.called = false;
+			hljs.initHighlighting();
+		}, 500);
+	});
+	window.setTimeout(function() {
+		hljs.initHighlighting.called = false;
+		hljs.initHighlighting();
+	}, 500);
+});
+</script>
+
+
+	</head>
+	<body class="qa-template-question qa-body-js-off">
+		<div class="qa-body-wrapper">
+			
+			<div class="qa-header">
+				<div class="qa-logo">
+					<a href="../../" class="qa-logo-link" title="FEniCS Q&amp;A"><img src="../../qa-theme/fenics_qa.png" border="0" alt="FEniCS Q&amp;A"></a>
+				</div>
+				<div class="qa-header-clear">
+				</div>
+			</div> <!-- END qa-header -->
+			
+			<div class="qa-main-shadow">
+				
+				<div class="qa-main-wrapper">
+					
+					<div class="qa-sidepanel">
+						<div class="qa-sidebar">
+							This is a read only copy of the old FEniCS QA forum. Please visit the <a href="https://www.allanswered.com/community/s/fenics-project/">new QA forum</a> to ask questions
+						</div>
+						
+					</div>
+					
+					<div class="qa-main">
+						<h1>
+							<span class="entry-title">interpolate only works for functionspaces with degree=1 polynomials</span>
+						</h1>
+						<div class="qa-part-q-view">
+							<div class="qa-q-view  hentry question" id="q7923">
+								<form method="post" action="../../7923/interpolate-works-functionspaces-with-degree-polynomials">
+									<div class="qa-q-view-stats">
+										<div class="qa-voting qa-voting-net" id="voting_7923">
+											<div class="qa-vote-count qa-vote-count-net">
+												<span class="qa-netvote-count">
+													<span class="qa-netvote-count-data">+2<span class="votes-up"><span class="value-title" title="2"></span></span><span class="votes-down"><span class="value-title" title="0"></span></span></span><span class="qa-netvote-count-pad"> votes</span>
+												</span>
+											</div>
+											<div class="qa-vote-clear">
+											</div>
+										</div>
+									</div>
+									<input type="hidden" name="code" value="0-1516468146-200c869e2d80aafc08eda80066d3ba139535adbe">
+								</form>
+								<div class="qa-q-view-main">
+									<form method="post" action="../../7923/interpolate-works-functionspaces-with-degree-polynomials">
+										<div class="qa-q-view-content">
+											<a name="7923"></a><div class="entry-content"><p>The code below is from <a rel="nofollow" href="http://fenicsproject.org/qa/7607/working-with-boundarymesh?show=7607#q7607"></a><a rel="nofollow" href="http://fenicsproject.org/qa/7607/working-with-boundarymesh?show=7607#q7607">http://fenicsproject.org/qa/7607/working-with-boundarymesh?show=7607#q7607</a>, but this question is in its own right:<br>
+I have a function that is defined on (a functionspace of a submesh of a boundarymesh of) <br>
+a boundary, and I wish to use it in a surface-integral of the whole domain.</p>
+
+<pre><code>from dolfin import *
+import numpy as np
+parameters["allow_extrapolation"] = True
+degree = 2
+
+mesh = UnitSquareMesh(20, 20)
+class LeftBoundary(SubDomain):
+    def inside(self, x, on_boundary):
+        return near(x[0], 0.0)
+leftboundary = LeftBoundary()
+boundaries = FacetFunction('size_t', mesh)
+boundaries.set_all(0)
+leftboundary.mark(boundaries, 1)
+ds = Measure('ds')[boundaries]
+
+boundarymesh = BoundaryMesh(mesh, 'exterior')
+left_mesh = SubMesh(boundarymesh, leftboundary)
+L = FunctionSpace(left_mesh, 'CG', degree)
+bf = Function(L)
+# here goes some more code to find the correct bf
+# but here a dummy function will do
+bf.vector()[:] = np.ones(20*degree + 1, dtype=float)
+
+V = FunctionSpace(mesh, 'CG', degree)
+u = TrialFunction(V)
+v = TestFunction(V)
+a = inner(grad(u), grad(v)) * dx
+b = interpolate(bf, V) * v * ds(1)
+# b = project(bf, V) * v * ds(1)
+assemble(b)
+</code></pre>
+
+<p>The code above works for <code>degree=1</code>, but when I use higher order Lagrange polynomials, I get the error</p>
+
+<pre><code>*** -------------------------------------------------------------------------
+*** Error:   Unable to evaluate function at point.
+*** Reason:  No matching cell found.
+*** Where:   This error was encountered inside Function.cpp.
+*** Process: unknown
+*** 
+*** DOLFIN version: 1.4.0
+*** Git changeset:  
+*** -------------------------------------------------------------------------
+</code></pre>
+
+<p>Trying to use <code>project</code> instead of <code>interpolate</code> does not work either. What am I missing here?</p>
+
+<p>Thanks in advance</p>
+</div>
+										</div>
+										<div class="qa-q-view-tags">
+											<ul class="qa-q-view-tag-list">
+												<li class="qa-q-view-tag-item"><a href="../../tag/interpolate" rel="tag" class="qa-tag-link">interpolate</a></li>
+												<li class="qa-q-view-tag-item"><a href="../../tag/project" rel="tag" class="qa-tag-link">project</a></li>
+												<li class="qa-q-view-tag-item"><a href="../../tag/submesh" rel="tag" class="qa-tag-link">submesh</a></li>
+											</ul>
+										</div>
+										<span class="qa-q-view-avatar-meta">
+											<span class="qa-q-view-meta">
+												<a href="../../7923/interpolate-works-functionspaces-with-degree-polynomials" class="qa-q-view-what">asked</a>
+												<span class="qa-q-view-when">
+													<span class="qa-q-view-when-data"><span class="published"><span class="value-title" title="2015-08-26T11:48:10+0000"></span>Aug 26, 2015</span></span>
+												</span>
+												<span class="qa-q-view-who">
+													<span class="qa-q-view-who-pad">by </span>
+													<span class="qa-q-view-who-data"><span class="vcard author"><a href="../../user/maartent" class="qa-user-link url nickname">maartent</a></span></span>
+													<span class="qa-q-view-who-title">FEniCS User</span>
+													<span class="qa-q-view-who-points">
+														<span class="qa-q-view-who-points-pad">(</span><span class="qa-q-view-who-points-data">3,910</span><span class="qa-q-view-who-points-pad"> points)</span>
+													</span>
+												</span>
+											</span>
+										</span>
+										<div class="qa-q-view-buttons">
+										</div>
+										
+										<div class="qa-q-view-c-list" id="c7923_list">
+											<div class="qa-c-list-item  hentry comment" id="c7924">
+												<div class="qa-c-item-content">
+													<a name="7924"></a><div class="entry-content"><p>Under Fenics 1.6 the error reads</p>
+
+<pre><code>*** Error:   Unable to create mesh entity.
+*** Reason:  Mesh entity index -1 out of range [0, 20] for entity of dimension 1.
+*** Where:   This error was encountered inside MeshEntity.cpp.
+</code></pre>
+</div>
+												</div>
+												<div class="qa-c-item-footer">
+													<span class="qa-c-item-avatar-meta">
+														<span class="qa-c-item-meta">
+															<a href="../../7923/interpolate-works-functionspaces-with-degree-polynomials?show=7924#c7924" class="qa-c-item-what">commented</a>
+															<span class="qa-c-item-when">
+																<span class="qa-c-item-when-data"><span class="published"><span class="value-title" title="2015-08-26T12:05:18+0000"></span>Aug 26, 2015</span></span>
+															</span>
+															<span class="qa-c-item-who">
+																<span class="qa-c-item-who-pad">by </span>
+																<span class="qa-c-item-who-data"><span class="vcard author"><a href="../../user/konstantin" class="qa-user-link url nickname">konstantin</a></span></span>
+																<span class="qa-c-item-who-title">FEniCS Novice</span>
+																<span class="qa-c-item-who-points">
+																	<span class="qa-c-item-who-points-pad">(</span><span class="qa-c-item-who-points-data">900</span><span class="qa-c-item-who-points-pad"> points)</span>
+																</span>
+															</span>
+														</span>
+													</span>
+													<div class="qa-c-item-buttons">
+													</div>
+												</div>
+												<div class="qa-c-item-clear">
+												</div>
+											</div> <!-- END qa-c-item -->
+										</div> <!-- END qa-c-list -->
+										
+										<input type="hidden" name="code" value="0-1516468146-7b74c2cb2c2d2586fcb8efff31bbbe70f1373aef">
+										<input type="hidden" name="qa_click" value="">
+									</form>
+									<div class="qa-c-form">
+									</div> <!-- END qa-c-form -->
+									
+								</div> <!-- END qa-q-view-main -->
+								<div class="qa-q-view-clear">
+								</div>
+							</div> <!-- END qa-q-view -->
+							
+						</div>
+						<div class="qa-part-a-list">
+							<h2 id="a_list_title">1 Answer</h2>
+							<div class="qa-a-list" id="a_list">
+								
+								<div class="qa-a-list-item  hentry answer answer-selected qa-a-list-item-selected" id="a8005">
+									<form method="post" action="../../7923/interpolate-works-functionspaces-with-degree-polynomials">
+										<div class="qa-voting qa-voting-net" id="voting_8005">
+											<div class="qa-vote-count qa-vote-count-net">
+												<span class="qa-netvote-count">
+													<span class="qa-netvote-count-data">0<span class="votes-up"><span class="value-title" title="0"></span></span><span class="votes-down"><span class="value-title" title="0"></span></span></span><span class="qa-netvote-count-pad"> votes</span>
+												</span>
+											</div>
+											<div class="qa-vote-clear">
+											</div>
+										</div>
+										<input type="hidden" name="code" value="0-1516468146-200c869e2d80aafc08eda80066d3ba139535adbe">
+									</form>
+									<div class="qa-a-item-main">
+										<form method="post" action="../../7923/interpolate-works-functionspaces-with-degree-polynomials">
+											<div class="qa-a-item-selected">
+												<div class="qa-a-selection">
+													<div class="qa-a-selected">&#160;</div>
+													<div class="qa-a-selected-text">Best answer</div>
+												</div>
+												<div class="qa-a-item-content">
+													<a name="8005"></a><div class="entry-content"><p>I think the problem is that <code>bf</code> "lives" on <code>L</code> (a boundary mesh) and you are trying to project it onto <code>V</code>, which is defined on the whole domain. I don't know why that even works for <code>degree=1</code>.</p>
+
+<p>Imagine that you have a function $f$ on $[0,1]$ and you only know $f(0)$. How would you define the "projection" onto whatever function space on the domain $[0,1]$?. So if the code works for degree=1, then that is a coincident at best but still meaningless from a mathematical opint of view.</p>
+
+<p>Unfortunately, projecting <code>bf</code> onto <code>L</code> doesn't work either (the projection works but not in combination with the <code>ds(1)</code> stuff)</p>
+
+<p>I think you could try to "extend" bf to the domain appropriately and simply don't work with <code>L</code>. So you could define <code>bf</code> on <code>V</code>, initialize it as zero and then only set values at the boundary vertices. How to do this depends on how you specify your boundary data. If they are all equal to one, then you can simply define the whole function <code>bf=1</code> on the whole domain. For other possibilities, I would have to see your complete code.</p>
+
+<p>It is still an interesting question, because I think that your approach (together with a projection onto <code>L</code> instead of <code>V</code>) would be much closer to the mathematical definition of the problem than the "workaround" that I suggested. But it seems that such a feature is not yet supported.</p>
+</div>
+												</div>
+												<span class="qa-a-item-avatar-meta">
+													<span class="qa-a-item-meta">
+														<a href="../../7923/interpolate-works-functionspaces-with-degree-polynomials?show=8005#a8005" class="qa-a-item-what">answered</a>
+														<span class="qa-a-item-when">
+															<span class="qa-a-item-when-data"><span class="published"><span class="value-title" title="2015-09-02T21:22:42+0000"></span>Sep 2, 2015</span></span>
+														</span>
+														<span class="qa-a-item-who">
+															<span class="qa-a-item-who-pad">by </span>
+															<span class="qa-a-item-who-data"><span class="vcard author"><a href="../../user/multigrid202" class="qa-user-link url nickname">multigrid202</a></span></span>
+															<span class="qa-a-item-who-title">FEniCS User</span>
+															<span class="qa-a-item-who-points">
+																<span class="qa-a-item-who-points-pad">(</span><span class="qa-a-item-who-points-data">3,780</span><span class="qa-a-item-who-points-pad"> points)</span>
+															</span>
+														</span>
+														<br>
+														<span class="qa-a-item-what">selected</span>
+														<span class="qa-a-item-when">
+															<span class="qa-a-item-when-data"><span class="updated"><span class="value-title" title="2015-11-12T16:31:05+0000"></span>Nov 12, 2015</span></span>
+														</span>
+														<span class="qa-a-item-who">
+															<span class="qa-a-item-who-pad">by </span><span class="qa-a-item-who-data"><a href="../../user/maartent" class="qa-user-link url nickname">maartent</a></span>
+														</span>
+													</span>
+												</span>
+											</div>
+											<div class="qa-a-item-buttons">
+												</div>
+											
+											<div class="qa-a-item-c-list" id="c8005_list">
+												<div class="qa-c-list-item  hentry comment" id="c8008">
+													<div class="qa-c-item-content">
+														<a name="8008"></a><div class="entry-content"><p>I was also a bit surprised this interpolation would work. In fact it 'extends' the function on the boundary to the whole domain (in my case these functions have to be defined on the boundary, I can not initialize them on V directly).</p>
+
+<p>The most natural solution would be that, if one defines a surface integral, the valid functions in the weak form can be either defined on V, or on any other domain that contains the surface to integrate over (i.e. in this case <code>bf * v * ds(1)</code> would be a valid input).</p>
+
+<p>I noticed there is some improvement on its way:<br>
+<a rel="nofollow" href="https://bitbucket.org/fenics-project/dolfin/pull-requests/240/interpolation-improvements/diff"></a><a rel="nofollow" href="https://bitbucket.org/fenics-project/dolfin/pull-requests/240/interpolation-improvements/diff">https://bitbucket.org/fenics-project/dolfin/pull-requests/240/interpolation-improvements/diff</a></p>
+</div>
+													</div>
+													<div class="qa-c-item-footer">
+														<span class="qa-c-item-avatar-meta">
+															<span class="qa-c-item-meta">
+																<a href="../../7923/interpolate-works-functionspaces-with-degree-polynomials?show=8008#c8008" class="qa-c-item-what">commented</a>
+																<span class="qa-c-item-when">
+																	<span class="qa-c-item-when-data"><span class="published"><span class="value-title" title="2015-09-03T10:23:14+0000"></span>Sep 3, 2015</span></span>
+																</span>
+																<span class="qa-c-item-who">
+																	<span class="qa-c-item-who-pad">by </span>
+																	<span class="qa-c-item-who-data"><span class="vcard author"><a href="../../user/maartent" class="qa-user-link url nickname">maartent</a></span></span>
+																	<span class="qa-c-item-who-title">FEniCS User</span>
+																	<span class="qa-c-item-who-points">
+																		<span class="qa-c-item-who-points-pad">(</span><span class="qa-c-item-who-points-data">3,910</span><span class="qa-c-item-who-points-pad"> points)</span>
+																	</span>
+																</span>
+															</span>
+														</span>
+														<div class="qa-c-item-buttons">
+														</div>
+													</div>
+													<div class="qa-c-item-clear">
+													</div>
+												</div> <!-- END qa-c-item -->
+												<div class="qa-c-list-item  hentry comment" id="c8009">
+													<div class="qa-c-item-content">
+														<a name="8009"></a><div class="entry-content"><p>Why do you think that you cannot define a function on <code>V</code>. According to <a rel="nofollow" href="http://fenicsproject.org/documentation/dolfin/1.0.1/python/programmers-reference/cpp/SubMesh.html">this</a> (note: doc is for older fenics version), you could define a helper function on your submesh and then communicate the values via the vertex mapping <code>parent_vertex_indices</code>. It's not pretty but it may work...</p>
+</div>
+													</div>
+													<div class="qa-c-item-footer">
+														<span class="qa-c-item-avatar-meta">
+															<span class="qa-c-item-meta">
+																<a href="../../7923/interpolate-works-functionspaces-with-degree-polynomials?show=8009#c8009" class="qa-c-item-what">commented</a>
+																<span class="qa-c-item-when">
+																	<span class="qa-c-item-when-data"><span class="published"><span class="value-title" title="2015-09-03T11:43:51+0000"></span>Sep 3, 2015</span></span>
+																</span>
+																<span class="qa-c-item-who">
+																	<span class="qa-c-item-who-pad">by </span>
+																	<span class="qa-c-item-who-data"><span class="vcard author"><a href="../../user/multigrid202" class="qa-user-link url nickname">multigrid202</a></span></span>
+																	<span class="qa-c-item-who-title">FEniCS User</span>
+																	<span class="qa-c-item-who-points">
+																		<span class="qa-c-item-who-points-pad">(</span><span class="qa-c-item-who-points-data">3,780</span><span class="qa-c-item-who-points-pad"> points)</span>
+																	</span>
+																</span>
+															</span>
+														</span>
+														<div class="qa-c-item-buttons">
+														</div>
+													</div>
+													<div class="qa-c-item-clear">
+													</div>
+												</div> <!-- END qa-c-item -->
+												<div class="qa-c-list-item  hentry comment" id="c8010">
+													<div class="qa-c-item-content">
+														<a name="8010"></a><div class="entry-content"><p>I am still relatively new to FEniCS so I seem to often underestimate what is possible. If it were possible to define a function on V, the whole domain, and then set as nonzero only the dof's corresponding to L, the boundary domain, that would be avoid interpolation/projection and still give the right surface integral. That is what you mean, no?</p>
+
+<p>The following post lead me to believe that for a submesh of a boundarymesh, this is not possible yet.<br>
+<a rel="nofollow" href="http://fenicsproject.org/qa/6810/vertex-mapping-from-submesh-boundarymesh-back-actual-mesh?show=6810#q6810">http://fenicsproject.org/qa/6810/vertex-mapping-from-submesh-boundarymesh-back-actual-mesh?show=6810#q6810</a><br>
+If you know a way (or can confirm that is it possible), I might look into it a bit more detailed.</p>
+</div>
+													</div>
+													<div class="qa-c-item-footer">
+														<span class="qa-c-item-avatar-meta">
+															<span class="qa-c-item-meta">
+																<a href="../../7923/interpolate-works-functionspaces-with-degree-polynomials?show=8010#c8010" class="qa-c-item-what">commented</a>
+																<span class="qa-c-item-when">
+																	<span class="qa-c-item-when-data"><span class="published"><span class="value-title" title="2015-09-03T11:57:09+0000"></span>Sep 3, 2015</span></span>
+																</span>
+																<span class="qa-c-item-who">
+																	<span class="qa-c-item-who-pad">by </span>
+																	<span class="qa-c-item-who-data"><span class="vcard author"><a href="../../user/maartent" class="qa-user-link url nickname">maartent</a></span></span>
+																	<span class="qa-c-item-who-title">FEniCS User</span>
+																	<span class="qa-c-item-who-points">
+																		<span class="qa-c-item-who-points-pad">(</span><span class="qa-c-item-who-points-data">3,910</span><span class="qa-c-item-who-points-pad"> points)</span>
+																	</span>
+																</span>
+															</span>
+														</span>
+														<div class="qa-c-item-buttons">
+														</div>
+													</div>
+													<div class="qa-c-item-clear">
+													</div>
+												</div> <!-- END qa-c-item -->
+												<div class="qa-c-list-item  hentry comment" id="c8012">
+													<div class="qa-c-item-content">
+														<a name="8012"></a><div class="entry-content"><p>Well according to the docs it seems possible. But maybe you don't even need such a mapping.</p>
+
+<p>Your integral only integrates over some part of the boundary. So really, it does not matter what values your function has inside the domain. Here is an example:</p>
+
+<p>Suppose you are working on the unit square with coordinate system $(x_1,x_2)$ and you want a boundaryfunction $g(x_2)=x_2^2$ only on the left edge $\Gamma_l$ of the square. Next, in analogy to your example, you define a linear form $l(v):= \int_{\Gamma_l}g(x)v\;ds$. One way to achieve this in your code would be (keeping the rest more or less as it is)</p>
+
+<pre><code>g = Expression('x[1]*x[1]') # note that g is defined on the whole domain
+l = g * v * ds(1)
+</code></pre>
+
+<p>If $g$ cannot be expressed as an <code>Expression</code>, but is the solution of some other problem, then chances are that $g$ is already defined on the whole domain. in that case, it really does not matter what its values are in the interior of the domain as the integral in $l$ only integrates over the boundary anyway.</p>
+
+<p>The only serious Issue I can imagine is that for some reason, $g$ actually is the solution to a lower dimensional problem (I think that such examples can occur when using e.g. domain decomposition techniques in elasticity).</p>
+
+<p>So lets say that again you are working on the unit square and that you solve some 1D Problem to obtain $g$ as a 1D function on the left boundary. In that case I can think of two approaches.</p>
+
+<p>Try to define your own <code>Expression</code>, see section 3 in <a rel="nofollow" href="http://fenicsproject.org/documentation/dolfin/dev/python/programmers-reference/functions/expression/Expression.html">this</a> link. I think that you'd have to put something like</p>
+
+<pre><code>global g
+value = g(x[1])
+</code></pre>
+
+<p>into the <code>eval</code> method. Unfortunately, I can't give much advice on this approach as the <code>Expression</code> class is somehow broken on my computer.</p>
+
+<p>The second approach would be to solve a simple problem (such as the laplace equation) with g as boundary data to obtain a function that lives on all of $\Omega$.</p>
+
+<p>Those are just very rough guesses but without further information on your problem I can't really help.</p>
+</div>
+													</div>
+													<div class="qa-c-item-footer">
+														<span class="qa-c-item-avatar-meta">
+															<span class="qa-c-item-meta">
+																<a href="../../7923/interpolate-works-functionspaces-with-degree-polynomials?show=8012#c8012" class="qa-c-item-what">commented</a>
+																<span class="qa-c-item-when">
+																	<span class="qa-c-item-when-data"><span class="published"><span class="value-title" title="2015-09-03T15:36:41+0000"></span>Sep 3, 2015</span></span>
+																</span>
+																<span class="qa-c-item-who">
+																	<span class="qa-c-item-who-pad">by </span>
+																	<span class="qa-c-item-who-data"><span class="vcard author"><a href="../../user/multigrid202" class="qa-user-link url nickname">multigrid202</a></span></span>
+																	<span class="qa-c-item-who-title">FEniCS User</span>
+																	<span class="qa-c-item-who-points">
+																		<span class="qa-c-item-who-points-pad">(</span><span class="qa-c-item-who-points-data">3,780</span><span class="qa-c-item-who-points-pad"> points)</span>
+																	</span>
+																</span>
+															</span>
+														</span>
+														<div class="qa-c-item-buttons">
+														</div>
+													</div>
+													<div class="qa-c-item-clear">
+													</div>
+												</div> <!-- END qa-c-item -->
+												<div class="qa-c-list-item  hentry comment" id="c8057">
+													<div class="qa-c-item-content">
+														<a name="8057"></a><div class="entry-content"><p>First of all, many thanks for the time you already took to answer my question.</p>
+
+<p>I provided a small working example above, but in practice I have a complex N-D mesh on which I define several boundaries. On these boundaries, I solve a (N-1)-D eigenvalue problem, the solutions of which define a mixed bc for the eventual PDE. If the mesh were rectangular, I could define an <code>Expression</code> that only uses one coordinate, and is hence defined over the whole domain. For a general shape, I cannot however.</p>
+
+<p>To require these eigenfunctions to be a Dirichlet boundary condition for a dummy problem and so obtain a function over the whole domain seemed like a good idea at first, but then I realised this leads me to the original problem: how to use a function that is only defined on the boundary as a boundary condition?</p>
+
+<p>The (only?) solution seems to lie in defining a function in V, with an array filled with zeros everywhere, and then map the dof's of the boundary-functionspace (a submesh of a boundarymesh) to that of V. Perhaps I should have a more in depth look on how to do this (and if this is possible for polynomial degree &gt;= 2).</p>
+</div>
+													</div>
+													<div class="qa-c-item-footer">
+														<span class="qa-c-item-avatar-meta">
+															<span class="qa-c-item-meta">
+																<a href="../../7923/interpolate-works-functionspaces-with-degree-polynomials?show=8057#c8057" class="qa-c-item-what">commented</a>
+																<span class="qa-c-item-when">
+																	<span class="qa-c-item-when-data"><span class="published"><span class="value-title" title="2015-09-08T11:50:29+0000"></span>Sep 8, 2015</span></span>
+																</span>
+																<span class="qa-c-item-who">
+																	<span class="qa-c-item-who-pad">by </span>
+																	<span class="qa-c-item-who-data"><span class="vcard author"><a href="../../user/maartent" class="qa-user-link url nickname">maartent</a></span></span>
+																	<span class="qa-c-item-who-title">FEniCS User</span>
+																	<span class="qa-c-item-who-points">
+																		<span class="qa-c-item-who-points-pad">(</span><span class="qa-c-item-who-points-data">3,910</span><span class="qa-c-item-who-points-pad"> points)</span>
+																	</span>
+																</span>
+															</span>
+														</span>
+														<div class="qa-c-item-buttons">
+														</div>
+													</div>
+													<div class="qa-c-item-clear">
+													</div>
+												</div> <!-- END qa-c-item -->
+												<div class="qa-c-list-item  hentry comment" id="c8111">
+													<div class="qa-c-item-content">
+														<a name="8111"></a><div class="entry-content"><p>As a small update, I looked into the last option of the reply above, as you suggested it was possible. I found a solution that I posted as an answer to this question:<br>
+<a rel="nofollow" href="http://fenicsproject.org/qa/6810/vertex-mapping-from-submesh-boundarymesh-back-actual-mesh?show=8110#a8110">http://fenicsproject.org/qa/6810/vertex-mapping-from-submesh-boundarymesh-back-actual-mesh?show=8110#a8110</a></p>
+
+<p>It allows me to use functions defined on a boundary as boundary conditions (since as commented on the original question, the simple <code>interpolate</code> workaround stopped working in 1.6, which I also use).</p>
+
+<p>Unfortunately, when trying this approach to Lagrange polynomials for degree 2, I got:</p>
+
+<pre><code>*** -------------------------------------------------------------------------
+*** Error:   Unable to tabulate dof to vertex map.
+*** Reason:  Can only tabulate dofs on vertices.
+*** Where:   This error was encountered inside DofMap.cpp.
+*** Process: unknown
+*** 
+*** DOLFIN version: 1.4.0
+*** Git changeset:  
+*** -------------------------------------------------------------------------
+</code></pre>
+
+<p>See also <a rel="nofollow" href="http://fenicsproject.org/qa/5917/dof_to_vertex_map-for-higher-order">http://fenicsproject.org/qa/5917/dof_to_vertex_map-for-higher-order</a> for this error. It seems that now not only the vertices need to be mapped (submesh --&gt; boundarymesh --&gt; mesh) but also other nodes, and I am not longer sure if this is already possible. I might try to figure it out later.</p>
+</div>
+													</div>
+													<div class="qa-c-item-footer">
+														<span class="qa-c-item-avatar-meta">
+															<span class="qa-c-item-meta">
+																<a href="../../7923/interpolate-works-functionspaces-with-degree-polynomials?show=8111#c8111" class="qa-c-item-what">commented</a>
+																<span class="qa-c-item-when">
+																	<span class="qa-c-item-when-data"><span class="published"><span class="value-title" title="2015-09-11T14:29:40+0000"></span>Sep 11, 2015</span></span>
+																</span>
+																<span class="qa-c-item-who">
+																	<span class="qa-c-item-who-pad">by </span>
+																	<span class="qa-c-item-who-data"><span class="vcard author"><a href="../../user/maartent" class="qa-user-link url nickname">maartent</a></span></span>
+																	<span class="qa-c-item-who-title">FEniCS User</span>
+																	<span class="qa-c-item-who-points">
+																		<span class="qa-c-item-who-points-pad">(</span><span class="qa-c-item-who-points-data">3,910</span><span class="qa-c-item-who-points-pad"> points)</span>
+																	</span>
+																</span>
+																<br>
+																<span class="qa-c-item-what">edited</span>
+																<span class="qa-c-item-when">
+																	<span class="qa-c-item-when-data"><span class="updated"><span class="value-title" title="2015-09-11T14:59:20+0000"></span>Sep 11, 2015</span></span>
+																</span>
+																<span class="qa-c-item-who">
+																	<span class="qa-c-item-who-pad">by </span><span class="qa-c-item-who-data"><a href="../../user/maartent" class="qa-user-link url nickname">maartent</a></span>
+																</span>
+															</span>
+														</span>
+														<div class="qa-c-item-buttons">
+														</div>
+													</div>
+													<div class="qa-c-item-clear">
+													</div>
+												</div> <!-- END qa-c-item -->
+												<div class="qa-c-list-item  hentry comment" id="c8540">
+													<div class="qa-c-item-content">
+														<a name="8540"></a><div class="entry-content"><p>Another update (which answers the question this time for arbitrary <code>degree</code>): <a rel="nofollow" href="http://fenicsproject.org/qa/8522/mapping-degrees-of-freedom-between-related-meshes">http://fenicsproject.org/qa/8522/mapping-degrees-of-freedom-between-related-meshes</a></p>
+</div>
+													</div>
+													<div class="qa-c-item-footer">
+														<span class="qa-c-item-avatar-meta">
+															<span class="qa-c-item-meta">
+																<a href="../../7923/interpolate-works-functionspaces-with-degree-polynomials?show=8540#c8540" class="qa-c-item-what">commented</a>
+																<span class="qa-c-item-when">
+																	<span class="qa-c-item-when-data"><span class="published"><span class="value-title" title="2015-11-12T16:30:53+0000"></span>Nov 12, 2015</span></span>
+																</span>
+																<span class="qa-c-item-who">
+																	<span class="qa-c-item-who-pad">by </span>
+																	<span class="qa-c-item-who-data"><span class="vcard author"><a href="../../user/maartent" class="qa-user-link url nickname">maartent</a></span></span>
+																	<span class="qa-c-item-who-title">FEniCS User</span>
+																	<span class="qa-c-item-who-points">
+																		<span class="qa-c-item-who-points-pad">(</span><span class="qa-c-item-who-points-data">3,910</span><span class="qa-c-item-who-points-pad"> points)</span>
+																	</span>
+																</span>
+															</span>
+														</span>
+														<div class="qa-c-item-buttons">
+														</div>
+													</div>
+													<div class="qa-c-item-clear">
+													</div>
+												</div> <!-- END qa-c-item -->
+											</div> <!-- END qa-c-list -->
+											
+											<input type="hidden" name="code" value="0-1516468146-955734f5033a696581904d82f649f9419c16cc73">
+											<input type="hidden" name="qa_click" value="">
+										</form>
+										<div class="qa-c-form">
+										</div> <!-- END qa-c-form -->
+										
+									</div> <!-- END qa-a-item-main -->
+									<div class="qa-a-item-clear">
+									</div>
+								</div> <!-- END qa-a-list-item -->
+								
+							</div> <!-- END qa-a-list -->
+							
+						</div>
+					</div> <!-- END qa-main -->
+					
+				</div> <!-- END main-wrapper -->
+			</div> <!-- END main-shadow -->
+		</div> <!-- END body-wrapper -->
+		<!-- END footer-bottom-group -->
+		
+		<div style="position:absolute; left:-9999px; top:-9999px;">
+			<span id="qa-waiting-template" class="qa-waiting">...</span>
+		</div>
+	
+	
+
+</body><!-- Powered by Question2Answer - http://www.question2answer.org/ --></html>

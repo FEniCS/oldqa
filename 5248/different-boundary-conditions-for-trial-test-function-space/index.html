@@ -1,0 +1,394 @@
+<html><!-- Powered by Question2Answer - http://www.question2answer.org/ --><head>
+		<meta http-equiv="content-type" content="text/html; charset=utf-8">
+		<title>Different boundary conditions for trial and test function space - FEniCS Q&amp;A</title>
+		<meta name="description" content="I would like to know if there is an easy way to implement a method with different boundary  ... implementation here is far too dirty for PDE problems.">
+		<meta name="keywords" content="petrov-galerkin,boundary-conditions">
+		<link rel="stylesheet" type="text/css" href="../../qa-theme/Snow/qa-styles.css">
+		<link rel="canonical" href="http://fenicsproject.org/qa/5248/different-boundary-conditions-for-trial-test-function-space">
+		<script type="text/x-mathjax-config">
+  MathJax.Hub.Config({
+    extensions: ["tex2jax.js"],
+    jax: ["input/TeX","output/HTML-CSS"],
+    tex2jax: {inlineMath: [["$","$"],["\\(","\\)"]]},
+    TeX: { extensions: ["AMSmath.js","AMSsymbols.js"]}
+  });
+</script>
+<script type="text/javascript" src="../../mathjax/MathJax.js"></script>
+		<script src="../../jquery-1.7.2.min.js" type="text/javascript"></script>
+		<script src="../../highlight.min.js"></script>
+<script type="text/javascript">
+$(function(){
+	$('.wmd-input').keypress(function(){
+		window.clearTimeout(hljs.Timeout);
+		hljs.Timeout = window.setTimeout(function() {
+			hljs.initHighlighting.called = false;
+			hljs.initHighlighting();
+		}, 500);
+	});
+	window.setTimeout(function() {
+		hljs.initHighlighting.called = false;
+		hljs.initHighlighting();
+	}, 500);
+});
+</script>
+
+
+	</head>
+	<body class="qa-template-question qa-body-js-off">
+		<div class="qa-body-wrapper">
+			
+			<div class="qa-header">
+				<div class="qa-logo">
+					<a href="../../" class="qa-logo-link" title="FEniCS Q&amp;A"><img src="../../qa-theme/fenics_qa.png" border="0" alt="FEniCS Q&amp;A"></a>
+				</div>
+				<div class="qa-header-clear">
+				</div>
+			</div> <!-- END qa-header -->
+			
+			<div class="qa-main-shadow">
+				
+				<div class="qa-main-wrapper">
+					
+					<div class="qa-sidepanel">
+						<div class="qa-sidebar">
+							This is a read only copy of the old FEniCS QA forum. Please visit the <a href="https://www.allanswered.com/community/s/fenics-project/">new QA forum</a> to ask questions
+						</div>
+						
+					</div>
+					
+					<div class="qa-main">
+						<h1>
+							<span class="entry-title">Different boundary conditions for trial and test function space</span>
+						</h1>
+						<div class="qa-part-q-view">
+							<div class="qa-q-view  hentry question" id="q5248">
+								<form method="post" action="../../5248/different-boundary-conditions-for-trial-test-function-space">
+									<div class="qa-q-view-stats">
+										<div class="qa-voting qa-voting-net" id="voting_5248">
+											<div class="qa-vote-count qa-vote-count-net">
+												<span class="qa-netvote-count">
+													<span class="qa-netvote-count-data">+4<span class="votes-up"><span class="value-title" title="4"></span></span><span class="votes-down"><span class="value-title" title="0"></span></span></span><span class="qa-netvote-count-pad"> votes</span>
+												</span>
+											</div>
+											<div class="qa-vote-clear">
+											</div>
+										</div>
+									</div>
+									<input type="hidden" name="code" value="0-1516468021-4079ae146d4015c82b550a786ee2cc2b5086e551">
+								</form>
+								<div class="qa-q-view-main">
+									<form method="post" action="../../5248/different-boundary-conditions-for-trial-test-function-space">
+										<div class="qa-q-view-content">
+											<a name="5248"></a><div class="entry-content"><p>I would like to know if there is an easy way to implement a method with different boundary conditions on the trial and test function spaces. Thanks.</p>
+
+<p>The simplest example is a second-order ODE:<br>
+$$\ddot u = f, \qquad u(0)=u_0, \quad \dot u(0)=u_1.$$<br>
+A simple weak formulation at the continuous level is: find $u\in H^1([0,T])$ with $u(0)=u_0$ such that<br>
+$$ -\int_0^T \dot u \dot v = u_1v(0)+\int_0^T fv=\int_0^T (f+u_1\delta)v+, \qquad \forall v\in \{v\in H^1([0,T])|v(T)=0\}.$$<br>
+The above can be discretized using, for example CG1 for both u and v. The implementation difficulty is that the boundary condition for the trial function u is $u(0)=u_0$ but the boundary condition for the test function v is $v(T)=0$. In effect, Dirichlet boundary condition for u is applied as usual, but the equation corresponding to testing against the basis supported at t=T is dropped. </p>
+
+<p><strong>Update:</strong><br>
+Below is a "dirty implementation" using FEniCS and numpy:</p>
+
+<pre><code>from dolfin import *
+import numpy as np
+# input data
+f = Expression("-225.0*sin(15.0*x[0])")
+u0 = 0.0
+u1 = 15.0
+u_ext = Expression("sin(15.0*x[0])")
+# discretization parameters
+mesh = UnitIntervalMesh(300)
+V = FunctionSpace(mesh, 'CG', 1)
+# galerkin method
+u = TrialFunction(V)
+v = TestFunction(V)
+a = -(u.dx(0)*v.dx(0))*dx
+L = f*v*dx
+# assemble and apply PointSource on rhs
+A = assemble(a)
+b = assemble(L)
+PointSource(V, Point(0.0), u1).apply(b)
+
+#--- dirty part begins ---#
+## export to numpy
+A = A.array()
+b = b.array()
+## remove the equation corresponding to testing
+#  against the test function centered at t=1.0.
+## for some reason, FEniCS CG1 dofs on the unit
+#  interval is numbered in reverse. See,
+#      V.dofmap.tabulate_all_coordinates(mesh)
+#  Thus we want to remove the very first equation
+A = A[1:,] 
+b = b[1:]
+# add the equation for the dirichlet BC: u(0)=u_0
+row = np.zeros(A.shape[1])
+row[-1] = 1.0 # the last component corresponds to t=0.0.
+A = np.vstack([A, row])
+b = np.hstack([b, u0])
+# numpy solve.
+x = np.linalg.solve(A, b)
+# plug the solution back to FEniCS
+uh = Function(V)
+uh.vector()[:] = x
+#--- dirty part ends ---#
+
+# compute the L2 error
+Vb = FunctionSpace(mesh, 'CG', 2)
+e = interpolate(u_ext, Vb) - interpolate(uh, Vb)
+print("L2 error={}".format(np.sqrt(assemble(e*e*dx))))
+#plot(uh, interactive=True)
+</code></pre>
+
+<p>The method itself is basically the standard central difference written in a finite element way (with better handling of the right-hand side). Similar time stepping can be used for the linear wave equation as well. But the dirty implementation here is far too dirty for PDE problems.</p>
+</div>
+										</div>
+										<div class="qa-q-view-tags">
+											<ul class="qa-q-view-tag-list">
+												<li class="qa-q-view-tag-item"><a href="../../tag/petrov-galerkin" rel="tag" class="qa-tag-link">petrov-galerkin</a></li>
+												<li class="qa-q-view-tag-item"><a href="../../tag/boundary-conditions" rel="tag" class="qa-tag-link">boundary-conditions</a></li>
+											</ul>
+										</div>
+										<span class="qa-q-view-avatar-meta">
+											<span class="qa-q-view-meta">
+												<a href="../../5248/different-boundary-conditions-for-trial-test-function-space" class="qa-q-view-what">asked</a>
+												<span class="qa-q-view-when">
+													<span class="qa-q-view-when-data"><span class="published"><span class="value-title" title="2014-09-02T05:55:16+0000"></span>Sep 2, 2014</span></span>
+												</span>
+												<span class="qa-q-view-who">
+													<span class="qa-q-view-who-pad">by </span>
+													<span class="qa-q-view-who-data"><span class="vcard author"><a href="../../user/lzlarryli" class="qa-user-link url nickname">lzlarryli</a></span></span>
+													<span class="qa-q-view-who-title">FEniCS Novice</span>
+													<span class="qa-q-view-who-points">
+														<span class="qa-q-view-who-points-pad">(</span><span class="qa-q-view-who-points-data">820</span><span class="qa-q-view-who-points-pad"> points)</span>
+													</span>
+												</span>
+												<br>
+												<span class="qa-q-view-what">edited</span>
+												<span class="qa-q-view-when">
+													<span class="qa-q-view-when-data"><span class="updated"><span class="value-title" title="2014-09-05T20:32:39+0000"></span>Sep 5, 2014</span></span>
+												</span>
+												<span class="qa-q-view-who">
+													<span class="qa-q-view-who-pad">by </span><span class="qa-q-view-who-data"><a href="../../user/lzlarryli" class="qa-user-link url nickname">lzlarryli</a></span>
+												</span>
+											</span>
+										</span>
+										<div class="qa-q-view-buttons">
+										</div>
+										
+										<div class="qa-q-view-c-list" id="c5248_list">
+											<div class="qa-c-list-item  hentry comment" id="c5250">
+												<div class="qa-c-item-content">
+													<a name="5250"></a><div class="entry-content"><p>Is your question whether or not the 'Dirichlet' dofs can be eliminated from the matrix?</p>
+</div>
+												</div>
+												<div class="qa-c-item-footer">
+													<span class="qa-c-item-avatar-meta">
+														<span class="qa-c-item-meta">
+															<a href="../../5248/different-boundary-conditions-for-trial-test-function-space?show=5250#c5250" class="qa-c-item-what">commented</a>
+															<span class="qa-c-item-when">
+																<span class="qa-c-item-when-data"><span class="published"><span class="value-title" title="2014-09-02T08:24:04+0000"></span>Sep 2, 2014</span></span>
+															</span>
+															<span class="qa-c-item-who">
+																<span class="qa-c-item-who-pad">by </span>
+																<span class="qa-c-item-who-data"><span class="vcard author"><a href="../../user/Garth+N.+Wells" class="qa-user-link url nickname">Garth N. Wells</a></span></span>
+																<span class="qa-c-item-who-title">FEniCS Expert</span>
+																<span class="qa-c-item-who-points">
+																	<span class="qa-c-item-who-points-pad">(</span><span class="qa-c-item-who-points-data">35,930</span><span class="qa-c-item-who-points-pad"> points)</span>
+																</span>
+															</span>
+														</span>
+													</span>
+													<div class="qa-c-item-buttons">
+													</div>
+												</div>
+												<div class="qa-c-item-clear">
+												</div>
+											</div> <!-- END qa-c-item -->
+											<div class="qa-c-list-item  hentry comment" id="c5255">
+												<div class="qa-c-item-content">
+													<a name="5255"></a><div class="entry-content"><p>Update: More clarification and a FEniCS+numpy implementation is added. <br>
+It can probably be interpreted as removing Dirchlet dof from the matrix. More simply, it is to shrink the test function space. </p>
+</div>
+												</div>
+												<div class="qa-c-item-footer">
+													<span class="qa-c-item-avatar-meta">
+														<span class="qa-c-item-meta">
+															<a href="../../5248/different-boundary-conditions-for-trial-test-function-space?show=5255#c5255" class="qa-c-item-what">commented</a>
+															<span class="qa-c-item-when">
+																<span class="qa-c-item-when-data"><span class="published"><span class="value-title" title="2014-09-02T16:51:40+0000"></span>Sep 2, 2014</span></span>
+															</span>
+															<span class="qa-c-item-who">
+																<span class="qa-c-item-who-pad">by </span>
+																<span class="qa-c-item-who-data"><span class="vcard author"><a href="../../user/lzlarryli" class="qa-user-link url nickname">lzlarryli</a></span></span>
+																<span class="qa-c-item-who-title">FEniCS Novice</span>
+																<span class="qa-c-item-who-points">
+																	<span class="qa-c-item-who-points-pad">(</span><span class="qa-c-item-who-points-data">820</span><span class="qa-c-item-who-points-pad"> points)</span>
+																</span>
+															</span>
+															<br>
+															<span class="qa-c-item-what">edited</span>
+															<span class="qa-c-item-when">
+																<span class="qa-c-item-when-data"><span class="updated"><span class="value-title" title="2014-09-05T20:32:07+0000"></span>Sep 5, 2014</span></span>
+															</span>
+															<span class="qa-c-item-who">
+																<span class="qa-c-item-who-pad">by </span><span class="qa-c-item-who-data"><a href="../../user/lzlarryli" class="qa-user-link url nickname">lzlarryli</a></span>
+															</span>
+														</span>
+													</span>
+													<div class="qa-c-item-buttons">
+													</div>
+												</div>
+												<div class="qa-c-item-clear">
+												</div>
+											</div> <!-- END qa-c-item -->
+											<div class="qa-c-list-item  hentry comment" id="c5324">
+												<div class="qa-c-item-content">
+													<a name="5324"></a><div class="entry-content"><p>I am wondering if Restriction can be used to do this?</p>
+</div>
+												</div>
+												<div class="qa-c-item-footer">
+													<span class="qa-c-item-avatar-meta">
+														<span class="qa-c-item-meta">
+															<a href="../../5248/different-boundary-conditions-for-trial-test-function-space?show=5324#c5324" class="qa-c-item-what">commented</a>
+															<span class="qa-c-item-when">
+																<span class="qa-c-item-when-data"><span class="published"><span class="value-title" title="2014-09-05T20:34:11+0000"></span>Sep 5, 2014</span></span>
+															</span>
+															<span class="qa-c-item-who">
+																<span class="qa-c-item-who-pad">by </span>
+																<span class="qa-c-item-who-data"><span class="vcard author"><a href="../../user/lzlarryli" class="qa-user-link url nickname">lzlarryli</a></span></span>
+																<span class="qa-c-item-who-title">FEniCS Novice</span>
+																<span class="qa-c-item-who-points">
+																	<span class="qa-c-item-who-points-pad">(</span><span class="qa-c-item-who-points-data">820</span><span class="qa-c-item-who-points-pad"> points)</span>
+																</span>
+															</span>
+														</span>
+													</span>
+													<div class="qa-c-item-buttons">
+													</div>
+												</div>
+												<div class="qa-c-item-clear">
+												</div>
+											</div> <!-- END qa-c-item -->
+										</div> <!-- END qa-c-list -->
+										
+										<input type="hidden" name="code" value="0-1516468021-38c3e8ea865ac3aef62e9d5384f06c70507ce66c">
+										<input type="hidden" name="qa_click" value="">
+									</form>
+									<div class="qa-c-form">
+									</div> <!-- END qa-c-form -->
+									
+								</div> <!-- END qa-q-view-main -->
+								<div class="qa-q-view-clear">
+								</div>
+							</div> <!-- END qa-q-view -->
+							
+						</div>
+						<div class="qa-part-a-list">
+							<h2 id="a_list_title">1 Answer</h2>
+							<div class="qa-a-list" id="a_list">
+								
+								<div class="qa-a-list-item  hentry answer answer-selected qa-a-list-item-selected" id="a5625">
+									<form method="post" action="../../5248/different-boundary-conditions-for-trial-test-function-space">
+										<div class="qa-voting qa-voting-net" id="voting_5625">
+											<div class="qa-vote-count qa-vote-count-net">
+												<span class="qa-netvote-count">
+													<span class="qa-netvote-count-data">+7<span class="votes-up"><span class="value-title" title="7"></span></span><span class="votes-down"><span class="value-title" title="0"></span></span></span><span class="qa-netvote-count-pad"> votes</span>
+												</span>
+											</div>
+											<div class="qa-vote-clear">
+											</div>
+										</div>
+										<input type="hidden" name="code" value="0-1516468021-4079ae146d4015c82b550a786ee2cc2b5086e551">
+									</form>
+									<div class="qa-a-item-main">
+										<form method="post" action="../../5248/different-boundary-conditions-for-trial-test-function-space">
+											<div class="qa-a-item-selected">
+												<div class="qa-a-selection">
+													<div class="qa-a-selected">&#160;</div>
+													<div class="qa-a-selected-text">Best answer</div>
+												</div>
+												<div class="qa-a-item-content">
+													<a name="5625"></a><div class="entry-content"><p>Larry, You can do this by not imposing any Dirichlet boundary condition directly but adding an addition real number parameter in both the trial and the test space.  So the variational formulation becomes: find $u\in H^1$, $r\in \mathbb R$ such that</p>
+
+<p>$$-\int \dot u\dot v + u(0) s + r v(T) = \int fv, \quad v\in H^1,\<br>
+ s\in \mathbb R.$$</p>
+
+<p>(I am assuming $u_0=u_1=0$ for simplicity only.)  Here is an implementation:</p>
+
+<pre><code>from dolfin import *
+import numpy as np
+# problem is u'' = f, u(0) = u'(0) = 0  with  u = cos(15 x) -1
+f = Expression("-225.0*cos(15.0*x[0])")
+mesh = UnitIntervalMesh(300)
+V = FunctionSpace(mesh, 'CG', 1)
+R = FunctionSpace(mesh, 'Real', 0)
+W = MixedFunctionSpace([V, R])
+left = Expression('1-x[0]') # 1 at left endpoint, 0 at right
+right = Expression('x[0]')
+# Galerkin method
+u, r = TrialFunctions(W)
+v, s = TestFunctions(W)
+a = -(u.dx(0)*v.dx(0))*dx + left*u*s*ds + right*r*v*ds
+L = f*v*dx
+w = Function(W)
+solve(a == L, w)
+u, r = w.split()
+</code></pre>
+</div>
+												</div>
+												<span class="qa-a-item-avatar-meta">
+													<span class="qa-a-item-avatar">
+														<a href="../../user/dnarnold" class="qa-avatar-link"><img src="https://www.gravatar.com/avatar/95fa33c4f1fa2e34eb3498eaa8b0a091?s=40" width="40" height="40" class="qa-avatar-image" alt=""></a>
+													</span>
+													<span class="qa-a-item-meta">
+														<a href="../../5248/different-boundary-conditions-for-trial-test-function-space?show=5625#a5625" class="qa-a-item-what">answered</a>
+														<span class="qa-a-item-when">
+															<span class="qa-a-item-when-data"><span class="published"><span class="value-title" title="2014-09-25T03:02:15+0000"></span>Sep 25, 2014</span></span>
+														</span>
+														<span class="qa-a-item-who">
+															<span class="qa-a-item-who-pad">by </span>
+															<span class="qa-a-item-who-data"><span class="vcard author"><a href="../../user/dnarnold" class="qa-user-link url nickname">dnarnold</a></span></span>
+															<span class="qa-a-item-who-title">FEniCS User</span>
+															<span class="qa-a-item-who-points">
+																<span class="qa-a-item-who-points-pad">(</span><span class="qa-a-item-who-points-data">2,360</span><span class="qa-a-item-who-points-pad"> points)</span>
+															</span>
+														</span>
+													</span>
+												</span>
+											</div>
+											<div class="qa-a-item-buttons">
+												</div>
+											
+											<div class="qa-a-item-c-list" style="display:none;" id="c5625_list">
+											</div> <!-- END qa-c-list -->
+											
+											<input type="hidden" name="code" value="0-1516468021-072cc67da4c15281a748c317f55db98f3fd7cd64">
+											<input type="hidden" name="qa_click" value="">
+										</form>
+										<div class="qa-c-form">
+										</div> <!-- END qa-c-form -->
+										
+									</div> <!-- END qa-a-item-main -->
+									<div class="qa-a-item-clear">
+									</div>
+								</div> <!-- END qa-a-list-item -->
+								
+							</div> <!-- END qa-a-list -->
+							
+						</div>
+					</div> <!-- END qa-main -->
+					
+				</div> <!-- END main-wrapper -->
+			</div> <!-- END main-shadow -->
+		</div> <!-- END body-wrapper -->
+		<!-- END footer-bottom-group -->
+		
+		<div style="position:absolute; left:-9999px; top:-9999px;">
+			<span id="qa-waiting-template" class="qa-waiting">...</span>
+		</div>
+	
+	
+
+</body><!-- Powered by Question2Answer - http://www.question2answer.org/ --></html>

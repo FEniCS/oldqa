@@ -1,0 +1,325 @@
+<html><!-- Powered by Question2Answer - http://www.question2answer.org/ --><head>
+		<meta http-equiv="content-type" content="text/html; charset=utf-8">
+		<title>Solving Linear System with BlockMatrix and BlockVector - FEniCS Q&amp;A</title>
+		<meta name="description" content="I have set up a linear system using a `BlockMatrix` and `BlockVector`, where blocks arise from assembled  ... it throws an error (y,p) = split(x)">
+		<meta name="keywords" content="linear-solver,assembly,block,blockmatrix,blockvector">
+		<link rel="stylesheet" type="text/css" href="../../qa-theme/Snow/qa-styles.css">
+		<link rel="canonical" href="http://fenicsproject.org/qa/9766/solving-linear-system-with-blockmatrix-and-blockvector">
+		<script type="text/x-mathjax-config">
+  MathJax.Hub.Config({
+    extensions: ["tex2jax.js"],
+    jax: ["input/TeX","output/HTML-CSS"],
+    tex2jax: {inlineMath: [["$","$"],["\\(","\\)"]]},
+    TeX: { extensions: ["AMSmath.js","AMSsymbols.js"]}
+  });
+</script>
+<script type="text/javascript" src="../../mathjax/MathJax.js"></script>
+		<script src="../../jquery-1.7.2.min.js" type="text/javascript"></script>
+		<script src="../../highlight.min.js"></script>
+<script type="text/javascript">
+$(function(){
+	$('.wmd-input').keypress(function(){
+		window.clearTimeout(hljs.Timeout);
+		hljs.Timeout = window.setTimeout(function() {
+			hljs.initHighlighting.called = false;
+			hljs.initHighlighting();
+		}, 500);
+	});
+	window.setTimeout(function() {
+		hljs.initHighlighting.called = false;
+		hljs.initHighlighting();
+	}, 500);
+});
+</script>
+
+
+	</head>
+	<body class="qa-template-question qa-body-js-off">
+		<div class="qa-body-wrapper">
+			
+			<div class="qa-header">
+				<div class="qa-logo">
+					<a href="../../" class="qa-logo-link" title="FEniCS Q&amp;A"><img src="../../qa-theme/fenics_qa.png" border="0" alt="FEniCS Q&amp;A"></a>
+				</div>
+				<div class="qa-header-clear">
+				</div>
+			</div> <!-- END qa-header -->
+			
+			<div class="qa-main-shadow">
+				
+				<div class="qa-main-wrapper">
+					
+					<div class="qa-sidepanel">
+						<div class="qa-sidebar">
+							This is a read only copy of the old FEniCS QA forum. Please visit the <a href="https://www.allanswered.com/community/s/fenics-project/">new QA forum</a> to ask questions
+						</div>
+						
+					</div>
+					
+					<div class="qa-main">
+						<h1>
+							<span class="entry-title">Solving Linear System with BlockMatrix and BlockVector</span>
+						</h1>
+						<div class="qa-part-q-view">
+							<div class="qa-q-view  hentry question" id="q9766">
+								<form method="post" action="../../9766/solving-linear-system-with-blockmatrix-and-blockvector">
+									<div class="qa-q-view-stats">
+										<div class="qa-voting qa-voting-net" id="voting_9766">
+											<div class="qa-vote-count qa-vote-count-net">
+												<span class="qa-netvote-count">
+													<span class="qa-netvote-count-data">+1<span class="votes-up"><span class="value-title" title="1"></span></span><span class="votes-down"><span class="value-title" title="0"></span></span></span><span class="qa-netvote-count-pad"> vote</span>
+												</span>
+											</div>
+											<div class="qa-vote-clear">
+											</div>
+										</div>
+									</div>
+									<input type="hidden" name="code" value="0-1516468237-461d69e074585a69047b8dbe85114d6dbe847de2">
+								</form>
+								<div class="qa-q-view-main">
+									<form method="post" action="../../9766/solving-linear-system-with-blockmatrix-and-blockvector">
+										<div class="qa-q-view-content">
+											<a name="9766"></a><div class="entry-content"><p>I have set up a linear system using a <code>BlockMatrix</code> and <code>BlockVector</code>, where blocks arise from assembled systems and self introduced linear systems. But I see that the <code>solve()</code> doesn't take these entities as valid inputs. How can solve such a system which has been constructed using these objects? Also will it be possible to separate out parts which correspond to different blocks (something akin to the <code>split()</code> method used for <code>MixedFunctionSpaces</code> ) ?</p>
+
+<p>Below is a minimal code for what I seek to do inside an iteration eventually. I'd appreciate any comments regarding the quality of the code so far: please suggest improvements if you think some things can be done more elegantly. For now I am struggling to get the code working but this input will also go a long way. </p>
+
+<pre><code>from dolfin import *
+from mshr import *
+from petsc4py import PETSc
+
+N     = 128
+alpha = 1e-3
+mesh = UnitSquareMesh(N,N)
+
+V = FunctionSpace(mesh, 'CG', 1)
+u = TrialFunction(V)
+v = TestFunction(V)
+yd = Expression('exp(-50*(pow(x[0]-0.5,2) + pow(x[1]-0.5,2)))')
+
+a  = inner(grad(u),grad(v))*dx
+bc = DirichletBC(V, Constant(0.0), "on_boundary")
+
+z  = yd*v*dx      
+A, z  = assemble_system(a,z,bc)            
+AT = assemble(adjoint(a)) 
+bc.apply(AT)    
+M = assemble(u*v*dx)       
+bc.apply(M)
+
+n = V.dim()                
+Ap = Am = z
+Ap.zero()
+Am.zero()
+Ap_old = Ap
+Am_old = Am
+
+gamma = 1
+
+As = as_backend_type(A)
+As.zero()
+dvec  = (Ap+Am)
+dvec*=(gamma)
+As.set_diagonal(dvec)
+
+H  = BlockMatrix(2,2)
+H[0, 0] = A
+H[1, 0] = As
+H[0, 1] = -1*M
+H[1, 1] = AT
+
+g = BlockVector(2)
+g[0] = alpha*gamma*(Ap-Am)
+g[1] = -1*z
+
+x = BlockVector(2)
+solve(H, x, g)  # Evidently, this is where it throws an error
+(y,p) = split(x)  
+</code></pre>
+</div>
+										</div>
+										<div class="qa-q-view-tags">
+											<ul class="qa-q-view-tag-list">
+												<li class="qa-q-view-tag-item"><a href="../../tag/linear-solver" rel="tag" class="qa-tag-link">linear-solver</a></li>
+												<li class="qa-q-view-tag-item"><a href="../../tag/assembly" rel="tag" class="qa-tag-link">assembly</a></li>
+												<li class="qa-q-view-tag-item"><a href="../../tag/block" rel="tag" class="qa-tag-link">block</a></li>
+												<li class="qa-q-view-tag-item"><a href="../../tag/blockmatrix" rel="tag" class="qa-tag-link">blockmatrix</a></li>
+												<li class="qa-q-view-tag-item"><a href="../../tag/blockvector" rel="tag" class="qa-tag-link">blockvector</a></li>
+											</ul>
+										</div>
+										<span class="qa-q-view-avatar-meta">
+											<span class="qa-q-view-meta">
+												<a href="../../9766/solving-linear-system-with-blockmatrix-and-blockvector" class="qa-q-view-what">asked</a>
+												<span class="qa-q-view-when">
+													<span class="qa-q-view-when-data"><span class="published"><span class="value-title" title="2016-04-05T16:38:00+0000"></span>Apr 5, 2016</span></span>
+												</span>
+												<span class="qa-q-view-who">
+													<span class="qa-q-view-who-pad">by </span>
+													<span class="qa-q-view-who-data"><span class="vcard author"><a href="../../user/aseemdua" class="qa-user-link url nickname">aseemdua</a></span></span>
+													<span class="qa-q-view-who-title">FEniCS Novice</span>
+													<span class="qa-q-view-who-points">
+														<span class="qa-q-view-who-points-pad">(</span><span class="qa-q-view-who-points-data">180</span><span class="qa-q-view-who-points-pad"> points)</span>
+													</span>
+												</span>
+												<br>
+												<span class="qa-q-view-what">edited</span>
+												<span class="qa-q-view-when">
+													<span class="qa-q-view-when-data"><span class="updated"><span class="value-title" title="2016-04-06T13:56:44+0000"></span>Apr 6, 2016</span></span>
+												</span>
+												<span class="qa-q-view-who">
+													<span class="qa-q-view-who-pad">by </span><span class="qa-q-view-who-data"><a href="../../user/aseemdua" class="qa-user-link url nickname">aseemdua</a></span>
+												</span>
+											</span>
+										</span>
+										<div class="qa-q-view-buttons">
+										</div>
+										
+										<div class="qa-q-view-c-list" style="display:none;" id="c9766_list">
+										</div> <!-- END qa-c-list -->
+										
+										<input type="hidden" name="code" value="0-1516468237-ed94c23b7a78317adfad04c9ce40af32afbf0131">
+										<input type="hidden" name="qa_click" value="">
+									</form>
+									<div class="qa-c-form">
+									</div> <!-- END qa-c-form -->
+									
+								</div> <!-- END qa-q-view-main -->
+								<div class="qa-q-view-clear">
+								</div>
+							</div> <!-- END qa-q-view -->
+							
+						</div>
+						<div class="qa-part-a-list">
+							<h2 id="a_list_title">1 Answer</h2>
+							<div class="qa-a-list" id="a_list">
+								
+								<div class="qa-a-list-item  hentry answer" id="a9788">
+									<form method="post" action="../../9766/solving-linear-system-with-blockmatrix-and-blockvector">
+										<div class="qa-voting qa-voting-net" id="voting_9788">
+											<div class="qa-vote-count qa-vote-count-net">
+												<span class="qa-netvote-count">
+													<span class="qa-netvote-count-data">0<span class="votes-up"><span class="value-title" title="0"></span></span><span class="votes-down"><span class="value-title" title="0"></span></span></span><span class="qa-netvote-count-pad"> votes</span>
+												</span>
+											</div>
+											<div class="qa-vote-clear">
+											</div>
+										</div>
+										<input type="hidden" name="code" value="0-1516468237-461d69e074585a69047b8dbe85114d6dbe847de2">
+									</form>
+									<div class="qa-a-item-main">
+										<form method="post" action="../../9766/solving-linear-system-with-blockmatrix-and-blockvector">
+											<div class="qa-a-selection">
+											</div>
+											<div class="qa-a-item-content">
+												<a name="9788"></a><div class="entry-content"><p>Consider using cbc.block for this:<br>
+<a rel="nofollow" href="https://bitbucket.org/fenics-apps/cbc.block">https://bitbucket.org/fenics-apps/cbc.block</a> </p>
+</div>
+											</div>
+											<span class="qa-a-item-avatar-meta">
+												<span class="qa-a-item-meta">
+													<a href="../../9766/solving-linear-system-with-blockmatrix-and-blockvector?show=9788#a9788" class="qa-a-item-what">answered</a>
+													<span class="qa-a-item-when">
+														<span class="qa-a-item-when-data"><span class="published"><span class="value-title" title="2016-04-07T04:55:38+0000"></span>Apr 7, 2016</span></span>
+													</span>
+													<span class="qa-a-item-who">
+														<span class="qa-a-item-who-pad">by </span>
+														<span class="qa-a-item-who-data"><span class="vcard author"><a href="../../user/Kent-Andre+Mardal" class="qa-user-link url nickname">Kent-Andre Mardal</a></span></span>
+														<span class="qa-a-item-who-title">FEniCS Expert</span>
+														<span class="qa-a-item-who-points">
+															<span class="qa-a-item-who-points-pad">(</span><span class="qa-a-item-who-points-data">14,380</span><span class="qa-a-item-who-points-pad"> points)</span>
+														</span>
+													</span>
+												</span>
+											</span>
+											<div class="qa-a-item-buttons">
+												</div>
+											
+											<div class="qa-a-item-c-list" id="c9788_list">
+												<div class="qa-c-list-item  hentry comment" id="c9830">
+													<div class="qa-c-item-content">
+														<a name="9830"></a><div class="entry-content"><p>I am not sure if there is a confusion. cbc.block seems to be more targeted towards a block preconditioning. In my sample code, I attempt to combine two linear systems, out of which one arises from a variational form, the other is by construction in a single <code>Hx=g</code> form giving a blocked structure for H. Neither of <code>BlockMatrix</code> and <code>block_matrix</code> objects are conducive to be used inside a <code>solve()</code> command which desires a <code>GenericLinearOperator</code> object for H. I am looking for ways to get such an assembled block system as a <code>GenericLinearOperator</code> object or to that of its derived classes.</p>
+</div>
+													</div>
+													<div class="qa-c-item-footer">
+														<span class="qa-c-item-avatar-meta">
+															<span class="qa-c-item-meta">
+																<a href="../../9766/solving-linear-system-with-blockmatrix-and-blockvector?show=9830#c9830" class="qa-c-item-what">commented</a>
+																<span class="qa-c-item-when">
+																	<span class="qa-c-item-when-data"><span class="published"><span class="value-title" title="2016-04-10T10:06:44+0000"></span>Apr 10, 2016</span></span>
+																</span>
+																<span class="qa-c-item-who">
+																	<span class="qa-c-item-who-pad">by </span>
+																	<span class="qa-c-item-who-data"><span class="vcard author"><a href="../../user/aseemdua" class="qa-user-link url nickname">aseemdua</a></span></span>
+																	<span class="qa-c-item-who-title">FEniCS Novice</span>
+																	<span class="qa-c-item-who-points">
+																		<span class="qa-c-item-who-points-pad">(</span><span class="qa-c-item-who-points-data">180</span><span class="qa-c-item-who-points-pad"> points)</span>
+																	</span>
+																</span>
+															</span>
+														</span>
+														<div class="qa-c-item-buttons">
+														</div>
+													</div>
+													<div class="qa-c-item-clear">
+													</div>
+												</div> <!-- END qa-c-item -->
+												<div class="qa-c-list-item  hentry comment" id="c9831">
+													<div class="qa-c-item-content">
+														<a name="9831"></a><div class="entry-content"><p>Consider using the backend PETSc to handle the solve rutine and <br>
+avoid using the GenericLinearOperator. PETSc has tools for block <br>
+matrices and block vectors. I don't think the BlockMatrix &lt;-&gt; GenericLinearOperator<br>
+has been much used and it might take some work. </p>
+</div>
+													</div>
+													<div class="qa-c-item-footer">
+														<span class="qa-c-item-avatar-meta">
+															<span class="qa-c-item-meta">
+																<a href="../../9766/solving-linear-system-with-blockmatrix-and-blockvector?show=9831#c9831" class="qa-c-item-what">commented</a>
+																<span class="qa-c-item-when">
+																	<span class="qa-c-item-when-data"><span class="published"><span class="value-title" title="2016-04-10T10:18:59+0000"></span>Apr 10, 2016</span></span>
+																</span>
+																<span class="qa-c-item-who">
+																	<span class="qa-c-item-who-pad">by </span>
+																	<span class="qa-c-item-who-data"><span class="vcard author"><a href="../../user/Kent-Andre+Mardal" class="qa-user-link url nickname">Kent-Andre Mardal</a></span></span>
+																	<span class="qa-c-item-who-title">FEniCS Expert</span>
+																	<span class="qa-c-item-who-points">
+																		<span class="qa-c-item-who-points-pad">(</span><span class="qa-c-item-who-points-data">14,380</span><span class="qa-c-item-who-points-pad"> points)</span>
+																	</span>
+																</span>
+															</span>
+														</span>
+														<div class="qa-c-item-buttons">
+														</div>
+													</div>
+													<div class="qa-c-item-clear">
+													</div>
+												</div> <!-- END qa-c-item -->
+											</div> <!-- END qa-c-list -->
+											
+											<input type="hidden" name="code" value="0-1516468237-d8d513bb429d18557e3d41b0b38e195c9b56570c">
+											<input type="hidden" name="qa_click" value="">
+										</form>
+										<div class="qa-c-form">
+										</div> <!-- END qa-c-form -->
+										
+									</div> <!-- END qa-a-item-main -->
+									<div class="qa-a-item-clear">
+									</div>
+								</div> <!-- END qa-a-list-item -->
+								
+							</div> <!-- END qa-a-list -->
+							
+						</div>
+					</div> <!-- END qa-main -->
+					
+				</div> <!-- END main-wrapper -->
+			</div> <!-- END main-shadow -->
+		</div> <!-- END body-wrapper -->
+		<!-- END footer-bottom-group -->
+		
+		<div style="position:absolute; left:-9999px; top:-9999px;">
+			<span id="qa-waiting-template" class="qa-waiting">...</span>
+		</div>
+	
+	
+
+</body><!-- Powered by Question2Answer - http://www.question2answer.org/ --></html>

@@ -1,0 +1,238 @@
+<html><!-- Powered by Question2Answer - http://www.question2answer.org/ --><head>
+		<meta http-equiv="content-type" content="text/html; charset=utf-8">
+		<title>Marking a subdomain using CellFunction or MeshFunction - FEniCS Q&amp;A</title>
+		<meta name="description" content="I want to solve linear elasticity on 2D with the imperfection right at the center of the domain (this part ... , x, on_boundary): return True if (-0.2">
+		<meta name="keywords" content="marking,boundary-markers,subdomains">
+		<link rel="stylesheet" type="text/css" href="../../qa-theme/Snow/qa-styles.css">
+		<link rel="canonical" href="http://fenicsproject.org/qa/5242/marking-a-subdomain-using-cellfunction-or-meshfunction">
+		<script type="text/x-mathjax-config">
+  MathJax.Hub.Config({
+    extensions: ["tex2jax.js"],
+    jax: ["input/TeX","output/HTML-CSS"],
+    tex2jax: {inlineMath: [["$","$"],["\\(","\\)"]]},
+    TeX: { extensions: ["AMSmath.js","AMSsymbols.js"]}
+  });
+</script>
+<script type="text/javascript" src="../../mathjax/MathJax.js"></script>
+		<script src="../../jquery-1.7.2.min.js" type="text/javascript"></script>
+		<script src="../../highlight.min.js"></script>
+<script type="text/javascript">
+$(function(){
+	$('.wmd-input').keypress(function(){
+		window.clearTimeout(hljs.Timeout);
+		hljs.Timeout = window.setTimeout(function() {
+			hljs.initHighlighting.called = false;
+			hljs.initHighlighting();
+		}, 500);
+	});
+	window.setTimeout(function() {
+		hljs.initHighlighting.called = false;
+		hljs.initHighlighting();
+	}, 500);
+});
+</script>
+
+
+	</head>
+	<body class="qa-template-question qa-body-js-off">
+		<div class="qa-body-wrapper">
+			
+			<div class="qa-header">
+				<div class="qa-logo">
+					<a href="../../" class="qa-logo-link" title="FEniCS Q&amp;A"><img src="../../qa-theme/fenics_qa.png" border="0" alt="FEniCS Q&amp;A"></a>
+				</div>
+				<div class="qa-header-clear">
+				</div>
+			</div> <!-- END qa-header -->
+			
+			<div class="qa-main-shadow">
+				
+				<div class="qa-main-wrapper">
+					
+					<div class="qa-sidepanel">
+						<div class="qa-sidebar">
+							This is a read only copy of the old FEniCS QA forum. Please visit the <a href="https://www.allanswered.com/community/s/fenics-project/">new QA forum</a> to ask questions
+						</div>
+						
+					</div>
+					
+					<div class="qa-main">
+						<h1>
+							<span class="entry-title">Marking a subdomain using CellFunction or MeshFunction</span>
+						</h1>
+						<div class="qa-part-q-view">
+							<div class="qa-q-view  hentry question" id="q5242">
+								<form method="post" action="../../5242/marking-a-subdomain-using-cellfunction-or-meshfunction">
+									<div class="qa-q-view-stats">
+										<div class="qa-voting qa-voting-net" id="voting_5242">
+											<div class="qa-vote-count qa-vote-count-net">
+												<span class="qa-netvote-count">
+													<span class="qa-netvote-count-data">0<span class="votes-up"><span class="value-title" title="0"></span></span><span class="votes-down"><span class="value-title" title="0"></span></span></span><span class="qa-netvote-count-pad"> votes</span>
+												</span>
+											</div>
+											<div class="qa-vote-clear">
+											</div>
+										</div>
+									</div>
+									<input type="hidden" name="code" value="0-1516468021-e180b55cc9bca6d54f592079b84deea8bbac3e11">
+								</form>
+								<div class="qa-q-view-main">
+									<form method="post" action="../../5242/marking-a-subdomain-using-cellfunction-or-meshfunction">
+										<div class="qa-q-view-content">
+											<a name="5242"></a><div class="entry-content"><p>I want to solve linear elasticity on 2D with the imperfection right at the center of the domain (this part does have 10 percent of the modulus of elasticity of the domain(line 28 of the code). External forces are applied as displacement over right and left boundary. My code works well without marking that specific domain. I would appreciate if someone can help me out on this problem.</p>
+
+<pre><code>nu = Constant(0.2)                  # poisson ratio (undamaged material)
+u_f = 10                            # Total applied displacement 
+u_0 = 10**(-6)
+ne = 100                            # Number of elements along one side of the domain
+tol_b= 1E-14                        # Tolerence for defining the boundary
+
+domain = Rectangle(-0.6, -0.2, 0.6, 0.2)
+# Plot geometry
+plot(domain, "2D Geometry (boundary)")
+# Generate and plot mesh
+mesh = Mesh(domain, ne)
+plot(mesh, "2D mesh")
+# Define a MeshFunction over two subdomains
+#subdomains = MeshFunction("size_t", mesh, 2)
+subdomains = CellFunction("size_t", mesh)
+subdomains.set_all(0)
+## Class definition to mark the subdomains
+class Omega0(SubDomain):
+   def inside(self, x, on_boundary):
+       return True if (-0.2 &lt;= x[0] &lt;= 0.2 and -0.1 &lt;= x[1] &lt;= 0.1) else False
+
+subdomain0 = Omega0()
+subdomain0.mark(subdomains, 1)
+## Define a discontinuous function space for marking subdomains
+V0 = FunctionSpace(mesh, 'DG', 0)
+E = Function(V0)
+# Loop over all cell numbers, find corresponding subdomain number and fill cell value in E
+E_values = [1,0.1]                         # values of E in the two subdomains
+for cell_no in range(len(subdomains.array())):
+    subdomain_no = subdomains.array()[cell_no]
+    E.vector()[cell_no] = E_values[subdomain_no]
+
+# V is a function space to solve the equilibrium equation over the domain
+V = VectorFunctionSpace(mesh, 'Lagrange', 1)
+
+ # Right boundary  (Applied displacement as tension)
+ def right_boundary(x, on_boundary):
+    return on_boundary and abs(x[0]-0.6) &lt; tol_b
+
+ def left_boundary(x, on_boundary):
+   return on_boundary and abs(x[0]+0.6) &lt; tol_b
+
+# Strain Tensor
+ def eps(v):
+  return sym(grad(v))
+
+ #Definition of Stress Tensor components
+
+  def sigma11(v):
+   return (eps(v)[0,0]+nu*eps(v)[1,1])
+
+  def sigma22(v):
+      return (eps(v)[1,1]+nu*eps(v)[0,0])
+
+  def sigma12(v):
+     return (1-nu)*eps(v)[0,1]
+  #-------------------------------------------------------------------------------------------------------
+  # bulk load (body forces) 
+   f=Constant((0.0,0.0))
+   #-------------------------------------------------------------------------------------------------------
+  # Define the function, test and trial fields for equilibrium equation     
+  u=TrialFunction(V)
+  u_n=TrialFunction(V)                   # Displacement field in current step
+  v =TestFunction(V)                     # Test function to solve equlibrium
+  # Bilinear form of elasticity
+  a= (E.vector()[cell_no]*(sigma11(u)*eps(v)[0,0]+ sigma22(u)*eps(v)[1,1]+sigma12(u)*eps(v)[0,1]))*dx
+ #a = (E.vector()[cell_no]*(eps(u)[0,0]*eps(v)[0,0]+nu*eps(u)[1,1]*eps(v)[0,0]+ nu*eps(u)[0,0]*eps(v)[1,1]+eps(u)[1,1]*eps(v)[1,1]+(1-nu)*eps(u)[0,1]*eps(v)[0,1]))*dx
+ # Linear form of elasticity
+  L=dot(f,v)*dx
+  T = 1                                # total simulation time
+  n_timesteps = 101                 # number of time steps
+  dt = T/float(n_timesteps-1)        # time step
+  #-------------------------------------------------------------------------------------------------------
+  times = np.linspace(0.,T,n_timesteps)
+  #for timestep in range(len(times)):
+  t = 0
+  while t &lt;= T:# and Linf_dold &lt; 1.0 :
+    #plot(d_old, title="damage level")
+    #t = times[timestep]linear
+    t = t + dt
+    print 'time =', t
+    u_app = t*u_f
+    print 'Applied disp', u_app
+    u_n = Function(V)
+    u_L = Constant((-1*u_app,0.0))
+    u_R = Constant((u_app,0.0))
+    Gamma_1 = DirichletBC(V, u_L, left_boundary)
+    Gamma_2 = DirichletBC(V, u_R, right_boundary)
+    bcs = [Gamma_1, Gamma_2]
+    solve(a == L, u_n, bcs,solver_parameters={'linear_solver': 'cg','preconditioner': 'bjacobi'})
+</code></pre>
+</div>
+										</div>
+										<div class="qa-q-view-tags">
+											<ul class="qa-q-view-tag-list">
+												<li class="qa-q-view-tag-item"><a href="../../tag/marking" rel="tag" class="qa-tag-link">marking</a></li>
+												<li class="qa-q-view-tag-item"><a href="../../tag/boundary-markers" rel="tag" class="qa-tag-link">boundary-markers</a></li>
+												<li class="qa-q-view-tag-item"><a href="../../tag/subdomains" rel="tag" class="qa-tag-link">subdomains</a></li>
+											</ul>
+										</div>
+										<span class="qa-q-view-avatar-meta">
+											<span class="qa-q-view-meta">
+												<a href="../../5242/marking-a-subdomain-using-cellfunction-or-meshfunction" class="qa-q-view-what">asked</a>
+												<span class="qa-q-view-when">
+													<span class="qa-q-view-when-data"><span class="published"><span class="value-title" title="2014-09-01T08:00:58+0000"></span>Sep 1, 2014</span></span>
+												</span>
+												<span class="qa-q-view-who">
+													<span class="qa-q-view-who-pad">by </span>
+													<span class="qa-q-view-who-data"><span class="vcard author"><a href="../../user/Navid+Mozaffari" class="qa-user-link url nickname">Navid Mozaffari</a></span></span>
+													<span class="qa-q-view-who-title">FEniCS Novice</span>
+													<span class="qa-q-view-who-points">
+														<span class="qa-q-view-who-points-pad">(</span><span class="qa-q-view-who-points-data">510</span><span class="qa-q-view-who-points-pad"> points)</span>
+													</span>
+												</span>
+											</span>
+										</span>
+										<div class="qa-q-view-buttons">
+										</div>
+										
+										<div class="qa-q-view-c-list" style="display:none;" id="c5242_list">
+										</div> <!-- END qa-c-list -->
+										
+										<input type="hidden" name="code" value="0-1516468021-27647d3b88b5106226c5e19505e56705e8fbd681">
+										<input type="hidden" name="qa_click" value="">
+									</form>
+									<div class="qa-c-form">
+									</div> <!-- END qa-c-form -->
+									
+								</div> <!-- END qa-q-view-main -->
+								<div class="qa-q-view-clear">
+								</div>
+							</div> <!-- END qa-q-view -->
+							
+						</div>
+						<div class="qa-part-a-list">
+							<h2 id="a_list_title" style="display:none;"></h2>
+							<div class="qa-a-list" id="a_list">
+								
+							</div> <!-- END qa-a-list -->
+							
+						</div>
+					</div> <!-- END qa-main -->
+					
+				</div> <!-- END main-wrapper -->
+			</div> <!-- END main-shadow -->
+		</div> <!-- END body-wrapper -->
+		<!-- END footer-bottom-group -->
+		
+		<div style="position:absolute; left:-9999px; top:-9999px;">
+			<span id="qa-waiting-template" class="qa-waiting">...</span>
+		</div>
+	
+	
+
+</body><!-- Powered by Question2Answer - http://www.question2answer.org/ --></html>

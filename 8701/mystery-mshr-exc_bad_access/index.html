@@ -1,0 +1,365 @@
+<html><!-- Powered by Question2Answer - http://www.question2answer.org/ --><head>
+		<meta http-equiv="content-type" content="text/html; charset=utf-8">
+		<title>Mystery: Mshr EXC_BAD_ACCESS - FEniCS Q&amp;A</title>
+		<meta name="description" content="Dear all, I am struggling with a bug in my code that buffles me. Let me explain the  ...  : planeStress_(planeStress), mesh_(Mesh()) { logger">
+		<meta name="keywords" content="mshr,mesh,dolfin">
+		<link rel="stylesheet" type="text/css" href="../../qa-theme/Snow/qa-styles.css">
+		<link rel="canonical" href="http://fenicsproject.org/qa/8701/mystery-mshr-exc_bad_access">
+		<script type="text/x-mathjax-config">
+  MathJax.Hub.Config({
+    extensions: ["tex2jax.js"],
+    jax: ["input/TeX","output/HTML-CSS"],
+    tex2jax: {inlineMath: [["$","$"],["\\(","\\)"]]},
+    TeX: { extensions: ["AMSmath.js","AMSsymbols.js"]}
+  });
+</script>
+<script type="text/javascript" src="../../mathjax/MathJax.js"></script>
+		<script src="../../jquery-1.7.2.min.js" type="text/javascript"></script>
+		<script src="../../highlight.min.js"></script>
+<script type="text/javascript">
+$(function(){
+	$('.wmd-input').keypress(function(){
+		window.clearTimeout(hljs.Timeout);
+		hljs.Timeout = window.setTimeout(function() {
+			hljs.initHighlighting.called = false;
+			hljs.initHighlighting();
+		}, 500);
+	});
+	window.setTimeout(function() {
+		hljs.initHighlighting.called = false;
+		hljs.initHighlighting();
+	}, 500);
+});
+</script>
+
+
+	</head>
+	<body class="qa-template-question qa-body-js-off">
+		<div class="qa-body-wrapper">
+			
+			<div class="qa-header">
+				<div class="qa-logo">
+					<a href="../" class="qa-logo-link" title="FEniCS Q&amp;A"><img src="../../qa-theme/fenics_qa.png" border="0" alt="FEniCS Q&amp;A"></a>
+				</div>
+				<div class="qa-header-clear">
+				</div>
+			</div> <!-- END qa-header -->
+			
+			<div class="qa-main-shadow">
+				
+				<div class="qa-main-wrapper">
+					
+					<div class="qa-sidepanel">
+						<div class="qa-sidebar">
+							This is a read only copy of the old FEniCS QA forum. Please visit the <a href="https://www.allanswered.com/community/s/fenics-project/">new QA forum</a> to ask questions
+						</div>
+						
+					</div>
+					
+					<div class="qa-main">
+						<h1>
+							<span class="entry-title">Mystery: Mshr EXC_BAD_ACCESS</span>
+						</h1>
+						<div class="qa-part-q-view">
+							<div class="qa-q-view qa-q-closed hentry question" id="q8701">
+								<form method="post" action="../8701">
+									<div class="qa-q-view-stats">
+										<div class="qa-voting qa-voting-net" id="voting_8701">
+											<div class="qa-vote-count qa-vote-count-net">
+												<span class="qa-netvote-count">
+													<span class="qa-netvote-count-data">0<span class="votes-up"><span class="value-title" title="0"></span></span><span class="votes-down"><span class="value-title" title="0"></span></span></span><span class="qa-netvote-count-pad"> votes</span>
+												</span>
+											</div>
+											<div class="qa-vote-clear">
+											</div>
+										</div>
+									</div>
+									<input type="hidden" name="code" value="0-1516477931-9fa6f022e105c7fb57e65a3a7280c3b5cb5cb95c">
+								</form>
+								<div class="qa-q-view-main">
+									<form method="post" action="../8701">
+										<div class="qa-q-view-content">
+											<a name="8701"></a><div class="entry-content"><p>Dear all, </p>
+
+<p>I am struggling with a bug in my code that buffles me. Let me explain the background.</p>
+
+<p>I have a mesh generator class that works on the main branch. But the main branch is completely unorthodox, with no OO at all. Then I've started refactoring since the analyses are producing good results. Now I have <strong>a base class and a derived one</strong>. The base class contains all the variables shared by the derived classes, <strong>for now only one</strong>, and the derived class will use them.</p>
+
+<p>The analysis is handled now with a shared pointer, just to let you know, but the error persists if I revert to simple pointers, or references.</p>
+
+<p>When I generate a mesh, the <code>mshr::generate()</code> generator goes <code>EXC_BAD_ACCESS</code>. I fail to see how this can be.</p>
+
+<p>These are the sources. Remember: <strong>master works, inherited doesn't</strong>.</p>
+
+<p>As you will see, the code is virtually the same, moreover, I've copied the code from the mesher handler in order to avoid it, but the error remains.</p>
+
+<p>I'm buffled... there's something that I cannot see with my own eyes, maybe I'm tired...</p>
+
+<p>Thanks for any pointers!</p>
+
+<p><strong>ON THE MASTER</strong></p>
+
+<pre><code>// MAIN FILE
+Mesh mesh;
+
+// Generate mesh
+mesh = handler.generatePolygon(pts, std::max(c.width, c.height) * 0.005);
+
+// CLASS DEFINITION
+class MeshHandler
+{
+public:
+
+    // Rectangle
+    Mesh generatePolygon(const std::vector&lt;Point&gt; &amp;pts, double cellSize)
+    {
+        // Polyline
+        mshr::Polygon polyline(pts);
+
+        // Create a simple mesh
+        Mesh simple;
+
+        // Generator
+        mshr::CSGCGALMeshGenerator2D generator;
+
+        // Set patameters: mesh resolution is NEGATIVE so it will use the cell size
+        generator.parameters["mesh_resolution"] = -1.0;
+        generator.parameters["cell_size"] = cellSize;
+
+        // Mesh it!
+        generator.generate(polyline, simple);
+
+        return simple;
+    }
+</code></pre>
+
+<p><strong>ON THE INHERITED BRANCH</strong></p>
+
+<pre><code>// MAIN FILE
+std::shared_ptr&lt;linearAnalysis&gt; analysis = std::make_shared&lt;singleLoad&gt;(planeStress);
+
+// BASE
+class linearAnalysis
+{
+public:
+
+    linearAnalysis(bool planeStress) : planeStress_(planeStress), mesh_(Mesh())
+    {
+        logger &lt;&lt; "+++ virtual base class" &lt;&lt; nl;
+    }
+    // ...
+
+    //! Returns a vector function for the displacement
+   virtual std::shared_ptr&lt;Function&gt; linearElastic(double lambda) = 0;
+
+   // Shared variables: all public, we're alone here, no problem
+
+   bool planeStress_;
+
+   MeshHandler gen_;
+
+   Mesh mesh_;
+
+   std::vector&lt;Point&gt; pts_;
+
+   GeometryConstants consts_;        
+};
+
+// DERIVED
+class singleLoad : public linearAnalysis
+{
+
+public:
+
+    singleLoad(bool planeStress) : linearAnalysis(planeStress)
+    {
+        // Geometry constants
+        consts_ = GeometryConstants(false);
+
+        // Points
+        pts_.push_back(Point(          0.0,            0.0));      // bottom left
+        pts_.push_back(Point(consts_.width,            0.0));      // bottom right
+        pts_.push_back(Point(consts_.width, consts_.height));      // top right
+        pts_.push_back(Point(          0.0, consts_.height));      // top left
+
+        // Cell size
+        double size = std::max(consts_.width, consts_.height) * 0.005;
+
+#if 0
+        // Generate mesh
+        mesh_ = gen_.generatePolygon(pts_, size); // &lt;---- BOOOOM!            
+#else
+        // Polyline
+        mshr::Polygon polyline(pts_);
+
+        // Generator
+        mshr::CSGCGALMeshGenerator2D generator;
+
+        // Set patameters: mesh resolution is NEGATIVE so it will use the cell size
+        generator.parameters["mesh_resolution"] = -1.0;
+        generator.parameters["cell_size"] = size;
+
+        Mesh simple; // I've tried avoiding using mesh_ from the base class, but... BOOM again.
+
+        // Mesh it!
+        generator.generate(polyline, simple); // &lt;---- BOOOOM!
+#endif
+    }
+</code></pre>
+</div>
+										</div>
+										<div class="qa-q-view-closed">
+											closed with the note:
+											<span class="qa-q-view-closed-content">
+												Reason found: was in another class with undefined behavior.
+											</span>
+										</div>
+										<div class="qa-q-view-tags">
+											<ul class="qa-q-view-tag-list">
+												<li class="qa-q-view-tag-item"><a href="../tag/mshr" rel="tag" class="qa-tag-link">mshr</a></li>
+												<li class="qa-q-view-tag-item"><a href="../tag/mesh" rel="tag" class="qa-tag-link">mesh</a></li>
+												<li class="qa-q-view-tag-item"><a href="../tag/dolfin" rel="tag" class="qa-tag-link">dolfin</a></li>
+											</ul>
+										</div>
+										<span class="qa-q-view-avatar-meta">
+											<span class="qa-q-view-meta">
+												<a href="../8701/mystery-mshr-exc_bad_access" class="qa-q-view-what">asked</a>
+												<span class="qa-q-view-when">
+													<span class="qa-q-view-when-data"><span class="published"><span class="value-title" title="2015-11-26T15:46:04+0000"></span>Nov 26, 2015</span></span>
+												</span>
+												<span class="qa-q-view-who">
+													<span class="qa-q-view-who-pad">by </span>
+													<span class="qa-q-view-who-data"><span class="vcard author"><a href="../../user/senseiwa" class="qa-user-link url nickname">senseiwa</a></span></span>
+													<span class="qa-q-view-who-title">FEniCS User</span>
+													<span class="qa-q-view-who-points">
+														<span class="qa-q-view-who-points-pad">(</span><span class="qa-q-view-who-points-data">2,620</span><span class="qa-q-view-who-points-pad"> points)</span>
+													</span>
+												</span>
+												<br>
+												<span class="qa-q-view-what">closed</span>
+												<span class="qa-q-view-when">
+													<span class="qa-q-view-when-data"><span class="updated"><span class="value-title" title="2015-11-27T07:19:31+0000"></span>Nov 27, 2015</span></span>
+												</span>
+												<span class="qa-q-view-who">
+													<span class="qa-q-view-who-pad">by </span><span class="qa-q-view-who-data"><a href="../../user/senseiwa" class="qa-user-link url nickname">senseiwa</a></span>
+												</span>
+											</span>
+										</span>
+										<div class="qa-q-view-buttons">
+										</div>
+										
+										<div class="qa-q-view-c-list" id="c8701_list">
+											<div class="qa-c-list-item  hentry comment" id="c8702">
+												<div class="qa-c-item-content">
+													<a name="8702"></a><div class="entry-content"><p>Even avoiding using <code>pts_</code> from the base class makes the code read somewhere it shouldn't...</p>
+
+<pre><code>    // **LOCAL** copy of points
+    std::vector&lt;Point&gt; q(pts_);
+
+    // Polyline
+    mshr::Polygon polyline(q);
+
+    // Generator
+    mshr::CSGCGALMeshGenerator2D generator;
+
+    // Set patameters: mesh resolution is NEGATIVE so it will use the cell size
+    generator.parameters["mesh_resolution"] = -1.0;
+    generator.parameters["cell_size"] = size;
+
+    Mesh simple;
+
+    // Mesh it!
+    generator.generate(polyline, simple); // **BOOM!**
+</code></pre>
+</div>
+												</div>
+												<div class="qa-c-item-footer">
+													<span class="qa-c-item-avatar-meta">
+														<span class="qa-c-item-meta">
+															<a href="../8701/mystery-mshr-exc_bad_access?show=8702#c8702" class="qa-c-item-what">commented</a>
+															<span class="qa-c-item-when">
+																<span class="qa-c-item-when-data"><span class="published"><span class="value-title" title="2015-11-26T16:14:21+0000"></span>Nov 26, 2015</span></span>
+															</span>
+															<span class="qa-c-item-who">
+																<span class="qa-c-item-who-pad">by </span>
+																<span class="qa-c-item-who-data"><span class="vcard author"><a href="../../user/senseiwa" class="qa-user-link url nickname">senseiwa</a></span></span>
+																<span class="qa-c-item-who-title">FEniCS User</span>
+																<span class="qa-c-item-who-points">
+																	<span class="qa-c-item-who-points-pad">(</span><span class="qa-c-item-who-points-data">2,620</span><span class="qa-c-item-who-points-pad"> points)</span>
+																</span>
+															</span>
+														</span>
+													</span>
+													<div class="qa-c-item-buttons">
+													</div>
+												</div>
+												<div class="qa-c-item-clear">
+												</div>
+											</div> <!-- END qa-c-item -->
+											<div class="qa-c-list-item  hentry comment" id="c8706">
+												<div class="qa-c-item-content">
+													<a name="8706"></a><div class="entry-content"><p>A member wasn't initialized correctly. Some width was <strong>uninitialized</strong>, but for some unlucky reason it worked on the main branch. </p>
+
+<p>When refactoring, this undefined behavior showed up.</p>
+
+<p>I need some vacation...</p>
+</div>
+												</div>
+												<div class="qa-c-item-footer">
+													<span class="qa-c-item-avatar-meta">
+														<span class="qa-c-item-meta">
+															<a href="../8701/mystery-mshr-exc_bad_access?show=8706#c8706" class="qa-c-item-what">commented</a>
+															<span class="qa-c-item-when">
+																<span class="qa-c-item-when-data"><span class="published"><span class="value-title" title="2015-11-27T07:19:09+0000"></span>Nov 27, 2015</span></span>
+															</span>
+															<span class="qa-c-item-who">
+																<span class="qa-c-item-who-pad">by </span>
+																<span class="qa-c-item-who-data"><span class="vcard author"><a href="../../user/senseiwa" class="qa-user-link url nickname">senseiwa</a></span></span>
+																<span class="qa-c-item-who-title">FEniCS User</span>
+																<span class="qa-c-item-who-points">
+																	<span class="qa-c-item-who-points-pad">(</span><span class="qa-c-item-who-points-data">2,620</span><span class="qa-c-item-who-points-pad"> points)</span>
+																</span>
+															</span>
+														</span>
+													</span>
+													<div class="qa-c-item-buttons">
+													</div>
+												</div>
+												<div class="qa-c-item-clear">
+												</div>
+											</div> <!-- END qa-c-item -->
+										</div> <!-- END qa-c-list -->
+										
+										<input type="hidden" name="code" value="0-1516477931-c793868a18d65593908f92cf4346088f8e1d908b">
+										<input type="hidden" name="qa_click" value="">
+									</form>
+									<div class="qa-c-form">
+									</div> <!-- END qa-c-form -->
+									
+								</div> <!-- END qa-q-view-main -->
+								<div class="qa-q-view-clear">
+								</div>
+							</div> <!-- END qa-q-view -->
+							
+						</div>
+						<div class="qa-part-a-list">
+							<h2 id="a_list_title" style="display:none;"></h2>
+							<div class="qa-a-list" id="a_list">
+								
+							</div> <!-- END qa-a-list -->
+							
+						</div>
+					</div> <!-- END qa-main -->
+					
+				</div> <!-- END main-wrapper -->
+			</div> <!-- END main-shadow -->
+		</div> <!-- END body-wrapper -->
+		<!-- END footer-bottom-group -->
+		
+		<div style="position:absolute; left:-9999px; top:-9999px;">
+			<span id="qa-waiting-template" class="qa-waiting">...</span>
+		</div>
+	
+	
+
+</body><!-- Powered by Question2Answer - http://www.question2answer.org/ --></html>

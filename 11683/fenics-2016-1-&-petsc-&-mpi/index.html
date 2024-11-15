@@ -1,0 +1,373 @@
+<html><!-- Powered by Question2Answer - http://www.question2answer.org/ --><head>
+		<meta http-equiv="content-type" content="text/html; charset=utf-8">
+		<title>Fenics 2016.1 &amp; PETSc &amp; MPI - FEniCS Q&amp;A</title>
+		<meta name="description" content="Hi, can someone tell me why mys code is not running in parallel using MPI? I am using fenics  ... 'petsc_amg') # Save solution to file (VTK) vtkfile_u">
+		<link rel="stylesheet" type="text/css" href="../../qa-theme/Snow/qa-styles.css">
+		<link rel="canonical" href="http://fenicsproject.org/qa/11683/fenics-2016-1-%26-petsc-%26-mpi">
+		<script type="text/x-mathjax-config">
+  MathJax.Hub.Config({
+    extensions: ["tex2jax.js"],
+    jax: ["input/TeX","output/HTML-CSS"],
+    tex2jax: {inlineMath: [["$","$"],["\\(","\\)"]]},
+    TeX: { extensions: ["AMSmath.js","AMSsymbols.js"]}
+  });
+</script>
+<script type="text/javascript" src="../../mathjax/MathJax.js"></script>
+		<script src="../../jquery-1.7.2.min.js" type="text/javascript"></script>
+		<script src="../../highlight.min.js"></script>
+<script type="text/javascript">
+$(function(){
+	$('.wmd-input').keypress(function(){
+		window.clearTimeout(hljs.Timeout);
+		hljs.Timeout = window.setTimeout(function() {
+			hljs.initHighlighting.called = false;
+			hljs.initHighlighting();
+		}, 500);
+	});
+	window.setTimeout(function() {
+		hljs.initHighlighting.called = false;
+		hljs.initHighlighting();
+	}, 500);
+});
+</script>
+
+
+	</head>
+	<body class="qa-template-question qa-body-js-off">
+		<div class="qa-body-wrapper">
+			
+			<div class="qa-header">
+				<div class="qa-logo">
+					<a href="../../" class="qa-logo-link" title="FEniCS Q&amp;A"><img src="../../qa-theme/fenics_qa.png" border="0" alt="FEniCS Q&amp;A"></a>
+				</div>
+				<div class="qa-header-clear">
+				</div>
+			</div> <!-- END qa-header -->
+			
+			<div class="qa-main-shadow">
+				
+				<div class="qa-main-wrapper">
+					
+					<div class="qa-sidepanel">
+						<div class="qa-sidebar">
+							This is a read only copy of the old FEniCS QA forum. Please visit the <a href="https://www.allanswered.com/community/s/fenics-project/">new QA forum</a> to ask questions
+						</div>
+						
+					</div>
+					
+					<div class="qa-main">
+						<h1>
+							<span class="entry-title">Fenics 2016.1 &amp; PETSc &amp; MPI</span>
+						</h1>
+						<div class="qa-part-q-view">
+							<div class="qa-q-view  hentry question" id="q11683">
+								<form method="post" action="../../11683/fenics-2016-1-%26-petsc-%26-mpi">
+									<div class="qa-q-view-stats">
+										<div class="qa-voting qa-voting-net" id="voting_11683">
+											<div class="qa-vote-count qa-vote-count-net">
+												<span class="qa-netvote-count">
+													<span class="qa-netvote-count-data">0<span class="votes-up"><span class="value-title" title="0"></span></span><span class="votes-down"><span class="value-title" title="0"></span></span></span><span class="qa-netvote-count-pad"> votes</span>
+												</span>
+											</div>
+											<div class="qa-vote-clear">
+											</div>
+										</div>
+									</div>
+									<input type="hidden" name="code" value="0-1516467780-0b370566244b459fc4484957003e24d5c0e79844">
+								</form>
+								<div class="qa-q-view-main">
+									<form method="post" action="../../11683/fenics-2016-1-%26-petsc-%26-mpi">
+										<div class="qa-q-view-content">
+											<a name="11683"></a><div class="entry-content"><p>Hi,</p>
+
+<p>can someone tell me why mys code is not running in parallel using MPI? I am using fenics version 2016.1, so I first use this script to save the original "xml" mesh to a hdf file:</p>
+
+<pre><code>from fenics import *
+mesh = Mesh("tube_4.xml")
+
+hdf = HDF5File(mesh.mpi_comm(), "file.h5", "w")
+hdf.write(mesh, "/mesh")
+</code></pre>
+
+<p>then, I run the following script using "mpirun -np 2 ipcs.py":</p>
+
+<pre><code>from __future__ import print_function
+from fenics import *
+import numpy as np
+from dolfin.mesh.boundarysubdomainfinder import find_subdomain
+import math
+
+class nlp(NonlinearProblem):
+    def __init__(self, a, L, bcp):
+        NonlinearProblem.__init__(self)
+        self.L = L
+        self.a = a
+        self.bcp = bcp
+    def F(self, b, x):
+        assemble(self.L, tensor=b)
+        [bc.apply(b) for bc in self.bcp]
+    def J(self, A, x):
+        assemble(self.a, tensor=A)
+        [bc.apply(A) for bc in self.bcp]
+
+# Generic problem variables
+T = 10.0            # final time
+num_steps = 1000   # number of time steps
+dt = T / num_steps # time step size
+
+# Fluid constants
+mu = 0.035         # dynamic viscosity
+rho = 1.05            # density
+
+# Cylinder dimensions
+xmin = 0.
+xmax = 5.
+rad = 0.5
+
+# Form compiler options
+parameters["form_compiler"]["optimize"]     = True
+parameters["form_compiler"]["cpp_optimize"] = True
+parameters["form_compiler"]["representation"] = "quadrature"
+
+# Create mesh
+mesh = Mesh()
+hdf = HDF5File(mesh.mpi_comm(), "file.h5", "r")
+hdf.read(mesh, "/mesh", False)
+
+# Boundary conditions
+# Sub domain for no-slip (mark whole boundary, inflow and outflow will overwrite)
+class Noslip(SubDomain):
+    def inside(self, x, on_boundary):
+        return (math.sqrt(x[0]**2+x[1]**2) - rad) &lt; DOLFIN_EPS and on_boundary
+
+# Sub domain for inflow (right)
+class Outflow(SubDomain):
+    def inside(self, x, on_boundary):
+        return math.fabs(x[2] - xmax) &lt; DOLFIN_EPS and on_boundary
+
+# Sub domain for outflow (left)
+class Inflow(SubDomain):
+    def inside(self, x, on_boundary):
+        return math.fabs(x[2] - xmin) &lt; DOLFIN_EPS and on_boundary
+
+class InitialConditionVelocity(Expression):
+    def eval_cell(self, value, x, ufc_cell):
+        value[0] = 0.0
+
+# Create mesh functions over the cell facets
+sub_domains = MeshFunction("size_t", mesh, mesh.topology().dim() - 1)
+
+# Mark all facets as sub domain 3
+sub_domains.set_all(3)
+
+# Mark no-slip facets as sub domain 0, 0.0
+noslip = Noslip()
+noslip.mark(sub_domains, 0)
+
+# Mark inflow as sub domain 1, 01
+inflow = Inflow()
+inflow.mark(sub_domains, 1)
+
+# Mark outflow as sub domain 2, 0.2, True
+outflow = Outflow()
+outflow.mark(sub_domains, 2)
+
+# Define subdomain integration
+ds = Measure("ds", subdomain_data=sub_domains)
+
+# Define function spaces
+V = VectorFunctionSpace(mesh, 'P', 2)
+Q = FunctionSpace(mesh, 'P', 1)
+
+print("Velocity dofs = %i" % V.dim())
+print("Pressure dofs = %i" % Q.dim())
+
+# Define trial and test functions
+u = TrialFunction(V)
+v = TestFunction(V)
+p = TrialFunction(Q)
+q = TestFunction(Q)
+
+# Define functions for solutions at previous and current time steps
+u_n = Function(V)
+u_vs = Function(V)
+u_  = Function(V)
+p_n = Function(Q)
+p_  = Function(Q)
+
+# Define expressions used in variational forms
+U   = 0.5*(u_n + u)
+f   = Constant((0, 0, 0))
+k   = Constant(dt)
+mu  = Constant(mu)
+
+# Define no-slip boundary condition
+g_noslip = Constant((0, 0, 0))
+bc_noslip = DirichletBC(V, g_noslip, sub_domains, 0)
+bcu = [bc_noslip]
+
+# Define inlet and outlet boundary conditions
+pInlet = (0.01)*1333.22
+pOutlet = 0.0*1333.22
+bc_p_in = DirichletBC(Q, Constant(pInlet),sub_domains, 1)
+bc_p_out = DirichletBC(Q, Constant(pOutlet),sub_domains, 2)
+bcp = [bc_p_in, bc_p_out]
+
+
+p_n = project(Constant(pOutlet),Q)
+
+# Define symmetric gradient
+def epsilon(u):
+    return sym(nabla_grad(u))
+
+# Define stress tensor
+def sigma(u, p):
+    return 2*mu*epsilon(u) - p*Identity(len(u))
+
+# Define facet normals
+n = FacetNormal(mesh)
+
+# Define variational problem for step 1
+F1 = rho*dot((u - u_n) / k, v)*dx \
+   + rho*dot(dot(u, nabla_grad(u)), v)*dx \
+   + inner(sigma(U, p_n), epsilon(v))*dx \
+   + dot(p_n*n, v)*ds - dot(mu*nabla_grad(U)*n, v)*ds \
+   - dot(f, v)*dx
+F1  = action(F1, u_vs)
+# Jacobian
+dF1 = derivative(F1, u_vs, u)
+
+# Nonlinear problem
+problem = nlp(dF1, F1, bcu)
+solver = PETScSNESSolver()
+solver.parameters["relative_tolerance"] = 1e-6
+
+# Define variational problem for step 2
+a2 = dot(nabla_grad(p), nabla_grad(q))*dx
+L2 = dot(nabla_grad(p_n), nabla_grad(q))*dx - (rho/k)*div(u_)*q*dx
+
+# Define variational problem for step 3
+a3 = dot(u, v)*dx
+L3 = dot(u_, v)*dx - k/rho*dot(nabla_grad(p_ - p_n), v)*dx
+
+# Assemble matrices
+A2 = assemble(a2)
+A3 = assemble(a3)
+
+# Apply boundary conditions to matrices
+[bc.apply(A2) for bc in bcp]
+
+# Create VTK files for visualization output
+vtkfile_u = File('solution/velocity.pvd')
+vtkfile_p = File('solution/pressure.pvd')
+u_.rename('u','vtkfile_u')
+p_.rename('p','vtkfile_p')
+# Create time series for saving solution for later
+timeseries_u = TimeSeries('solution/velocity')
+timeseries_p = TimeSeries('solution/pressure')
+
+# Create progress bar
+progress = Progress('Time-stepping')
+
+# Time-stepping
+t = 0
+for n in range(num_steps):
+
+    # Update current time
+    t += dt
+
+    # Step 1: Tentative velocity step
+    solver.solve(problem, u_vs.vector())
+    u_.assign(u_vs)
+
+    # Step 2: Pressure correction step
+    b2 = assemble(L2)
+    [bc.apply(b2) for bc in bcp]
+    # solve(A2, p_.vector(), b2, 'bicgstab', 'ilu')
+    solve(A2, p_.vector(), b2,'gmres', 'petsc_amg')
+
+    # Step 3: Velocity correction step
+    b3 = assemble(L3)
+    # solve(A3, u_.vector(), b3, 'bicgstab')
+    solve(A3, u_.vector(),b3,'gmres', 'petsc_amg')
+
+    # Save solution to file (VTK)
+    vtkfile_u &lt;&lt; u_
+    vtkfile_p &lt;&lt; p_
+
+    # Save solution to file (HDF5)
+    timeseries_u.store(u_.vector(), t)
+    timeseries_p.store(p_.vector(), t)
+
+    # Update previous solution
+    u_n.assign(u_)
+    p_n.assign(p_)
+
+    # Update progress bar
+    progress.update(t / T)
+    n   = FacetNormal(mesh)
+    print('time: %.4f, u_max: %.3f' % (t,u_.vector().array().max()))
+</code></pre>
+
+<p>Running the program using just "mpirun -np 1 ipcs.py" reproduces the serial result, as expected. However, there is something in my code that prevents fenics from splitting the problem in the requested amount of processes. In fact, in some working examples that I have found, the number of DoF for each process should be roughly half of the original ones, since the mesh should be partitioned. I hope that someone can point this out. I can share the "xml" file with anyone that wants to reproduce my problem.</p>
+
+<p>Best,</p>
+
+<p>Lucas.</p>
+</div>
+										</div>
+										<span class="qa-q-view-avatar-meta">
+											<span class="qa-q-view-meta">
+												<a href="../../11683/fenics-2016-1-%26-petsc-%26-mpi" class="qa-q-view-what">asked</a>
+												<span class="qa-q-view-when">
+													<span class="qa-q-view-when-data"><span class="published"><span class="value-title" title="2016-11-20T16:58:51+0000"></span>Nov 20, 2016</span></span>
+												</span>
+												<span class="qa-q-view-who">
+													<span class="qa-q-view-who-pad">by </span>
+													<span class="qa-q-view-who-data"><span class="vcard author"><a href="../../user/Lucas+Muller" class="qa-user-link url nickname">Lucas Muller</a></span></span>
+													<span class="qa-q-view-who-title">FEniCS Novice</span>
+													<span class="qa-q-view-who-points">
+														<span class="qa-q-view-who-points-pad">(</span><span class="qa-q-view-who-points-data">140</span><span class="qa-q-view-who-points-pad"> points)</span>
+													</span>
+												</span>
+											</span>
+										</span>
+										<div class="qa-q-view-buttons">
+										</div>
+										
+										<div class="qa-q-view-c-list" style="display:none;" id="c11683_list">
+										</div> <!-- END qa-c-list -->
+										
+										<input type="hidden" name="code" value="0-1516467780-95abf098c2dd4646429ac2ca0cebe611818381f2">
+										<input type="hidden" name="qa_click" value="">
+									</form>
+									<div class="qa-c-form">
+									</div> <!-- END qa-c-form -->
+									
+								</div> <!-- END qa-q-view-main -->
+								<div class="qa-q-view-clear">
+								</div>
+							</div> <!-- END qa-q-view -->
+							
+						</div>
+						<div class="qa-part-a-list">
+							<h2 id="a_list_title" style="display:none;"></h2>
+							<div class="qa-a-list" id="a_list">
+								
+							</div> <!-- END qa-a-list -->
+							
+						</div>
+					</div> <!-- END qa-main -->
+					
+				</div> <!-- END main-wrapper -->
+			</div> <!-- END main-shadow -->
+		</div> <!-- END body-wrapper -->
+		<!-- END footer-bottom-group -->
+		
+		<div style="position:absolute; left:-9999px; top:-9999px;">
+			<span id="qa-waiting-template" class="qa-waiting">...</span>
+		</div>
+	
+	
+
+</body><!-- Powered by Question2Answer - http://www.question2answer.org/ --></html>

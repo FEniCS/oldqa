@@ -1,0 +1,350 @@
+<html><!-- Powered by Question2Answer - http://www.question2answer.org/ --><head>
+		<meta http-equiv="content-type" content="text/html; charset=utf-8">
+		<title>Compiled Expression, expected an overload 'eval' or 'eval_data' error - FEniCS Q&amp;A</title>
+		<meta name="description" content="Hello, still struggling to speed up my very non linear source term (for advection-diffusion). I had this  ... values[0] = spray_grid(xx, yy); } };">
+		<meta name="keywords" content="expression,python,user-defined-expression,jit-compiled,function-evaluation">
+		<link rel="stylesheet" type="text/css" href="../../qa-theme/Snow/qa-styles.css">
+		<link rel="canonical" href="http://fenicsproject.org/qa/13454/compiled-expression-expected-overload-eval-eval_data-error">
+		<script type="text/x-mathjax-config">
+  MathJax.Hub.Config({
+    extensions: ["tex2jax.js"],
+    jax: ["input/TeX","output/HTML-CSS"],
+    tex2jax: {inlineMath: [["$","$"],["\\(","\\)"]]},
+    TeX: { extensions: ["AMSmath.js","AMSsymbols.js"]}
+  });
+</script>
+<script type="text/javascript" src="../../mathjax/MathJax.js"></script>
+		<script src="../../jquery-1.7.2.min.js" type="text/javascript"></script>
+		<script src="../../highlight.min.js"></script>
+<script type="text/javascript">
+$(function(){
+	$('.wmd-input').keypress(function(){
+		window.clearTimeout(hljs.Timeout);
+		hljs.Timeout = window.setTimeout(function() {
+			hljs.initHighlighting.called = false;
+			hljs.initHighlighting();
+		}, 500);
+	});
+	window.setTimeout(function() {
+		hljs.initHighlighting.called = false;
+		hljs.initHighlighting();
+	}, 500);
+});
+</script>
+
+
+	</head>
+	<body class="qa-template-question qa-body-js-off">
+		<div class="qa-body-wrapper">
+			
+			<div class="qa-header">
+				<div class="qa-logo">
+					<a href="../../" class="qa-logo-link" title="FEniCS Q&amp;A"><img src="../../qa-theme/fenics_qa.png" border="0" alt="FEniCS Q&amp;A"></a>
+				</div>
+				<div class="qa-header-clear">
+				</div>
+			</div> <!-- END qa-header -->
+			
+			<div class="qa-main-shadow">
+				
+				<div class="qa-main-wrapper">
+					
+					<div class="qa-sidepanel">
+						<div class="qa-sidebar">
+							This is a read only copy of the old FEniCS QA forum. Please visit the <a href="https://www.allanswered.com/community/s/fenics-project/">new QA forum</a> to ask questions
+						</div>
+						
+					</div>
+					
+					<div class="qa-main">
+						<h1>
+							<span class="entry-title">Compiled Expression, expected an overload 'eval' or 'eval_data' error</span>
+						</h1>
+						<div class="qa-part-q-view">
+							<div class="qa-q-view  hentry question" id="q13454">
+								<form method="post" action="../../13454/compiled-expression-expected-overload-eval-eval_data-error">
+									<div class="qa-q-view-stats">
+										<div class="qa-voting qa-voting-net" id="voting_13454">
+											<div class="qa-vote-count qa-vote-count-net">
+												<span class="qa-netvote-count">
+													<span class="qa-netvote-count-data">0<span class="votes-up"><span class="value-title" title="0"></span></span><span class="votes-down"><span class="value-title" title="0"></span></span></span><span class="qa-netvote-count-pad"> votes</span>
+												</span>
+											</div>
+											<div class="qa-vote-clear">
+											</div>
+										</div>
+									</div>
+									<input type="hidden" name="code" value="0-1516467867-8a3ad2d9150043099411c1f77008b5bc4c4dfd48">
+								</form>
+								<div class="qa-q-view-main">
+									<form method="post" action="../../13454/compiled-expression-expected-overload-eval-eval_data-error">
+										<div class="qa-q-view-content">
+											<a name="13454"></a><div class="entry-content"><p>Hello, <br>
+still struggling to speed up my very non linear source term (for advection-diffusion). </p>
+
+<p>I had this implementation of an user defined expression: </p>
+
+<pre><code>class SprayGridExpression(Expression):
+
+    def set_spray_grid(self, spray_grid):
+        self.spray_grid = spray_grid
+
+    def eval(self, value, x):
+        X = x[0]
+        Y = x[1]
+
+        value[0] = self.spray_grid(X, Y)  # Volumetric mass flow flux
+</code></pre>
+
+<p>where <code>spray_grid</code> is quite a complex object (actually a "functor").</p>
+
+<p>I decided to reimplement all the class hierarchy in C++ to create <code>spray_grid</code> in C++ (<code>spray_grid</code> is basically a sum of three gaussian distributions that are then placed all over the domain specifying the location of them with the <code>vector&lt;double&gt; x0s, y0s</code>). <br>
+The Expression seems to <a rel="nofollow" href="https://pastebin.com/CHJrvTJ1">compile correctly</a>, but then I get the error: </p>
+
+<pre><code>Calling DOLFIN just-in-time (JIT) compiler, this may take some time.
+Traceback (most recent call last):
+  File "test_dolfin.py", line 148, in &lt;module&gt;
+    spray_exp = Expression(ccp_expression)
+  File "/opt/local/Library/Frameworks/Python.framework/Versions/2.7/lib/python2.7/site-packages/dolfin/functions/expression.py", line 666, in __new__
+    return object.__new__(create_compiled_expression_class(cpp_base))
+  File "/opt/local/Library/Frameworks/Python.framework/Versions/2.7/lib/python2.7/site-packages/dolfin/functions/expression.py", line 187, in create_compiled_expression_class
+    {"__init__": __init__})
+  File "/opt/local/Library/Frameworks/Python.framework/Versions/2.7/lib/python2.7/site-packages/dolfin/functions/expression.py", line 357, in __new__
+    raise TypeError("expected an overload 'eval' or 'eval_cell' method")
+TypeError: expected an overload 'eval' or 'eval_cell' method
+</code></pre>
+
+<p>This is the section in the code when using the cpp Expression: </p>
+
+<pre><code>with open('classes.hpp', 'r') as fh:
+    ccp_expression = fh.read()
+
+print(ccp_expression)
+
+spray_exp = Expression(ccp_expression)
+</code></pre>
+
+<hr>
+
+<h3><code>classes.hpp</code></h3>
+
+<pre><code>#include &lt;iostream&gt;
+#include &lt;cmath&gt;
+#include &lt;vector&gt;
+
+
+using namespace std; 
+
+/* Linspace like function as in MATLAB or Python */
+template &lt;typename T&gt;
+vector&lt;T&gt; linspace(T a, T b, size_t N) {
+      T h = (b - a) / static_cast&lt;T&gt;(N-1);
+        vector&lt;T&gt; xs(N);
+          typename vector&lt;T&gt;::iterator x;
+            T val;
+              for (x = xs.begin(), val = a; x != xs.end(); ++x, val += h)
+                      *x = val;
+                return xs;
+}
+
+// Simple 1D Gaussian Function
+class RadialGaussian { 
+    protected: 
+        double _sigma2, _mu;
+
+        double exponent(double x) const{
+            return this-&gt;exponent_fun(_sigma2, _mu, x);
+
+        }
+        double denominator() const {
+            return this-&gt;denominator_fun(_sigma2);
+        }
+
+    public: 
+        // Constructor
+        RadialGaussian(double sigma2, double mu) : 
+            _sigma2(sigma2), 
+            _mu(mu)
+        { }
+
+
+        static double exponent_fun(double sigma2, double mu, double x) {
+            return -pow(x - mu, 2)/(2*sigma2);
+        }
+
+        static double denominator_fun(double sigma2) {
+            return sqrt(2*M_PI*sigma2);
+        }
+
+        // Acting as a functor
+        double operator() (double x) {
+            return 1/this-&gt;denominator()*exp(this-&gt;exponent(x));
+        }
+
+        // Accessors
+        double getSigma2 () { return _sigma2; }
+        double getMu () { return _mu; }
+};
+
+// 3D Gaussian "Hat"
+class CartesianGaussian3D : public RadialGaussian {
+    public:
+        CartesianGaussian3D(double sigma2, double mu) : 
+            RadialGaussian(sigma2, mu)
+        { }
+
+        CartesianGaussian3D(RadialGaussian gaussian) : 
+            RadialGaussian(gaussian.getSigma2(), gaussian.getMu())
+        { }
+
+        double operator() (double x, double y) const {
+            double r = sqrt(pow(x, 2) + pow(y, 2));
+            return 1/this-&gt;denominator()*exp(this-&gt;exponent(r));
+        }
+};
+
+// The Space function that represents a single nozzle
+class SprayModel {
+    protected: 
+        vector&lt;double&gt; _sigma2s, _mus;
+
+    public:
+        SprayModel(vector&lt;double&gt; sigma2s, vector&lt;double&gt; mus) :
+            _sigma2s(sigma2s), 
+            _mus(mus)
+        { }
+
+        double operator() (double x, double y) const {
+            double r = sqrt(pow(x, 2) + pow(y, 2));
+            double phi;
+
+            for(auto sigma2=_sigma2s.begin(), mu = _mus.begin(); sigma2 != _mus.end(); ++sigma2, ++mu) {
+                // boost::tie(sigma2, mu) = tup;
+
+                phi += 1.0/CartesianGaussian3D::denominator_fun(*sigma2)*exp(CartesianGaussian3D::exponent_fun(*sigma2, *mu, r));
+            }
+
+            return phi;
+        }
+};
+
+// Just summing up all the nozzles at the different x0s,y0s locations
+class SprayGrid {
+    protected:
+        SprayModel _spray;
+        vector&lt;double&gt; _x0s, _y0s;
+
+    public: 
+        SprayGrid(SprayModel spray, vector&lt;double&gt; x0s, vector&lt;double&gt; y0s) :
+            _spray(spray),
+            _x0s(x0s),
+            _y0s(y0s)
+        { }
+
+        double operator() (double x, double y) const {
+            double phi;
+
+            for(auto x0: _x0s){
+                for(auto y0: _y0s) {
+                    phi += _spray(x-x0, y-y0);
+                }
+            }
+
+            return phi;
+        }
+
+
+};
+
+
+// DOLFIN expression
+class SprayGridExpression : public Expression
+{
+    vector&lt;double&gt; sigma2s = {0.0022592878436543907, 0.018770022717831417, 0.001473404233081996}, 
+        mus = {0.003827877912948519, 0.042287499332578256, 0.09907663376990554};
+
+    SprayGrid spray_grid = SprayGrid(SprayModel(sigma2s, mus), sigma2s, mus);
+
+    public:
+
+    SprayGridExpression() : Expression()
+    {
+    }
+
+    void eval(Array&lt;double&gt;&amp; values, const Array&lt;double&gt;&amp; x) const{
+        double xx = x[0], yy=x[1];
+
+        values[0] = spray_grid(xx, yy);
+
+    }
+};
+</code></pre>
+</div>
+										</div>
+										<div class="qa-q-view-tags">
+											<ul class="qa-q-view-tag-list">
+												<li class="qa-q-view-tag-item"><a href="../../tag/expression" rel="tag" class="qa-tag-link">expression</a></li>
+												<li class="qa-q-view-tag-item"><a href="../../tag/python" rel="tag" class="qa-tag-link">python</a></li>
+												<li class="qa-q-view-tag-item"><a href="../../tag/user-defined-expression" rel="tag" class="qa-tag-link">user-defined-expression</a></li>
+												<li class="qa-q-view-tag-item"><a href="../../tag/jit-compiled" rel="tag" class="qa-tag-link">jit-compiled</a></li>
+												<li class="qa-q-view-tag-item"><a href="../../tag/function-evaluation" rel="tag" class="qa-tag-link">function-evaluation</a></li>
+											</ul>
+										</div>
+										<span class="qa-q-view-avatar-meta">
+											<span class="qa-q-view-avatar">
+												<a href="../../user/RdB" class="qa-avatar-link"><img src="https://www.gravatar.com/avatar/b2d78193e99f91606839d1bcb2c4993f?s=50" width="50" height="50" class="qa-avatar-image" alt=""></a>
+											</span>
+											<span class="qa-q-view-meta">
+												<a href="../../13454/compiled-expression-expected-overload-eval-eval_data-error" class="qa-q-view-what">asked</a>
+												<span class="qa-q-view-when">
+													<span class="qa-q-view-when-data"><span class="published"><span class="value-title" title="2017-05-13T03:53:37+0000"></span>May 13, 2017</span></span>
+												</span>
+												<span class="qa-q-view-who">
+													<span class="qa-q-view-who-pad">by </span>
+													<span class="qa-q-view-who-data"><span class="vcard author"><a href="../../user/RdB" class="qa-user-link url nickname">RdB</a></span></span>
+													<span class="qa-q-view-who-title">FEniCS Novice</span>
+													<span class="qa-q-view-who-points">
+														<span class="qa-q-view-who-points-pad">(</span><span class="qa-q-view-who-points-data">220</span><span class="qa-q-view-who-points-pad"> points)</span>
+													</span>
+												</span>
+											</span>
+										</span>
+										<div class="qa-q-view-buttons">
+										</div>
+										
+										<div class="qa-q-view-c-list" style="display:none;" id="c13454_list">
+										</div> <!-- END qa-c-list -->
+										
+										<input type="hidden" name="code" value="0-1516467867-a06aaeeda817733fa0b2659f57e97d189a53cbc6">
+										<input type="hidden" name="qa_click" value="">
+									</form>
+									<div class="qa-c-form">
+									</div> <!-- END qa-c-form -->
+									
+								</div> <!-- END qa-q-view-main -->
+								<div class="qa-q-view-clear">
+								</div>
+							</div> <!-- END qa-q-view -->
+							
+						</div>
+						<div class="qa-part-a-list">
+							<h2 id="a_list_title" style="display:none;"></h2>
+							<div class="qa-a-list" id="a_list">
+								
+							</div> <!-- END qa-a-list -->
+							
+						</div>
+					</div> <!-- END qa-main -->
+					
+				</div> <!-- END main-wrapper -->
+			</div> <!-- END main-shadow -->
+		</div> <!-- END body-wrapper -->
+		<!-- END footer-bottom-group -->
+		
+		<div style="position:absolute; left:-9999px; top:-9999px;">
+			<span id="qa-waiting-template" class="qa-waiting">...</span>
+		</div>
+	
+	
+
+</body><!-- Powered by Question2Answer - http://www.question2answer.org/ --></html>

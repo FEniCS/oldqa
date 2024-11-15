@@ -1,0 +1,589 @@
+<html><!-- Powered by Question2Answer - http://www.question2answer.org/ --><head>
+		<meta http-equiv="content-type" content="text/html; charset=utf-8">
+		<title>storing function evaluation obtained with parallel DG solver - FEniCS Q&amp;A</title>
+		<meta name="description" content="Now that DG is running in parallel, I'm eager to use it for my problems. However, I'm facing  ... (&quot;received.txt&quot;, np.array(solus)) Thanks in advance!">
+		<link rel="stylesheet" type="text/css" href="../../qa-theme/Snow/qa-styles.css">
+		<link rel="canonical" href="http://fenicsproject.org/qa/5923/storing-function-evaluation-obtained-with-parallel-solver">
+		<script type="text/x-mathjax-config">
+  MathJax.Hub.Config({
+    extensions: ["tex2jax.js"],
+    jax: ["input/TeX","output/HTML-CSS"],
+    tex2jax: {inlineMath: [["$","$"],["\\(","\\)"]]},
+    TeX: { extensions: ["AMSmath.js","AMSsymbols.js"]}
+  });
+</script>
+<script type="text/javascript" src="../../mathjax/MathJax.js"></script>
+		<script src="../../jquery-1.7.2.min.js" type="text/javascript"></script>
+		<script src="../../highlight.min.js"></script>
+<script type="text/javascript">
+$(function(){
+	$('.wmd-input').keypress(function(){
+		window.clearTimeout(hljs.Timeout);
+		hljs.Timeout = window.setTimeout(function() {
+			hljs.initHighlighting.called = false;
+			hljs.initHighlighting();
+		}, 500);
+	});
+	window.setTimeout(function() {
+		hljs.initHighlighting.called = false;
+		hljs.initHighlighting();
+	}, 500);
+});
+</script>
+
+
+	</head>
+	<body class="qa-template-question qa-body-js-off">
+		<div class="qa-body-wrapper">
+			
+			<div class="qa-header">
+				<div class="qa-logo">
+					<a href="../../" class="qa-logo-link" title="FEniCS Q&amp;A"><img src="../../qa-theme/fenics_qa.png" border="0" alt="FEniCS Q&amp;A"></a>
+				</div>
+				<div class="qa-header-clear">
+				</div>
+			</div> <!-- END qa-header -->
+			
+			<div class="qa-main-shadow">
+				
+				<div class="qa-main-wrapper">
+					
+					<div class="qa-sidepanel">
+						<div class="qa-sidebar">
+							This is a read only copy of the old FEniCS QA forum. Please visit the <a href="https://www.allanswered.com/community/s/fenics-project/">new QA forum</a> to ask questions
+						</div>
+						
+					</div>
+					
+					<div class="qa-main">
+						<h1>
+							<span class="entry-title">storing function evaluation obtained with parallel DG solver</span>
+						</h1>
+						<div class="qa-part-q-view">
+							<div class="qa-q-view  hentry question" id="q5923">
+								<form method="post" action="../../5923/storing-function-evaluation-obtained-with-parallel-solver">
+									<div class="qa-q-view-stats">
+										<div class="qa-voting qa-voting-net" id="voting_5923">
+											<div class="qa-vote-count qa-vote-count-net">
+												<span class="qa-netvote-count">
+													<span class="qa-netvote-count-data">+1<span class="votes-up"><span class="value-title" title="1"></span></span><span class="votes-down"><span class="value-title" title="0"></span></span></span><span class="qa-netvote-count-pad"> vote</span>
+												</span>
+											</div>
+											<div class="qa-vote-clear">
+											</div>
+										</div>
+									</div>
+									<input type="hidden" name="code" value="0-1516468049-999191e1f540006be635057a4ddbfcbfdc3706ae">
+								</form>
+								<div class="qa-q-view-main">
+									<form method="post" action="../../5923/storing-function-evaluation-obtained-with-parallel-solver">
+										<div class="qa-q-view-content">
+											<a name="5923"></a><div class="entry-content"><p>Now that DG is running in parallel, I'm eager to use it for my problems. </p>
+
+<p>However, I'm facing an issue: <br>
+After solving, I want to evaluate and store my solution at a certain point in space at the end of every time step: </p>
+
+<pre><code>vt = Function(U)
+ft = Function(V)
+
+print "actual time stepping"
+tstep = 1
+t = dt
+solus = []
+
+while t &lt; T:
+    s.t = t
+
+    # first leap
+    b1 = assemble(L1)
+    A1solve.solve(vt.vector(), b1)
+    q10.assign(vt)
+
+    # second leap
+    b2 = assemble(L2)
+    A2solve.solve(ft.vector(), b2)
+    q20.assign(ft)
+
+    if tstep%100==0:
+        elapsed = (time.time() - start_time)
+        left = (elapsed/tstep)*(N-tstep)
+        print "{:4.0f}/{:4.0f}: {:3.2e} ** est {:4.0f} min left **".format(tstep, N, t, left/60.)
+        print "source velocity", vt(S)
+    save = vt(R)
+    save[0] = t
+    solus.append(save)
+
+    tstep += 1
+    t = tstep*dt # more accurate than t += dt
+
+np.savetxt("received.txt", np.array(solus))
+</code></pre>
+
+<p>when running this in parallel I'm using the following parameters</p>
+
+<pre><code>parameters['ghost_mode'] = 'shared_facet' # To be able to run DG in parallel
+parameters['allow_extrapolation'] = True # To be able to evaluate my solution
+</code></pre>
+
+<p>this results in an evaluation on every partition/node, but obviously I'm only interested in the solution from the partition in which the point i'm interested in lies in.</p>
+
+<p>In the end I get one file "received.txt", but this appears to hold only the results of one partition, and probably not the one I want. </p>
+
+<p>The question is: <br>
+How can I get the evaluation of every partition in a separate file?<br>
+Or, even better, only evaluate in the partition I'm interested in?</p>
+
+<p>Here's a full minimal example:</p>
+
+<pre><code>from dolfin import *
+import numpy as np
+
+parameters['ghost_mode'] = 'shared_facet'
+parameters['allow_extrapolation'] = True
+
+# Set log level
+set_log_level(ERROR)
+
+# The difference function
+def dif(l):
+    return l('-') - l('+')
+
+# Wave parameters
+cl = 6320.  # [m/s]
+ct = 3130.  # [m/s]
+rho = 2700. # [kg/m^3]
+C = cl      # Set max speed for numerical fluxes
+
+# set material parameters (Dummy)
+c11 = c22 = c33 = Constant(cl**2*rho) #       [Pa]
+c44 = c55 = c66 = Constant(ct**2*rho) #       [Pa]
+c12 = c13 = c23 = Constant(c11-2*c66) #       [Pa]
+
+# Define mesh
+mesh = RectangleMesh(0., 0., 33.e-3, 27.e-3, 33, 27)
+n    = FacetNormal(mesh)
+
+# Define functionspaces
+deg = 2
+U = VectorFunctionSpace(mesh, "DG", deg, dim = 2)
+V = VectorFunctionSpace(mesh, "DG", deg, dim = 3)
+
+# Constants for the simple puls
+S = (15e-3, 27e-3) # Source coordinates
+R = (10.e-3, 0.) # Receiver coordinates
+fc = 6.e5
+w  = 3.e-3
+a1 = -(pi*fc)**2
+
+# time stepping information
+dt = 1.e-8
+DT = Constant(dt)
+t = dt
+T = 2.0325e-7
+N = T/dt
+
+# Test and trial functions
+q1 = TrialFunction(U) # velocity, deformation
+q2 = TrialFunction(V) # velocity, deformation
+l1 = TestFunction(U)
+l2 = TestFunction(V)
+
+# Define expressions
+D = "((.5+a*pow((t-td), 2))*exp(a*pow((t-td), 2)))" # ricker wavelet
+apod = "exp(-0.5*pow((x[0]-xs)/w, 2))*(x[1] == ys)"
+s = Expression(("0.0", apod+"*"+D), w=w, td=2.e-6, a=a1, xs =S[0], ys = S[1], t = 0.0, degree = 3)
+zero2 = Expression(("0.0", "0.0"), degree = 1)
+zero3 = Expression(("0.0", "0.0", "0.0"), degree = 1)
+
+# Define selection matrices"
+print "building matrices"
+Ax1 = as_matrix([[-1., 0. ], [0. , 0. ], [0. , -1.]])
+Ax2 = as_matrix([[-c11/rho, -c12/rho, 0], [0, 0, -c66/rho]])
+Ay1 = as_matrix([[0, 0], [0, -1], [-1., 0]])
+Ay2 = as_matrix([[0, 0, -c66/rho], [-c12/rho, -c22/rho, 0]])
+
+# set inital values
+q10 = interpolate(zero2, U)
+q20 = interpolate(zero3, V)
+
+# Define fluxes on interior and exterior facets
+q1hat    = (n[0]('-')*Ax1 + n[1]('-')*Ay1)*avg(q10) + C*0.5*dif(q20)
+q1hatbnd = (n[0]*Ax1 + n[1]*Ay1)*(q10) + C*q20
+q2hat    = (n[0]('-')*Ax2 + n[1]('-')*Ay2)*avg(q20) + C*0.5*dif(q10)
+q2hatbnd = (n[0]*Ax2 + n[1]*Ay2)*(q20) + C*q10
+
+F1 = inner(q1 - q10, l1)*dx \
+  - DT*(inner(Ax2*q20, l1.dx(0)) + inner(Ay2*q20, l1.dx(1)))*dx \
+  + DT*inner(q2hat, dif(l1))*dS \
+  + DT*inner(q2hatbnd, l1)*ds \
+  - DT*inner(s/rho, l1)*dx
+
+F2 = inner(q2 - q20, l2)*dx \
+  - DT*(inner(Ax1*q10, l2.dx(0)) + inner(Ay1*q10, l2.dx(1)))*dx \
+  + DT*inner(q1hat, dif(l2))*dS \
+  + DT*inner(q1hatbnd, l2)*ds
+
+a1, L1 = lhs(F1), rhs(F1)
+a2, L2 = lhs(F2), rhs(F2)
+
+A1 = assemble(a1)
+A2 = assemble(a2)
+
+# compute LU factorization
+A1solve = LUSolver("mumps")
+A1solve.set_operator(A1)
+A1solve.parameters["reuse_factorization"] = True
+A2solve = LUSolver("mumps")
+A2solve.set_operator(A2)
+A2solve.parameters["reuse_factorization"] = True
+
+# Prepare function for solution
+vt = Function(U)
+ft = Function(V)
+
+# compute LU factorization
+tstep = 1
+t = dt
+solus = []
+
+# Actual time stepping
+while t &lt; T:
+    s.t = t
+
+    # first leap
+    b1 = assemble(L1)
+    A1solve.solve(vt.vector(), b1)
+    q10.assign(vt)
+
+    # second leap
+    b2 = assemble(L2)
+    A2solve.solve(ft.vector(), b2)
+    q20.assign(ft)
+
+    solus.append(vt(R))
+
+    tstep += 1
+    t = tstep*dt # more accurate than t += dt
+
+np.savetxt("received.txt", np.array(solus)) 
+</code></pre>
+
+<p>Thanks in advance!</p>
+</div>
+										</div>
+										<span class="qa-q-view-avatar-meta">
+											<span class="qa-q-view-meta">
+												<a href="../../5923/storing-function-evaluation-obtained-with-parallel-solver" class="qa-q-view-what">asked</a>
+												<span class="qa-q-view-when">
+													<span class="qa-q-view-when-data"><span class="published"><span class="value-title" title="2014-11-07T10:21:13+0000"></span>Nov 7, 2014</span></span>
+												</span>
+												<span class="qa-q-view-who">
+													<span class="qa-q-view-who-pad">by </span>
+													<span class="qa-q-view-who-data"><span class="vcard author"><a href="../../user/stevenvdk" class="qa-user-link url nickname">stevenvdk</a></span></span>
+													<span class="qa-q-view-who-title">FEniCS User</span>
+													<span class="qa-q-view-who-points">
+														<span class="qa-q-view-who-points-pad">(</span><span class="qa-q-view-who-points-data">1,590</span><span class="qa-q-view-who-points-pad"> points)</span>
+													</span>
+												</span>
+												<br>
+												<span class="qa-q-view-what">edited</span>
+												<span class="qa-q-view-when">
+													<span class="qa-q-view-when-data"><span class="updated"><span class="value-title" title="2014-11-07T10:55:17+0000"></span>Nov 7, 2014</span></span>
+												</span>
+												<span class="qa-q-view-who">
+													<span class="qa-q-view-who-pad">by </span><span class="qa-q-view-who-data"><a href="../../user/stevenvdk" class="qa-user-link url nickname">stevenvdk</a></span>
+												</span>
+											</span>
+										</span>
+										<div class="qa-q-view-buttons">
+										</div>
+										
+										<div class="qa-q-view-c-list" id="c5923_list">
+											<div class="qa-c-list-item  hentry comment" id="c5924">
+												<div class="qa-c-item-content">
+													<a name="5924"></a><div class="entry-content"><p>Is this really a problem with DG in parallel? It seems more like a problem of Function<br>
+evaluation in parallel. Would it be possible to write a simple Minimal Working Example to illustrate your problem?</p>
+</div>
+												</div>
+												<div class="qa-c-item-footer">
+													<span class="qa-c-item-avatar-meta">
+														<span class="qa-c-item-avatar">
+															<a href="../../user/chris_richardson" class="qa-avatar-link"><img src="https://www.gravatar.com/avatar/d779daeb727bcec8f6b2c505810042db?s=20" width="20" height="20" class="qa-avatar-image" alt=""></a>
+														</span>
+														<span class="qa-c-item-meta">
+															<a href="../../5923/storing-function-evaluation-obtained-with-parallel-solver?show=5924#c5924" class="qa-c-item-what">commented</a>
+															<span class="qa-c-item-when">
+																<span class="qa-c-item-when-data"><span class="published"><span class="value-title" title="2014-11-07T10:36:27+0000"></span>Nov 7, 2014</span></span>
+															</span>
+															<span class="qa-c-item-who">
+																<span class="qa-c-item-who-pad">by </span>
+																<span class="qa-c-item-who-data"><span class="vcard author"><a href="../../user/chris_richardson" class="qa-user-link url nickname">chris_richardson</a></span></span>
+																<span class="qa-c-item-who-title">FEniCS Expert</span>
+																<span class="qa-c-item-who-points">
+																	<span class="qa-c-item-who-points-pad">(</span><span class="qa-c-item-who-points-data">31,740</span><span class="qa-c-item-who-points-pad"> points)</span>
+																</span>
+															</span>
+														</span>
+													</span>
+													<div class="qa-c-item-buttons">
+													</div>
+												</div>
+												<div class="qa-c-item-clear">
+												</div>
+											</div> <!-- END qa-c-item -->
+											<div class="qa-c-list-item  hentry comment" id="c5926">
+												<div class="qa-c-item-content">
+													<a name="5926"></a><div class="entry-content"><p>True, <br>
+a general problem when evaluating a solution that was obtained by parallel solve... </p>
+
+<p>I've added a (hopefully) minimal example in the question above.</p>
+
+<p>Is there e.g. a variable I can call to get the id of the current node?</p>
+
+<p>Thanks!</p>
+</div>
+												</div>
+												<div class="qa-c-item-footer">
+													<span class="qa-c-item-avatar-meta">
+														<span class="qa-c-item-meta">
+															<a href="../../5923/storing-function-evaluation-obtained-with-parallel-solver?show=5926#c5926" class="qa-c-item-what">commented</a>
+															<span class="qa-c-item-when">
+																<span class="qa-c-item-when-data"><span class="published"><span class="value-title" title="2014-11-07T10:57:29+0000"></span>Nov 7, 2014</span></span>
+															</span>
+															<span class="qa-c-item-who">
+																<span class="qa-c-item-who-pad">by </span>
+																<span class="qa-c-item-who-data"><span class="vcard author"><a href="../../user/stevenvdk" class="qa-user-link url nickname">stevenvdk</a></span></span>
+																<span class="qa-c-item-who-title">FEniCS User</span>
+																<span class="qa-c-item-who-points">
+																	<span class="qa-c-item-who-points-pad">(</span><span class="qa-c-item-who-points-data">1,590</span><span class="qa-c-item-who-points-pad"> points)</span>
+																</span>
+															</span>
+														</span>
+													</span>
+													<div class="qa-c-item-buttons">
+													</div>
+												</div>
+												<div class="qa-c-item-clear">
+												</div>
+											</div> <!-- END qa-c-item -->
+											<div class="qa-c-list-item  hentry comment" id="c5927">
+												<div class="qa-c-item-content">
+													<a name="5927"></a><div class="entry-content"><p>You can get the process number with: <code>MPI.rank(mesh.mpi_comm())</code> but I'm not sure that's what you need here.<br>
+This is more what I would call a MWE:</p>
+
+<pre><code>parameters['allow_extrapolation'] = True
+parameters['ghost_mode'] = 'shared_facet' 
+mesh = UnitSquareMesh(10,10)
+
+Q = FunctionSpace(mesh, "DG", 1)
+F = Function(Q)
+F.interpolate(Expression("x[0]*x[1]"))
+
+print F(0.25, 0.25)
+</code></pre>
+
+<p>When run in parallel, it gives different answers on each process, sometimes way off.<br>
+What you need, is a way to determine which process your point is on.</p>
+
+<p>Something like this will work, though not too elegant. If anyone else has a good idea...</p>
+
+<pre><code>import numpy as np
+
+parameters['ghost_mode'] = 'shared_facet'
+mesh = UnitSquareMesh(10,10)
+
+Q = FunctionSpace(mesh, "DG", 1)
+F = Function(Q)
+F.interpolate(Expression("x[0]*x[1]"))
+
+x = np.array([0.25, 0.25])
+pt = Point(x)
+
+# Max value of unsigned int                                                                                                            
+max_int = 2**32 - 1
+
+rank = MPI.rank(mesh.mpi_comm())
+bb = BoundingBoxTree()
+bb.build(mesh)
+if (bb.compute_first_entity_collision(pt) != max_int):
+    print rank, F(x)
+</code></pre>
+
+<p>Bear in mind, this will print on multiple processes if the cell is ghosted...</p>
+</div>
+												</div>
+												<div class="qa-c-item-footer">
+													<span class="qa-c-item-avatar-meta">
+														<span class="qa-c-item-avatar">
+															<a href="../../user/chris_richardson" class="qa-avatar-link"><img src="https://www.gravatar.com/avatar/d779daeb727bcec8f6b2c505810042db?s=20" width="20" height="20" class="qa-avatar-image" alt=""></a>
+														</span>
+														<span class="qa-c-item-meta">
+															<a href="../../5923/storing-function-evaluation-obtained-with-parallel-solver?show=5927#c5927" class="qa-c-item-what">commented</a>
+															<span class="qa-c-item-when">
+																<span class="qa-c-item-when-data"><span class="published"><span class="value-title" title="2014-11-07T11:13:28+0000"></span>Nov 7, 2014</span></span>
+															</span>
+															<span class="qa-c-item-who">
+																<span class="qa-c-item-who-pad">by </span>
+																<span class="qa-c-item-who-data"><span class="vcard author"><a href="../../user/chris_richardson" class="qa-user-link url nickname">chris_richardson</a></span></span>
+																<span class="qa-c-item-who-title">FEniCS Expert</span>
+																<span class="qa-c-item-who-points">
+																	<span class="qa-c-item-who-points-pad">(</span><span class="qa-c-item-who-points-data">31,740</span><span class="qa-c-item-who-points-pad"> points)</span>
+																</span>
+															</span>
+															<br>
+															<span class="qa-c-item-what">edited</span>
+															<span class="qa-c-item-when">
+																<span class="qa-c-item-when-data"><span class="updated"><span class="value-title" title="2014-11-07T11:35:09+0000"></span>Nov 7, 2014</span></span>
+															</span>
+															<span class="qa-c-item-who">
+																<span class="qa-c-item-who-pad">by </span><span class="qa-c-item-who-data"><a href="../../user/chris_richardson" class="qa-user-link url nickname">chris_richardson</a></span>
+															</span>
+														</span>
+													</span>
+													<div class="qa-c-item-buttons">
+													</div>
+												</div>
+												<div class="qa-c-item-clear">
+												</div>
+											</div> <!-- END qa-c-item -->
+											<div class="qa-c-list-item  hentry comment" id="c5931">
+												<div class="qa-c-item-content">
+													<a name="5931"></a><div class="entry-content"><p>Not too pretty indeed, but it works. Thanks. <br>
+Thanks for pointing out my example wasn't minimal, I forgot tho think outside my box ;)</p>
+</div>
+												</div>
+												<div class="qa-c-item-footer">
+													<span class="qa-c-item-avatar-meta">
+														<span class="qa-c-item-meta">
+															<a href="../../5923/storing-function-evaluation-obtained-with-parallel-solver?show=5931#c5931" class="qa-c-item-what">commented</a>
+															<span class="qa-c-item-when">
+																<span class="qa-c-item-when-data"><span class="published"><span class="value-title" title="2014-11-07T13:27:15+0000"></span>Nov 7, 2014</span></span>
+															</span>
+															<span class="qa-c-item-who">
+																<span class="qa-c-item-who-pad">by </span>
+																<span class="qa-c-item-who-data"><span class="vcard author"><a href="../../user/stevenvdk" class="qa-user-link url nickname">stevenvdk</a></span></span>
+																<span class="qa-c-item-who-title">FEniCS User</span>
+																<span class="qa-c-item-who-points">
+																	<span class="qa-c-item-who-points-pad">(</span><span class="qa-c-item-who-points-data">1,590</span><span class="qa-c-item-who-points-pad"> points)</span>
+																</span>
+															</span>
+														</span>
+													</span>
+													<div class="qa-c-item-buttons">
+													</div>
+												</div>
+												<div class="qa-c-item-clear">
+												</div>
+											</div> <!-- END qa-c-item -->
+										</div> <!-- END qa-c-list -->
+										
+										<input type="hidden" name="code" value="0-1516468049-37d62e91b471760a707f30d29b12992eb9c1260b">
+										<input type="hidden" name="qa_click" value="">
+									</form>
+									<div class="qa-c-form">
+									</div> <!-- END qa-c-form -->
+									
+								</div> <!-- END qa-q-view-main -->
+								<div class="qa-q-view-clear">
+								</div>
+							</div> <!-- END qa-q-view -->
+							
+						</div>
+						<div class="qa-part-a-list">
+							<h2 id="a_list_title">1 Answer</h2>
+							<div class="qa-a-list" id="a_list">
+								
+								<div class="qa-a-list-item  hentry answer" id="a5933">
+									<form method="post" action="../../5923/storing-function-evaluation-obtained-with-parallel-solver">
+										<div class="qa-voting qa-voting-net" id="voting_5933">
+											<div class="qa-vote-count qa-vote-count-net">
+												<span class="qa-netvote-count">
+													<span class="qa-netvote-count-data">+2<span class="votes-up"><span class="value-title" title="2"></span></span><span class="votes-down"><span class="value-title" title="0"></span></span></span><span class="qa-netvote-count-pad"> votes</span>
+												</span>
+											</div>
+											<div class="qa-vote-clear">
+											</div>
+										</div>
+										<input type="hidden" name="code" value="0-1516468049-999191e1f540006be635057a4ddbfcbfdc3706ae">
+									</form>
+									<div class="qa-a-item-main">
+										<form method="post" action="../../5923/storing-function-evaluation-obtained-with-parallel-solver">
+											<div class="qa-a-selection">
+											</div>
+											<div class="qa-a-item-content">
+												<a name="5933"></a><div class="entry-content"><p>This is one way to get the desired effect. Maybe there should be an issue on bitbucket?</p>
+
+<pre><code>import numpy as np
+mesh = UnitSquareMesh(10,10)
+
+Q = FunctionSpace(mesh, "DG", 1)
+F = Function(Q)
+F.interpolate(Expression("x[0]*x[1]"))
+
+x = np.array([0.25, 0.25])
+pt = Point(x)
+
+# Max value of unsigned int                                                                                                             
+max_int = 2**32 - 1
+
+rank = MPI.rank(mesh.mpi_comm())
+bb = BoundingBoxTree()
+bb.build(mesh)
+if (bb.compute_first_entity_collision(pt) != max_int):
+    print rank, F(x)
+</code></pre>
+</div>
+											</div>
+											<span class="qa-a-item-avatar-meta">
+												<span class="qa-a-item-avatar">
+													<a href="../../user/chris_richardson" class="qa-avatar-link"><img src="https://www.gravatar.com/avatar/d779daeb727bcec8f6b2c505810042db?s=40" width="40" height="40" class="qa-avatar-image" alt=""></a>
+												</span>
+												<span class="qa-a-item-meta">
+													<a href="../../5923/storing-function-evaluation-obtained-with-parallel-solver?show=5933#a5933" class="qa-a-item-what">answered</a>
+													<span class="qa-a-item-when">
+														<span class="qa-a-item-when-data"><span class="published"><span class="value-title" title="2014-11-07T14:17:54+0000"></span>Nov 7, 2014</span></span>
+													</span>
+													<span class="qa-a-item-who">
+														<span class="qa-a-item-who-pad">by </span>
+														<span class="qa-a-item-who-data"><span class="vcard author"><a href="../../user/chris_richardson" class="qa-user-link url nickname">chris_richardson</a></span></span>
+														<span class="qa-a-item-who-title">FEniCS Expert</span>
+														<span class="qa-a-item-who-points">
+															<span class="qa-a-item-who-points-pad">(</span><span class="qa-a-item-who-points-data">31,740</span><span class="qa-a-item-who-points-pad"> points)</span>
+														</span>
+													</span>
+												</span>
+											</span>
+											<div class="qa-a-item-buttons">
+												</div>
+											
+											<div class="qa-a-item-c-list" style="display:none;" id="c5933_list">
+											</div> <!-- END qa-c-list -->
+											
+											<input type="hidden" name="code" value="0-1516468049-9e4b629434049ef726e9273b7b9ef2b1605eabb4">
+											<input type="hidden" name="qa_click" value="">
+										</form>
+										<div class="qa-c-form">
+										</div> <!-- END qa-c-form -->
+										
+									</div> <!-- END qa-a-item-main -->
+									<div class="qa-a-item-clear">
+									</div>
+								</div> <!-- END qa-a-list-item -->
+								
+							</div> <!-- END qa-a-list -->
+							
+						</div>
+					</div> <!-- END qa-main -->
+					
+				</div> <!-- END main-wrapper -->
+			</div> <!-- END main-shadow -->
+		</div> <!-- END body-wrapper -->
+		<!-- END footer-bottom-group -->
+		
+		<div style="position:absolute; left:-9999px; top:-9999px;">
+			<span id="qa-waiting-template" class="qa-waiting">...</span>
+		</div>
+	
+	
+
+</body><!-- Powered by Question2Answer - http://www.question2answer.org/ --></html>

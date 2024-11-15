@@ -1,0 +1,284 @@
+<html><!-- Powered by Question2Answer - http://www.question2answer.org/ --><head>
+		<meta http-equiv="content-type" content="text/html; charset=utf-8">
+		<title>Non-linear boundary conditions in electrostatics producing strange results - FEniCS Q&amp;A</title>
+		<meta name="description" content="Hi Everyone, I have a question relating to solving an electrostatics problem using Poisson's equation, where ... and I am just missing it. Thanks! Sam">
+		<meta name="keywords" content="boundary-conditions,non-linear,neumann,electrostatics">
+		<link rel="stylesheet" type="text/css" href="../../qa-theme/Snow/qa-styles.css">
+		<link rel="canonical" href="http://fenicsproject.org/qa/10020/boundary-conditions-electrostatics-producing-strange-results">
+		<script type="text/x-mathjax-config">
+  MathJax.Hub.Config({
+    extensions: ["tex2jax.js"],
+    jax: ["input/TeX","output/HTML-CSS"],
+    tex2jax: {inlineMath: [["$","$"],["\\(","\\)"]]},
+    TeX: { extensions: ["AMSmath.js","AMSsymbols.js"]}
+  });
+</script>
+<script type="text/javascript" src="../../mathjax/MathJax.js"></script>
+		<script src="../../jquery-1.7.2.min.js" type="text/javascript"></script>
+		<script src="../../highlight.min.js"></script>
+<script type="text/javascript">
+$(function(){
+	$('.wmd-input').keypress(function(){
+		window.clearTimeout(hljs.Timeout);
+		hljs.Timeout = window.setTimeout(function() {
+			hljs.initHighlighting.called = false;
+			hljs.initHighlighting();
+		}, 500);
+	});
+	window.setTimeout(function() {
+		hljs.initHighlighting.called = false;
+		hljs.initHighlighting();
+	}, 500);
+});
+</script>
+
+
+	</head>
+	<body class="qa-template-question qa-body-js-off">
+		<div class="qa-body-wrapper">
+			
+			<div class="qa-header">
+				<div class="qa-logo">
+					<a href="../../" class="qa-logo-link" title="FEniCS Q&amp;A"><img src="../../qa-theme/fenics_qa.png" border="0" alt="FEniCS Q&amp;A"></a>
+				</div>
+				<div class="qa-header-clear">
+				</div>
+			</div> <!-- END qa-header -->
+			
+			<div class="qa-main-shadow">
+				
+				<div class="qa-main-wrapper">
+					
+					<div class="qa-sidepanel">
+						<div class="qa-sidebar">
+							This is a read only copy of the old FEniCS QA forum. Please visit the <a href="https://www.allanswered.com/community/s/fenics-project/">new QA forum</a> to ask questions
+						</div>
+						
+					</div>
+					
+					<div class="qa-main">
+						<h1>
+							<span class="entry-title">Non-linear boundary conditions in electrostatics producing strange results</span>
+						</h1>
+						<div class="qa-part-q-view">
+							<div class="qa-q-view  hentry question" id="q10020">
+								<form method="post" action="../../10020/boundary-conditions-electrostatics-producing-strange-results">
+									<div class="qa-q-view-stats">
+										<div class="qa-voting qa-voting-net" id="voting_10020">
+											<div class="qa-vote-count qa-vote-count-net">
+												<span class="qa-netvote-count">
+													<span class="qa-netvote-count-data">0<span class="votes-up"><span class="value-title" title="0"></span></span><span class="votes-down"><span class="value-title" title="0"></span></span></span><span class="qa-netvote-count-pad"> votes</span>
+												</span>
+											</div>
+											<div class="qa-vote-clear">
+											</div>
+										</div>
+									</div>
+									<input type="hidden" name="code" value="0-1516467036-2e5e3d0ca555f64ca7eca985e1bc20d105832206">
+								</form>
+								<div class="qa-q-view-main">
+									<form method="post" action="../../10020/boundary-conditions-electrostatics-producing-strange-results">
+										<div class="qa-q-view-content">
+											<a name="10020"></a><div class="entry-content"><p>Hi Everyone,</p>
+
+<p>I have a question relating to solving an electrostatics problem using Poisson's equation, where the problem has a non-linear Neumann boundary condition. <br>
+The problem I am attempting to solve is as follows:</p>
+
+<p>$$ \Omega = [0,400]x[0,100]$$</p>
+
+<p>$-\nabla  (\epsilon_r\nabla u)=0$ in $\Omega$</p>
+
+<p>$ u = V_g$ on $ \Gamma_{y=0}$ </p>
+
+<p>$ \nabla u \cdot n = -13.295 \textrm{sgn}(u)u^2$ on $ \Gamma_{y=100.0}$ </p>
+
+<p>$ \nabla u \cdot n = 0.0$ on $ \Gamma_{x=0.0}$</p>
+
+<p>$ \nabla u \cdot n = 0.0$ on $ \Gamma_{x=400.0}$ </p>
+
+<p>Hopefully my LaTeX did not fail me in describing the problem...</p>
+
+<p>To explain why I am interested in this problem: I am trying to replicate results for a parallel plate capacitor from a publication (citation below), where one plate (y = 0) has a fixed voltage and the other (y = 100) acquires a charge density whose normal derivative at the interface is described by $-13.295 \textrm{sgn}(u)u^2$. Thus, a non-linear problem. </p>
+
+<p>I believe I have implemented the above problem in FEniCS properly, using a non-linear Newton routine I found in the tutorials. Using the solution for $u$, it is possible to numerically estimate the carrier density using an equation out of [1] $n(x) = 7.3471 * 10^{13} \textrm{sgn}(u)u^2$.</p>
+
+<p>What I expect to see is a square root dependence of carrier density on $V_g$. Unfortunately, instead I am getting a linear dependence, which I find puzzling. I am fairly new to FEnICS (this is the first real problem I am attempting to solve with it), so I am hoping that someone more experienced might be able to suggest where I could have gone wrong. I expect that my issue lies in how I implemented the boundary condition, but I cannot be sure. </p>
+
+<p>Here is my code: </p>
+
+<pre><code>from dolfin import *
+import numpy as np
+from matplotlib import pyplot as plt
+
+# Inputs/Constants
+x_min = 0.0
+x_max = 400.0 # device length
+x_points = 50
+
+y_min = 0.0
+y_max = 100.0 # t_ox = 100 nm
+y_points = 50
+
+eps_r = 3.9 # dielectric constant
+
+Vgs = np.arange(-50,51,10.) # Gate voltages
+densities = np.zeros(np.size(Vgs)) # Densities to be calculated
+
+# Sub domain for Dirichlet boundary condition
+class Left(SubDomain):
+    def inside(self, x, on_boundary):
+        return near(x[0], x_min)
+
+class Right(SubDomain):
+    def inside(self, x, on_boundary):
+        return near(x[0], x_max)
+
+class Bottom(SubDomain):
+    def inside(self, x, on_boundary):
+        return near(x[1], y_min)
+
+class Top(SubDomain):
+    def inside(self, x, on_boundary):
+        return near(x[1], y_max)
+
+# Initialize sub-domain instances
+left = Left()
+top = Top()
+right = Right()
+bottom = Bottom()
+
+# Create mesh and define function space
+mesh = RectangleMesh(Point(x_min,y_min),Point(x_max,y_max),x_points,y_points)
+
+## Initialize mesh function for interior domains
+domains = CellFunction("uint", mesh)
+domains.set_all(0)
+
+for idx, Vg in enumerate(Vgs): # calculate density for each gate voltage
+
+    # Initialize mesh function for boundary domains
+    boundaries = MeshFunction('size_t', mesh, mesh.topology().dim()-1)
+    boundaries.set_all(0)
+    left.mark(boundaries, 1)
+    top.mark(boundaries, 2)
+    right.mark(boundaries, 3)
+    bottom.mark(boundaries, 4)
+
+    V = FunctionSpace(mesh, "CG", 1)
+
+    # Define new measures associated with the interior domains and
+    # exterior boundaries
+    dx = Measure("dx")[domains]
+    ds = Measure("ds")[boundaries]
+
+    # Define boundary condition
+    bc = DirichletBC(V,Constant(Vg), boundaries,4) # fix bottom gate voltage
+
+    # Define variational problem
+    v = TestFunction(V)
+    u = Function(V)
+    F = inner(grad(u),eps_r*grad(v))*dx \
+                  - Constant(0)*v*dx \
+                  - 13.295*sign(u)*u*u*v*ds(2)
+
+    # Compute solution
+    solve(F == 0, u, bc,solver_parameters={"newton_solver": {"relative_tolerance": 1e-12}})
+
+    # Extract values at graphene layer
+    x_points = np.linspace(x_min,x_max,y_points)
+    probe_points = np.zeros((y_points,2)) #set of coordinates
+    probe_points[:,0] = x_points # x coordinates
+    probe_points[:,1] = y_max # y coordinates
+
+    result = np.zeros(y_points)
+
+    for i in xrange(50): # get results at the specified coordinates
+        result[i]=u(probe_points[i,:])
+
+    result = np.average(result)
+    density = 7.3471E13*np.sign(result)*result**2
+    densities[idx] = density
+
+fig, ax = plt.subplots(facecolor='w')
+ax.scatter(Vgs,densities)
+ax.set_xlabel('Gate voltage')
+ax.set_ylabel('Carrier Density')
+plt.show()
+</code></pre>
+
+<p>I kept the grid pretty coarse, so hopefully it runs fast for anyone who tries it. I've done much finer grids and gotten the same results, so that does not seem to be the issue. </p>
+
+<p>The paper, if anyone is curious: </p>
+
+<p>[1] Liu, M. H. (2013). Gate-induced carrier density modulation in bulk graphene: Theories and electrostatic simulation using Matlab pdetool. Journal of Computational Electronics, 12(2), 188&#8211;202. <a rel="nofollow" href="http://doi.org/10.1007/s10825-013-0456-9">http://doi.org/10.1007/s10825-013-0456-9</a></p>
+
+<p>I would hugely appreciate anyones help! I have been bashing my head against this problem for a while. I expect my problem is something simple and I am just missing it. </p>
+
+<p>Thanks!</p>
+
+<p>Sam</p>
+</div>
+										</div>
+										<div class="qa-q-view-tags">
+											<ul class="qa-q-view-tag-list">
+												<li class="qa-q-view-tag-item"><a href="../../tag/boundary-conditions" rel="tag" class="qa-tag-link">boundary-conditions</a></li>
+												<li class="qa-q-view-tag-item"><a href="../../tag/non-linear" rel="tag" class="qa-tag-link">non-linear</a></li>
+												<li class="qa-q-view-tag-item"><a href="../../tag/neumann" rel="tag" class="qa-tag-link">neumann</a></li>
+												<li class="qa-q-view-tag-item"><a href="../../tag/electrostatics" rel="tag" class="qa-tag-link">electrostatics</a></li>
+											</ul>
+										</div>
+										<span class="qa-q-view-avatar-meta">
+											<span class="qa-q-view-meta">
+												<a href="../../10020/boundary-conditions-electrostatics-producing-strange-results" class="qa-q-view-what">asked</a>
+												<span class="qa-q-view-when">
+													<span class="qa-q-view-when-data"><span class="published"><span class="value-title" title="2016-05-05T22:06:33+0000"></span>May 6, 2016</span></span>
+												</span>
+												<span class="qa-q-view-who">
+													<span class="qa-q-view-who-pad">by </span>
+													<span class="qa-q-view-who-data"><span class="vcard author"><a href="../../user/SammerX" class="qa-user-link url nickname">SammerX</a></span></span>
+													<span class="qa-q-view-who-title">FEniCS Novice</span>
+													<span class="qa-q-view-who-points">
+														<span class="qa-q-view-who-points-pad">(</span><span class="qa-q-view-who-points-data">120</span><span class="qa-q-view-who-points-pad"> points)</span>
+													</span>
+												</span>
+											</span>
+										</span>
+										<div class="qa-q-view-buttons">
+										</div>
+										
+										<div class="qa-q-view-c-list" style="display:none;" id="c10020_list">
+										</div> <!-- END qa-c-list -->
+										
+										<input type="hidden" name="code" value="0-1516467036-3e3687d64aef37c482aa7967f876ee45e62e4167">
+										<input type="hidden" name="qa_click" value="">
+									</form>
+									<div class="qa-c-form">
+									</div> <!-- END qa-c-form -->
+									
+								</div> <!-- END qa-q-view-main -->
+								<div class="qa-q-view-clear">
+								</div>
+							</div> <!-- END qa-q-view -->
+							
+						</div>
+						<div class="qa-part-a-list">
+							<h2 id="a_list_title" style="display:none;"></h2>
+							<div class="qa-a-list" id="a_list">
+								
+							</div> <!-- END qa-a-list -->
+							
+						</div>
+					</div> <!-- END qa-main -->
+					
+				</div> <!-- END main-wrapper -->
+			</div> <!-- END main-shadow -->
+		</div> <!-- END body-wrapper -->
+		<!-- END footer-bottom-group -->
+		
+		<div style="position:absolute; left:-9999px; top:-9999px;">
+			<span id="qa-waiting-template" class="qa-waiting">...</span>
+		</div>
+	
+	
+
+</body><!-- Powered by Question2Answer - http://www.question2answer.org/ --></html>

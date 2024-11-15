@@ -1,0 +1,193 @@
+<html><!-- Powered by Question2Answer - http://www.question2answer.org/ --><head>
+		<meta http-equiv="content-type" content="text/html; charset=utf-8">
+		<title>Computing integral over boundary - FEniCS Q&amp;A</title>
+		<meta name="description" content="Dear All, assuming, I've already solved a pde with solution X. Now, I would like to  ...  print integral_value Thank you for your support in advance.">
+		<link rel="stylesheet" type="text/css" href="../../qa-theme/Snow/qa-styles.css">
+		<link rel="canonical" href="http://fenicsproject.org/qa/6669/computing-integral-over-boundary">
+		<script type="text/x-mathjax-config">
+  MathJax.Hub.Config({
+    extensions: ["tex2jax.js"],
+    jax: ["input/TeX","output/HTML-CSS"],
+    tex2jax: {inlineMath: [["$","$"],["\\(","\\)"]]},
+    TeX: { extensions: ["AMSmath.js","AMSsymbols.js"]}
+  });
+</script>
+<script type="text/javascript" src="../../mathjax/MathJax.js"></script>
+		<script src="../../jquery-1.7.2.min.js" type="text/javascript"></script>
+		<script src="../../highlight.min.js"></script>
+<script type="text/javascript">
+$(function(){
+	$('.wmd-input').keypress(function(){
+		window.clearTimeout(hljs.Timeout);
+		hljs.Timeout = window.setTimeout(function() {
+			hljs.initHighlighting.called = false;
+			hljs.initHighlighting();
+		}, 500);
+	});
+	window.setTimeout(function() {
+		hljs.initHighlighting.called = false;
+		hljs.initHighlighting();
+	}, 500);
+});
+</script>
+
+
+	</head>
+	<body class="qa-template-question qa-body-js-off">
+		<div class="qa-body-wrapper">
+			
+			<div class="qa-header">
+				<div class="qa-logo">
+					<a href="../../" class="qa-logo-link" title="FEniCS Q&amp;A"><img src="../../qa-theme/fenics_qa.png" border="0" alt="FEniCS Q&amp;A"></a>
+				</div>
+				<div class="qa-header-clear">
+				</div>
+			</div> <!-- END qa-header -->
+			
+			<div class="qa-main-shadow">
+				
+				<div class="qa-main-wrapper">
+					
+					<div class="qa-sidepanel">
+						<div class="qa-sidebar">
+							This is a read only copy of the old FEniCS QA forum. Please visit the <a href="https://www.allanswered.com/community/s/fenics-project/">new QA forum</a> to ask questions
+						</div>
+						
+					</div>
+					
+					<div class="qa-main">
+						<h1>
+							<span class="entry-title">Computing integral over boundary</span>
+						</h1>
+						<div class="qa-part-q-view">
+							<div class="qa-q-view  hentry question" id="q6669">
+								<form method="post" action="../../6669/computing-integral-over-boundary">
+									<div class="qa-q-view-stats">
+										<div class="qa-voting qa-voting-net" id="voting_6669">
+											<div class="qa-vote-count qa-vote-count-net">
+												<span class="qa-netvote-count">
+													<span class="qa-netvote-count-data">0<span class="votes-up"><span class="value-title" title="0"></span></span><span class="votes-down"><span class="value-title" title="0"></span></span></span><span class="qa-netvote-count-pad"> votes</span>
+												</span>
+											</div>
+											<div class="qa-vote-clear">
+											</div>
+										</div>
+									</div>
+									<input type="hidden" name="code" value="0-1516468082-5210856abaf92d300dbc675076b74572d012af62">
+								</form>
+								<div class="qa-q-view-main">
+									<form method="post" action="../../6669/computing-integral-over-boundary">
+										<div class="qa-q-view-content">
+											<a name="6669"></a><div class="entry-content"><p>Dear All,</p>
+
+<p>assuming, I've already solved a pde with solution X. Now, I would like to compute the following integral:</p>
+
+<p><img src="http://imageshack.com/a/img537/9285/zNv868.jpg" alt="enter image description here"></p>
+
+<p>The Problem is, that I can't enter grad( X (s+1 ) ) directly in Fenics (version 1.4.x). Is there an easy way to do this?</p>
+
+<p>I've already tried to  create an Expression and than to integrate, but the assemble-command doesn't work here (Error: "Expecting a completed form with domains at this point."):</p>
+
+<pre><code>class Source(Expression):  
+    def eval(self, values, x):
+        values[0] = inner(grad(X(x[0])),n)*inner(grad(X(x[0]+1)),n)  
+f = Source()
+int=f*ds(1)
+assemble_int=assemble(int)
+</code></pre>
+
+<p>Here is a minimal code example: </p>
+
+<pre><code># -*- coding: utf-8 -*-
+from dolfin import *
+
+omega=UnitSquareMesh(4,4)
+V=FunctionSpace(omega,"CG",1)
+
+# Marking the top of the boundary 
+class DirichletBoundaryTop(SubDomain):
+    def inside(self, x, on_boundary):
+        return bool((x[1] == 1) and on_boundary)
+
+dbt = DirichletBoundaryTop()
+mf = MeshFunction("size_t", omega, omega.topology().dim() - 1)
+mf.set_all(0)
+dbt.mark(mf, 1)
+
+# solving PDE for X
+X_Top = Constant(1.0)
+DirXtop = DirichletBC(V, X_Top, dbt)
+bc_X=[DirXtop]
+X = TrialFunction(V)
+t = TestFunction(V)
+a = inner(nabla_grad(X), nabla_grad(t))*dx
+L = Constant(0.0)*t*dx
+X = Function(V)
+solve(a==L, X, bc_X)
+
+# Compute integral
+n=FacetNormal(omega)
+ds = Measure('ds')[mf]
+integral=inner(grad(X),n)*ds(1)      
+integral_value=assemble(integral)
+print integral_value
+</code></pre>
+
+<p>Thank you for your support in advance.</p>
+</div>
+										</div>
+										<span class="qa-q-view-avatar-meta">
+											<span class="qa-q-view-meta">
+												<a href="../../6669/computing-integral-over-boundary" class="qa-q-view-what">asked</a>
+												<span class="qa-q-view-when">
+													<span class="qa-q-view-when-data"><span class="published"><span class="value-title" title="2015-03-03T15:57:25+0000"></span>Mar 3, 2015</span></span>
+												</span>
+												<span class="qa-q-view-who">
+													<span class="qa-q-view-who-pad">by </span>
+													<span class="qa-q-view-who-data"><span class="vcard author"><a href="../../user/puffin" class="qa-user-link url nickname">puffin</a></span></span>
+													<span class="qa-q-view-who-title">FEniCS Novice</span>
+													<span class="qa-q-view-who-points">
+														<span class="qa-q-view-who-points-pad">(</span><span class="qa-q-view-who-points-data">440</span><span class="qa-q-view-who-points-pad"> points)</span>
+													</span>
+												</span>
+											</span>
+										</span>
+										<div class="qa-q-view-buttons">
+										</div>
+										
+										<div class="qa-q-view-c-list" style="display:none;" id="c6669_list">
+										</div> <!-- END qa-c-list -->
+										
+										<input type="hidden" name="code" value="0-1516468082-9b663ecd2af2df00d54f5ccfc32746014476c67f">
+										<input type="hidden" name="qa_click" value="">
+									</form>
+									<div class="qa-c-form">
+									</div> <!-- END qa-c-form -->
+									
+								</div> <!-- END qa-q-view-main -->
+								<div class="qa-q-view-clear">
+								</div>
+							</div> <!-- END qa-q-view -->
+							
+						</div>
+						<div class="qa-part-a-list">
+							<h2 id="a_list_title" style="display:none;"></h2>
+							<div class="qa-a-list" id="a_list">
+								
+							</div> <!-- END qa-a-list -->
+							
+						</div>
+					</div> <!-- END qa-main -->
+					
+				</div> <!-- END main-wrapper -->
+			</div> <!-- END main-shadow -->
+		</div> <!-- END body-wrapper -->
+		<!-- END footer-bottom-group -->
+		
+		<div style="position:absolute; left:-9999px; top:-9999px;">
+			<span id="qa-waiting-template" class="qa-waiting">...</span>
+		</div>
+	
+	
+
+</body><!-- Powered by Question2Answer - http://www.question2answer.org/ --></html>

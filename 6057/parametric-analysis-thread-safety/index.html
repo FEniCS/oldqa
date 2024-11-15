@@ -1,0 +1,290 @@
+<html><!-- Powered by Question2Answer - http://www.question2answer.org/ --><head>
+		<meta http-equiv="content-type" content="text/html; charset=utf-8">
+		<title>Parametric analysis: Thread safety - FEniCS Q&amp;A</title>
+		<meta name="description" content="Dear all, I wrote a module that computes a vector field, given an angle. Now, I need ... an equivalent speedup with respect to serializing it? Thanks!">
+		<meta name="keywords" content="thread,parallel,parameters">
+		<link rel="stylesheet" type="text/css" href="../../qa-theme/Snow/qa-styles.css">
+		<link rel="canonical" href="http://fenicsproject.org/qa/6057/parametric-analysis-thread-safety">
+		<script type="text/x-mathjax-config">
+  MathJax.Hub.Config({
+    extensions: ["tex2jax.js"],
+    jax: ["input/TeX","output/HTML-CSS"],
+    tex2jax: {inlineMath: [["$","$"],["\\(","\\)"]]},
+    TeX: { extensions: ["AMSmath.js","AMSsymbols.js"]}
+  });
+</script>
+<script type="text/javascript" src="../../mathjax/MathJax.js"></script>
+		<script src="../../jquery-1.7.2.min.js" type="text/javascript"></script>
+		<script src="../../highlight.min.js"></script>
+<script type="text/javascript">
+$(function(){
+	$('.wmd-input').keypress(function(){
+		window.clearTimeout(hljs.Timeout);
+		hljs.Timeout = window.setTimeout(function() {
+			hljs.initHighlighting.called = false;
+			hljs.initHighlighting();
+		}, 500);
+	});
+	window.setTimeout(function() {
+		hljs.initHighlighting.called = false;
+		hljs.initHighlighting();
+	}, 500);
+});
+</script>
+
+
+	</head>
+	<body class="qa-template-question qa-body-js-off">
+		<div class="qa-body-wrapper">
+			
+			<div class="qa-header">
+				<div class="qa-logo">
+					<a href="../../" class="qa-logo-link" title="FEniCS Q&amp;A"><img src="../../qa-theme/fenics_qa.png" border="0" alt="FEniCS Q&amp;A"></a>
+				</div>
+				<div class="qa-header-clear">
+				</div>
+			</div> <!-- END qa-header -->
+			
+			<div class="qa-main-shadow">
+				
+				<div class="qa-main-wrapper">
+					
+					<div class="qa-sidepanel">
+						<div class="qa-sidebar">
+							This is a read only copy of the old FEniCS QA forum. Please visit the <a href="https://www.allanswered.com/community/s/fenics-project/">new QA forum</a> to ask questions
+						</div>
+						
+					</div>
+					
+					<div class="qa-main">
+						<h1>
+							<span class="entry-title">Parametric analysis: Thread safety</span>
+						</h1>
+						<div class="qa-part-q-view">
+							<div class="qa-q-view  hentry question" id="q6057">
+								<form method="post" action="../../6057/parametric-analysis-thread-safety">
+									<div class="qa-q-view-stats">
+										<div class="qa-voting qa-voting-net" id="voting_6057">
+											<div class="qa-vote-count qa-vote-count-net">
+												<span class="qa-netvote-count">
+													<span class="qa-netvote-count-data">+3<span class="votes-up"><span class="value-title" title="3"></span></span><span class="votes-down"><span class="value-title" title="0"></span></span></span><span class="qa-netvote-count-pad"> votes</span>
+												</span>
+											</div>
+											<div class="qa-vote-clear">
+											</div>
+										</div>
+									</div>
+									<input type="hidden" name="code" value="0-1516468055-66f2ad1a3b816ae5fb199d9427b886318a787e72">
+								</form>
+								<div class="qa-q-view-main">
+									<form method="post" action="../../6057/parametric-analysis-thread-safety">
+										<div class="qa-q-view-content">
+											<a name="6057"></a><div class="entry-content"><p>Dear all, </p>
+
+<p>I wrote a module that computes a vector field, given an angle. Now, I need to perform the very same computation on all possible angles, for instance <strong>0 - 2 \pi</strong>, and I thought it could be easy using threads:</p>
+
+<pre><code>def chunks(l, n):
+    """ Yield successive n-sized chunks from l.
+    """
+    for i in xrange(0, len(l), n):
+        yield l[i:i+n]
+
+AlphaTrial = map(lambda x : math.pi * x / 180, range(0, 359))
+
+# Queue for multithreading results
+q = Queue.Queue()
+
+# Number of threads
+nthreads = 4
+
+# Thread list
+t = []
+
+for i in chunks(AlphaTrial, len(AlphaTrial) /  nthreads):
+    #def solver(mesh, u, alphaList, pre_rect, mid_rect, pos_rect, CrackLength, q):
+    p = threading.Thread(target = thetasolver.solver, args = (mesh, ulast, i, pre_rect, mid_rect, pos_rect, CrackLength, q))
+    #p = threading.Thread()
+    t = t + [p]
+    p.start()
+
+for i in t:
+    i.join()
+
+#   thetasolver.solver(mesh, ulast, AlphaTrial, pre_rect, mid_rect, pos_rect, CrackLength, q)
+</code></pre>
+
+<p>I was wrong, the serial working function <code>thetasolver.solver()</code> conflicts when using threads, and I have a <em>lot</em> of errors:</p>
+
+<pre><code>    In instant.import_module_directly: Failed to import module 'dolfin_compile_code_5bd690057874abdfd6640fcf7cb4f51c' from '/Users/sensei/.instant/cache/dolfin_compile_code_5bd690057874abdfd6640fcf7cb4f51c';
+    ImportError:No module named dolfin_compile_code_5bd690057874abdfd6640fcf7cb4f51c;
+    Failed to import module found in cache. Modulename: 'dolfin_compile_code_5bd690057874abdfd6640fcf7cb4f51c';
+    Path: '/Users/sensei/.instant/cache/dolfin_compile_code_5bd690057874abdfd6640fcf7cb4f51c';
+    ImportError:No module named dolfin_compile_code_5bd690057874abdfd6640fcf7cb4f51c;
+    Exception in thread Thread-1:
+    Traceback (most recent call last):
+      File "/System/Library/Frameworks/Python.framework/Versions/2.7/lib/python2.7/threading.py", line 808, in __bootstrap_inner
+        self.run()
+      File "/System/Library/Frameworks/Python.framework/Versions/2.7/lib/python2.7/threading.py", line 761, in run
+        self.__target(*self.__args, **self.__kwargs)
+      File "/Users/sensei/Documents/Projects/fenics/thetasolver.py", line 106, in solver
+    ...
+    In instant.import_module_directly: Failed to import module 'dolfin_compile_code_a02552e49a92b850b27301fe16336757' from '/Users/sensei/.instant/cache/dolfin_compile_code_a02552e49a92b850b27301fe16336757';
+    ...
+    In instant.recompile: The module did not compile with command 'make VERBOSE=1', see '/Users/sensei/.instant/error/dolfin_compile_code_40851ad132f51f309639266aedbece88/compile.log'
+    In instant.recompile: The module did not compile with command 'make VERBOSE=1', see '/Users/sensei/.instant/error/dolfin_compile_code_a148337abd11a60e53a185a184c56b83/compile.log'
+    ...
+</code></pre>
+
+<p>Since the only change is in parallelization, I believe I cannot simply do that. Note that the <strong>only</strong> thing that changes is the angle, mesh and other fields are <em>constants</em>. The <code>thetasolver</code> method creates its own local <code>VectorFunctionSpace</code>, <code>DirichletBC</code> and the needed structures to perform an analysis.</p>
+
+<p>How can I make a parametric analysis in parallel, or, with an equivalent speedup with respect to serializing it?</p>
+
+<p>Thanks!</p>
+</div>
+										</div>
+										<div class="qa-q-view-tags">
+											<ul class="qa-q-view-tag-list">
+												<li class="qa-q-view-tag-item"><a href="../../tag/thread" rel="tag" class="qa-tag-link">thread</a></li>
+												<li class="qa-q-view-tag-item"><a href="../../tag/parallel" rel="tag" class="qa-tag-link">parallel</a></li>
+												<li class="qa-q-view-tag-item"><a href="../../tag/parameters" rel="tag" class="qa-tag-link">parameters</a></li>
+											</ul>
+										</div>
+										<span class="qa-q-view-avatar-meta">
+											<span class="qa-q-view-meta">
+												<a href="../../6057/parametric-analysis-thread-safety" class="qa-q-view-what">asked</a>
+												<span class="qa-q-view-when">
+													<span class="qa-q-view-when-data"><span class="published"><span class="value-title" title="2014-11-21T14:20:49+0000"></span>Nov 21, 2014</span></span>
+												</span>
+												<span class="qa-q-view-who">
+													<span class="qa-q-view-who-pad">by </span>
+													<span class="qa-q-view-who-data"><span class="vcard author"><a href="../../user/senseiwa" class="qa-user-link url nickname">senseiwa</a></span></span>
+													<span class="qa-q-view-who-title">FEniCS User</span>
+													<span class="qa-q-view-who-points">
+														<span class="qa-q-view-who-points-pad">(</span><span class="qa-q-view-who-points-data">2,620</span><span class="qa-q-view-who-points-pad"> points)</span>
+													</span>
+												</span>
+											</span>
+										</span>
+										<div class="qa-q-view-buttons">
+										</div>
+										
+										<div class="qa-q-view-c-list" id="c6057_list">
+											<div class="qa-c-list-item  hentry comment" id="c6104">
+												<div class="qa-c-item-content">
+													<a name="6104"></a><div class="entry-content"><p>So, no luck with parametric analyses?</p>
+</div>
+												</div>
+												<div class="qa-c-item-footer">
+													<span class="qa-c-item-avatar-meta">
+														<span class="qa-c-item-meta">
+															<a href="../../6057/parametric-analysis-thread-safety?show=6104#c6104" class="qa-c-item-what">commented</a>
+															<span class="qa-c-item-when">
+																<span class="qa-c-item-when-data"><span class="published"><span class="value-title" title="2014-11-27T14:24:05+0000"></span>Nov 27, 2014</span></span>
+															</span>
+															<span class="qa-c-item-who">
+																<span class="qa-c-item-who-pad">by </span>
+																<span class="qa-c-item-who-data"><span class="vcard author"><a href="../../user/senseiwa" class="qa-user-link url nickname">senseiwa</a></span></span>
+																<span class="qa-c-item-who-title">FEniCS User</span>
+																<span class="qa-c-item-who-points">
+																	<span class="qa-c-item-who-points-pad">(</span><span class="qa-c-item-who-points-data">2,620</span><span class="qa-c-item-who-points-pad"> points)</span>
+																</span>
+															</span>
+														</span>
+													</span>
+													<div class="qa-c-item-buttons">
+													</div>
+												</div>
+												<div class="qa-c-item-clear">
+												</div>
+											</div> <!-- END qa-c-item -->
+										</div> <!-- END qa-c-list -->
+										
+										<input type="hidden" name="code" value="0-1516468055-7b871eb69f778b19a164accedf6910d63980226d">
+										<input type="hidden" name="qa_click" value="">
+									</form>
+									<div class="qa-c-form">
+									</div> <!-- END qa-c-form -->
+									
+								</div> <!-- END qa-q-view-main -->
+								<div class="qa-q-view-clear">
+								</div>
+							</div> <!-- END qa-q-view -->
+							
+						</div>
+						<div class="qa-part-a-list">
+							<h2 id="a_list_title">1 Answer</h2>
+							<div class="qa-a-list" id="a_list">
+								
+								<div class="qa-a-list-item  hentry answer" id="a6100">
+									<form method="post" action="../../6057/parametric-analysis-thread-safety">
+										<div class="qa-voting qa-voting-net" id="voting_6100">
+											<div class="qa-vote-count qa-vote-count-net">
+												<span class="qa-netvote-count">
+													<span class="qa-netvote-count-data">+1<span class="votes-up"><span class="value-title" title="2"></span></span><span class="votes-down"><span class="value-title" title="1"></span></span></span><span class="qa-netvote-count-pad"> vote</span>
+												</span>
+											</div>
+											<div class="qa-vote-clear">
+											</div>
+										</div>
+										<input type="hidden" name="code" value="0-1516468055-66f2ad1a3b816ae5fb199d9427b886318a787e72">
+									</form>
+									<div class="qa-a-item-main">
+										<form method="post" action="../../6057/parametric-analysis-thread-safety">
+											<div class="qa-a-selection">
+											</div>
+											<div class="qa-a-item-content">
+												<a name="6100"></a><div class="entry-content"><p>I'm really interested in this type of analysis, allowing a parallelization of the code.</p>
+
+<p>Please, someone answer asap!</p>
+</div>
+											</div>
+											<span class="qa-a-item-avatar-meta">
+												<span class="qa-a-item-meta">
+													<a href="../../6057/parametric-analysis-thread-safety?show=6100#a6100" class="qa-a-item-what">answered</a>
+													<span class="qa-a-item-when">
+														<span class="qa-a-item-when-data"><span class="published"><span class="value-title" title="2014-11-27T09:19:50+0000"></span>Nov 27, 2014</span></span>
+													</span>
+													<span class="qa-a-item-who">
+														<span class="qa-a-item-who-pad">by </span>
+														<span class="qa-a-item-who-data"><span class="vcard author"><a href="../../user/gifo75" class="qa-user-link url nickname">gifo75</a></span></span>
+														<span class="qa-a-item-who-title">FEniCS Novice</span>
+														<span class="qa-a-item-who-points">
+															<span class="qa-a-item-who-points-pad">(</span><span class="qa-a-item-who-points-data">650</span><span class="qa-a-item-who-points-pad"> points)</span>
+														</span>
+													</span>
+												</span>
+											</span>
+											<div class="qa-a-item-buttons">
+												</div>
+											
+											<div class="qa-a-item-c-list" style="display:none;" id="c6100_list">
+											</div> <!-- END qa-c-list -->
+											
+											<input type="hidden" name="code" value="0-1516468055-b18ac4fa8f9a3d7187443a590fd21ebb20fc1a9c">
+											<input type="hidden" name="qa_click" value="">
+										</form>
+										<div class="qa-c-form">
+										</div> <!-- END qa-c-form -->
+										
+									</div> <!-- END qa-a-item-main -->
+									<div class="qa-a-item-clear">
+									</div>
+								</div> <!-- END qa-a-list-item -->
+								
+							</div> <!-- END qa-a-list -->
+							
+						</div>
+					</div> <!-- END qa-main -->
+					
+				</div> <!-- END main-wrapper -->
+			</div> <!-- END main-shadow -->
+		</div> <!-- END body-wrapper -->
+		<!-- END footer-bottom-group -->
+		
+		<div style="position:absolute; left:-9999px; top:-9999px;">
+			<span id="qa-waiting-template" class="qa-waiting">...</span>
+		</div>
+	
+	
+
+</body><!-- Powered by Question2Answer - http://www.question2answer.org/ --></html>

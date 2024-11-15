@@ -1,0 +1,227 @@
+<html><!-- Powered by Question2Answer - http://www.question2answer.org/ --><head>
+		<meta http-equiv="content-type" content="text/html; charset=utf-8">
+		<title>Help for why my solution result is different from the demo - FEniCS Q&amp;A</title>
+		<meta name="description" content='Hi all, I am trying to solve the same problem as the [demo here][1] by my unit square  ... (sub_domains, 1) file = File("subdomains.xml") file'>
+		<link rel="stylesheet" type="text/css" href="../../qa-theme/Snow/qa-styles.css">
+		<link rel="canonical" href="http://fenicsproject.org/qa/7793/help-for-why-my-solution-result-is-different-from-the-demo">
+		<script type="text/x-mathjax-config">
+  MathJax.Hub.Config({
+    extensions: ["tex2jax.js"],
+    jax: ["input/TeX","output/HTML-CSS"],
+    tex2jax: {inlineMath: [["$","$"],["\\(","\\)"]]},
+    TeX: { extensions: ["AMSmath.js","AMSsymbols.js"]}
+  });
+</script>
+<script type="text/javascript" src="../../mathjax/MathJax.js"></script>
+		<script src="../../jquery-1.7.2.min.js" type="text/javascript"></script>
+		<script src="../../highlight.min.js"></script>
+<script type="text/javascript">
+$(function(){
+	$('.wmd-input').keypress(function(){
+		window.clearTimeout(hljs.Timeout);
+		hljs.Timeout = window.setTimeout(function() {
+			hljs.initHighlighting.called = false;
+			hljs.initHighlighting();
+		}, 500);
+	});
+	window.setTimeout(function() {
+		hljs.initHighlighting.called = false;
+		hljs.initHighlighting();
+	}, 500);
+});
+</script>
+
+
+	</head>
+	<body class="qa-template-question qa-body-js-off">
+		<div class="qa-body-wrapper">
+			
+			<div class="qa-header">
+				<div class="qa-logo">
+					<a href="../../" class="qa-logo-link" title="FEniCS Q&amp;A"><img src="../../qa-theme/fenics_qa.png" border="0" alt="FEniCS Q&amp;A"></a>
+				</div>
+				<div class="qa-header-clear">
+				</div>
+			</div> <!-- END qa-header -->
+			
+			<div class="qa-main-shadow">
+				
+				<div class="qa-main-wrapper">
+					
+					<div class="qa-sidepanel">
+						<div class="qa-sidebar">
+							This is a read only copy of the old FEniCS QA forum. Please visit the <a href="https://www.allanswered.com/community/s/fenics-project/">new QA forum</a> to ask questions
+						</div>
+						
+					</div>
+					
+					<div class="qa-main">
+						<h1>
+							<span class="entry-title">Help for why my solution result is different from the demo</span>
+						</h1>
+						<div class="qa-part-q-view">
+							<div class="qa-q-view  hentry question" id="q7793">
+								<form method="post" action="../../7793/help-for-why-my-solution-result-is-different-from-the-demo">
+									<div class="qa-q-view-stats">
+										<div class="qa-voting qa-voting-net" id="voting_7793">
+											<div class="qa-vote-count qa-vote-count-net">
+												<span class="qa-netvote-count">
+													<span class="qa-netvote-count-data">0<span class="votes-up"><span class="value-title" title="0"></span></span><span class="votes-down"><span class="value-title" title="0"></span></span></span><span class="qa-netvote-count-pad"> votes</span>
+												</span>
+											</div>
+											<div class="qa-vote-clear">
+											</div>
+										</div>
+									</div>
+									<input type="hidden" name="code" value="0-1516468137-914d5b6a7903f54835988c9702edb0f036570f97">
+								</form>
+								<div class="qa-q-view-main">
+									<form method="post" action="../../7793/help-for-why-my-solution-result-is-different-from-the-demo">
+										<div class="qa-q-view-content">
+											<a name="7793"></a><div class="entry-content"><p>Hi all,</p>
+
+<p>I am trying to solve the same problem as the <a rel="nofollow" href="http://fenicsproject.org/documentation/dolfin/1.6.0/python/demo/documented/poisson/python/documentation.html">demo here</a> by my unit square generated from Gmsh.<br>
+However, I got some different results. Following is the result I got from my own geometry,<br>
+<img src="http://imageshack.com/a/img673/9085/jeuGoo.png" alt="enter image description here"><br>
+And the following is the result I got from demo code,<br>
+<img src="http://imageshack.com/a/img540/7140/Cg972j.png" alt="enter image description here"><br>
+They are similar but not the same, especially the middle peak's location.<br>
+Could I ask whether it is just an numerical error or some bugs inside my code?<br>
+Following is my code.</p>
+
+<pre><code>from dolfin import *
+# Create mesh and define function space
+# mesh = UnitSquareMesh(32, 32)
+mesh = Mesh("2d.xml")
+V = FunctionSpace(mesh, "Lagrange", 1)
+# Sub domain
+class DitichletBC1(SubDomain):
+def inside(self, x, on_boundary):
+return x[0] &gt; 1.0 - DOLFIN_EPS and on_boundary
+class DitichletBC2(SubDomain):
+def inside(self, x, on_boundary):
+return x[0] &lt; DOLFIN_EPS and on_boundary
+sub_domains = MeshFunction("size_t", mesh, mesh.topology().dim() - 1)
+sub_domains.set_all(2)
+dirichletBC1 = DitichletBC1()
+dirichletBC1.mark(sub_domains, 0)
+dirichletBC2 = DitichletBC2()
+dirichletBC2.mark(sub_domains, 1)
+file = File("subdomains.xml")
+file &lt;&lt; sub_domains
+boundaries = MeshFunction("size_t", mesh, "subdomains.xml") ## Input your facet file name
+# Define boundary condition
+u0 = Constant(0.0)
+bc1 = DirichletBC(V, u0, boundaries, 0)
+bc2 = DirichletBC(V, u0, boundaries, 1)
+ds = Measure('ds', domain=mesh, subdomain_data=boundaries)
+# Define variational problem
+u = TrialFunction(V)
+v = TestFunction(V)
+f = Expression("10*exp(-(pow(x[0] - 0.5, 2) + pow(x[1] - 0.5, 2)) / 0.02)")
+g = Expression("sin(5*x[0])")
+a = inner(grad(u), grad(v))*dx
+L = f*v*dx + g*v*ds
+# Compute solution
+u = Function(V)
+solve(a == L, u, [bc1,bc2])
+# Plot solution
+plot(u, interactive=True)
+</code></pre>
+
+<p>Thanks a lot!</p>
+</div>
+										</div>
+										<span class="qa-q-view-avatar-meta">
+											<span class="qa-q-view-meta">
+												<a href="../../7793/help-for-why-my-solution-result-is-different-from-the-demo" class="qa-q-view-what">asked</a>
+												<span class="qa-q-view-when">
+													<span class="qa-q-view-when-data"><span class="published"><span class="value-title" title="2015-08-07T22:35:53+0000"></span>Aug 8, 2015</span></span>
+												</span>
+												<span class="qa-q-view-who">
+													<span class="qa-q-view-who-pad">by </span>
+													<span class="qa-q-view-who-data"><span class="vcard author"><a href="../../user/Hrunx" class="qa-user-link url nickname">Hrunx</a></span></span>
+													<span class="qa-q-view-who-title">FEniCS Novice</span>
+													<span class="qa-q-view-who-points">
+														<span class="qa-q-view-who-points-pad">(</span><span class="qa-q-view-who-points-data">910</span><span class="qa-q-view-who-points-pad"> points)</span>
+													</span>
+												</span>
+											</span>
+										</span>
+										<div class="qa-q-view-buttons">
+										</div>
+										
+										<div class="qa-q-view-c-list" id="c7793_list">
+											<div class="qa-c-list-item  hentry comment" id="c7795">
+												<div class="qa-c-item-content">
+													<a name="7795"></a><div class="entry-content"><p>Hi Hrunx</p>
+
+<p>The code with</p>
+
+<pre><code>mesh = UnitSquareMesh(32, 32)
+</code></pre>
+
+<p>works fine. So the problem might be "2d.xml".</p>
+</div>
+												</div>
+												<div class="qa-c-item-footer">
+													<span class="qa-c-item-avatar-meta">
+														<span class="qa-c-item-avatar">
+															<a href="../../user/Huadong+Gao" class="qa-avatar-link"><img src="../../?qa=image&amp;qa_blobid=8978876460067519879&amp;qa_size=20" width="15" height="20" class="qa-avatar-image" alt=""></a>
+														</span>
+														<span class="qa-c-item-meta">
+															<a href="../../7793/help-for-why-my-solution-result-is-different-from-the-demo?show=7795#c7795" class="qa-c-item-what">commented</a>
+															<span class="qa-c-item-when">
+																<span class="qa-c-item-when-data"><span class="published"><span class="value-title" title="2015-08-08T08:02:57+0000"></span>Aug 8, 2015</span></span>
+															</span>
+															<span class="qa-c-item-who">
+																<span class="qa-c-item-who-pad">by </span>
+																<span class="qa-c-item-who-data"><span class="vcard author"><a href="../../user/Huadong+Gao" class="qa-user-link url nickname">Huadong Gao</a></span></span>
+																<span class="qa-c-item-who-title">FEniCS Novice</span>
+																<span class="qa-c-item-who-points">
+																	<span class="qa-c-item-who-points-pad">(</span><span class="qa-c-item-who-points-data">230</span><span class="qa-c-item-who-points-pad"> points)</span>
+																</span>
+															</span>
+														</span>
+													</span>
+													<div class="qa-c-item-buttons">
+													</div>
+												</div>
+												<div class="qa-c-item-clear">
+												</div>
+											</div> <!-- END qa-c-item -->
+										</div> <!-- END qa-c-list -->
+										
+										<input type="hidden" name="code" value="0-1516468137-3ab8795d94344bd148499e4f383b2abf576de409">
+										<input type="hidden" name="qa_click" value="">
+									</form>
+									<div class="qa-c-form">
+									</div> <!-- END qa-c-form -->
+									
+								</div> <!-- END qa-q-view-main -->
+								<div class="qa-q-view-clear">
+								</div>
+							</div> <!-- END qa-q-view -->
+							
+						</div>
+						<div class="qa-part-a-list">
+							<h2 id="a_list_title" style="display:none;"></h2>
+							<div class="qa-a-list" id="a_list">
+								
+							</div> <!-- END qa-a-list -->
+							
+						</div>
+					</div> <!-- END qa-main -->
+					
+				</div> <!-- END main-wrapper -->
+			</div> <!-- END main-shadow -->
+		</div> <!-- END body-wrapper -->
+		<!-- END footer-bottom-group -->
+		
+		<div style="position:absolute; left:-9999px; top:-9999px;">
+			<span id="qa-waiting-template" class="qa-waiting">...</span>
+		</div>
+	
+	
+
+</body><!-- Powered by Question2Answer - http://www.question2answer.org/ --></html>

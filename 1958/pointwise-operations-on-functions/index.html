@@ -1,0 +1,291 @@
+<html><!-- Powered by Question2Answer - http://www.question2answer.org/ --><head>
+		<meta http-equiv="content-type" content="text/html; charset=utf-8">
+		<title>"Pointwise" operations on functions - FEniCS Q&amp;A</title>
+		<meta name="description" content='What is the best way of performing a "pointwise" operation on (one or multiple) functions  ... would be highly appreciated. Many thanks in advance!'>
+		<link rel="stylesheet" type="text/css" href="../../qa-theme/Snow/qa-styles.css">
+		<link rel="canonical" href="http://fenicsproject.org/qa/1958/pointwise-operations-on-functions">
+		<script type="text/x-mathjax-config">
+  MathJax.Hub.Config({
+    extensions: ["tex2jax.js"],
+    jax: ["input/TeX","output/HTML-CSS"],
+    tex2jax: {inlineMath: [["$","$"],["\\(","\\)"]]},
+    TeX: { extensions: ["AMSmath.js","AMSsymbols.js"]}
+  });
+</script>
+<script type="text/javascript" src="../../mathjax/MathJax.js"></script>
+		<script src="../../jquery-1.7.2.min.js" type="text/javascript"></script>
+		<script src="../../highlight.min.js"></script>
+<script type="text/javascript">
+$(function(){
+	$('.wmd-input').keypress(function(){
+		window.clearTimeout(hljs.Timeout);
+		hljs.Timeout = window.setTimeout(function() {
+			hljs.initHighlighting.called = false;
+			hljs.initHighlighting();
+		}, 500);
+	});
+	window.setTimeout(function() {
+		hljs.initHighlighting.called = false;
+		hljs.initHighlighting();
+	}, 500);
+});
+</script>
+
+
+	</head>
+	<body class="qa-template-question qa-body-js-off">
+		<div class="qa-body-wrapper">
+			
+			<div class="qa-header">
+				<div class="qa-logo">
+					<a href="../../" class="qa-logo-link" title="FEniCS Q&amp;A"><img src="../../qa-theme/fenics_qa.png" border="0" alt="FEniCS Q&amp;A"></a>
+				</div>
+				<div class="qa-header-clear">
+				</div>
+			</div> <!-- END qa-header -->
+			
+			<div class="qa-main-shadow">
+				
+				<div class="qa-main-wrapper">
+					
+					<div class="qa-sidepanel">
+						<div class="qa-sidebar">
+							This is a read only copy of the old FEniCS QA forum. Please visit the <a href="https://www.allanswered.com/community/s/fenics-project/">new QA forum</a> to ask questions
+						</div>
+						
+					</div>
+					
+					<div class="qa-main">
+						<h1>
+							<span class="entry-title">"Pointwise" operations on functions</span>
+						</h1>
+						<div class="qa-part-q-view">
+							<div class="qa-q-view  hentry question" id="q1958">
+								<form method="post" action="../../1958/pointwise-operations-on-functions">
+									<div class="qa-q-view-stats">
+										<div class="qa-voting qa-voting-net" id="voting_1958">
+											<div class="qa-vote-count qa-vote-count-net">
+												<span class="qa-netvote-count">
+													<span class="qa-netvote-count-data">0<span class="votes-up"><span class="value-title" title="0"></span></span><span class="votes-down"><span class="value-title" title="0"></span></span></span><span class="qa-netvote-count-pad"> votes</span>
+												</span>
+											</div>
+											<div class="qa-vote-clear">
+											</div>
+										</div>
+									</div>
+									<input type="hidden" name="code" value="0-1516467906-0c21e2a73daa5fc6c41ca3ccc6a5f9a0a3e659d2">
+								</form>
+								<div class="qa-q-view-main">
+									<form method="post" action="../../1958/pointwise-operations-on-functions">
+										<div class="qa-q-view-content">
+											<a name="1958"></a><div class="entry-content"><p>What is the best way of performing a "pointwise" operation on (one or multiple) functions defined on a given mesh?</p>
+
+<p>For example, given a vector field 'v(r)' and a scalar field 'a(r)' (where 'r' denotes the position), how can I scale each vector v(r) by the corresponding scalar a(r)?</p>
+
+<p>This example is deliberately trivial to keep things simple, but one could imagine more complex operations like computing the cross product of two vector fields, or even rotating each vector by an angle (specified by another scalar field 'theta') about a certain axis (given by yet another vector field). You get the idea.</p>
+
+<p>Here is a code example for the simple example above:</p>
+
+<pre><code>from dolfin import *
+import numpy as np
+
+mesh = BoxMesh(0, 0, 0, 100, 100, 2, 50, 50, 1)
+
+V = VectorFunctionSpace(mesh, 'Lagrange', 1, dim=3)
+W = FunctionSpace(mesh, 'Lagrange', 1)
+
+v = interpolate(Expression(['1', '2', '3']), V)
+a = Function(W)
+
+# Fill 'a' with some random values
+n = W.dim()
+a.vector().set_local(np.random.random(n))
+
+### How to scale v by a point-wise?!?
+</code></pre>
+
+<p>Ideally, I'm imagining something along the following lines:</p>
+
+<pre><code>def f(b, w):
+    # The arguments 'b' and 'w' should be a single scalar
+    # and a numpy array of length 3, respectively.
+    return b*w
+
+# Apply the function f point-wise to the dolfin Functions
+# a and v defined above
+apply_pointwise(f, a, v)
+</code></pre>
+
+<p>I can certainly resort to doing low-level operations directly on the function vectors, similar to the following:</p>
+
+<pre><code># The code below assumes a certain ordering
+parameters.reorder_dofs_serial = False
+
+# Extract numpy arrays
+a_arr = a.vector().array()
+v_arr = v.vector().array()
+v_arr_3xN = v_arr.reshape(3, -1)
+
+# Compute the vertex-wise result
+a_times_v = a_arr * v_arr_3xN
+
+# Convert the result back to a dolfin.Function
+result = Function(V)
+result.vector().set_local(a_times_v.ravel())
+</code></pre>
+
+<p>Note that the above code will not work with dof reordering enabled, since the ordering of the entries of v_arr will be different. There are certainly workarounds for that, but I always feel uneasy when dealing with array entries directly because I don't fully understand the implications of dof reordering (yet). For example, one question I've had for a while is: will degrees of freedom belonging to the same "site" (e.g. to a vertex for CG1 elements) always be "kept together" and appear in the expected order in v.vector().array()? For example, with v defined as above, will the entries ['1', '2', '3'] always appear in this order?</p>
+
+<p>In any case, I'm sure there must be a more high-level approach to point-wise operations which avoids dealing with vector elements directly. What is the recommended way of doing this? Any hints would be highly appreciated. Many thanks in advance!</p>
+</div>
+										</div>
+										<span class="qa-q-view-avatar-meta">
+											<span class="qa-q-view-meta">
+												<a href="../../1958/pointwise-operations-on-functions" class="qa-q-view-what">asked</a>
+												<span class="qa-q-view-when">
+													<span class="qa-q-view-when-data"><span class="published"><span class="value-title" title="2013-12-10T18:04:38+0000"></span>Dec 10, 2013</span></span>
+												</span>
+												<span class="qa-q-view-who">
+													<span class="qa-q-view-who-pad">by </span>
+													<span class="qa-q-view-who-data"><span class="vcard author"><a href="../../user/Maximilian+Albert" class="qa-user-link url nickname">Maximilian Albert</a></span></span>
+													<span class="qa-q-view-who-title">FEniCS User</span>
+													<span class="qa-q-view-who-points">
+														<span class="qa-q-view-who-points-pad">(</span><span class="qa-q-view-who-points-data">1,750</span><span class="qa-q-view-who-points-pad"> points)</span>
+													</span>
+												</span>
+											</span>
+										</span>
+										<div class="qa-q-view-buttons">
+										</div>
+										
+										<div class="qa-q-view-c-list" id="c1958_list">
+											<div class="qa-c-list-item  hentry comment" id="c1960">
+												<div class="qa-c-item-content">
+													<a name="1960"></a><div class="entry-content"><p>Hi, just in case you missed it or haven't tried I'd like to point out that the operations you described can be implemented using what UFL has to offer without any lower level approach   </p>
+
+<pre><code>from dolfin import *
+
+mesh = UnitCubeMesh(2, 2, 2)
+V = VectorFunctionSpace(mesh, "CG", 1)
+S = FunctionSpace(mesh, "CG", 1)
+
+e1 = interpolate(Expression(("x[0]", "0", "0")), V)
+e2 = interpolate(Expression(("0", "x[1]", "0")), V)
+a = interpolate(Expression("x[0]"), S)
+
+u = project(e1*a, V)
+v = project(cross(e1, e2)*a, V)
+R = as_matrix([[cos(pi/2), -sin(pi/2), 0],\
+               [sin(pi/2),  cos(pi/2), 0],\
+               [        0,          0, 1]])
+w = project(dot(R, e1)*a, V)
+
+plot(u, interactive=True, axes=True)
+plot(v, interactive=True, axes=True)
+plot(w, interactive=True, axes=True)
+</code></pre>
+</div>
+												</div>
+												<div class="qa-c-item-footer">
+													<span class="qa-c-item-avatar-meta">
+														<span class="qa-c-item-avatar">
+															<a href="../../user/MiroK" class="qa-avatar-link"><img src="https://www.gravatar.com/avatar/f566be3274ec73e3a6dda27bca11631c?s=20" width="20" height="20" class="qa-avatar-image" alt=""></a>
+														</span>
+														<span class="qa-c-item-meta">
+															<a href="../../1958/pointwise-operations-on-functions?show=1960#c1960" class="qa-c-item-what">commented</a>
+															<span class="qa-c-item-when">
+																<span class="qa-c-item-when-data"><span class="published"><span class="value-title" title="2013-12-10T20:06:15+0000"></span>Dec 10, 2013</span></span>
+															</span>
+															<span class="qa-c-item-who">
+																<span class="qa-c-item-who-pad">by </span>
+																<span class="qa-c-item-who-data"><span class="vcard author"><a href="../../user/MiroK" class="qa-user-link url nickname">MiroK</a></span></span>
+																<span class="qa-c-item-who-title">FEniCS Expert</span>
+																<span class="qa-c-item-who-points">
+																	<span class="qa-c-item-who-points-pad">(</span><span class="qa-c-item-who-points-data">80,920</span><span class="qa-c-item-who-points-pad"> points)</span>
+																</span>
+															</span>
+														</span>
+													</span>
+													<div class="qa-c-item-buttons">
+													</div>
+												</div>
+												<div class="qa-c-item-clear">
+												</div>
+											</div> <!-- END qa-c-item -->
+											<div class="qa-c-list-item  hentry comment" id="c2009">
+												<div class="qa-c-item-content">
+													<a name="2009"></a><div class="entry-content"><p>Many thanks for your quick reply, MiroK! Apologies that it took me so long to get back to you. This looks quite helpful indeed, I wasn't fully aware of UFL's capabilities in this respect. However, if I understand correctly then "project" will solve a linear system each time it is called, right? Timing the various alternatives in IPython gives a difference of four orders of magnitude even for moderately sized systems (I used <code>UnitCubeMesh(20, 20, 20)</code>):</p>
+
+<pre><code>%timeit u = project(e1*a, V)
+1 loops, best of 3: 669 ms per loop
+</code></pre>
+
+<p>vs.</p>
+
+<pre><code>e1_arr = e1.vector().array().reshape(3, -1)
+a_arr = a.vector().array()
+%timeit u = e1_arr * a_arr
+10000 loops, best of 3: 46.9 &#181;s per loop
+</code></pre>
+
+<p>Thus I'm still thinking there must be a more efficient yet similarly high-level approach. Any further suggestions would be much appreciated. Thanks again!</p>
+</div>
+												</div>
+												<div class="qa-c-item-footer">
+													<span class="qa-c-item-avatar-meta">
+														<span class="qa-c-item-meta">
+															<a href="../../1958/pointwise-operations-on-functions?show=2009#c2009" class="qa-c-item-what">commented</a>
+															<span class="qa-c-item-when">
+																<span class="qa-c-item-when-data"><span class="published"><span class="value-title" title="2013-12-16T15:32:08+0000"></span>Dec 16, 2013</span></span>
+															</span>
+															<span class="qa-c-item-who">
+																<span class="qa-c-item-who-pad">by </span>
+																<span class="qa-c-item-who-data"><span class="vcard author"><a href="../../user/Maximilian+Albert" class="qa-user-link url nickname">Maximilian Albert</a></span></span>
+																<span class="qa-c-item-who-title">FEniCS User</span>
+																<span class="qa-c-item-who-points">
+																	<span class="qa-c-item-who-points-pad">(</span><span class="qa-c-item-who-points-data">1,750</span><span class="qa-c-item-who-points-pad"> points)</span>
+																</span>
+															</span>
+														</span>
+													</span>
+													<div class="qa-c-item-buttons">
+													</div>
+												</div>
+												<div class="qa-c-item-clear">
+												</div>
+											</div> <!-- END qa-c-item -->
+										</div> <!-- END qa-c-list -->
+										
+										<input type="hidden" name="code" value="0-1516467906-abb75f574eec8a8045a04341e13f012334d6e3b1">
+										<input type="hidden" name="qa_click" value="">
+									</form>
+									<div class="qa-c-form">
+									</div> <!-- END qa-c-form -->
+									
+								</div> <!-- END qa-q-view-main -->
+								<div class="qa-q-view-clear">
+								</div>
+							</div> <!-- END qa-q-view -->
+							
+						</div>
+						<div class="qa-part-a-list">
+							<h2 id="a_list_title" style="display:none;"></h2>
+							<div class="qa-a-list" id="a_list">
+								
+							</div> <!-- END qa-a-list -->
+							
+						</div>
+					</div> <!-- END qa-main -->
+					
+				</div> <!-- END main-wrapper -->
+			</div> <!-- END main-shadow -->
+		</div> <!-- END body-wrapper -->
+		<!-- END footer-bottom-group -->
+		
+		<div style="position:absolute; left:-9999px; top:-9999px;">
+			<span id="qa-waiting-template" class="qa-waiting">...</span>
+		</div>
+	
+	
+
+</body><!-- Powered by Question2Answer - http://www.question2answer.org/ --></html>

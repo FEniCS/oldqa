@@ -1,0 +1,210 @@
+<html><!-- Powered by Question2Answer - http://www.question2answer.org/ --><head>
+		<meta http-equiv="content-type" content="text/html; charset=utf-8">
+		<title>Solve domains sequentially: how to estimate the BC at the interface - FEniCS Q&amp;A</title>
+		<meta name="description" content="Let's assume we have two domains A and B. Their interface is noted I. One Dirichlet BC is  ... correctly J, F and bco Some help please? Regards,">
+		<meta name="keywords" content="subdomains,boundary-conditions,interior-boundary">
+		<link rel="stylesheet" type="text/css" href="../../qa-theme/Snow/qa-styles.css">
+		<link rel="canonical" href="http://fenicsproject.org/qa/11590/solve-domains-sequentially-how-estimate-the-the-interface">
+		<script type="text/x-mathjax-config">
+  MathJax.Hub.Config({
+    extensions: ["tex2jax.js"],
+    jax: ["input/TeX","output/HTML-CSS"],
+    tex2jax: {inlineMath: [["$","$"],["\\(","\\)"]]},
+    TeX: { extensions: ["AMSmath.js","AMSsymbols.js"]}
+  });
+</script>
+<script type="text/javascript" src="../../mathjax/MathJax.js"></script>
+		<script src="../../jquery-1.7.2.min.js" type="text/javascript"></script>
+		<script src="../../highlight.min.js"></script>
+<script type="text/javascript">
+$(function(){
+	$('.wmd-input').keypress(function(){
+		window.clearTimeout(hljs.Timeout);
+		hljs.Timeout = window.setTimeout(function() {
+			hljs.initHighlighting.called = false;
+			hljs.initHighlighting();
+		}, 500);
+	});
+	window.setTimeout(function() {
+		hljs.initHighlighting.called = false;
+		hljs.initHighlighting();
+	}, 500);
+});
+</script>
+
+
+	</head>
+	<body class="qa-template-question qa-body-js-off">
+		<div class="qa-body-wrapper">
+			
+			<div class="qa-header">
+				<div class="qa-logo">
+					<a href="../../" class="qa-logo-link" title="FEniCS Q&amp;A"><img src="../../qa-theme/fenics_qa.png" border="0" alt="FEniCS Q&amp;A"></a>
+				</div>
+				<div class="qa-header-clear">
+				</div>
+			</div> <!-- END qa-header -->
+			
+			<div class="qa-main-shadow">
+				
+				<div class="qa-main-wrapper">
+					
+					<div class="qa-sidepanel">
+						<div class="qa-sidebar">
+							This is a read only copy of the old FEniCS QA forum. Please visit the <a href="https://www.allanswered.com/community/s/fenics-project/">new QA forum</a> to ask questions
+						</div>
+						
+					</div>
+					
+					<div class="qa-main">
+						<h1>
+							<span class="entry-title">Solve domains sequentially: how to estimate the BC at the interface</span>
+						</h1>
+						<div class="qa-part-q-view">
+							<div class="qa-q-view  hentry question" id="q11590">
+								<form method="post" action="../../11590/solve-domains-sequentially-how-estimate-the-the-interface">
+									<div class="qa-q-view-stats">
+										<div class="qa-voting qa-voting-net" id="voting_11590">
+											<div class="qa-vote-count qa-vote-count-net">
+												<span class="qa-netvote-count">
+													<span class="qa-netvote-count-data">0<span class="votes-up"><span class="value-title" title="0"></span></span><span class="votes-down"><span class="value-title" title="0"></span></span></span><span class="qa-netvote-count-pad"> votes</span>
+												</span>
+											</div>
+											<div class="qa-vote-clear">
+											</div>
+										</div>
+									</div>
+									<input type="hidden" name="code" value="0-1516467775-2aa6cc17ef6b0e82e905dec9f77c871fa548304d">
+								</form>
+								<div class="qa-q-view-main">
+									<form method="post" action="../../11590/solve-domains-sequentially-how-estimate-the-the-interface">
+										<div class="qa-q-view-content">
+											<a name="11590"></a><div class="entry-content"><p>Let's assume we have two domains A and B. Their interface is noted I.<br>
+One Dirichlet BC is applied at the left part of A, one other Dirichlet BC is applied at the right part of B (stationary diffusion problem)<br>
+If you consider the whole domain A+B, you can solve right now the problem, there is no issue (you need only to mark your two sub domains and then allocate the diffusion coefficient accordingly)</p>
+
+<p>Now, I want to solve the diffusion in both domains sequentially: first solve domain A, then solve domain B (with 2 distinct variational formulations: one for each domain) and iterate until convergence. Do not ask why, it's just a test case i try to solve for a much more complex problem.<br>
+Here, the issue is you do not have the BC at the interface I.<br>
+Instead of, we know the concentration flux should be equal at the interface I.</p>
+
+<p>My approach is:<br>
+- set a Dirichlet BC at the interface (initial guess), identical for both domain<br>
+loop until residual is 0:<br>
+-   Solve domain A with current Dirichlet BC at the interface<br>
+-   Solve domain B with current Dirichlet BC at the interface<br>
+-   Calculate the flux discontinuity at the interface (that's the residual i want to minimize)<br>
+-   Estimate new values for the Dirichlet BC at the interface<br>
+-   current Dirichlet BC = new values for the Dirichlet BC at the interface</p>
+
+<p>Then, the function to minimize (evaluated at the interface only) is<br>
+F = - Da * grad(Ca).nia + Db * grad(Cb).nib<br>
+with Dx the diffusion coefficient of domain x<br>
+       Cx the concentration of domain x<br>
+      nix the unit normal vector at the interface, for the domain x</p>
+
+<p>So, if the interface is flat, then the problem is actually 1D, and you can use a newton method even without knowing F (you calculate the flux discontinuity just before and after the initial guess to get a numerical derivate and that's all): dx = x1-x0 = -f(x0)/f'(x0)</p>
+
+<p>But, i do not have a flat interface, then instead of i should calculate the Jacobian of F and solve Jacobian(F(x0)).dx = -F(x0), such as:</p>
+
+<pre><code>A,b = assemble_system(J, -F, bc0) 
+solve(A,dx.vector(), b)
+</code></pre>
+
+<p>I have difficulties to define correctly J, F and bco  <br>
+Some help please?<br>
+Regards,</p>
+</div>
+										</div>
+										<div class="qa-q-view-tags">
+											<ul class="qa-q-view-tag-list">
+												<li class="qa-q-view-tag-item"><a href="../../tag/subdomains" rel="tag" class="qa-tag-link">subdomains</a></li>
+												<li class="qa-q-view-tag-item"><a href="../../tag/boundary-conditions" rel="tag" class="qa-tag-link">boundary-conditions</a></li>
+												<li class="qa-q-view-tag-item"><a href="../../tag/interior-boundary" rel="tag" class="qa-tag-link">interior-boundary</a></li>
+											</ul>
+										</div>
+										<span class="qa-q-view-avatar-meta">
+											<span class="qa-q-view-meta">
+												<a href="../../11590/solve-domains-sequentially-how-estimate-the-the-interface" class="qa-q-view-what">asked</a>
+												<span class="qa-q-view-when">
+													<span class="qa-q-view-when-data"><span class="published"><span class="value-title" title="2016-11-10T21:12:45+0000"></span>Nov 10, 2016</span></span>
+												</span>
+												<span class="qa-q-view-who">
+													<span class="qa-q-view-who-pad">by </span>
+													<span class="qa-q-view-who-data"><span class="vcard author"><a href="../../user/fussegli" class="qa-user-link url nickname">fussegli</a></span></span>
+													<span class="qa-q-view-who-title">FEniCS Novice</span>
+													<span class="qa-q-view-who-points">
+														<span class="qa-q-view-who-points-pad">(</span><span class="qa-q-view-who-points-data">700</span><span class="qa-q-view-who-points-pad"> points)</span>
+													</span>
+												</span>
+											</span>
+										</span>
+										<div class="qa-q-view-buttons">
+										</div>
+										
+										<div class="qa-q-view-c-list" id="c11590_list">
+											<div class="qa-c-list-item  hentry comment" id="c11627">
+												<div class="qa-c-item-content">
+													<a name="11627"></a><div class="entry-content"><p>Hi, I have solved my problem by calculating term by term the Jacobian matrix...<br>
+It works, but it's definitely not the smartest way to do it I am sure.<br>
+If someone has an idea how to do it.<br>
+Thx.</p>
+</div>
+												</div>
+												<div class="qa-c-item-footer">
+													<span class="qa-c-item-avatar-meta">
+														<span class="qa-c-item-meta">
+															<a href="../../11590/solve-domains-sequentially-how-estimate-the-the-interface?show=11627#c11627" class="qa-c-item-what">commented</a>
+															<span class="qa-c-item-when">
+																<span class="qa-c-item-when-data"><span class="published"><span class="value-title" title="2016-11-14T22:30:02+0000"></span>Nov 14, 2016</span></span>
+															</span>
+															<span class="qa-c-item-who">
+																<span class="qa-c-item-who-pad">by </span>
+																<span class="qa-c-item-who-data"><span class="vcard author"><a href="../../user/fussegli" class="qa-user-link url nickname">fussegli</a></span></span>
+																<span class="qa-c-item-who-title">FEniCS Novice</span>
+																<span class="qa-c-item-who-points">
+																	<span class="qa-c-item-who-points-pad">(</span><span class="qa-c-item-who-points-data">700</span><span class="qa-c-item-who-points-pad"> points)</span>
+																</span>
+															</span>
+														</span>
+													</span>
+													<div class="qa-c-item-buttons">
+													</div>
+												</div>
+												<div class="qa-c-item-clear">
+												</div>
+											</div> <!-- END qa-c-item -->
+										</div> <!-- END qa-c-list -->
+										
+										<input type="hidden" name="code" value="0-1516467775-0b6fbdb9326f57d6a6e469d88b8706c46cd5f46f">
+										<input type="hidden" name="qa_click" value="">
+									</form>
+									<div class="qa-c-form">
+									</div> <!-- END qa-c-form -->
+									
+								</div> <!-- END qa-q-view-main -->
+								<div class="qa-q-view-clear">
+								</div>
+							</div> <!-- END qa-q-view -->
+							
+						</div>
+						<div class="qa-part-a-list">
+							<h2 id="a_list_title" style="display:none;"></h2>
+							<div class="qa-a-list" id="a_list">
+								
+							</div> <!-- END qa-a-list -->
+							
+						</div>
+					</div> <!-- END qa-main -->
+					
+				</div> <!-- END main-wrapper -->
+			</div> <!-- END main-shadow -->
+		</div> <!-- END body-wrapper -->
+		<!-- END footer-bottom-group -->
+		
+		<div style="position:absolute; left:-9999px; top:-9999px;">
+			<span id="qa-waiting-template" class="qa-waiting">...</span>
+		</div>
+	
+	
+
+</body><!-- Powered by Question2Answer - http://www.question2answer.org/ --></html>

@@ -1,0 +1,307 @@
+<html><!-- Powered by Question2Answer - http://www.question2answer.org/ --><head>
+		<meta http-equiv="content-type" content="text/html; charset=utf-8">
+		<title>How to apply BCs for sub domains? - FEniCS Q&amp;A</title>
+		<meta name="description" content="I am currently working on an implementation of PMLs in FEniCS to allow better simulation of scattering  ... ', mesh) LambdaDomain(lambda x, on: dpml">
+		<link rel="stylesheet" type="text/css" href="../../qa-theme/Snow/qa-styles.css">
+		<link rel="canonical" href="http://fenicsproject.org/qa/9319/how-to-apply-bcs-for-sub-domains">
+		<script type="text/x-mathjax-config">
+  MathJax.Hub.Config({
+    extensions: ["tex2jax.js"],
+    jax: ["input/TeX","output/HTML-CSS"],
+    tex2jax: {inlineMath: [["$","$"],["\\(","\\)"]]},
+    TeX: { extensions: ["AMSmath.js","AMSsymbols.js"]}
+  });
+</script>
+<script type="text/javascript" src="../../mathjax/MathJax.js"></script>
+		<script src="../../jquery-1.7.2.min.js" type="text/javascript"></script>
+		<script src="../../highlight.min.js"></script>
+<script type="text/javascript">
+$(function(){
+	$('.wmd-input').keypress(function(){
+		window.clearTimeout(hljs.Timeout);
+		hljs.Timeout = window.setTimeout(function() {
+			hljs.initHighlighting.called = false;
+			hljs.initHighlighting();
+		}, 500);
+	});
+	window.setTimeout(function() {
+		hljs.initHighlighting.called = false;
+		hljs.initHighlighting();
+	}, 500);
+});
+</script>
+
+
+	</head>
+	<body class="qa-template-question qa-body-js-off">
+		<div class="qa-body-wrapper">
+			
+			<div class="qa-header">
+				<div class="qa-logo">
+					<a href="../../" class="qa-logo-link" title="FEniCS Q&amp;A"><img src="../../qa-theme/fenics_qa.png" border="0" alt="FEniCS Q&amp;A"></a>
+				</div>
+				<div class="qa-header-clear">
+				</div>
+			</div> <!-- END qa-header -->
+			
+			<div class="qa-main-shadow">
+				
+				<div class="qa-main-wrapper">
+					
+					<div class="qa-sidepanel">
+						<div class="qa-sidebar">
+							This is a read only copy of the old FEniCS QA forum. Please visit the <a href="https://www.allanswered.com/community/s/fenics-project/">new QA forum</a> to ask questions
+						</div>
+						
+					</div>
+					
+					<div class="qa-main">
+						<h1>
+							<span class="entry-title">How to apply BCs for sub domains?</span>
+						</h1>
+						<div class="qa-part-q-view">
+							<div class="qa-q-view  hentry question" id="q9319">
+								<form method="post" action="../../9319/how-to-apply-bcs-for-sub-domains">
+									<div class="qa-q-view-stats">
+										<div class="qa-voting qa-voting-net" id="voting_9319">
+											<div class="qa-vote-count qa-vote-count-net">
+												<span class="qa-netvote-count">
+													<span class="qa-netvote-count-data">0<span class="votes-up"><span class="value-title" title="0"></span></span><span class="votes-down"><span class="value-title" title="0"></span></span></span><span class="qa-netvote-count-pad"> votes</span>
+												</span>
+											</div>
+											<div class="qa-vote-clear">
+											</div>
+										</div>
+									</div>
+									<input type="hidden" name="code" value="0-1516468218-5f803eb7aeac12d5d2f19a18649dd0f421bd6401">
+								</form>
+								<div class="qa-q-view-main">
+									<form method="post" action="../../9319/how-to-apply-bcs-for-sub-domains">
+										<div class="qa-q-view-content">
+											<a name="9319"></a><div class="entry-content"><p>I am currently working on an implementation of PMLs in FEniCS to allow better simulation of scattering problems. PMLs are layers surrounding the region of interest (the <em>inner</em> domain) in which the scattered waves are absorbed so as to avoid reflections back into the inner domain.</p>
+
+<p>Starting in 1D, i have tried creating an IntervalMesh and splitting it into an inner domain and a (surrounding) pml domain. Since the incoming field should only be present on the inner domain, the BCs are applied at the edge of the inner domain. Hence if the thickness of the pml layers (<em>dpml</em>) is nonzero, the inner domain boundaries will <strong>not</strong> coincide with the mesh boundaries. In this case, i get an all-zero solution. If dpml=0 i get the expected solution. </p>
+
+<p>Below is a MWE. To get the all-zero solution, simply change dpml to a non-zero value.</p>
+
+<pre><code>from dolfin import *
+import numpy as np
+
+class LambdaDomain(SubDomain):
+    def __init__(self, condition):
+        self.condition = condition
+        SubDomain.__init__(self)
+
+    def inside(self, x, on_boundary):
+        return self.condition(x, on_boundary)
+
+wl = 500
+lx = wl*2
+nx = 1000
+dpml = 0.0 * wl
+
+# Create mesh.
+lx_full = int(lx + 2.0 * dpml)
+nx_full = int((lx_full / lx) * nx)
+mesh = IntervalMesh(nx_full, 0.0, lx_full)
+# Mark boundaries.
+facet_function = FacetFunction('size_t', mesh)
+LambdaDomain(lambda x, on: near(x[0], dpml, lx / nx) and x[0] &gt;= dpml).mark(facet_function, 1)
+# ds = Measure("ds")[facet_function]  # Original code
+dS = Measure("dS")[facet_function]
+# Mark domains.
+cell_function = CellFunction('size_t', mesh)
+LambdaDomain(lambda x, on: dpml &lt;= x[0] &lt;= lx + dpml).mark(cell_function, 1)
+dx = Measure("dx")[cell_function]
+
+# Define constants.
+k0 = Constant(2 * np.pi / wl)
+A0 = Constant(1.0)
+# Create double valued space (real + imag).
+V = FunctionSpace(mesh, 'CG', 2)
+V2 = V * V
+# Create test/trail functions (real + imag).
+(u_r, u_i) = TrialFunction(V2)
+(v_r, v_i) = TestFunction(V2)
+# EQ: 1D scalar helmholtz.
+a = k0 * k0 * (v_r * u_r + v_i * u_i) * dx(1) - \
+    (inner(nabla_grad(u_r), nabla_grad(v_r)) + inner(nabla_grad(u_i), nabla_grad(v_i))) * dx(1)
+# BC: Incoming plane wave from left.
+# L = - 2 * v_r * Expression('-A0*(k0*sin(k0*x[0]))', k0=k0, A0=A0) * ds(1) + \
+#     - 2 * v_i * Expression('-A0*(k0*cos(k0*x[0]))', k0=k0, A0=A0) * ds(1)  # Original code
+L = - 2 * avg(v_r) * avg(Expression('-A0*(k0*sin(k0*x[0]))', k0=k0, A0=A0)) * dS(1) + \
+    - 2 * avg(v_i) * avg(Expression('-A0*(k0*cos(k0*x[0]))', k0=k0, A0=A0)) * dS(1)
+# Solve equations
+A = assemble(a)
+b = assemble(L)
+p = Function(V2)
+solve(A, p.vector(), b)
+pr, pi = p.split(True)
+
+# Plot stuff.
+plot(facet_function)
+plot(cell_function)
+plot(pr)
+interactive()
+</code></pre>
+
+<p>I guess i am applying the BCs wrong somehow. Can anyone point me in the right direction?</p>
+</div>
+										</div>
+										<span class="qa-q-view-avatar-meta">
+											<span class="qa-q-view-meta">
+												<a href="../../9319/how-to-apply-bcs-for-sub-domains" class="qa-q-view-what">asked</a>
+												<span class="qa-q-view-when">
+													<span class="qa-q-view-when-data"><span class="published"><span class="value-title" title="2016-02-16T08:26:09+0000"></span>Feb 16, 2016</span></span>
+												</span>
+												<span class="qa-q-view-who">
+													<span class="qa-q-view-who-pad">by </span>
+													<span class="qa-q-view-who-data"><span class="vcard author"><a href="../../user/emher" class="qa-user-link url nickname">emher</a></span></span>
+													<span class="qa-q-view-who-title">FEniCS User</span>
+													<span class="qa-q-view-who-points">
+														<span class="qa-q-view-who-points-pad">(</span><span class="qa-q-view-who-points-data">1,290</span><span class="qa-q-view-who-points-pad"> points)</span>
+													</span>
+												</span>
+												<br>
+												<span class="qa-q-view-what">edited</span>
+												<span class="qa-q-view-when">
+													<span class="qa-q-view-when-data"><span class="updated"><span class="value-title" title="2016-02-16T11:25:40+0000"></span>Feb 16, 2016</span></span>
+												</span>
+												<span class="qa-q-view-who">
+													<span class="qa-q-view-who-pad">by </span><span class="qa-q-view-who-data"><a href="../../user/emher" class="qa-user-link url nickname">emher</a></span>
+												</span>
+											</span>
+										</span>
+										<div class="qa-q-view-buttons">
+										</div>
+										
+										<div class="qa-q-view-c-list" style="display:none;" id="c9319_list">
+										</div> <!-- END qa-c-list -->
+										
+										<input type="hidden" name="code" value="0-1516468218-83b9ac4dbf086b6992f86914352b5326bb32cc23">
+										<input type="hidden" name="qa_click" value="">
+									</form>
+									<div class="qa-c-form">
+									</div> <!-- END qa-c-form -->
+									
+								</div> <!-- END qa-q-view-main -->
+								<div class="qa-q-view-clear">
+								</div>
+							</div> <!-- END qa-q-view -->
+							
+						</div>
+						<div class="qa-part-a-list">
+							<h2 id="a_list_title">1 Answer</h2>
+							<div class="qa-a-list" id="a_list">
+								
+								<div class="qa-a-list-item  hentry answer answer-selected qa-a-list-item-selected" id="a9330">
+									<form method="post" action="../../9319/how-to-apply-bcs-for-sub-domains">
+										<div class="qa-voting qa-voting-net" id="voting_9330">
+											<div class="qa-vote-count qa-vote-count-net">
+												<span class="qa-netvote-count">
+													<span class="qa-netvote-count-data">+1<span class="votes-up"><span class="value-title" title="1"></span></span><span class="votes-down"><span class="value-title" title="0"></span></span></span><span class="qa-netvote-count-pad"> vote</span>
+												</span>
+											</div>
+											<div class="qa-vote-clear">
+											</div>
+										</div>
+										<input type="hidden" name="code" value="0-1516468218-5f803eb7aeac12d5d2f19a18649dd0f421bd6401">
+									</form>
+									<div class="qa-a-item-main">
+										<form method="post" action="../../9319/how-to-apply-bcs-for-sub-domains">
+											<div class="qa-a-item-selected">
+												<div class="qa-a-selection">
+													<div class="qa-a-selected">&#160;</div>
+													<div class="qa-a-selected-text">Best answer</div>
+												</div>
+												<div class="qa-a-item-content">
+													<a name="9330"></a><div class="entry-content"><p>For setting "boundary conditions" like that, you need to use dS (interior facets) instead of ds (exterior facets). You also need to restrict your arguments, typically by using  <em>avg</em>.</p>
+</div>
+												</div>
+												<span class="qa-a-item-avatar-meta">
+													<span class="qa-a-item-meta">
+														<a href="../../9319/how-to-apply-bcs-for-sub-domains?show=9330#a9330" class="qa-a-item-what">answered</a>
+														<span class="qa-a-item-when">
+															<span class="qa-a-item-when-data"><span class="published"><span class="value-title" title="2016-02-16T11:08:37+0000"></span>Feb 16, 2016</span></span>
+														</span>
+														<span class="qa-a-item-who">
+															<span class="qa-a-item-who-pad">by </span>
+															<span class="qa-a-item-who-data"><span class="vcard author"><a href="../../user/%C3%98yvind+Evju" class="qa-user-link url nickname">&#216;yvind Evju</a></span></span>
+															<span class="qa-a-item-who-title">FEniCS Expert</span>
+															<span class="qa-a-item-who-points">
+																<span class="qa-a-item-who-points-pad">(</span><span class="qa-a-item-who-points-data">17,700</span><span class="qa-a-item-who-points-pad"> points)</span>
+															</span>
+														</span>
+														<br>
+														<span class="qa-a-item-what">selected</span>
+														<span class="qa-a-item-when">
+															<span class="qa-a-item-when-data"><span class="updated"><span class="value-title" title="2016-02-16T11:20:00+0000"></span>Feb 16, 2016</span></span>
+														</span>
+														<span class="qa-a-item-who">
+															<span class="qa-a-item-who-pad">by </span><span class="qa-a-item-who-data"><a href="../../user/emher" class="qa-user-link url nickname">emher</a></span>
+														</span>
+													</span>
+												</span>
+											</div>
+											<div class="qa-a-item-buttons">
+												</div>
+											
+											<div class="qa-a-item-c-list" id="c9330_list">
+												<div class="qa-c-list-item  hentry comment" id="c9332">
+													<div class="qa-c-item-content">
+														<a name="9332"></a><div class="entry-content"><p>You're absolutely correct. I have update my MWE with the necessary adjustments.</p>
+</div>
+													</div>
+													<div class="qa-c-item-footer">
+														<span class="qa-c-item-avatar-meta">
+															<span class="qa-c-item-meta">
+																<a href="../../9319/how-to-apply-bcs-for-sub-domains?show=9332#c9332" class="qa-c-item-what">commented</a>
+																<span class="qa-c-item-when">
+																	<span class="qa-c-item-when-data"><span class="published"><span class="value-title" title="2016-02-16T11:26:33+0000"></span>Feb 16, 2016</span></span>
+																</span>
+																<span class="qa-c-item-who">
+																	<span class="qa-c-item-who-pad">by </span>
+																	<span class="qa-c-item-who-data"><span class="vcard author"><a href="../../user/emher" class="qa-user-link url nickname">emher</a></span></span>
+																	<span class="qa-c-item-who-title">FEniCS User</span>
+																	<span class="qa-c-item-who-points">
+																		<span class="qa-c-item-who-points-pad">(</span><span class="qa-c-item-who-points-data">1,290</span><span class="qa-c-item-who-points-pad"> points)</span>
+																	</span>
+																</span>
+															</span>
+														</span>
+														<div class="qa-c-item-buttons">
+														</div>
+													</div>
+													<div class="qa-c-item-clear">
+													</div>
+												</div> <!-- END qa-c-item -->
+											</div> <!-- END qa-c-list -->
+											
+											<input type="hidden" name="code" value="0-1516468218-4a2eccb93f74d2d98cac10bc492233492b53e00c">
+											<input type="hidden" name="qa_click" value="">
+										</form>
+										<div class="qa-c-form">
+										</div> <!-- END qa-c-form -->
+										
+									</div> <!-- END qa-a-item-main -->
+									<div class="qa-a-item-clear">
+									</div>
+								</div> <!-- END qa-a-list-item -->
+								
+							</div> <!-- END qa-a-list -->
+							
+						</div>
+					</div> <!-- END qa-main -->
+					
+				</div> <!-- END main-wrapper -->
+			</div> <!-- END main-shadow -->
+		</div> <!-- END body-wrapper -->
+		<!-- END footer-bottom-group -->
+		
+		<div style="position:absolute; left:-9999px; top:-9999px;">
+			<span id="qa-waiting-template" class="qa-waiting">...</span>
+		</div>
+	
+	
+
+</body><!-- Powered by Question2Answer - http://www.question2answer.org/ --></html>

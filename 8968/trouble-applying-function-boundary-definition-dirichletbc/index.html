@@ -1,0 +1,497 @@
+<html><!-- Powered by Question2Answer - http://www.question2answer.org/ --><head>
+		<meta http-equiv="content-type" content="text/html; charset=utf-8">
+		<title>Trouble applying dim=0 mesh function boundary definition using DirichletBC - FEniCS Q&amp;A</title>
+		<meta name="description" content="Hey guys For different reasons, I need to generate the mesh using my own program. I write ... ://fenicsproject.org/qa/8918/dolfin-xml-subdomain-format">
+		<meta name="keywords" content="dirichletbc,boundary-conditions,subdomain,meshfunction">
+		<link rel="stylesheet" type="text/css" href="../../qa-theme/Snow/qa-styles.css">
+		<link rel="canonical" href="http://fenicsproject.org/qa/8968/trouble-applying-function-boundary-definition-dirichletbc">
+		<script type="text/x-mathjax-config">
+  MathJax.Hub.Config({
+    extensions: ["tex2jax.js"],
+    jax: ["input/TeX","output/HTML-CSS"],
+    tex2jax: {inlineMath: [["$","$"],["\\(","\\)"]]},
+    TeX: { extensions: ["AMSmath.js","AMSsymbols.js"]}
+  });
+</script>
+<script type="text/javascript" src="../../mathjax/MathJax.js"></script>
+		<script src="../../jquery-1.7.2.min.js" type="text/javascript"></script>
+		<script src="../../highlight.min.js"></script>
+<script type="text/javascript">
+$(function(){
+	$('.wmd-input').keypress(function(){
+		window.clearTimeout(hljs.Timeout);
+		hljs.Timeout = window.setTimeout(function() {
+			hljs.initHighlighting.called = false;
+			hljs.initHighlighting();
+		}, 500);
+	});
+	window.setTimeout(function() {
+		hljs.initHighlighting.called = false;
+		hljs.initHighlighting();
+	}, 500);
+});
+</script>
+
+
+	</head>
+	<body class="qa-template-question qa-body-js-off">
+		<div class="qa-body-wrapper">
+			
+			<div class="qa-header">
+				<div class="qa-logo">
+					<a href="../../" class="qa-logo-link" title="FEniCS Q&amp;A"><img src="../../qa-theme/fenics_qa.png" border="0" alt="FEniCS Q&amp;A"></a>
+				</div>
+				<div class="qa-header-clear">
+				</div>
+			</div> <!-- END qa-header -->
+			
+			<div class="qa-main-shadow">
+				
+				<div class="qa-main-wrapper">
+					
+					<div class="qa-sidepanel">
+						<div class="qa-sidebar">
+							This is a read only copy of the old FEniCS QA forum. Please visit the <a href="https://www.allanswered.com/community/s/fenics-project/">new QA forum</a> to ask questions
+						</div>
+						
+					</div>
+					
+					<div class="qa-main">
+						<h1>
+							<span class="entry-title">Trouble applying dim=0 mesh function boundary definition using DirichletBC</span>
+						</h1>
+						<div class="qa-part-q-view">
+							<div class="qa-q-view  hentry question" id="q8968">
+								<form method="post" action="../../8968/trouble-applying-function-boundary-definition-dirichletbc">
+									<div class="qa-q-view-stats">
+										<div class="qa-voting qa-voting-net" id="voting_8968">
+											<div class="qa-vote-count qa-vote-count-net">
+												<span class="qa-netvote-count">
+													<span class="qa-netvote-count-data">0<span class="votes-up"><span class="value-title" title="0"></span></span><span class="votes-down"><span class="value-title" title="0"></span></span></span><span class="qa-netvote-count-pad"> votes</span>
+												</span>
+											</div>
+											<div class="qa-vote-clear">
+											</div>
+										</div>
+									</div>
+									<input type="hidden" name="code" value="0-1516468200-9eb19e81b369de24b26b630f35b234c7c7503408">
+								</form>
+								<div class="qa-q-view-main">
+									<form method="post" action="../../8968/trouble-applying-function-boundary-definition-dirichletbc">
+										<div class="qa-q-view-content">
+											<a name="8968"></a><div class="entry-content"><p>Hey guys</p>
+
+<p>For different reasons, I need to generate the mesh using my own program. I write two Dolfin XML files, one for the mesh itself:</p>
+
+<pre><code>&lt;?xml version="1.0" encoding="UTF-8"?&gt;
+&lt;dolfin xmlns:dolfin="http://www.fenicsproject.org"&gt;
+  &lt;mesh celltype="tetrahedron" dim="3"&gt;
+    &lt;vertices size="428868"&gt;
+      &lt;vertex index="0" x="0.0" y="0.0" z="413.54"/&gt;
+      &lt;vertex index="1" x="2200.0" y="0.0" z="272.73"/&gt;
+      ...
+</code></pre>
+
+<p>And one for the boundaries (<code>boundary.xml</code>, gzipped <code>boundary.xml.gz</code>). I'm marking them on every vertex using a 0-dimensional <code>mesh_function</code>:</p>
+
+<pre><code>&lt;?xml version="1.0" encoding="UTF-8"?&gt;
+&lt;dolfin xmlns:dolfin="http://fenicsproject.org"&gt;
+  &lt;mesh_function type="uint" dim="0" size="428868"&gt;
+    &lt;entity index="0" value="1"/&gt;
+    &lt;entity index="1" value="1"/&gt;
+    ...
+</code></pre>
+
+<p>Now I would like to apply <code>DirichletBC</code> on every DOF where my boundary mesh function is set <code>==2</code>. I tried it like this:</p>
+
+<pre><code>subdomains = MeshFunction('size_t', mesh, boundary.xml.gz')
+bc = DirichletBC(V, Constant(0), subdomains, 2)
+</code></pre>
+
+<p>But I can clearly see in my solution, that the <code>DirichletBC</code> is not being applied. I also tried <code>pointwise</code>:</p>
+
+<pre><code>subdomains = MeshFunction('size_t', mesh, 'boundary.xml.gz')
+bc = DirichletBC(V, zero, subdomains, 2, 'pointwise')
+</code></pre>
+
+<p>But then I get this error:</p>
+
+<pre><code>*** Error:   Unable to computing Dirichlet boundary values, pointwise search.
+*** Reason:  A SubDomain is required for pointwise search.
+*** Where:   This error was encountered inside DirichletBC.cpp.
+</code></pre>
+
+<p><strong>Do I have to create a <code>FacetFunction</code> using my mesh function for use in <code>DirichletBC</code>? How would I do that? I know that the boundary meshes provided by gmsh are of dimension (mesh-1), hence Facets.</strong></p>
+
+<p>There could be other ways marking my boundary tough. I have an irregular 3D domain decomposed into tetraedra. I need to mark all boundary points except the boundary with the lowest z coordinates. Since I know which points are the lowest when generating the mesh, I thought it would be best to mark them and import this definition into FEniCS.</p>
+
+<p>Related Questions that I read but still cannot put together my puzzle:<br>
+ - <a rel="nofollow" href="http://fenicsproject.org/qa/8780/what-is-the-best-way-to-set-a-subdomain-to-a-given-value">http://fenicsproject.org/qa/8780/what-is-the-best-way-to-set-a-subdomain-to-a-given-value</a><br>
+ - <a rel="nofollow" href="http://fenicsproject.org/qa/6267/dirichlet-boundary-condition-element-from-imported-xml-mesh">http://fenicsproject.org/qa/6267/dirichlet-boundary-condition-element-from-imported-xml-mesh</a><br>
+ - <a rel="nofollow" href="http://fenicsproject.org/qa/2986/how-to-define-boundary-condition-for-mesh-generated-by-gmsh">http://fenicsproject.org/qa/2986/how-to-define-boundary-condition-for-mesh-generated-by-gmsh</a><br>
+ - <a rel="nofollow" href="http://fenicsproject.org/qa/8918/dolfin-xml-subdomain-format">http://fenicsproject.org/qa/8918/dolfin-xml-subdomain-format</a></p>
+</div>
+										</div>
+										<div class="qa-q-view-tags">
+											<ul class="qa-q-view-tag-list">
+												<li class="qa-q-view-tag-item"><a href="../../tag/dirichletbc" rel="tag" class="qa-tag-link">dirichletbc</a></li>
+												<li class="qa-q-view-tag-item"><a href="../../tag/boundary-conditions" rel="tag" class="qa-tag-link">boundary-conditions</a></li>
+												<li class="qa-q-view-tag-item"><a href="../../tag/subdomain" rel="tag" class="qa-tag-link">subdomain</a></li>
+												<li class="qa-q-view-tag-item"><a href="../../tag/meshfunction" rel="tag" class="qa-tag-link">meshfunction</a></li>
+											</ul>
+										</div>
+										<span class="qa-q-view-avatar-meta">
+											<span class="qa-q-view-avatar">
+												<a href="../../user/rwalt" class="qa-avatar-link"><img src="https://www.gravatar.com/avatar/62614f4b12482473ff057e54ebee4c7a?s=50" width="50" height="50" class="qa-avatar-image" alt=""></a>
+											</span>
+											<span class="qa-q-view-meta">
+												<a href="../../8968/trouble-applying-function-boundary-definition-dirichletbc" class="qa-q-view-what">asked</a>
+												<span class="qa-q-view-when">
+													<span class="qa-q-view-when-data"><span class="published"><span class="value-title" title="2016-01-05T12:10:49+0000"></span>Jan 5, 2016</span></span>
+												</span>
+												<span class="qa-q-view-who">
+													<span class="qa-q-view-who-pad">by </span>
+													<span class="qa-q-view-who-data"><span class="vcard author"><a href="../../user/rwalt" class="qa-user-link url nickname">rwalt</a></span></span>
+													<span class="qa-q-view-who-title">FEniCS Novice</span>
+													<span class="qa-q-view-who-points">
+														<span class="qa-q-view-who-points-pad">(</span><span class="qa-q-view-who-points-data">480</span><span class="qa-q-view-who-points-pad"> points)</span>
+													</span>
+												</span>
+											</span>
+										</span>
+										<div class="qa-q-view-buttons">
+										</div>
+										
+										<div class="qa-q-view-c-list" style="display:none;" id="c8968_list">
+										</div> <!-- END qa-c-list -->
+										
+										<input type="hidden" name="code" value="0-1516468200-c0ad9025775b683d0402bff265b3ae1d1c19148f">
+										<input type="hidden" name="qa_click" value="">
+									</form>
+									<div class="qa-c-form">
+									</div> <!-- END qa-c-form -->
+									
+								</div> <!-- END qa-q-view-main -->
+								<div class="qa-q-view-clear">
+								</div>
+							</div> <!-- END qa-q-view -->
+							
+						</div>
+						<div class="qa-part-a-list">
+							<h2 id="a_list_title">2 Answers</h2>
+							<div class="qa-a-list" id="a_list">
+								
+								<div class="qa-a-list-item  hentry answer answer-selected qa-a-list-item-selected" id="a8983">
+									<form method="post" action="../../8968/trouble-applying-function-boundary-definition-dirichletbc">
+										<div class="qa-voting qa-voting-net" id="voting_8983">
+											<div class="qa-vote-count qa-vote-count-net">
+												<span class="qa-netvote-count">
+													<span class="qa-netvote-count-data">0<span class="votes-up"><span class="value-title" title="0"></span></span><span class="votes-down"><span class="value-title" title="0"></span></span></span><span class="qa-netvote-count-pad"> votes</span>
+												</span>
+											</div>
+											<div class="qa-vote-clear">
+											</div>
+										</div>
+										<input type="hidden" name="code" value="0-1516468200-9eb19e81b369de24b26b630f35b234c7c7503408">
+									</form>
+									<div class="qa-a-item-main">
+										<form method="post" action="../../8968/trouble-applying-function-boundary-definition-dirichletbc">
+											<div class="qa-a-item-selected">
+												<div class="qa-a-selection">
+													<div class="qa-a-selected">&#160;</div>
+													<div class="qa-a-selected-text">Best answer</div>
+												</div>
+												<div class="qa-a-item-content">
+													<a name="8983"></a><div class="entry-content"><p>This answer contains the code of the answer proposed by maartent. <code>DirichletBC</code> needs a <code>MeshFunction</code> defined on the facets (in this case triangles). Hence one can be created, using the <code>MeshFunction</code> defined on the vertices.</p>
+
+<pre><code>from dolfin import *
+
+mesh = Mesh('cosmo2.xml.gz')
+vertexfunc = MeshFunction('size_t', mesh, 'cosmo2_vertexboundary.xml.gz')
+
+# create facetfunction
+facetfunction = MeshFunction('size_t', mesh, mesh.topology().dim() - 1)
+facetfunction.set_all(0)
+
+for f in facets(mesh):
+    # check if every vertex on this facet has the same boundary marker; if yes store it in the facetfunction
+    last = -1
+    isboundary = True
+    for v in vertices(f):
+        val = vertexfunc[v]
+        if last==-1:
+            # first iteration
+            last = val
+        else:
+            # any other iteration
+            if last != val:
+                isboundary = False
+                break
+
+    if isboundary:
+        facetfunction[f] = last
+
+File('cosmo2_boundary.xml.gz') &lt;&lt; facetfunction
+</code></pre>
+</div>
+												</div>
+												<span class="qa-a-item-avatar-meta">
+													<span class="qa-a-item-avatar">
+														<a href="../../user/rwalt" class="qa-avatar-link"><img src="https://www.gravatar.com/avatar/62614f4b12482473ff057e54ebee4c7a?s=40" width="40" height="40" class="qa-avatar-image" alt=""></a>
+													</span>
+													<span class="qa-a-item-meta">
+														<a href="../../8968/trouble-applying-function-boundary-definition-dirichletbc?show=8983#a8983" class="qa-a-item-what">answered</a>
+														<span class="qa-a-item-when">
+															<span class="qa-a-item-when-data"><span class="published"><span class="value-title" title="2016-01-06T10:42:36+0000"></span>Jan 6, 2016</span></span>
+														</span>
+														<span class="qa-a-item-who">
+															<span class="qa-a-item-who-pad">by </span>
+															<span class="qa-a-item-who-data"><span class="vcard author"><a href="../../user/rwalt" class="qa-user-link url nickname">rwalt</a></span></span>
+															<span class="qa-a-item-who-title">FEniCS Novice</span>
+															<span class="qa-a-item-who-points">
+																<span class="qa-a-item-who-points-pad">(</span><span class="qa-a-item-who-points-data">480</span><span class="qa-a-item-who-points-pad"> points)</span>
+															</span>
+														</span>
+														<br>
+														<span class="qa-a-item-what">selected</span>
+														<span class="qa-a-item-when">
+															<span class="qa-a-item-when-data"><span class="updated"><span class="value-title" title="2016-01-18T10:03:25+0000"></span>Jan 18, 2016</span></span>
+														</span>
+														<span class="qa-a-item-who">
+															<span class="qa-a-item-who-pad">by </span><span class="qa-a-item-who-data"><a href="../../user/rwalt" class="qa-user-link url nickname">rwalt</a></span>
+														</span>
+													</span>
+												</span>
+											</div>
+											<div class="qa-a-item-buttons">
+												</div>
+											
+											<div class="qa-a-item-c-list" id="c8983_list">
+												<div class="qa-c-list-item  hentry comment" id="c8984">
+													<div class="qa-c-item-content">
+														<a name="8984"></a><div class="entry-content"><p>I also tried defining the facet <code>MeshFunction</code> only on the <code>BoundaryMesh</code>; but the numbering of the vertex <code>MeshFunction</code> is of course not compatible with the numbering on the <code>BoundaryMesh</code>; hence I abandoned the idea. I think there could be a way tough; but I'm not sure if <code>DirichletBC</code> accepts subdomains that are defined on a <code>BoundaryMesh</code>.</p>
+</div>
+													</div>
+													<div class="qa-c-item-footer">
+														<span class="qa-c-item-avatar-meta">
+															<span class="qa-c-item-avatar">
+																<a href="../../user/rwalt" class="qa-avatar-link"><img src="https://www.gravatar.com/avatar/62614f4b12482473ff057e54ebee4c7a?s=20" width="20" height="20" class="qa-avatar-image" alt=""></a>
+															</span>
+															<span class="qa-c-item-meta">
+																<a href="../../8968/trouble-applying-function-boundary-definition-dirichletbc?show=8984#c8984" class="qa-c-item-what">commented</a>
+																<span class="qa-c-item-when">
+																	<span class="qa-c-item-when-data"><span class="published"><span class="value-title" title="2016-01-06T10:44:39+0000"></span>Jan 6, 2016</span></span>
+																</span>
+																<span class="qa-c-item-who">
+																	<span class="qa-c-item-who-pad">by </span>
+																	<span class="qa-c-item-who-data"><span class="vcard author"><a href="../../user/rwalt" class="qa-user-link url nickname">rwalt</a></span></span>
+																	<span class="qa-c-item-who-title">FEniCS Novice</span>
+																	<span class="qa-c-item-who-points">
+																		<span class="qa-c-item-who-points-pad">(</span><span class="qa-c-item-who-points-data">480</span><span class="qa-c-item-who-points-pad"> points)</span>
+																	</span>
+																</span>
+															</span>
+														</span>
+														<div class="qa-c-item-buttons">
+														</div>
+													</div>
+													<div class="qa-c-item-clear">
+													</div>
+												</div> <!-- END qa-c-item -->
+											</div> <!-- END qa-c-list -->
+											
+											<input type="hidden" name="code" value="0-1516468200-7fce6a9d705304746f84fcf02553d8538a6ce69f">
+											<input type="hidden" name="qa_click" value="">
+										</form>
+										<div class="qa-c-form">
+										</div> <!-- END qa-c-form -->
+										
+									</div> <!-- END qa-a-item-main -->
+									<div class="qa-a-item-clear">
+									</div>
+								</div> <!-- END qa-a-list-item -->
+								
+								<div class="qa-a-list-item  hentry answer" id="a8972">
+									<form method="post" action="../../8968/trouble-applying-function-boundary-definition-dirichletbc">
+										<div class="qa-voting qa-voting-net" id="voting_8972">
+											<div class="qa-vote-count qa-vote-count-net">
+												<span class="qa-netvote-count">
+													<span class="qa-netvote-count-data">0<span class="votes-up"><span class="value-title" title="0"></span></span><span class="votes-down"><span class="value-title" title="0"></span></span></span><span class="qa-netvote-count-pad"> votes</span>
+												</span>
+											</div>
+											<div class="qa-vote-clear">
+											</div>
+										</div>
+										<input type="hidden" name="code" value="0-1516468200-9eb19e81b369de24b26b630f35b234c7c7503408">
+									</form>
+									<div class="qa-a-item-main">
+										<form method="post" action="../../8968/trouble-applying-function-boundary-definition-dirichletbc">
+											<div class="qa-a-selection">
+											</div>
+											<div class="qa-a-item-content">
+												<a name="8972"></a><div class="entry-content"><p>Assuming I understood your question correctly, my plan of attack would be</p>
+
+<pre><code>create a new FacetFunction, initialize to zero
+iterate over all facets, for each facet
+    get its vertices and their value from your 0-dim meshfunction
+    if these values are all equal (let's say to n)
+        then mark this facet as 'n'
+</code></pre>
+
+<p>You can then use this new FacetFunction in your DirichletBC. The first link you mentioned should get you on your way.</p>
+</div>
+											</div>
+											<span class="qa-a-item-avatar-meta">
+												<span class="qa-a-item-meta">
+													<a href="../../8968/trouble-applying-function-boundary-definition-dirichletbc?show=8972#a8972" class="qa-a-item-what">answered</a>
+													<span class="qa-a-item-when">
+														<span class="qa-a-item-when-data"><span class="published"><span class="value-title" title="2016-01-05T14:25:02+0000"></span>Jan 5, 2016</span></span>
+													</span>
+													<span class="qa-a-item-who">
+														<span class="qa-a-item-who-pad">by </span>
+														<span class="qa-a-item-who-data"><span class="vcard author"><a href="../../user/maartent" class="qa-user-link url nickname">maartent</a></span></span>
+														<span class="qa-a-item-who-title">FEniCS User</span>
+														<span class="qa-a-item-who-points">
+															<span class="qa-a-item-who-points-pad">(</span><span class="qa-a-item-who-points-data">3,910</span><span class="qa-a-item-who-points-pad"> points)</span>
+														</span>
+													</span>
+													<br>
+													<span class="qa-a-item-what">edited</span>
+													<span class="qa-a-item-when">
+														<span class="qa-a-item-when-data"><span class="updated"><span class="value-title" title="2016-01-05T14:33:32+0000"></span>Jan 5, 2016</span></span>
+													</span>
+													<span class="qa-a-item-who">
+														<span class="qa-a-item-who-pad">by </span><span class="qa-a-item-who-data"><a href="../../user/maartent" class="qa-user-link url nickname">maartent</a></span>
+													</span>
+												</span>
+											</span>
+											<div class="qa-a-item-buttons">
+												</div>
+											
+											<div class="qa-a-item-c-list" id="c8972_list">
+												<div class="qa-c-list-item  hentry comment" id="c8976">
+													<div class="qa-c-item-content">
+														<a name="8976"></a><div class="entry-content"><p>Thanks for your solution. I will definitely go that way then. But it seems to me that it's more like a makeshift. I'd like to go parallel with this code, and loops like that won't be distributed to different cores automatically I guess (that would amaze me). Shouldn't there be a better solution? Do I have to create and import my boundary markers differently?</p>
+
+<p>The problem when thinking about creating the BoundaryMesh is that I don't know the Facet numbering FEniCS uses when creating my mesh...</p>
+
+<p>How could I create a FacetFunction using my own program that can be imported directly into FEniCS?</p>
+</div>
+													</div>
+													<div class="qa-c-item-footer">
+														<span class="qa-c-item-avatar-meta">
+															<span class="qa-c-item-avatar">
+																<a href="../../user/rwalt" class="qa-avatar-link"><img src="https://www.gravatar.com/avatar/62614f4b12482473ff057e54ebee4c7a?s=20" width="20" height="20" class="qa-avatar-image" alt=""></a>
+															</span>
+															<span class="qa-c-item-meta">
+																<a href="../../8968/trouble-applying-function-boundary-definition-dirichletbc?show=8976#c8976" class="qa-c-item-what">commented</a>
+																<span class="qa-c-item-when">
+																	<span class="qa-c-item-when-data"><span class="published"><span class="value-title" title="2016-01-05T17:35:37+0000"></span>Jan 5, 2016</span></span>
+																</span>
+																<span class="qa-c-item-who">
+																	<span class="qa-c-item-who-pad">by </span>
+																	<span class="qa-c-item-who-data"><span class="vcard author"><a href="../../user/rwalt" class="qa-user-link url nickname">rwalt</a></span></span>
+																	<span class="qa-c-item-who-title">FEniCS Novice</span>
+																	<span class="qa-c-item-who-points">
+																		<span class="qa-c-item-who-points-pad">(</span><span class="qa-c-item-who-points-data">480</span><span class="qa-c-item-who-points-pad"> points)</span>
+																	</span>
+																</span>
+															</span>
+														</span>
+														<div class="qa-c-item-buttons">
+														</div>
+													</div>
+													<div class="qa-c-item-clear">
+													</div>
+												</div> <!-- END qa-c-item -->
+												<div class="qa-c-list-item  hentry comment" id="c8977">
+													<div class="qa-c-item-content">
+														<a name="8977"></a><div class="entry-content"><p>It isn't the most elegant solution and there might be others, but I am not aware of them yet.</p>
+
+<p>If I am not mistaken you can write FacetFunction's to a file, and import it again when needed. I couldn't find this in the documentation, though, so you'll have to try it yourself or ask someone else.</p>
+</div>
+													</div>
+													<div class="qa-c-item-footer">
+														<span class="qa-c-item-avatar-meta">
+															<span class="qa-c-item-meta">
+																<a href="../../8968/trouble-applying-function-boundary-definition-dirichletbc?show=8977#c8977" class="qa-c-item-what">commented</a>
+																<span class="qa-c-item-when">
+																	<span class="qa-c-item-when-data"><span class="published"><span class="value-title" title="2016-01-05T18:04:41+0000"></span>Jan 5, 2016</span></span>
+																</span>
+																<span class="qa-c-item-who">
+																	<span class="qa-c-item-who-pad">by </span>
+																	<span class="qa-c-item-who-data"><span class="vcard author"><a href="../../user/maartent" class="qa-user-link url nickname">maartent</a></span></span>
+																	<span class="qa-c-item-who-title">FEniCS User</span>
+																	<span class="qa-c-item-who-points">
+																		<span class="qa-c-item-who-points-pad">(</span><span class="qa-c-item-who-points-data">3,910</span><span class="qa-c-item-who-points-pad"> points)</span>
+																	</span>
+																</span>
+															</span>
+														</span>
+														<div class="qa-c-item-buttons">
+														</div>
+													</div>
+													<div class="qa-c-item-clear">
+													</div>
+												</div> <!-- END qa-c-item -->
+												<div class="qa-c-list-item  hentry comment" id="c8979">
+													<div class="qa-c-item-content">
+														<a name="8979"></a><div class="entry-content"><p>Yes you can create this <code>MeshFunction</code> on the Facet and save it to reuse it. Actually that is a good idea, since my mesh is (still) static. Thanks for your answer and hint!</p>
+</div>
+													</div>
+													<div class="qa-c-item-footer">
+														<span class="qa-c-item-avatar-meta">
+															<span class="qa-c-item-avatar">
+																<a href="../../user/rwalt" class="qa-avatar-link"><img src="https://www.gravatar.com/avatar/62614f4b12482473ff057e54ebee4c7a?s=20" width="20" height="20" class="qa-avatar-image" alt=""></a>
+															</span>
+															<span class="qa-c-item-meta">
+																<a href="../../8968/trouble-applying-function-boundary-definition-dirichletbc?show=8979#c8979" class="qa-c-item-what">commented</a>
+																<span class="qa-c-item-when">
+																	<span class="qa-c-item-when-data"><span class="published"><span class="value-title" title="2016-01-06T08:39:56+0000"></span>Jan 6, 2016</span></span>
+																</span>
+																<span class="qa-c-item-who">
+																	<span class="qa-c-item-who-pad">by </span>
+																	<span class="qa-c-item-who-data"><span class="vcard author"><a href="../../user/rwalt" class="qa-user-link url nickname">rwalt</a></span></span>
+																	<span class="qa-c-item-who-title">FEniCS Novice</span>
+																	<span class="qa-c-item-who-points">
+																		<span class="qa-c-item-who-points-pad">(</span><span class="qa-c-item-who-points-data">480</span><span class="qa-c-item-who-points-pad"> points)</span>
+																	</span>
+																</span>
+															</span>
+														</span>
+														<div class="qa-c-item-buttons">
+														</div>
+													</div>
+													<div class="qa-c-item-clear">
+													</div>
+												</div> <!-- END qa-c-item -->
+											</div> <!-- END qa-c-list -->
+											
+											<input type="hidden" name="code" value="0-1516468200-274e8ee604a815214abfe27c8a3984affe242e19">
+											<input type="hidden" name="qa_click" value="">
+										</form>
+										<div class="qa-c-form">
+										</div> <!-- END qa-c-form -->
+										
+									</div> <!-- END qa-a-item-main -->
+									<div class="qa-a-item-clear">
+									</div>
+								</div> <!-- END qa-a-list-item -->
+								
+							</div> <!-- END qa-a-list -->
+							
+						</div>
+					</div> <!-- END qa-main -->
+					
+				</div> <!-- END main-wrapper -->
+			</div> <!-- END main-shadow -->
+		</div> <!-- END body-wrapper -->
+		<!-- END footer-bottom-group -->
+		
+		<div style="position:absolute; left:-9999px; top:-9999px;">
+			<span id="qa-waiting-template" class="qa-waiting">...</span>
+		</div>
+	
+	
+
+</body><!-- Powered by Question2Answer - http://www.question2answer.org/ --></html>

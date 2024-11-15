@@ -1,0 +1,276 @@
+<html><!-- Powered by Question2Answer - http://www.question2answer.org/ --><head>
+		<meta http-equiv="content-type" content="text/html; charset=utf-8">
+		<title>Using polar coordinates with UFL and C++ - FEniCS Q&amp;A</title>
+		<meta name="description" content="Hello everybody, I want to solve the following variational formulatiion using fenics: $$\sum\limits_ ...  to exclude possible error sources :) Thanks!">
+		<link rel="stylesheet" type="text/css" href="../../qa-theme/Snow/qa-styles.css">
+		<link rel="canonical" href="http://fenicsproject.org/qa/4030/using-polar-coordinates-with-ufl-and-c">
+		<script type="text/x-mathjax-config">
+  MathJax.Hub.Config({
+    extensions: ["tex2jax.js"],
+    jax: ["input/TeX","output/HTML-CSS"],
+    tex2jax: {inlineMath: [["$","$"],["\\(","\\)"]]},
+    TeX: { extensions: ["AMSmath.js","AMSsymbols.js"]}
+  });
+</script>
+<script type="text/javascript" src="../../mathjax/MathJax.js"></script>
+		<script src="../../jquery-1.7.2.min.js" type="text/javascript"></script>
+		<script src="../../highlight.min.js"></script>
+<script type="text/javascript">
+$(function(){
+	$('.wmd-input').keypress(function(){
+		window.clearTimeout(hljs.Timeout);
+		hljs.Timeout = window.setTimeout(function() {
+			hljs.initHighlighting.called = false;
+			hljs.initHighlighting();
+		}, 500);
+	});
+	window.setTimeout(function() {
+		hljs.initHighlighting.called = false;
+		hljs.initHighlighting();
+	}, 500);
+});
+</script>
+
+
+	</head>
+	<body class="qa-template-question qa-body-js-off">
+		<div class="qa-body-wrapper">
+			
+			<div class="qa-header">
+				<div class="qa-logo">
+					<a href="../../" class="qa-logo-link" title="FEniCS Q&amp;A"><img src="../../qa-theme/fenics_qa.png" border="0" alt="FEniCS Q&amp;A"></a>
+				</div>
+				<div class="qa-header-clear">
+				</div>
+			</div> <!-- END qa-header -->
+			
+			<div class="qa-main-shadow">
+				
+				<div class="qa-main-wrapper">
+					
+					<div class="qa-sidepanel">
+						<div class="qa-sidebar">
+							This is a read only copy of the old FEniCS QA forum. Please visit the <a href="https://www.allanswered.com/community/s/fenics-project/">new QA forum</a> to ask questions
+						</div>
+						
+					</div>
+					
+					<div class="qa-main">
+						<h1>
+							<span class="entry-title">Using polar coordinates with UFL and C++</span>
+						</h1>
+						<div class="qa-part-q-view">
+							<div class="qa-q-view  hentry question" id="q4030">
+								<form method="post" action="../../4030/using-polar-coordinates-with-ufl-and-c">
+									<div class="qa-q-view-stats">
+										<div class="qa-voting qa-voting-net" id="voting_4030">
+											<div class="qa-vote-count qa-vote-count-net">
+												<span class="qa-netvote-count">
+													<span class="qa-netvote-count-data">+3<span class="votes-up"><span class="value-title" title="3"></span></span><span class="votes-down"><span class="value-title" title="0"></span></span></span><span class="qa-netvote-count-pad"> votes</span>
+												</span>
+											</div>
+											<div class="qa-vote-clear">
+											</div>
+										</div>
+									</div>
+									<input type="hidden" name="code" value="0-1516467997-bf0fed8a98b86bf8774a6b77f40a5e2daf7ad004">
+								</form>
+								<div class="qa-q-view-main">
+									<form method="post" action="../../4030/using-polar-coordinates-with-ufl-and-c">
+										<div class="qa-q-view-content">
+											<a name="4030"></a><div class="entry-content"><p>Hello everybody,</p>
+
+<p>I want to solve the following variational formulatiion using fenics:</p>
+
+<p>$$\sum\limits_{i \in {h,s,b}} \int_{\Omega_i}\rho c_v \frac{\partial{\theta}}{\partial{t}}\,v\,dx - \int_{\Omega_i} \frac{\kappa_{r i}}{r}  \frac{\partial \theta}{\partial r} \cdot v dx + \int_{\Omega_i} \kappa_{r i} \frac{\partial \theta}{\partial r}  \frac{\partial v}{\partial r}+\frac{\kappa_{\phi i}}{r^2} \frac{\partial \theta}{\partial \phi}   \frac{\partial v}{\partial \phi} \, dx$$</p>
+
+<p>$$+ \int_{r=r_b}\alpha_b(\theta-\theta_{atm})\,v \, dS = 0$$ </p>
+
+<p>where $\Omega_{h,s,b}$ are some subdomains of a circle. My results with fenics are not like I expected them. While I was trying to look for mistakes, I wondered if I even use the right UFL-formulation? Is the following code the correct translation of the weak formulation into UFL-language, especially is this the right way to treat the <br>
+$\frac{1}{r}$? </p>
+
+<p>V = FiniteElement("Lagrange", triangle, 1)</p>
+
+<p>V_kappa = FiniteElement("DG", triangle, 1)</p>
+
+<p>u = TrialFunction(V)<br>
+v = TestFunction(V)</p>
+
+<p>dt  = Constant(triangle)<br>
+u0 = Coefficient(V)<br>
+f  = Coefficient(V)<br>
+rho = Coefficient(V_kappa)<br>
+cv = Coefficient(V_kappa)<br>
+kappa_r  = Coefficient(V_kappa)<br>
+kappa_phi = Coefficient(V_kappa)<br>
+alpha = Constant(triangle)<br>
+u_atm = Constant(triangle);<br>
+x = triangle.x</p>
+
+<h2>Define bilinear and linear forms</h2>
+
+<p>a = rho * cv * (1/dt) * inner(u, v) * dx + alpha * u * v * ds(1) + (kappa_r * Dx(u,0) * Dx(v,0) + kappa_phi * 1/x[0] * Dx(u,1)* 1/x[0] * Dx(v,1)) * dx - kappa_r * 1/x[0] * Dx(u,0) * v * dx<br>
+L = rho * cv * (1/dt) * inner(u0, v) * dx + inner(f, v) * dx + alpha * (u_atm) * v * ds(1) </p>
+
+<p>I am just trying to exclude possible error sources :) <br>
+Thanks!</p>
+</div>
+										</div>
+										<span class="qa-q-view-avatar-meta">
+											<span class="qa-q-view-meta">
+												<a href="../../4030/using-polar-coordinates-with-ufl-and-c" class="qa-q-view-what">asked</a>
+												<span class="qa-q-view-when">
+													<span class="qa-q-view-when-data"><span class="published"><span class="value-title" title="2014-07-02T11:46:48+0000"></span>Jul 2, 2014</span></span>
+												</span>
+												<span class="qa-q-view-who">
+													<span class="qa-q-view-who-pad">by </span>
+													<span class="qa-q-view-who-data"><span class="vcard author"><a href="../../user/soply" class="qa-user-link url nickname">soply</a></span></span>
+													<span class="qa-q-view-who-title">FEniCS Novice</span>
+													<span class="qa-q-view-who-points">
+														<span class="qa-q-view-who-points-pad">(</span><span class="qa-q-view-who-points-data">400</span><span class="qa-q-view-who-points-pad"> points)</span>
+													</span>
+												</span>
+											</span>
+										</span>
+										<div class="qa-q-view-buttons">
+										</div>
+										
+										<div class="qa-q-view-c-list" id="c4030_list">
+											<div class="qa-c-list-item  hentry comment" id="c4032">
+												<div class="qa-c-item-content">
+													<a name="4032"></a><div class="entry-content"><p>It's the same approach I used for spherical and cylindrical coordinates in 1-D, where I just had to deal with r. </p>
+
+<p>I would expect r=x[0], theta=x[1], and phi=x[2], with the spatial partial derivatives present in the forms:<br>
+Dx(x[1],x[2]) for example.</p>
+</div>
+												</div>
+												<div class="qa-c-item-footer">
+													<span class="qa-c-item-avatar-meta">
+														<span class="qa-c-item-avatar">
+															<a href="../../user/Charles" class="qa-avatar-link"><img src="https://www.gravatar.com/avatar/22e56480a5d5f76ee11abebe5dc8d5a6?s=20" width="20" height="20" class="qa-avatar-image" alt=""></a>
+														</span>
+														<span class="qa-c-item-meta">
+															<a href="../../4030/using-polar-coordinates-with-ufl-and-c?show=4032#c4032" class="qa-c-item-what">commented</a>
+															<span class="qa-c-item-when">
+																<span class="qa-c-item-when-data"><span class="published"><span class="value-title" title="2014-07-02T15:06:56+0000"></span>Jul 2, 2014</span></span>
+															</span>
+															<span class="qa-c-item-who">
+																<span class="qa-c-item-who-pad">by </span>
+																<span class="qa-c-item-who-data"><span class="vcard author"><a href="../../user/Charles" class="qa-user-link url nickname">Charles</a></span></span>
+																<span class="qa-c-item-who-title">FEniCS User</span>
+																<span class="qa-c-item-who-points">
+																	<span class="qa-c-item-who-points-pad">(</span><span class="qa-c-item-who-points-data">4,220</span><span class="qa-c-item-who-points-pad"> points)</span>
+																</span>
+															</span>
+														</span>
+													</span>
+													<div class="qa-c-item-buttons">
+													</div>
+												</div>
+												<div class="qa-c-item-clear">
+												</div>
+											</div> <!-- END qa-c-item -->
+											<div class="qa-c-list-item  hentry comment" id="c4033">
+												<div class="qa-c-item-content">
+													<a name="4033"></a><div class="entry-content"><p>So it should be correct right? As a second approach I tried to manually use a coefficiention function <br>
+$$ pos = Coefficient(V), $$<br>
+used this function instead of 1/x[0] in the UFL-formulation and manually interpolated the expression given by $expression(x[0],x[1]) = 1/x[0]$ to pos, but the results differ a lot from the results given by the method of the original post.</p>
+
+<p>Does anyone know how this is 1/x[0] is implemented? Because my first coordinate lies in the intervall $[0,R]$, but I dont get division by zero errors.</p>
+
+<p>Thanks a lot!</p>
+</div>
+												</div>
+												<div class="qa-c-item-footer">
+													<span class="qa-c-item-avatar-meta">
+														<span class="qa-c-item-meta">
+															<a href="../../4030/using-polar-coordinates-with-ufl-and-c?show=4033#c4033" class="qa-c-item-what">commented</a>
+															<span class="qa-c-item-when">
+																<span class="qa-c-item-when-data"><span class="published"><span class="value-title" title="2014-07-02T18:10:35+0000"></span>Jul 2, 2014</span></span>
+															</span>
+															<span class="qa-c-item-who">
+																<span class="qa-c-item-who-pad">by </span>
+																<span class="qa-c-item-who-data"><span class="vcard author"><a href="../../user/soply" class="qa-user-link url nickname">soply</a></span></span>
+																<span class="qa-c-item-who-title">FEniCS Novice</span>
+																<span class="qa-c-item-who-points">
+																	<span class="qa-c-item-who-points-pad">(</span><span class="qa-c-item-who-points-data">400</span><span class="qa-c-item-who-points-pad"> points)</span>
+																</span>
+															</span>
+														</span>
+													</span>
+													<div class="qa-c-item-buttons">
+													</div>
+												</div>
+												<div class="qa-c-item-clear">
+												</div>
+											</div> <!-- END qa-c-item -->
+											<div class="qa-c-list-item  hentry comment" id="c4040">
+												<div class="qa-c-item-content">
+													<a name="4040"></a><div class="entry-content"><p>To my understanding having x[i] is beneficial as the spatial coordinates are incorporated in the quadrature integration within the generated code.  With a Coefficient(V), which is interpolated to x[i], the coefficient is integrated - introducing interpolation errors.  I've tried it, it works, just not as well.  I really only noticed a significant difference when I needed to find the divergence near r=0 in spherical coordinates (a great simplified problem for exploring this, find the div(r^2) near zero).  Using x[i] performed much better in this case.</p>
+
+<p>In my case I only solved from [eps, R], where I set eps to something reasonably small.  As you pointed out, solving from [0, R] gave results, just nonsensical for the most part.  I suspect some form of stabilization in the solving of the system with derivatives going to zero as r goes to zero .</p>
+
+<p>Hopefully someone can chime in with more - I would love to have a nicer explanation.</p>
+</div>
+												</div>
+												<div class="qa-c-item-footer">
+													<span class="qa-c-item-avatar-meta">
+														<span class="qa-c-item-avatar">
+															<a href="../../user/Charles" class="qa-avatar-link"><img src="https://www.gravatar.com/avatar/22e56480a5d5f76ee11abebe5dc8d5a6?s=20" width="20" height="20" class="qa-avatar-image" alt=""></a>
+														</span>
+														<span class="qa-c-item-meta">
+															<a href="../../4030/using-polar-coordinates-with-ufl-and-c?show=4040#c4040" class="qa-c-item-what">commented</a>
+															<span class="qa-c-item-when">
+																<span class="qa-c-item-when-data"><span class="published"><span class="value-title" title="2014-07-03T14:19:33+0000"></span>Jul 3, 2014</span></span>
+															</span>
+															<span class="qa-c-item-who">
+																<span class="qa-c-item-who-pad">by </span>
+																<span class="qa-c-item-who-data"><span class="vcard author"><a href="../../user/Charles" class="qa-user-link url nickname">Charles</a></span></span>
+																<span class="qa-c-item-who-title">FEniCS User</span>
+																<span class="qa-c-item-who-points">
+																	<span class="qa-c-item-who-points-pad">(</span><span class="qa-c-item-who-points-data">4,220</span><span class="qa-c-item-who-points-pad"> points)</span>
+																</span>
+															</span>
+														</span>
+													</span>
+													<div class="qa-c-item-buttons">
+													</div>
+												</div>
+												<div class="qa-c-item-clear">
+												</div>
+											</div> <!-- END qa-c-item -->
+										</div> <!-- END qa-c-list -->
+										
+										<input type="hidden" name="code" value="0-1516467997-e5d4cf9bd63aef39bcca426f62d6d20908cc672a">
+										<input type="hidden" name="qa_click" value="">
+									</form>
+									<div class="qa-c-form">
+									</div> <!-- END qa-c-form -->
+									
+								</div> <!-- END qa-q-view-main -->
+								<div class="qa-q-view-clear">
+								</div>
+							</div> <!-- END qa-q-view -->
+							
+						</div>
+						<div class="qa-part-a-list">
+							<h2 id="a_list_title" style="display:none;"></h2>
+							<div class="qa-a-list" id="a_list">
+								
+							</div> <!-- END qa-a-list -->
+							
+						</div>
+					</div> <!-- END qa-main -->
+					
+				</div> <!-- END main-wrapper -->
+			</div> <!-- END main-shadow -->
+		</div> <!-- END body-wrapper -->
+		<!-- END footer-bottom-group -->
+		
+		<div style="position:absolute; left:-9999px; top:-9999px;">
+			<span id="qa-waiting-template" class="qa-waiting">...</span>
+		</div>
+	
+	
+
+</body><!-- Powered by Question2Answer - http://www.question2answer.org/ --></html>

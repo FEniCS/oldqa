@@ -1,0 +1,286 @@
+<html><!-- Powered by Question2Answer - http://www.question2answer.org/ --><head>
+		<meta http-equiv="content-type" content="text/html; charset=utf-8">
+		<title>exact cut of a Function - FEniCS Q&amp;A</title>
+		<meta name="description" content="I want to do the the cut on a Function, namely rho = 0 if rho">
+		<meta name="keywords" content="expression,interpolate,project">
+		<link rel="stylesheet" type="text/css" href="../../qa-theme/Snow/qa-styles.css">
+		<link rel="canonical" href="http://fenicsproject.org/qa/10959/exact-cut-of-a-function">
+		<script type="text/x-mathjax-config">
+  MathJax.Hub.Config({
+    extensions: ["tex2jax.js"],
+    jax: ["input/TeX","output/HTML-CSS"],
+    tex2jax: {inlineMath: [["$","$"],["\\(","\\)"]]},
+    TeX: { extensions: ["AMSmath.js","AMSsymbols.js"]}
+  });
+</script>
+<script type="text/javascript" src="../../mathjax/MathJax.js"></script>
+		<script src="../../jquery-1.7.2.min.js" type="text/javascript"></script>
+		<script src="../../highlight.min.js"></script>
+<script type="text/javascript">
+$(function(){
+	$('.wmd-input').keypress(function(){
+		window.clearTimeout(hljs.Timeout);
+		hljs.Timeout = window.setTimeout(function() {
+			hljs.initHighlighting.called = false;
+			hljs.initHighlighting();
+		}, 500);
+	});
+	window.setTimeout(function() {
+		hljs.initHighlighting.called = false;
+		hljs.initHighlighting();
+	}, 500);
+});
+</script>
+
+
+	</head>
+	<body class="qa-template-question qa-body-js-off">
+		<div class="qa-body-wrapper">
+			
+			<div class="qa-header">
+				<div class="qa-logo">
+					<a href="../../" class="qa-logo-link" title="FEniCS Q&amp;A"><img src="../../qa-theme/fenics_qa.png" border="0" alt="FEniCS Q&amp;A"></a>
+				</div>
+				<div class="qa-header-clear">
+				</div>
+			</div> <!-- END qa-header -->
+			
+			<div class="qa-main-shadow">
+				
+				<div class="qa-main-wrapper">
+					
+					<div class="qa-sidepanel">
+						<div class="qa-sidebar">
+							This is a read only copy of the old FEniCS QA forum. Please visit the <a href="https://www.allanswered.com/community/s/fenics-project/">new QA forum</a> to ask questions
+						</div>
+						
+					</div>
+					
+					<div class="qa-main">
+						<h1>
+							<span class="entry-title">exact cut of a Function</span>
+						</h1>
+						<div class="qa-part-q-view">
+							<div class="qa-q-view  hentry question" id="q10959">
+								<form method="post" action="../../10959/exact-cut-of-a-function">
+									<div class="qa-q-view-stats">
+										<div class="qa-voting qa-voting-net" id="voting_10959">
+											<div class="qa-vote-count qa-vote-count-net">
+												<span class="qa-netvote-count">
+													<span class="qa-netvote-count-data">0<span class="votes-up"><span class="value-title" title="0"></span></span><span class="votes-down"><span class="value-title" title="0"></span></span></span><span class="qa-netvote-count-pad"> votes</span>
+												</span>
+											</div>
+											<div class="qa-vote-clear">
+											</div>
+										</div>
+									</div>
+									<input type="hidden" name="code" value="0-1516467086-4c6e4bf1d72f9e5f920ec652b6fa922b6a2decec">
+								</form>
+								<div class="qa-q-view-main">
+									<form method="post" action="../../10959/exact-cut-of-a-function">
+										<div class="qa-q-view-content">
+											<a name="10959"></a><div class="entry-content"><p>I want to do the the cut on a Function, namely<br>
+rho = 0 if rho&lt;0, rho if 0=&lt;rho=&lt;1, 1 if rho&gt;1</p>
+
+<p>I have three variants to realize</p>
+
+<pre><code>def rho_cut_1(rho):
+    func_sp = rho.function_space()
+    rho_cut = Max(Constant(0.), Min(Constant(1.), rho))
+    return project(rho_cut, func_sp)
+
+def rho_cut_2(rho):
+    func_sp = rho.function_space()
+    upper_bound = conditional(gt(rho, 1.), 1., rho)
+    rho_cut = conditional(lt(upper_bound, 0.), 0., upper_bound)
+    return project(rho_cut, func_sp)
+
+class rho_cut_3(Expression):
+    def __init__(self, rho, rho_range=(0., 1.), val_range=(0., 1.)):
+        self.rho = rho
+        self.rho_range = rho_range
+        self.val_range = val_range
+
+    def eval(self, values, x):
+        if self.rho(x) &gt;= self.rho_range[1]:
+            values[0] = self.val_range[1]
+        elif self.rho_range[0] &lt; self.rho(x) &lt; self.rho_range[1] :
+            values[0] = self.rho(x)
+        else:
+            values[0] = self.val_range[0]
+</code></pre>
+
+<p>To check them I simply did the following,</p>
+
+<pre><code>mesh = UnitSquareMesh(50, 50)
+V = FunctionSpace(mesh, 'Lagrange', 1)
+
+rho = interpolate(Expression('x[0]*x[0]+x[1]*x[1]'), V)
+rho_1 = rho_cut_1(rho)
+rho_2 = rho_cut_2(rho)
+rho_3 = interpolate(rho_cut_3(rho), V)
+</code></pre>
+
+<p>Here are the results, rho_cut_1 and rho_cut_2 use project, and not end in an exact answer, but faster. rho_cut_3 gives the best output but very slow.</p>
+
+<p>The more exact solution in rho_cut_3 may be due to interpolate. However interpolate only works for Expression. </p>
+
+<p>Can I get an accurate answer like interpolate by using project?<br>
+Or do I need to go for JIT by using a cpp code Expression? How can I input my rho and share it in a cpp Expression?</p>
+
+<p>Thx!</p>
+</div>
+										</div>
+										<div class="qa-q-view-tags">
+											<ul class="qa-q-view-tag-list">
+												<li class="qa-q-view-tag-item"><a href="../../tag/expression" rel="tag" class="qa-tag-link">expression</a></li>
+												<li class="qa-q-view-tag-item"><a href="../../tag/interpolate" rel="tag" class="qa-tag-link">interpolate</a></li>
+												<li class="qa-q-view-tag-item"><a href="../../tag/project" rel="tag" class="qa-tag-link">project</a></li>
+											</ul>
+										</div>
+										<span class="qa-q-view-avatar-meta">
+											<span class="qa-q-view-meta">
+												<a href="../../10959/exact-cut-of-a-function" class="qa-q-view-what">asked</a>
+												<span class="qa-q-view-when">
+													<span class="qa-q-view-when-data"><span class="published"><span class="value-title" title="2016-08-22T20:59:27+0000"></span>Aug 22, 2016</span></span>
+												</span>
+												<span class="qa-q-view-who">
+													<span class="qa-q-view-who-pad">by </span>
+													<span class="qa-q-view-who-data"><span class="vcard author"><a href="../../user/truemerlin" class="qa-user-link url nickname">truemerlin</a></span></span>
+													<span class="qa-q-view-who-title">FEniCS Novice</span>
+													<span class="qa-q-view-who-points">
+														<span class="qa-q-view-who-points-pad">(</span><span class="qa-q-view-who-points-data">410</span><span class="qa-q-view-who-points-pad"> points)</span>
+													</span>
+												</span>
+											</span>
+										</span>
+										<div class="qa-q-view-buttons">
+										</div>
+										
+										<div class="qa-q-view-c-list" style="display:none;" id="c10959_list">
+										</div> <!-- END qa-c-list -->
+										
+										<input type="hidden" name="code" value="0-1516467086-7bfab596e9e84337c46d87f6e5926c63ba45ee1d">
+										<input type="hidden" name="qa_click" value="">
+									</form>
+									<div class="qa-c-form">
+									</div> <!-- END qa-c-form -->
+									
+								</div> <!-- END qa-q-view-main -->
+								<div class="qa-q-view-clear">
+								</div>
+							</div> <!-- END qa-q-view -->
+							
+						</div>
+						<div class="qa-part-a-list">
+							<h2 id="a_list_title">1 Answer</h2>
+							<div class="qa-a-list" id="a_list">
+								
+								<div class="qa-a-list-item  hentry answer" id="a10973">
+									<form method="post" action="../../10959/exact-cut-of-a-function">
+										<div class="qa-voting qa-voting-net" id="voting_10973">
+											<div class="qa-vote-count qa-vote-count-net">
+												<span class="qa-netvote-count">
+													<span class="qa-netvote-count-data">+1<span class="votes-up"><span class="value-title" title="1"></span></span><span class="votes-down"><span class="value-title" title="0"></span></span></span><span class="qa-netvote-count-pad"> vote</span>
+												</span>
+											</div>
+											<div class="qa-vote-clear">
+											</div>
+										</div>
+										<input type="hidden" name="code" value="0-1516467086-4c6e4bf1d72f9e5f920ec652b6fa922b6a2decec">
+									</form>
+									<div class="qa-a-item-main">
+										<form method="post" action="../../10959/exact-cut-of-a-function">
+											<div class="qa-a-selection">
+											</div>
+											<div class="qa-a-item-content">
+												<a name="10973"></a><div class="entry-content"><p>You can do</p>
+
+<pre><code>expr = "rho &lt; 0. ? 0 : (1. &lt; rho ? 1. : rho)"
+rho_4 = interpolate(Expression(expr,rho=rho),V)
+</code></pre>
+
+<p>If you do not need parallel performance, you can work directly on the arrays.</p>
+</div>
+											</div>
+											<span class="qa-a-item-avatar-meta">
+												<span class="qa-a-item-avatar">
+													<a href="../../user/KristianE" class="qa-avatar-link"><img src="https://www.gravatar.com/avatar/8e8c30d82e263e44bd8fe50055a60421?s=40" width="40" height="40" class="qa-avatar-image" alt=""></a>
+												</span>
+												<span class="qa-a-item-meta">
+													<a href="../../10959/exact-cut-of-a-function?show=10973#a10973" class="qa-a-item-what">answered</a>
+													<span class="qa-a-item-when">
+														<span class="qa-a-item-when-data"><span class="published"><span class="value-title" title="2016-08-23T19:40:57+0000"></span>Aug 23, 2016</span></span>
+													</span>
+													<span class="qa-a-item-who">
+														<span class="qa-a-item-who-pad">by </span>
+														<span class="qa-a-item-who-data"><span class="vcard author"><a href="../../user/KristianE" class="qa-user-link url nickname">KristianE</a></span></span>
+														<span class="qa-a-item-who-title">FEniCS Expert</span>
+														<span class="qa-a-item-who-points">
+															<span class="qa-a-item-who-points-pad">(</span><span class="qa-a-item-who-points-data">12,900</span><span class="qa-a-item-who-points-pad"> points)</span>
+														</span>
+													</span>
+												</span>
+											</span>
+											<div class="qa-a-item-buttons">
+												</div>
+											
+											<div class="qa-a-item-c-list" id="c10973_list">
+												<div class="qa-c-list-item  hentry comment" id="c10974">
+													<div class="qa-c-item-content">
+														<a name="10974"></a><div class="entry-content"><p>cool! it's faster than the subclass one and in the same accuracy</p>
+</div>
+													</div>
+													<div class="qa-c-item-footer">
+														<span class="qa-c-item-avatar-meta">
+															<span class="qa-c-item-meta">
+																<a href="../../10959/exact-cut-of-a-function?show=10974#c10974" class="qa-c-item-what">commented</a>
+																<span class="qa-c-item-when">
+																	<span class="qa-c-item-when-data"><span class="published"><span class="value-title" title="2016-08-23T20:44:35+0000"></span>Aug 23, 2016</span></span>
+																</span>
+																<span class="qa-c-item-who">
+																	<span class="qa-c-item-who-pad">by </span>
+																	<span class="qa-c-item-who-data"><span class="vcard author"><a href="../../user/truemerlin" class="qa-user-link url nickname">truemerlin</a></span></span>
+																	<span class="qa-c-item-who-title">FEniCS Novice</span>
+																	<span class="qa-c-item-who-points">
+																		<span class="qa-c-item-who-points-pad">(</span><span class="qa-c-item-who-points-data">410</span><span class="qa-c-item-who-points-pad"> points)</span>
+																	</span>
+																</span>
+															</span>
+														</span>
+														<div class="qa-c-item-buttons">
+														</div>
+													</div>
+													<div class="qa-c-item-clear">
+													</div>
+												</div> <!-- END qa-c-item -->
+											</div> <!-- END qa-c-list -->
+											
+											<input type="hidden" name="code" value="0-1516467086-15754c6d32b3bdde71c955ae5b30fcf5ffdc75cf">
+											<input type="hidden" name="qa_click" value="">
+										</form>
+										<div class="qa-c-form">
+										</div> <!-- END qa-c-form -->
+										
+									</div> <!-- END qa-a-item-main -->
+									<div class="qa-a-item-clear">
+									</div>
+								</div> <!-- END qa-a-list-item -->
+								
+							</div> <!-- END qa-a-list -->
+							
+						</div>
+					</div> <!-- END qa-main -->
+					
+				</div> <!-- END main-wrapper -->
+			</div> <!-- END main-shadow -->
+		</div> <!-- END body-wrapper -->
+		<!-- END footer-bottom-group -->
+		
+		<div style="position:absolute; left:-9999px; top:-9999px;">
+			<span id="qa-waiting-template" class="qa-waiting">...</span>
+		</div>
+	
+	
+
+</body><!-- Powered by Question2Answer - http://www.question2answer.org/ --></html>

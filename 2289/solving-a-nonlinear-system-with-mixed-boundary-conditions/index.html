@@ -1,0 +1,537 @@
+<html><!-- Powered by Question2Answer - http://www.question2answer.org/ --><head>
+		<meta http-equiv="content-type" content="text/html; charset=utf-8">
+		<title>Solving a nonlinear System with mixed boundary conditions - FEniCS Q&amp;A</title>
+		<meta name="description" content="Hello, I would like to solve (for a start) a small PDE-System consisting of two reaction-diffusion  ... ---------- Solving the Equation while t">
+		<meta name="keywords" content="boundary-conditions,subdomain,reaction-diffusion,system,mixed-function-space">
+		<link rel="stylesheet" type="text/css" href="../../qa-theme/Snow/qa-styles.css">
+		<link rel="canonical" href="http://fenicsproject.org/qa/2289/solving-a-nonlinear-system-with-mixed-boundary-conditions">
+		<script type="text/x-mathjax-config">
+  MathJax.Hub.Config({
+    extensions: ["tex2jax.js"],
+    jax: ["input/TeX","output/HTML-CSS"],
+    tex2jax: {inlineMath: [["$","$"],["\\(","\\)"]]},
+    TeX: { extensions: ["AMSmath.js","AMSsymbols.js"]}
+  });
+</script>
+<script type="text/javascript" src="../../mathjax/MathJax.js"></script>
+		<script src="../../jquery-1.7.2.min.js" type="text/javascript"></script>
+		<script src="../../highlight.min.js"></script>
+<script type="text/javascript">
+$(function(){
+	$('.wmd-input').keypress(function(){
+		window.clearTimeout(hljs.Timeout);
+		hljs.Timeout = window.setTimeout(function() {
+			hljs.initHighlighting.called = false;
+			hljs.initHighlighting();
+		}, 500);
+	});
+	window.setTimeout(function() {
+		hljs.initHighlighting.called = false;
+		hljs.initHighlighting();
+	}, 500);
+});
+</script>
+
+
+	</head>
+	<body class="qa-template-question qa-body-js-off">
+		<div class="qa-body-wrapper">
+			
+			<div class="qa-header">
+				<div class="qa-logo">
+					<a href="../../" class="qa-logo-link" title="FEniCS Q&amp;A"><img src="../../qa-theme/fenics_qa.png" border="0" alt="FEniCS Q&amp;A"></a>
+				</div>
+				<div class="qa-header-clear">
+				</div>
+			</div> <!-- END qa-header -->
+			
+			<div class="qa-main-shadow">
+				
+				<div class="qa-main-wrapper">
+					
+					<div class="qa-sidepanel">
+						<div class="qa-sidebar">
+							This is a read only copy of the old FEniCS QA forum. Please visit the <a href="https://www.allanswered.com/community/s/fenics-project/">new QA forum</a> to ask questions
+						</div>
+						
+					</div>
+					
+					<div class="qa-main">
+						<h1>
+							<span class="entry-title">Solving a nonlinear System with mixed boundary conditions</span>
+						</h1>
+						<div class="qa-part-q-view">
+							<div class="qa-q-view  hentry question" id="q2289">
+								<form method="post" action="../../2289/solving-a-nonlinear-system-with-mixed-boundary-conditions">
+									<div class="qa-q-view-stats">
+										<div class="qa-voting qa-voting-net" id="voting_2289">
+											<div class="qa-vote-count qa-vote-count-net">
+												<span class="qa-netvote-count">
+													<span class="qa-netvote-count-data">+1<span class="votes-up"><span class="value-title" title="1"></span></span><span class="votes-down"><span class="value-title" title="0"></span></span></span><span class="qa-netvote-count-pad"> vote</span>
+												</span>
+											</div>
+											<div class="qa-vote-clear">
+											</div>
+										</div>
+									</div>
+									<input type="hidden" name="code" value="0-1516467921-fa79bc593d33c874594de10ac6d888bf2a5e3052">
+								</form>
+								<div class="qa-q-view-main">
+									<form method="post" action="../../2289/solving-a-nonlinear-system-with-mixed-boundary-conditions">
+										<div class="qa-q-view-content">
+											<a name="2289"></a><div class="entry-content"><p>Hello,</p>
+
+<p>I would like to solve (for a start) a small PDE-System consisting of two reaction-diffusion equations with mixed boundary conditions:<br>
+$  u_1 = g_D \text{ on } \Gamma_{D1} $ <br>
+$ \frac{\partial u_1}{\partial n} = g_N \text{ on } \Gamma_{N1} $<br>
+and<br>
+ $u_2 = g_D \text{ on } \Gamma_{D2} $<br>
+ $\frac{\partial u_1}{\partial n} = g_N \text{ on } \Gamma_{N2}$<br>
+with $ \Omega = [0, x_{max}=12] $ being my domain. <br>
+$ \Gamma_{N1} $ and $\Gamma_{D2}$ should be applied to the left side, i.i. $ x = 0$, and $ \Gamma_{D1} $ and $\Gamma_{N2}$ to the right side $ x = x_{max}$.</p>
+
+<p>I tried to define two FacetFunctions, one for each function $u_1$ and $u_2$:</p>
+
+<pre><code>exterior_facet_domains1 = FacetFunction("uint", mesh1D)
+exterior_facet_domains2 = FacetFunction("uint", mesh1D)
+</code></pre>
+
+<p>but it's not working, I get as an error:</p>
+
+<pre><code>Found two domain data objects for same domain type 'exterior_facet', only one is allowed.
+</code></pre>
+
+<p>How do you define different boundary conditions for each function in such a system?</p>
+
+<p>In the following code I didn't implement the Dirichlet conditions yet:</p>
+
+<pre><code>from dolfin import *
+import numpy as np
+
+# to shut off the output
+set_log_level(WARNING)
+
+nx = 120
+xmax = 12
+mesh1D = IntervalMesh(nx, 0, xmax)
+
+# 0 = no plot
+do_plot = 1;
+
+# definition of solving method
+V = FunctionSpace(mesh1D, 'CG', 1)
+W = MixedFunctionSpace([V,V])
+
+T = 20      
+dt = 0.25
+
+t = dt
+
+# Define boundary segments
+class left(SubDomain):
+    def inside(self, x, on_boundary):
+        tol = 1E-13   # tolerance for coordinate comparisons
+        return on_boundary and x[0] &lt; tol
+
+class right(SubDomain):
+    def inside(self, x, on_boundary):
+        tol = 1E-13 
+        return on_boundary and x[0] &gt;= xmax - tol
+
+Neumann_l1 = left()
+Dirichlet_r1 = right();
+
+Dirichlet_l2 = left();
+Neumann_r2 = right();
+
+# Create mesh function over cell facets
+exterior_facet_domains1 = FacetFunction("uint", mesh1D)
+exterior_facet_domains2 = FacetFunction("uint", mesh1D)
+
+exterior_facet_domains1.set_all(1)
+exterior_facet_domains2.set_all(1)
+
+Neumann_l1.mark(exterior_facet_domains1, 2)
+Neumann_r2.mark(exterior_facet_domains1, 5)
+
+dss1 = ds[exterior_facet_domains1]
+dss2 = ds[exterior_facet_domains2]
+
+
+g = Expression('2.0')
+
+# RHS
+def rhs(u):
+  return - u
+
+# initial values
+u1_start = Constant(0.0)
+u2_start = Constant(0.0)
+
+# Definition of the variational form
+U = Function(W)
+U_old = Function(W)
+dU = TrialFunction(W)
+
+(u1, u2) = split(U)
+(v1, v2) = TestFunction(W)
+(du1, du2) = split(dU)
+(u1_old, u2_old) = split(U_old)
+
+
+u1_old = interpolate(u1_start, V)
+u2_old = interpolate(u2_start, V)
+
+F1 = (u1 - u1_old)*v1*dx + dt*dot(grad(u1), grad(v1))*dx - dt*rhs(u1)*v1*dx - g*v1*dss1(2)
+F2 = (u2 - u2_old)*v2*dx + dt*dot(grad(u2), grad(v2))*dx - dt*rhs(u2)*v2*dx - g*v2*dss2(5)
+F = F1 + F2
+
+dF = derivative(F,U, dU)
+
+#&gt;&gt; to define: bcs!
+#problem = NonlinearVariationalProblem(F, u_, bcs, J)
+problem = NonlinearVariationalProblem(F, U, J = dF)
+pdesys_newton = NonlinearVariationalSolver(problem)
+
+#constants for ploting
+x_points = []
+for i in range(0,nx):
+  x_points.append((xmax*i)/(1.0*nx)) 
+
+x_array = np.array(x_points)
+
+ymax = 0
+
+solution1 = []
+solution2 = []
+
+#--------------- Solving the Equation
+while t &lt;= T:
+
+    u1_array = u1_old.vector().array()
+    u2_array = u2_old.vector().array()
+
+    u1_nodal_values = []
+    u2_nodal_values = []
+
+    for i in range(0,nx):
+      u1_nodal_values.append(u1_array[i])
+      u2_nodal_values.append(u2_array[i])
+
+    #--------------- Newton
+    pdesys_newton.solve()
+    u1, u2 = U.split()
+
+    t += dt
+    t_out += dt
+    u1_old.assign(u1)
+    u2_old.assign(u2)
+</code></pre>
+</div>
+										</div>
+										<div class="qa-q-view-tags">
+											<ul class="qa-q-view-tag-list">
+												<li class="qa-q-view-tag-item"><a href="../../tag/boundary-conditions" rel="tag" class="qa-tag-link">boundary-conditions</a></li>
+												<li class="qa-q-view-tag-item"><a href="../../tag/subdomain" rel="tag" class="qa-tag-link">subdomain</a></li>
+												<li class="qa-q-view-tag-item"><a href="../../tag/reaction-diffusion" rel="tag" class="qa-tag-link">reaction-diffusion</a></li>
+												<li class="qa-q-view-tag-item"><a href="../../tag/system" rel="tag" class="qa-tag-link">system</a></li>
+												<li class="qa-q-view-tag-item"><a href="../../tag/mixed-function-space" rel="tag" class="qa-tag-link">mixed-function-space</a></li>
+											</ul>
+										</div>
+										<span class="qa-q-view-avatar-meta">
+											<span class="qa-q-view-meta">
+												<a href="../../2289/solving-a-nonlinear-system-with-mixed-boundary-conditions" class="qa-q-view-what">asked</a>
+												<span class="qa-q-view-when">
+													<span class="qa-q-view-when-data"><span class="published"><span class="value-title" title="2014-01-16T16:18:14+0000"></span>Jan 16, 2014</span></span>
+												</span>
+												<span class="qa-q-view-who">
+													<span class="qa-q-view-who-pad">by </span>
+													<span class="qa-q-view-who-data"><span class="vcard author"><a href="../../user/bobby53" class="qa-user-link url nickname">bobby53</a></span></span>
+													<span class="qa-q-view-who-title">FEniCS User</span>
+													<span class="qa-q-view-who-points">
+														<span class="qa-q-view-who-points-pad">(</span><span class="qa-q-view-who-points-data">1,260</span><span class="qa-q-view-who-points-pad"> points)</span>
+													</span>
+												</span>
+											</span>
+										</span>
+										<div class="qa-q-view-buttons">
+										</div>
+										
+										<div class="qa-q-view-c-list" style="display:none;" id="c2289_list">
+										</div> <!-- END qa-c-list -->
+										
+										<input type="hidden" name="code" value="0-1516467921-d120dbc953aea0caefd256b20022564750dec5ae">
+										<input type="hidden" name="qa_click" value="">
+									</form>
+									<div class="qa-c-form">
+									</div> <!-- END qa-c-form -->
+									
+								</div> <!-- END qa-q-view-main -->
+								<div class="qa-q-view-clear">
+								</div>
+							</div> <!-- END qa-q-view -->
+							
+						</div>
+						<div class="qa-part-a-list">
+							<h2 id="a_list_title">1 Answer</h2>
+							<div class="qa-a-list" id="a_list">
+								
+								<div class="qa-a-list-item  hentry answer answer-selected qa-a-list-item-selected" id="a2290">
+									<form method="post" action="../../2289/solving-a-nonlinear-system-with-mixed-boundary-conditions">
+										<div class="qa-voting qa-voting-net" id="voting_2290">
+											<div class="qa-vote-count qa-vote-count-net">
+												<span class="qa-netvote-count">
+													<span class="qa-netvote-count-data">+3<span class="votes-up"><span class="value-title" title="3"></span></span><span class="votes-down"><span class="value-title" title="0"></span></span></span><span class="qa-netvote-count-pad"> votes</span>
+												</span>
+											</div>
+											<div class="qa-vote-clear">
+											</div>
+										</div>
+										<input type="hidden" name="code" value="0-1516467921-fa79bc593d33c874594de10ac6d888bf2a5e3052">
+									</form>
+									<div class="qa-a-item-main">
+										<form method="post" action="../../2289/solving-a-nonlinear-system-with-mixed-boundary-conditions">
+											<div class="qa-a-item-selected">
+												<div class="qa-a-selection">
+													<div class="qa-a-selected">&#160;</div>
+													<div class="qa-a-selected-text">Best answer</div>
+												</div>
+												<div class="qa-a-item-content">
+													<a name="2290"></a><div class="entry-content"><p>In FEniCS you are not allowed to have two domains of same type (like you have dss1 and dss2 for type "ds")</p>
+
+<p>But I think that the problem is easily solved by deleting dss2. And then in the F2 equation simply use dss1(5) instead of dss2(5). Since it is the only measure that you have set anything useful in. </p>
+</div>
+												</div>
+												<span class="qa-a-item-avatar-meta">
+													<span class="qa-a-item-avatar">
+														<a href="../../user/christianv" class="qa-avatar-link"><img src="../../?qa=image&amp;qa_blobid=6727404027380851966&amp;qa_size=40" width="40" height="40" class="qa-avatar-image" alt=""></a>
+													</span>
+													<span class="qa-a-item-meta">
+														<a href="../../2289/solving-a-nonlinear-system-with-mixed-boundary-conditions?show=2290#a2290" class="qa-a-item-what">answered</a>
+														<span class="qa-a-item-when">
+															<span class="qa-a-item-when-data"><span class="published"><span class="value-title" title="2014-01-16T17:14:58+0000"></span>Jan 16, 2014</span></span>
+														</span>
+														<span class="qa-a-item-who">
+															<span class="qa-a-item-who-pad">by </span>
+															<span class="qa-a-item-who-data"><span class="vcard author"><a href="../../user/christianv" class="qa-user-link url nickname">christianv</a></span></span>
+															<span class="qa-a-item-who-title">FEniCS User</span>
+															<span class="qa-a-item-who-points">
+																<span class="qa-a-item-who-points-pad">(</span><span class="qa-a-item-who-points-data">2,460</span><span class="qa-a-item-who-points-pad"> points)</span>
+															</span>
+														</span>
+														<br>
+														<span class="qa-a-item-what">selected</span>
+														<span class="qa-a-item-when">
+															<span class="qa-a-item-when-data"><span class="updated"><span class="value-title" title="2014-01-17T10:05:14+0000"></span>Jan 17, 2014</span></span>
+														</span>
+														<span class="qa-a-item-who">
+															<span class="qa-a-item-who-pad">by </span><span class="qa-a-item-who-data"><a href="../../user/bobby53" class="qa-user-link url nickname">bobby53</a></span>
+														</span>
+													</span>
+												</span>
+											</div>
+											<div class="qa-a-item-buttons">
+												</div>
+											
+											<div class="qa-a-item-c-list" id="c2290_list">
+												<div class="qa-c-list-item  hentry comment" id="c2298">
+													<div class="qa-c-item-content">
+														<a name="2298"></a><div class="entry-content"><p>Thanks, works like a charm :-)<br>
+to close this topic: by using another FacetFunctions</p>
+
+<pre><code>    exterior_facet_domains_D = FacetFunction("uint", mesh1D)
+</code></pre>
+
+<p>(and marking) I could define the Dirichlet boundaries</p>
+
+<pre><code>bcs = [DirichletBC(W.sub(0), g_D, exterior_facet_domains_D, 4),
+       DirichletBC(W.sub(1), g_D, exterior_facet_domains_D, 5)]
+</code></pre>
+
+<p>so here is my complete source code for the described system. Sorry for the long post, the preview is displaying it properly as source code and thus making it much shorter. </p>
+
+<pre><code>from dolfin import *
+import numpy as np
+
+# to shut off the output
+set_log_level(WARNING)
+
+nx = 120
+xmax = 12
+mesh1D = IntervalMesh(nx, 0, xmax)
+
+# 0 = no plot
+do_plot = 1;
+
+# definition of solving method
+V = FunctionSpace(mesh1D, 'CG', 1)
+W = MixedFunctionSpace([V,V])
+
+T = 20      
+dt = 0.25
+
+t = dt
+
+# ------------------- boundary conditions
+# Define boundary segments
+class left(SubDomain):
+    def inside(self, x, on_boundary):
+        tol = 1E-13   # tolerance for coordinate comparisons
+        return on_boundary and abs(x[0]) &lt; tol
+
+class right(SubDomain):
+    def inside(self, x, on_boundary):
+        tol = 1E-13 
+        return on_boundary and abs(x[0] - xmax) &lt; tol
+
+# instances of SubDomain
+Neumann_l1 = left()
+Dirichlet_r1 = right()
+
+Dirichlet_l2 = left()
+Neumann_r2 = right()
+
+# FacetFunctions, one for Neumann and one for Dirichlet boundary conditions
+exterior_facet_domains = FacetFunction("uint", mesh1D)
+exterior_facet_domains_D = FacetFunction("uint", mesh1D)
+exterior_facet_domains.set_all(1)
+exterior_facet_domains_D.set_all(1)
+
+# marking of the corresponding FaceFunctions
+Neumann_l1.mark(exterior_facet_domains, 2)
+Neumann_r2.mark(exterior_facet_domains, 3)
+Dirichlet_r1.mark(exterior_facet_domains_D, 4)
+Dirichlet_l2.mark(exterior_facet_domains_D, 5)
+
+# definition of g_N and g_D, corresponding Functions
+g_N = Expression('1.0')
+g_D = Expression('2')
+
+# definition of Dirichlet boundary conditions, Neumann boundaries in variational form
+bcs = [DirichletBC(W.sub(0), g_D, exterior_facet_domains_D, 4),
+       DirichletBC(W.sub(1), g_D, exterior_facet_domains_D, 5)]
+
+# assignin markers to measure
+dss = ds[exterior_facet_domains]
+# ------------------- boundary conditions
+
+# ------------------- problem
+# RHS
+def rhs(u):
+  return - u
+
+# initial values
+u1_start = Constant(0.0)
+u2_start = Constant(0.0)
+
+# Definition of the variational form
+U = Function(W)
+U_old = Function(W)
+dU = TrialFunction(W)
+
+(u1, u2) = split(U)
+(v1, v2) = TestFunction(W)
+(du1, du2) = split(dU)
+(u1_old, u2_old) = split(U_old)
+
+u1_old = interpolate(u1_start, V)
+u2_old = interpolate(u2_start, V)
+
+F1 = (u1 - u1_old)*v1*dx + dt*dot(grad(u1), grad(v1))*dx - dt*rhs(u1)*v1*dx - g_N*v1*dss(2)
+F2 = (u2 - u2_old)*v2*dx + dt*dot(grad(u2), grad(v2))*dx - dt*rhs(u2)*v2*dx - g_N*v2*dss(3)
+F = F1 + F2
+
+dF = derivative(F,U, dU)
+
+
+problem = NonlinearVariationalProblem(F, U, bcs, J = dF)
+pdesys_newton = NonlinearVariationalSolver(problem)
+# ------------------- problem
+
+#constants for ploting
+x_points = []
+for i in range(0,nx):
+  x_points.append((xmax*i)/(1.0*nx)) 
+
+x_array = np.array(x_points)
+
+solution1 = []
+solution2 = []
+
+# ------------------- Solving the Equation
+while t &lt;= T:
+
+    u1_array = u1_old.vector().array()
+    u2_array = u2_old.vector().array()
+
+    u1_nodal_values = []
+    u2_nodal_values = []
+
+    for i in range(0,nx):
+      u1_nodal_values.append(u1_array[i])
+      u2_nodal_values.append(u2_array[i])
+
+    # ------------------- Newton
+    pdesys_newton.solve()
+    u1, u2 = U.split()
+
+    t += dt
+    t_out += dt
+    u1_old.assign(u1)
+    u2_old.assign(u2)
+</code></pre>
+</div>
+													</div>
+													<div class="qa-c-item-footer">
+														<span class="qa-c-item-avatar-meta">
+															<span class="qa-c-item-meta">
+																<a href="../../2289/solving-a-nonlinear-system-with-mixed-boundary-conditions?show=2298#c2298" class="qa-c-item-what">commented</a>
+																<span class="qa-c-item-when">
+																	<span class="qa-c-item-when-data"><span class="published"><span class="value-title" title="2014-01-17T11:31:27+0000"></span>Jan 17, 2014</span></span>
+																</span>
+																<span class="qa-c-item-who">
+																	<span class="qa-c-item-who-pad">by </span>
+																	<span class="qa-c-item-who-data"><span class="vcard author"><a href="../../user/bobby53" class="qa-user-link url nickname">bobby53</a></span></span>
+																	<span class="qa-c-item-who-title">FEniCS User</span>
+																	<span class="qa-c-item-who-points">
+																		<span class="qa-c-item-who-points-pad">(</span><span class="qa-c-item-who-points-data">1,260</span><span class="qa-c-item-who-points-pad"> points)</span>
+																	</span>
+																</span>
+															</span>
+														</span>
+														<div class="qa-c-item-buttons">
+														</div>
+													</div>
+													<div class="qa-c-item-clear">
+													</div>
+												</div> <!-- END qa-c-item -->
+											</div> <!-- END qa-c-list -->
+											
+											<input type="hidden" name="code" value="0-1516467921-188dfd5d0ca46900dacd909b2fd0d75f37248ab7">
+											<input type="hidden" name="qa_click" value="">
+										</form>
+										<div class="qa-c-form">
+										</div> <!-- END qa-c-form -->
+										
+									</div> <!-- END qa-a-item-main -->
+									<div class="qa-a-item-clear">
+									</div>
+								</div> <!-- END qa-a-list-item -->
+								
+							</div> <!-- END qa-a-list -->
+							
+						</div>
+					</div> <!-- END qa-main -->
+					
+				</div> <!-- END main-wrapper -->
+			</div> <!-- END main-shadow -->
+		</div> <!-- END body-wrapper -->
+		<!-- END footer-bottom-group -->
+		
+		<div style="position:absolute; left:-9999px; top:-9999px;">
+			<span id="qa-waiting-template" class="qa-waiting">...</span>
+		</div>
+	
+	
+
+</body><!-- Powered by Question2Answer - http://www.question2answer.org/ --></html>

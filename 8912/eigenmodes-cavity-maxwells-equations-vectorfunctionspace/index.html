@@ -1,0 +1,678 @@
+<html><!-- Powered by Question2Answer - http://www.question2answer.org/ --><head>
+		<meta http-equiv="content-type" content="text/html; charset=utf-8">
+		<title>Eigenmodes of a cavity (Maxwell's equations), which VectorFunctionSpace to use? - FEniCS Q&amp;A</title>
+		<meta name="description" content="I am trying to find the eigenmodes of a cavity. In chapter 34 of the FEniCS book (by Lezar  ...  u))) # Plot eigenfunction plot(norm_u) interactive()">
+		<meta name="keywords" content="ufl,boundary-conditions,maxwell,mixed-function-space">
+		<link rel="stylesheet" type="text/css" href="../../qa-theme/Snow/qa-styles.css">
+		<link rel="canonical" href="http://fenicsproject.org/qa/8912/eigenmodes-cavity-maxwells-equations-vectorfunctionspace">
+		<script type="text/x-mathjax-config">
+  MathJax.Hub.Config({
+    extensions: ["tex2jax.js"],
+    jax: ["input/TeX","output/HTML-CSS"],
+    tex2jax: {inlineMath: [["$","$"],["\\(","\\)"]]},
+    TeX: { extensions: ["AMSmath.js","AMSsymbols.js"]}
+  });
+</script>
+<script type="text/javascript" src="../../mathjax/MathJax.js"></script>
+		<script src="../../jquery-1.7.2.min.js" type="text/javascript"></script>
+		<script src="../../highlight.min.js"></script>
+<script type="text/javascript">
+$(function(){
+	$('.wmd-input').keypress(function(){
+		window.clearTimeout(hljs.Timeout);
+		hljs.Timeout = window.setTimeout(function() {
+			hljs.initHighlighting.called = false;
+			hljs.initHighlighting();
+		}, 500);
+	});
+	window.setTimeout(function() {
+		hljs.initHighlighting.called = false;
+		hljs.initHighlighting();
+	}, 500);
+});
+</script>
+
+
+	</head>
+	<body class="qa-template-question qa-body-js-off">
+		<div class="qa-body-wrapper">
+			
+			<div class="qa-header">
+				<div class="qa-logo">
+					<a href="../../" class="qa-logo-link" title="FEniCS Q&amp;A"><img src="../../qa-theme/fenics_qa.png" border="0" alt="FEniCS Q&amp;A"></a>
+				</div>
+				<div class="qa-header-clear">
+				</div>
+			</div> <!-- END qa-header -->
+			
+			<div class="qa-main-shadow">
+				
+				<div class="qa-main-wrapper">
+					
+					<div class="qa-sidepanel">
+						<div class="qa-sidebar">
+							This is a read only copy of the old FEniCS QA forum. Please visit the <a href="https://www.allanswered.com/community/s/fenics-project/">new QA forum</a> to ask questions
+						</div>
+						
+					</div>
+					
+					<div class="qa-main">
+						<h1>
+							<span class="entry-title">Eigenmodes of a cavity (Maxwell's equations), which VectorFunctionSpace to use?</span>
+						</h1>
+						<div class="qa-part-q-view">
+							<div class="qa-q-view  hentry question" id="q8912">
+								<form method="post" action="../../8912/eigenmodes-cavity-maxwells-equations-vectorfunctionspace">
+									<div class="qa-q-view-stats">
+										<div class="qa-voting qa-voting-net" id="voting_8912">
+											<div class="qa-vote-count qa-vote-count-net">
+												<span class="qa-netvote-count">
+													<span class="qa-netvote-count-data">0<span class="votes-up"><span class="value-title" title="0"></span></span><span class="votes-down"><span class="value-title" title="0"></span></span></span><span class="qa-netvote-count-pad"> votes</span>
+												</span>
+											</div>
+											<div class="qa-vote-clear">
+											</div>
+										</div>
+									</div>
+									<input type="hidden" name="code" value="0-1516468198-2f48f9d3b1a07e0ebe7050b354507dcbdc96dcb7">
+								</form>
+								<div class="qa-q-view-main">
+									<form method="post" action="../../8912/eigenmodes-cavity-maxwells-equations-vectorfunctionspace">
+										<div class="qa-q-view-content">
+											<a name="8912"></a><div class="entry-content"><p>I am trying to find the eigenmodes of a cavity. In chapter 34 of the FEniCS book (by Lezar and Davidson) there's an example on how to calculate the cutoff-frequencies of a waveguide.<br>
+At first this seemed very similar to me, but it seems to be very different for several reasons:</p>
+
+<p>In Ch.34 they consider purely transversal modes, i.e. the e-field is inplane and the out-of-plane component is entirely in the h-field. This makes the separation of the DE very simple.</p>
+
+<p>My case is somewhat different:<br>
+I am looking at a cavity of cylindrical symmetry, i.e. rotational symmetry in phi but arbitrary geometry in r and z. I won't dive into special symmetry directly however. The code below is supposed to use a 3D cube instead.</p>
+
+<p>My approach is to define a combined space:</p>
+
+<pre><code>VFS = VectorFunctionSpace(mesh, "CG", 2)    # in-plane (r,z)
+FS  = FunctionSpace(mesh, "DG", 2)      # phi
+combined_space = VFS * FS
+</code></pre>
+
+<p>The weak form of the Maxwell equations (assuming PEC boundaries and a closed domain) is<br>
+$$ \frac{1}{\mu_0} \int_\Omega (\nabla \times \vec E_u) \cdot (\nabla \times \vec E_v) dx = \omega^2 \int_\Omega \varepsilon \vec E_u \vec E_v dx $$<br>
+($E_u$ being the trial function and $E_v$ the test function) and now I run into several problems:</p>
+
+<p>1.) If I run the program for a box (3D but cartesian), it produces incredibly rough and unphysical modes ... and a lot of them. I suspect this is because I'm not using a curl-conforming VectorFunctionSpace. Is it?<br>
+2.) Defining boundary conditions is not necessary, since they are already implicitly included in the weak formulation. Adding them in the case described above (CG and DG Function Spaces) doesn't change anything (just as I expected).</p>
+
+<p>Minimal code example</p>
+
+<pre><code>from dolfin import *
+import numpy as np
+import scipy.constants as co
+
+(a,b,c) = (5e-3, 6e-3, 7e-3)    # edge lengths of resonator box
+(nx,ny,nz) = (5,5,2)
+mesh = BoxMesh(Point(0,0,0), Point(a,b,c), nx, ny, nz)
+
+VFS = VectorFunctionSpace(mesh, "CG", vector_order) # in-plane (r,z)
+FS  = FunctionSpace(mesh, "DG", scalar_order)       # phi
+combined_space = VFS * FS
+
+(E_rz_0, E_phi_0)  = TrialFunctions(combined_space)
+(E_rz_1, E_phi_1)  = TestFunctions(combined_space)
+
+S_ij = inner(curl(E0), curl(E1)) *dx        # LHS * mu0
+T_ij = eps_r*inner(E0, E1) *dx        # RHS / eps0
+# hence, eigenvalue is k**2 = omega**2/(eps0*mu0)
+
+S = PETScMatrix()
+T = PETScMatrix()
+assemble(S_ij, tensor=S)
+assemble(T_ij, tensor=T)
+
+eigensolver = SLEPcEigenSolver(S, T)
+eigensolver.solve()
+
+if eigensolver.get_number_converged() &gt; 0:
+    print("%d results obtained..." % eigensolver.get_number_converged())
+    for i in range(eigensolver.get_number_converged()):
+        r, c, rx, cx = eigensolver.get_eigenpair(i)
+        print("%4d: %10.10f" % (i, r))
+else:
+    print("No results obtained, eigensolver.get_number_converged() returned 0. Exiting...")
+    sys.exit(0)
+</code></pre>
+
+<p>To look at the results (here, modes 15 and 19), I've got this thing:</p>
+
+<pre><code>for i in [15, 19]: # or range(395,402)
+    if i &gt; eigensolver.get_number_converged():
+        continue
+    r, c, rx, cx = eigensolver.get_eigenpair(i)
+
+    # Initialize function and assign eigenvector
+    u = Function(VFS)
+    u.vector()[:] = rx
+    norm_u = project(sqrt(inner(u, u)))
+
+    # Plot eigenfunction
+    plot(norm_u)
+
+interactive()
+</code></pre>
+</div>
+										</div>
+										<div class="qa-q-view-tags">
+											<ul class="qa-q-view-tag-list">
+												<li class="qa-q-view-tag-item"><a href="../../tag/ufl" rel="tag" class="qa-tag-link">ufl</a></li>
+												<li class="qa-q-view-tag-item"><a href="../../tag/boundary-conditions" rel="tag" class="qa-tag-link">boundary-conditions</a></li>
+												<li class="qa-q-view-tag-item"><a href="../../tag/maxwell" rel="tag" class="qa-tag-link">maxwell</a></li>
+												<li class="qa-q-view-tag-item"><a href="../../tag/mixed-function-space" rel="tag" class="qa-tag-link">mixed-function-space</a></li>
+											</ul>
+										</div>
+										<span class="qa-q-view-avatar-meta">
+											<span class="qa-q-view-meta">
+												<a href="../../8912/eigenmodes-cavity-maxwells-equations-vectorfunctionspace" class="qa-q-view-what">asked</a>
+												<span class="qa-q-view-when">
+													<span class="qa-q-view-when-data"><span class="published"><span class="value-title" title="2015-12-21T17:02:28+0000"></span>Dec 21, 2015</span></span>
+												</span>
+												<span class="qa-q-view-who">
+													<span class="qa-q-view-who-pad">by </span>
+													<span class="qa-q-view-who-data"><span class="vcard author"><a href="../../user/cweickhmann" class="qa-user-link url nickname">cweickhmann</a></span></span>
+													<span class="qa-q-view-who-title">FEniCS Novice</span>
+													<span class="qa-q-view-who-points">
+														<span class="qa-q-view-who-points-pad">(</span><span class="qa-q-view-who-points-data">550</span><span class="qa-q-view-who-points-pad"> points)</span>
+													</span>
+												</span>
+											</span>
+										</span>
+										<div class="qa-q-view-buttons">
+										</div>
+										
+										<div class="qa-q-view-c-list" id="c8912_list">
+											<div class="qa-c-list-item  hentry comment" id="c11689">
+												<div class="qa-c-item-content">
+													<a name="11689"></a><div class="entry-content"><p>Could you please tell me how to impliment the boundary condition, which if the problem's boundary condition is A in H0(curl)?</p>
+
+<p>I can do Dirichlet boundary condition, Neumann boundary condition, Robin boundary condition, but not H0(curl).</p>
+
+<p>I will appreciate your any help. Thanks!!!</p>
+</div>
+												</div>
+												<div class="qa-c-item-footer">
+													<span class="qa-c-item-avatar-meta">
+														<span class="qa-c-item-meta">
+															<a href="../../8912/eigenmodes-cavity-maxwells-equations-vectorfunctionspace?show=11689#c11689" class="qa-c-item-what">commented</a>
+															<span class="qa-c-item-when">
+																<span class="qa-c-item-when-data"><span class="published"><span class="value-title" title="2016-11-21T11:35:06+0000"></span>Nov 21, 2016</span></span>
+															</span>
+															<span class="qa-c-item-who">
+																<span class="qa-c-item-who-pad">by </span>
+																<span class="qa-c-item-who-data"><span class="vcard author"><a href="../../user/fanronghong" class="qa-user-link url nickname">fanronghong</a></span></span>
+																<span class="qa-c-item-who-title">FEniCS User</span>
+																<span class="qa-c-item-who-points">
+																	<span class="qa-c-item-who-points-pad">(</span><span class="qa-c-item-who-points-data">1,680</span><span class="qa-c-item-who-points-pad"> points)</span>
+																</span>
+															</span>
+														</span>
+													</span>
+													<div class="qa-c-item-buttons">
+													</div>
+												</div>
+												<div class="qa-c-item-clear">
+												</div>
+											</div> <!-- END qa-c-item -->
+										</div> <!-- END qa-c-list -->
+										
+										<input type="hidden" name="code" value="0-1516468198-7a85d31f8f2a38907237c32e2eb01e68b61439a8">
+										<input type="hidden" name="qa_click" value="">
+									</form>
+									<div class="qa-c-form">
+									</div> <!-- END qa-c-form -->
+									
+								</div> <!-- END qa-q-view-main -->
+								<div class="qa-q-view-clear">
+								</div>
+							</div> <!-- END qa-q-view -->
+							
+						</div>
+						<div class="qa-part-a-list">
+							<h2 id="a_list_title">2 Answers</h2>
+							<div class="qa-a-list" id="a_list">
+								
+								<div class="qa-a-list-item  hentry answer" id="a8925">
+									<form method="post" action="../../8912/eigenmodes-cavity-maxwells-equations-vectorfunctionspace">
+										<div class="qa-voting qa-voting-net" id="voting_8925">
+											<div class="qa-vote-count qa-vote-count-net">
+												<span class="qa-netvote-count">
+													<span class="qa-netvote-count-data">+2<span class="votes-up"><span class="value-title" title="2"></span></span><span class="votes-down"><span class="value-title" title="0"></span></span></span><span class="qa-netvote-count-pad"> votes</span>
+												</span>
+											</div>
+											<div class="qa-vote-clear">
+											</div>
+										</div>
+										<input type="hidden" name="code" value="0-1516468198-2f48f9d3b1a07e0ebe7050b354507dcbdc96dcb7">
+									</form>
+									<div class="qa-a-item-main">
+										<form method="post" action="../../8912/eigenmodes-cavity-maxwells-equations-vectorfunctionspace">
+											<div class="qa-a-selection">
+											</div>
+											<div class="qa-a-item-content">
+												<a name="8925"></a><div class="entry-content"><p>Hi,</p>
+
+<p>so you get "unphysical" resonances from so called spurious modes. This is due to the fact that you can add the gradient of any arbitrary potential to your solution and it will still fulfill your CurlCurl equation. A way to reduce this is to use Nedelec Ansatzfunctions:</p>
+
+<pre><code>V = FunctionSpace(mesh,"N1curl", 2)
+</code></pre>
+
+<p>Further i would refrain from using DG in azimutal direction, i dont see the point of it (you could use the easier-to-handle Lagrange).</p>
+
+<p>Using Nedelec Ansatzfunctions shifts the spurious modes to something close to 0. Hence i would recommend using Shift and Invert in SLEPc</p>
+
+<pre><code>tm = SLEPcEigenSolver(S,T)
+tm.parameters["tolerance"] = 1e-12
+tm.parameters["spectral_shift"] = ((2*pi*target_frequency/c0)**2)
+tm.parameters["spectral_transform"] = "shift-and-invert"
+tm.parameters["spectrum"] = "target magnitude"
+</code></pre>
+
+<p>By the way your code can only compute TM Monopole-Modes. For this you dont even need a second function-space. Below you find a minimal example of the code you want to have:</p>
+
+<pre><code>from dolfin import *
+#for numerical stuff
+import numpy as np
+
+parameters["linear_algebra_backend"] = "PETSc" # Force this backend
+parameters["form_compiler"]["representation"] = "quadrature"
+parameters["form_compiler"]["cpp_optimize"] = True
+parameters["form_compiler"]["cpp_optimize_flags"] = '-O2 -funroll-loops'
+parameters["form_compiler"]["representation"] = "quadrature"
+set_log_level(INFO)
+
+mue0 = 4*pi*1e-7
+eps0 = 8.85418781762e-12
+
+c0 = 1/np.sqrt(eps0*mue0,dtype=float)
+
+shift = ((2*pi*10e9/c0)**2)
+
+p1 = Point(0.0,0.0)
+p2 = Point(70e-3,20e-3)
+
+mesh_density = 20
+
+mesh = RectangleMesh(p1,p2, mesh_density, mesh_density)
+V2D_N = FunctionSpace(mesh,"N1curl", 2)
+N_i = TestFunction(V2D_N)
+N_j = TrialFunction(V2D_N) 
+r = Expression('x[1]')
+
+def curl_p(w):
+    return w[0].dx(1)-w[1].dx(0) 
+
+k_pp = (r*dot(curl_p(N_i),curl_p(N_j)))*dx
+m_pp = (r*dot(N_i,N_j))*dx
+
+#Create empty PETSc Matrix
+S_tm = PETScMatrix()
+T_tm = PETScMatrix()
+
+# Assemble the stiffness matrix (S) and mass matrix (T)  
+assemble(k_pp, tensor=S_tm)
+assemble(m_pp, tensor=T_tm)
+
+tm = SLEPcEigenSolver(S,T)
+tm.parameters["tolerance"] = 1e-12
+tm.parameters["spectral_shift"] = ((2*pi*target_frequency/c0)**2)
+tm.parameters["spectral_transform"] = "shift-and-invert"
+tm.parameters["spectrum"] = "target magnitude"
+
+tm.solve(42)
+</code></pre>
+
+<p>Btw. your code cannot handle 3D you need a different weak formulation in this case.<br>
+Hope this helps for some of your questions.</p>
+
+<p>Kind regards and merry Christmas</p>
+
+<p>Johann</p>
+</div>
+											</div>
+											<span class="qa-a-item-avatar-meta">
+												<span class="qa-a-item-avatar">
+													<a href="../../user/jh600" class="qa-avatar-link"><img src="../../?qa=image&amp;qa_blobid=11569025954653921126&amp;qa_size=40" width="40" height="40" class="qa-avatar-image" alt=""></a>
+												</span>
+												<span class="qa-a-item-meta">
+													<a href="../../8912/eigenmodes-cavity-maxwells-equations-vectorfunctionspace?show=8925#a8925" class="qa-a-item-what">answered</a>
+													<span class="qa-a-item-when">
+														<span class="qa-a-item-when-data"><span class="published"><span class="value-title" title="2015-12-24T10:00:16+0000"></span>Dec 24, 2015</span></span>
+													</span>
+													<span class="qa-a-item-who">
+														<span class="qa-a-item-who-pad">by </span>
+														<span class="qa-a-item-who-data"><span class="vcard author"><a href="../../user/jh600" class="qa-user-link url nickname">jh600</a></span></span>
+														<span class="qa-a-item-who-title">FEniCS Novice</span>
+														<span class="qa-a-item-who-points">
+															<span class="qa-a-item-who-points-pad">(</span><span class="qa-a-item-who-points-data">900</span><span class="qa-a-item-who-points-pad"> points)</span>
+														</span>
+													</span>
+												</span>
+											</span>
+											<div class="qa-a-item-buttons">
+												</div>
+											
+											<div class="qa-a-item-c-list" id="c8925_list">
+												<div class="qa-c-list-item  hentry comment" id="c8936">
+													<div class="qa-c-item-content">
+														<a name="8936"></a><div class="entry-content"><p>Hi Johann,</p>
+
+<p>thanks for the comprehensive response.<br>
+When I test your code, I see that a large part of the resonance modes are unphysical either...<br>
+<img src="https://dl.dropboxusercontent.com/u/2465459/modes.png" alt="Some modes (left half) seem to be physical, others (right side) clearly aren't"></p>
+
+<p>I had, after I posted my question, played with N&#233;d&#233;lec elements, but didn't notice any change.</p>
+
+<p>The reason I'm interested in this is, because I know what mode I want to calculate on an cylindrical volume with arbitrary cross-sectional shape. The mode, however is known and I get the resonance frequency and Q factor from measurement.</p>
+
+<p>Do you reckon this is possible? A teacher in numerics class once told me FEM people in electromagnetics tend to calculate a lot and pick the physical modes like a needle from a hay stack of unphyscial results.</p>
+
+<p>Thanks and happy new year ;-)</p>
+</div>
+													</div>
+													<div class="qa-c-item-footer">
+														<span class="qa-c-item-avatar-meta">
+															<span class="qa-c-item-meta">
+																<a href="../../8912/eigenmodes-cavity-maxwells-equations-vectorfunctionspace?show=8936#c8936" class="qa-c-item-what">commented</a>
+																<span class="qa-c-item-when">
+																	<span class="qa-c-item-when-data"><span class="published"><span class="value-title" title="2015-12-27T16:40:12+0000"></span>Dec 27, 2015</span></span>
+																</span>
+																<span class="qa-c-item-who">
+																	<span class="qa-c-item-who-pad">by </span>
+																	<span class="qa-c-item-who-data"><span class="vcard author"><a href="../../user/cweickhmann" class="qa-user-link url nickname">cweickhmann</a></span></span>
+																	<span class="qa-c-item-who-title">FEniCS Novice</span>
+																	<span class="qa-c-item-who-points">
+																		<span class="qa-c-item-who-points-pad">(</span><span class="qa-c-item-who-points-data">550</span><span class="qa-c-item-who-points-pad"> points)</span>
+																	</span>
+																</span>
+															</span>
+														</span>
+														<div class="qa-c-item-buttons">
+														</div>
+													</div>
+													<div class="qa-c-item-clear">
+													</div>
+												</div> <!-- END qa-c-item -->
+												<div class="qa-c-list-item  hentry comment" id="c8937">
+													<div class="qa-c-item-content">
+														<a name="8937"></a><div class="entry-content"><p>Hi,</p>
+
+<p>so short answer, yes this is definitely possible. The code i gave you should be able to do this for TM-Monopole Modes. If you know the modes frequency, just adjust the shift to it and compute only few (2 or 3) modes. then you filter out the spurious modes (by frequency).  </p>
+
+<blockquote>
+  <p>A teacher in numerics class once told me FEM people in electromagnetics tend to calculate a lot and pick the physical modes like a needle from a hay stack of unphyscial results.</p>
+</blockquote>
+
+<p>I would say that in Electromagnetics (at least for everybody i know) this is not correct. You try to shift accordingly, such that you compute only physical resonances. </p>
+
+<p>So i understood you want something like this:<br>
+<a rel="nofollow" href="https://jacowfs.jlab.org/conf/y15/ipac15/prepress/WEPMA026.PDF">https://jacowfs.jlab.org/conf/y15/ipac15/prepress/WEPMA026.PDF</a></p>
+
+<p>I have parts of this implemented, here is an example:<br>
+<img src="https://www.dropbox.com/s/6xz801c4a88zzxp/multicavity.png?dl=0" alt="https://www.dropbox.com/s/6xz801c4a88zzxp/multicavity.png?dl=0"><br>
+(Somehow the preview is not working)<br>
+I guess that the rest of this conversation does not belong in this forum since its not really Fenics related. Feel free to write me a mail.</p>
+
+<p>Kind regards</p>
+
+<p>Johann</p>
+</div>
+													</div>
+													<div class="qa-c-item-footer">
+														<span class="qa-c-item-avatar-meta">
+															<span class="qa-c-item-avatar">
+																<a href="../../user/jh600" class="qa-avatar-link"><img src="../../?qa=image&amp;qa_blobid=11569025954653921126&amp;qa_size=20" width="20" height="20" class="qa-avatar-image" alt=""></a>
+															</span>
+															<span class="qa-c-item-meta">
+																<a href="../../8912/eigenmodes-cavity-maxwells-equations-vectorfunctionspace?show=8937#c8937" class="qa-c-item-what">commented</a>
+																<span class="qa-c-item-when">
+																	<span class="qa-c-item-when-data"><span class="published"><span class="value-title" title="2015-12-27T16:55:12+0000"></span>Dec 27, 2015</span></span>
+																</span>
+																<span class="qa-c-item-who">
+																	<span class="qa-c-item-who-pad">by </span>
+																	<span class="qa-c-item-who-data"><span class="vcard author"><a href="../../user/jh600" class="qa-user-link url nickname">jh600</a></span></span>
+																	<span class="qa-c-item-who-title">FEniCS Novice</span>
+																	<span class="qa-c-item-who-points">
+																		<span class="qa-c-item-who-points-pad">(</span><span class="qa-c-item-who-points-data">900</span><span class="qa-c-item-who-points-pad"> points)</span>
+																	</span>
+																</span>
+																<br>
+																<span class="qa-c-item-what">edited</span>
+																<span class="qa-c-item-when">
+																	<span class="qa-c-item-when-data"><span class="updated"><span class="value-title" title="2015-12-27T17:08:24+0000"></span>Dec 27, 2015</span></span>
+																</span>
+																<span class="qa-c-item-who">
+																	<span class="qa-c-item-who-pad">by </span><span class="qa-c-item-who-data"><a href="../../user/jh600" class="qa-user-link url nickname">jh600</a></span>
+																</span>
+															</span>
+														</span>
+														<div class="qa-c-item-buttons">
+														</div>
+													</div>
+													<div class="qa-c-item-clear">
+													</div>
+												</div> <!-- END qa-c-item -->
+												<div class="qa-c-list-item  hentry comment" id="c9065">
+													<div class="qa-c-item-content">
+														<a name="9065"></a><div class="entry-content"><p>Two updates in this matter:<br>
+1.) It seems one big mistake I made was using<br>
+<code><br>
+VFS = VectorFunctionSpace(mesh, "CG", vector_order)<br>
+</code><br>
+rather than<br>
+<code><br>
+VFS = FunctionSpace(mesh, "N1curl", vector_order)<br>
+</code></p>
+
+<p>2.) It seems I do get TM modes. Actually I get all of them. However I have trouble getting the TE modes (with a modified formulation)... I'll post this once I get any further insight.</p>
+</div>
+													</div>
+													<div class="qa-c-item-footer">
+														<span class="qa-c-item-avatar-meta">
+															<span class="qa-c-item-meta">
+																<a href="../../8912/eigenmodes-cavity-maxwells-equations-vectorfunctionspace?show=9065#c9065" class="qa-c-item-what">commented</a>
+																<span class="qa-c-item-when">
+																	<span class="qa-c-item-when-data"><span class="published"><span class="value-title" title="2016-01-19T11:00:36+0000"></span>Jan 19, 2016</span></span>
+																</span>
+																<span class="qa-c-item-who">
+																	<span class="qa-c-item-who-pad">by </span>
+																	<span class="qa-c-item-who-data"><span class="vcard author"><a href="../../user/cweickhmann" class="qa-user-link url nickname">cweickhmann</a></span></span>
+																	<span class="qa-c-item-who-title">FEniCS Novice</span>
+																	<span class="qa-c-item-who-points">
+																		<span class="qa-c-item-who-points-pad">(</span><span class="qa-c-item-who-points-data">550</span><span class="qa-c-item-who-points-pad"> points)</span>
+																	</span>
+																</span>
+															</span>
+														</span>
+														<div class="qa-c-item-buttons">
+														</div>
+													</div>
+													<div class="qa-c-item-clear">
+													</div>
+												</div> <!-- END qa-c-item -->
+											</div> <!-- END qa-c-list -->
+											
+											<input type="hidden" name="code" value="0-1516468198-c322ff052f2916d97ba9935cb86242c11357119e">
+											<input type="hidden" name="qa_click" value="">
+										</form>
+										<div class="qa-c-form">
+										</div> <!-- END qa-c-form -->
+										
+									</div> <!-- END qa-a-item-main -->
+									<div class="qa-a-item-clear">
+									</div>
+								</div> <!-- END qa-a-list-item -->
+								
+								<div class="qa-a-list-item  hentry answer" id="a9113">
+									<form method="post" action="../../8912/eigenmodes-cavity-maxwells-equations-vectorfunctionspace">
+										<div class="qa-voting qa-voting-net" id="voting_9113">
+											<div class="qa-vote-count qa-vote-count-net">
+												<span class="qa-netvote-count">
+													<span class="qa-netvote-count-data">0<span class="votes-up"><span class="value-title" title="0"></span></span><span class="votes-down"><span class="value-title" title="0"></span></span></span><span class="qa-netvote-count-pad"> votes</span>
+												</span>
+											</div>
+											<div class="qa-vote-clear">
+											</div>
+										</div>
+										<input type="hidden" name="code" value="0-1516468198-2f48f9d3b1a07e0ebe7050b354507dcbdc96dcb7">
+									</form>
+									<div class="qa-a-item-main">
+										<form method="post" action="../../8912/eigenmodes-cavity-maxwells-equations-vectorfunctionspace">
+											<div class="qa-a-selection">
+											</div>
+											<div class="qa-a-item-content">
+												<a name="9113"></a><div class="entry-content"><p>So, just in case, anyone needs a similar code, here's what I found out in the past month:</p>
+
+<ol>
+<li>VectorFunctionSpace creates an n-dimensional space of which each component is according to what type of function you hand it. E.g. creating a CG VectorFunctionSpace on a 2D (n=2) domain creates a 2<em>1-dimensional space. Creating a N1curl VectorFunctionsSpace on a 2D domain ends up with a 2</em>2-dimensional space. I didn't realise this! Creating a N1curl on a 2D domain obviously gives you what you need (2D vector function on 2D domain) already. I get it, and it's like that in the book -- so, my bad ;-)</li>
+<li>Johann's code example worked really well for TM modes. But since I needed TE to work as well, I had to dig a bit into literature. Finally I found Ciarlet and Labrunie, 2011 in Differential Equations and Applications. Their formulation seems to work well for both mode types. It's basically a rigorous derivation for the cylindrical case.</li>
+<li>The spectral shift idea is pretty nice as well for my application, since I know the resonator to begin with.</li>
+</ol>
+
+<p>I am just wondering: What if you don't know? Is this the way to definitely suppress spurious modes reliably? I've had very few problems with the ansatz mentioned by Ciarlet and Labrunie (which is consistent with some other sources who use N&#233;d&#233;lec elements).</p>
+
+<p>Anyhow: Here's a minimal working example in case anyone needs it. It's work in progress and I'm looking for suggestions on how and where to publish similar working code for RF people who want to use FEniCS.<br>
+Code on github: <a rel="nofollow" href="https://gist.github.com/anonymous/d8408f81ce1d946b9d7f">https://gist.github.com/anonymous/d8408f81ce1d946b9d7f</a></p>
+</div>
+											</div>
+											<span class="qa-a-item-avatar-meta">
+												<span class="qa-a-item-meta">
+													<a href="../../8912/eigenmodes-cavity-maxwells-equations-vectorfunctionspace?show=9113#a9113" class="qa-a-item-what">answered</a>
+													<span class="qa-a-item-when">
+														<span class="qa-a-item-when-data"><span class="published"><span class="value-title" title="2016-01-26T11:42:50+0000"></span>Jan 26, 2016</span></span>
+													</span>
+													<span class="qa-a-item-who">
+														<span class="qa-a-item-who-pad">by </span>
+														<span class="qa-a-item-who-data"><span class="vcard author"><a href="../../user/cweickhmann" class="qa-user-link url nickname">cweickhmann</a></span></span>
+														<span class="qa-a-item-who-title">FEniCS Novice</span>
+														<span class="qa-a-item-who-points">
+															<span class="qa-a-item-who-points-pad">(</span><span class="qa-a-item-who-points-data">550</span><span class="qa-a-item-who-points-pad"> points)</span>
+														</span>
+													</span>
+												</span>
+											</span>
+											<div class="qa-a-item-buttons">
+												</div>
+											
+											<div class="qa-a-item-c-list" id="c9113_list">
+												<div class="qa-c-list-item  hentry comment" id="c9149">
+													<div class="qa-c-item-content">
+														<a name="9149"></a><div class="entry-content"><p>Thanks for sharing your code. I am still learning about computational electromagnetism, so pardon my perhaps stupid question. I need to calculate eigenfrequencies of some microwave cavity, so I tried to test it by simulating the eigenfrequency of TM010 mode in a cylindrical cavity. The resulting frequency is exactly as expected (2.4000000000 GHz) but I don't understand the fields: The E field of TM010 should have only <em>z</em> component (with maximum at <em>r</em>=0) but the calculated field has only phi component - it looks more like H field...</p>
+
+<p>Also, I don't understand the boundary integral <code>g_mn</code>, can you please give some pointers as to how it was derived?</p>
+
+<p>Thanks in advance for any help.</p>
+
+<p>Here is my geometry for reference:</p>
+
+<pre><code>lc = 2e-3;
+h = 20e-3;
+r = 47.809386598e-3;
+Point(1) = {0, 0, 0, lc};
+Point(2) = {r, 0, 0, lc};
+Point(3) = {r, h, 0, lc};
+Point(4) = {0, h, 0, lc};
+
+Line(1) = {1, 2};
+Line(2) = {2, 3};
+Line(3) = {3, 4};
+Line(4) = {4, 1};
+
+Line Loop(1) = {1, 2, 3, 4};
+
+Plane Surface(1) = {1};
+
+Physical Surface(1000) = {1};
+Physical Line(1001) = {1, 2, 3};
+Physical Line(1002) = {4};   
+</code></pre>
+</div>
+													</div>
+													<div class="qa-c-item-footer">
+														<span class="qa-c-item-avatar-meta">
+															<span class="qa-c-item-meta">
+																<a href="../../8912/eigenmodes-cavity-maxwells-equations-vectorfunctionspace?show=9149#c9149" class="qa-c-item-what">commented</a>
+																<span class="qa-c-item-when">
+																	<span class="qa-c-item-when-data"><span class="published"><span class="value-title" title="2016-01-29T16:46:33+0000"></span>Jan 29, 2016</span></span>
+																</span>
+																<span class="qa-c-item-who">
+																	<span class="qa-c-item-who-pad">by </span>
+																	<span class="qa-c-item-who-data"><span class="vcard author"><a href="../../user/rouckas" class="qa-user-link url nickname">rouckas</a></span></span>
+																	<span class="qa-c-item-who-title">FEniCS Novice</span>
+																	<span class="qa-c-item-who-points">
+																		<span class="qa-c-item-who-points-pad">(</span><span class="qa-c-item-who-points-data">280</span><span class="qa-c-item-who-points-pad"> points)</span>
+																	</span>
+																</span>
+															</span>
+														</span>
+														<div class="qa-c-item-buttons">
+														</div>
+													</div>
+													<div class="qa-c-item-clear">
+													</div>
+												</div> <!-- END qa-c-item -->
+												<div class="qa-c-list-item  hentry comment" id="c9151">
+													<div class="qa-c-item-content">
+														<a name="9151"></a><div class="entry-content"><p>As a matter of fact, I think I was too quick putting the code up here.<br>
+To me as well it looks like I've not corrected the comment in the header of the file.<br>
+Yet, as you try to change the permittivity, strange things happen...</p>
+</div>
+													</div>
+													<div class="qa-c-item-footer">
+														<span class="qa-c-item-avatar-meta">
+															<span class="qa-c-item-meta">
+																<a href="../../8912/eigenmodes-cavity-maxwells-equations-vectorfunctionspace?show=9151#c9151" class="qa-c-item-what">commented</a>
+																<span class="qa-c-item-when">
+																	<span class="qa-c-item-when-data"><span class="published"><span class="value-title" title="2016-01-29T17:54:13+0000"></span>Jan 29, 2016</span></span>
+																</span>
+																<span class="qa-c-item-who">
+																	<span class="qa-c-item-who-pad">by </span>
+																	<span class="qa-c-item-who-data"><span class="vcard author"><a href="../../user/cweickhmann" class="qa-user-link url nickname">cweickhmann</a></span></span>
+																	<span class="qa-c-item-who-title">FEniCS Novice</span>
+																	<span class="qa-c-item-who-points">
+																		<span class="qa-c-item-who-points-pad">(</span><span class="qa-c-item-who-points-data">550</span><span class="qa-c-item-who-points-pad"> points)</span>
+																	</span>
+																</span>
+															</span>
+														</span>
+														<div class="qa-c-item-buttons">
+														</div>
+													</div>
+													<div class="qa-c-item-clear">
+													</div>
+												</div> <!-- END qa-c-item -->
+											</div> <!-- END qa-c-list -->
+											
+											<input type="hidden" name="code" value="0-1516468198-5bb8f9d2af1b294d90c765a847e8b27a7855fa20">
+											<input type="hidden" name="qa_click" value="">
+										</form>
+										<div class="qa-c-form">
+										</div> <!-- END qa-c-form -->
+										
+									</div> <!-- END qa-a-item-main -->
+									<div class="qa-a-item-clear">
+									</div>
+								</div> <!-- END qa-a-list-item -->
+								
+							</div> <!-- END qa-a-list -->
+							
+						</div>
+					</div> <!-- END qa-main -->
+					
+				</div> <!-- END main-wrapper -->
+			</div> <!-- END main-shadow -->
+		</div> <!-- END body-wrapper -->
+		<!-- END footer-bottom-group -->
+		
+		<div style="position:absolute; left:-9999px; top:-9999px;">
+			<span id="qa-waiting-template" class="qa-waiting">...</span>
+		</div>
+	
+	
+
+</body><!-- Powered by Question2Answer - http://www.question2answer.org/ --></html>

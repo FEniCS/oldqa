@@ -1,0 +1,290 @@
+<html><!-- Powered by Question2Answer - http://www.question2answer.org/ --><head>
+		<meta http-equiv="content-type" content="text/html; charset=utf-8">
+		<title>Expression depending on surface-normals of a sphere - FEniCS Q&amp;A</title>
+		<meta name="description" content="I want to create a dolfin Expression on the BoundaryMesh of a 3D Volume mesh. The Expression  ... = BoundarySource(bmesh) f(bmesh.coordinates()[0])">
+		<meta name="keywords" content="expression,python">
+		<link rel="stylesheet" type="text/css" href="../../qa-theme/Snow/qa-styles.css">
+		<link rel="canonical" href="http://fenicsproject.org/qa/6083/expression-depending-on-surface-normals-of-a-sphere">
+		<script type="text/x-mathjax-config">
+  MathJax.Hub.Config({
+    extensions: ["tex2jax.js"],
+    jax: ["input/TeX","output/HTML-CSS"],
+    tex2jax: {inlineMath: [["$","$"],["\\(","\\)"]]},
+    TeX: { extensions: ["AMSmath.js","AMSsymbols.js"]}
+  });
+</script>
+<script type="text/javascript" src="../../mathjax/MathJax.js"></script>
+		<script src="../../jquery-1.7.2.min.js" type="text/javascript"></script>
+		<script src="../../highlight.min.js"></script>
+<script type="text/javascript">
+$(function(){
+	$('.wmd-input').keypress(function(){
+		window.clearTimeout(hljs.Timeout);
+		hljs.Timeout = window.setTimeout(function() {
+			hljs.initHighlighting.called = false;
+			hljs.initHighlighting();
+		}, 500);
+	});
+	window.setTimeout(function() {
+		hljs.initHighlighting.called = false;
+		hljs.initHighlighting();
+	}, 500);
+});
+</script>
+
+
+	</head>
+	<body class="qa-template-question qa-body-js-off">
+		<div class="qa-body-wrapper">
+			
+			<div class="qa-header">
+				<div class="qa-logo">
+					<a href="../../" class="qa-logo-link" title="FEniCS Q&amp;A"><img src="../../qa-theme/fenics_qa.png" border="0" alt="FEniCS Q&amp;A"></a>
+				</div>
+				<div class="qa-header-clear">
+				</div>
+			</div> <!-- END qa-header -->
+			
+			<div class="qa-main-shadow">
+				
+				<div class="qa-main-wrapper">
+					
+					<div class="qa-sidepanel">
+						<div class="qa-sidebar">
+							This is a read only copy of the old FEniCS QA forum. Please visit the <a href="https://www.allanswered.com/community/s/fenics-project/">new QA forum</a> to ask questions
+						</div>
+						
+					</div>
+					
+					<div class="qa-main">
+						<h1>
+							<span class="entry-title">Expression depending on surface-normals of a sphere</span>
+						</h1>
+						<div class="qa-part-q-view">
+							<div class="qa-q-view  hentry question" id="q6083">
+								<form method="post" action="../../6083/expression-depending-on-surface-normals-of-a-sphere">
+									<div class="qa-q-view-stats">
+										<div class="qa-voting qa-voting-net" id="voting_6083">
+											<div class="qa-vote-count qa-vote-count-net">
+												<span class="qa-netvote-count">
+													<span class="qa-netvote-count-data">+6<span class="votes-up"><span class="value-title" title="6"></span></span><span class="votes-down"><span class="value-title" title="0"></span></span></span><span class="qa-netvote-count-pad"> votes</span>
+												</span>
+											</div>
+											<div class="qa-vote-clear">
+											</div>
+										</div>
+									</div>
+									<input type="hidden" name="code" value="0-1516468056-432f57e61d1518cf4466b8500eb5445ba50a4700">
+								</form>
+								<div class="qa-q-view-main">
+									<form method="post" action="../../6083/expression-depending-on-surface-normals-of-a-sphere">
+										<div class="qa-q-view-content">
+											<a name="6083"></a><div class="entry-content"><p>I want to create a dolfin Expression on the BoundaryMesh of a 3D Volume mesh. The Expression depends on the surface-normals. Based on the comment <a rel="nofollow" href="https://bitbucket.org/fenics-project/dolfin/issue/53#comment-9001361">https://bitbucket.org/fenics-project/dolfin/issue/53#comment-9001361</a> , how can I use the Function returned by <code>get_facet_normal(bmesh)</code> in the <code>eval_cell</code> method of a dolfin Expression?</p>
+
+<pre><code>from dolfin import *
+import numpy as np
+import mshr
+# for simplicity I use a sphere here, but the code should work with any 3d volume mesh
+c = mshr.Sphere(dolfin.Point(0., 0., 0.), 1.)
+
+mesh = mshr.generate_mesh(c, 10)
+bmesh = BoundaryMesh(mesh, 'exterior')
+
+
+def get_facet_normal(bmesh):
+    '''Manually calculate FacetNormal function'''
+
+    if not bmesh.type().dim() == 2:
+        raise ValueError('Only works for 2-D mesh')
+
+    vertices = bmesh.coordinates()
+    cells = bmesh.cells()
+
+    vec1 = vertices[cells[:, 1]] - vertices[cells[:, 0]]
+    vec2 = vertices[cells[:, 2]] - vertices[cells[:, 0]]
+
+    normals = np.cross(vec1, vec2)
+    normals /= np.sqrt((normals**2).sum(axis=1))[:, np.newaxis]
+
+    # Ensure outward pointing normal
+    bmesh.init_cell_orientations(Expression(('x[0]', 'x[1]', 'x[2]')))
+    normals[bmesh.cell_orientations() == 1] *= -1
+
+    V = VectorFunctionSpace(bmesh, 'DG', 0)
+    norm = Function(V)
+    nv = norm.vector()
+
+    for n in (0, 1, 2):
+        dofmap = V.sub(n).dofmap()
+        for i in xrange(dofmap.global_dimension()):
+            dof_indices = dofmap.cell_dofs(i)
+            assert len(dof_indices) == 1
+            nv[dof_indices[0]] = normals[i, n]
+    return norm
+
+n = get_facet_normal(bmesh)
+
+class BoundarySource(Expression):
+    def __init__(self, mesh):
+        self.mesh = mesh
+
+    def eval_cell(self, values, x):
+        cur_cell_normal = ?
+        a, b, c = 1.0
+        values[0] = a*cur_cell_normal[0] + b*cur_cell_normal[1] + c*cur_cell_normal[2]
+
+f = BoundarySource(bmesh)
+f(bmesh.coordinates()[0])
+</code></pre>
+</div>
+										</div>
+										<div class="qa-q-view-tags">
+											<ul class="qa-q-view-tag-list">
+												<li class="qa-q-view-tag-item"><a href="../../tag/expression" rel="tag" class="qa-tag-link">expression</a></li>
+												<li class="qa-q-view-tag-item"><a href="../../tag/python" rel="tag" class="qa-tag-link">python</a></li>
+											</ul>
+										</div>
+										<span class="qa-q-view-avatar-meta">
+											<span class="qa-q-view-meta">
+												<a href="../../6083/expression-depending-on-surface-normals-of-a-sphere" class="qa-q-view-what">asked</a>
+												<span class="qa-q-view-when">
+													<span class="qa-q-view-when-data"><span class="published"><span class="value-title" title="2014-11-24T16:15:32+0000"></span>Nov 24, 2014</span></span>
+												</span>
+												<span class="qa-q-view-who">
+													<span class="qa-q-view-who-pad">by </span>
+													<span class="qa-q-view-who-data"><span class="vcard author"><a href="../../user/thisch" class="qa-user-link url nickname">thisch</a></span></span>
+													<span class="qa-q-view-who-title">FEniCS Novice</span>
+													<span class="qa-q-view-who-points">
+														<span class="qa-q-view-who-points-pad">(</span><span class="qa-q-view-who-points-data">580</span><span class="qa-q-view-who-points-pad"> points)</span>
+													</span>
+												</span>
+												<br>
+												<span class="qa-q-view-what">edited</span>
+												<span class="qa-q-view-when">
+													<span class="qa-q-view-when-data"><span class="updated"><span class="value-title" title="2014-11-25T09:07:18+0000"></span>Nov 25, 2014</span></span>
+												</span>
+												<span class="qa-q-view-who">
+													<span class="qa-q-view-who-pad">by </span><span class="qa-q-view-who-data"><a href="../../user/thisch" class="qa-user-link url nickname">thisch</a></span>
+												</span>
+											</span>
+										</span>
+										<div class="qa-q-view-buttons">
+										</div>
+										
+										<div class="qa-q-view-c-list" style="display:none;" id="c6083_list">
+										</div> <!-- END qa-c-list -->
+										
+										<input type="hidden" name="code" value="0-1516468056-75bb96b8613e2dedc01a3b1c42eaf3b9230b8045">
+										<input type="hidden" name="qa_click" value="">
+									</form>
+									<div class="qa-c-form">
+									</div> <!-- END qa-c-form -->
+									
+								</div> <!-- END qa-q-view-main -->
+								<div class="qa-q-view-clear">
+								</div>
+							</div> <!-- END qa-q-view -->
+							
+						</div>
+						<div class="qa-part-a-list">
+							<h2 id="a_list_title">1 Answer</h2>
+							<div class="qa-a-list" id="a_list">
+								
+								<div class="qa-a-list-item  hentry answer answer-selected qa-a-list-item-selected" id="a6086">
+									<form method="post" action="../../6083/expression-depending-on-surface-normals-of-a-sphere">
+										<div class="qa-voting qa-voting-net" id="voting_6086">
+											<div class="qa-vote-count qa-vote-count-net">
+												<span class="qa-netvote-count">
+													<span class="qa-netvote-count-data">+3<span class="votes-up"><span class="value-title" title="3"></span></span><span class="votes-down"><span class="value-title" title="0"></span></span></span><span class="qa-netvote-count-pad"> votes</span>
+												</span>
+											</div>
+											<div class="qa-vote-clear">
+											</div>
+										</div>
+										<input type="hidden" name="code" value="0-1516468056-432f57e61d1518cf4466b8500eb5445ba50a4700">
+									</form>
+									<div class="qa-a-item-main">
+										<form method="post" action="../../6083/expression-depending-on-surface-normals-of-a-sphere">
+											<div class="qa-a-item-selected">
+												<div class="qa-a-selection">
+													<div class="qa-a-selected">&#160;</div>
+													<div class="qa-a-selected-text">Best answer</div>
+												</div>
+												<div class="qa-a-item-content">
+													<a name="6086"></a><div class="entry-content"><p>Hi Thomas,</p>
+
+<p>since the normal is constant for every cell of your mesh you are correct that you should use eval_cell in the Expression, however, the correct function arguments in this case include a ufc_cell. You can use the ufc_cell to then evaluate the normal of the facet for the particular ufc_cell. Note, that the value for x doesn't matter in this case, since the normal is constant on the facet anyway:</p>
+
+<pre><code>class BoundarySource(Expression):
+    def __init__(self, mesh):
+        self.mesh = mesh
+
+    def eval_cell(self, values, x, ufc_cell):
+        cur_cell_normal = np.empty((3,), dtype=np.float)
+        n.eval_cell(cur_cell_normal, np.array([0.0, 0.0, 0.0]), ufc_cell)
+        a, b, c = 1.0, 1.0, 1.0
+        values[0] = a*cur_cell_normal[0] + b*cur_cell_normal[1] + c*cur_cell_normal[2]
+</code></pre>
+
+<p>Note, that you cannot evaluate this function by simply providing a coordinate. Instead you should always evaluate the function using eval_cell. This is automatically used when passing the Expression to interpolate or any other dolfin routine.</p>
+</div>
+												</div>
+												<span class="qa-a-item-avatar-meta">
+													<span class="qa-a-item-meta">
+														<a href="../../6083/expression-depending-on-surface-normals-of-a-sphere?show=6086#a6086" class="qa-a-item-what">answered</a>
+														<span class="qa-a-item-when">
+															<span class="qa-a-item-when-data"><span class="published"><span class="value-title" title="2014-11-25T07:55:58+0000"></span>Nov 25, 2014</span></span>
+														</span>
+														<span class="qa-a-item-who">
+															<span class="qa-a-item-who-pad">by </span>
+															<span class="qa-a-item-who-data"><span class="vcard author"><a href="../../user/cevito" class="qa-user-link url nickname">cevito</a></span></span>
+															<span class="qa-a-item-who-title">FEniCS User</span>
+															<span class="qa-a-item-who-points">
+																<span class="qa-a-item-who-points-pad">(</span><span class="qa-a-item-who-points-data">5,550</span><span class="qa-a-item-who-points-pad"> points)</span>
+															</span>
+														</span>
+														<br>
+														<span class="qa-a-item-what">selected</span>
+														<span class="qa-a-item-when">
+															<span class="qa-a-item-when-data"><span class="updated"><span class="value-title" title="2014-11-25T10:59:57+0000"></span>Nov 25, 2014</span></span>
+														</span>
+														<span class="qa-a-item-who">
+															<span class="qa-a-item-who-pad">by </span><span class="qa-a-item-who-data"><a href="../../user/thisch" class="qa-user-link url nickname">thisch</a></span>
+														</span>
+													</span>
+												</span>
+											</div>
+											<div class="qa-a-item-buttons">
+												</div>
+											
+											<div class="qa-a-item-c-list" style="display:none;" id="c6086_list">
+											</div> <!-- END qa-c-list -->
+											
+											<input type="hidden" name="code" value="0-1516468056-45db4b1cff19f776763520a85853e0cfcf51f600">
+											<input type="hidden" name="qa_click" value="">
+										</form>
+										<div class="qa-c-form">
+										</div> <!-- END qa-c-form -->
+										
+									</div> <!-- END qa-a-item-main -->
+									<div class="qa-a-item-clear">
+									</div>
+								</div> <!-- END qa-a-list-item -->
+								
+							</div> <!-- END qa-a-list -->
+							
+						</div>
+					</div> <!-- END qa-main -->
+					
+				</div> <!-- END main-wrapper -->
+			</div> <!-- END main-shadow -->
+		</div> <!-- END body-wrapper -->
+		<!-- END footer-bottom-group -->
+		
+		<div style="position:absolute; left:-9999px; top:-9999px;">
+			<span id="qa-waiting-template" class="qa-waiting">...</span>
+		</div>
+	
+	
+
+</body><!-- Powered by Question2Answer - http://www.question2answer.org/ --></html>

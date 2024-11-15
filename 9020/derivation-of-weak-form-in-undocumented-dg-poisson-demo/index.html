@@ -1,0 +1,539 @@
+<html><!-- Powered by Question2Answer - http://www.question2answer.org/ --><head>
+		<meta http-equiv="content-type" content="text/html; charset=utf-8">
+		<title>Derivation of weak form in undocumented DG Poisson demo - FEniCS Q&amp;A</title>
+		<meta name="description" content="In an attempt to become familiar with discontinuous Galerkin methods, I tried  ... lectures/2015-08-logg-beijing/lecture_10_discontinuous_galerkin.pdf">
+		<meta name="keywords" content="poisson,dg,demo,derivation">
+		<link rel="stylesheet" type="text/css" href="../../qa-theme/Snow/qa-styles.css">
+		<link rel="canonical" href="http://fenicsproject.org/qa/9020/derivation-of-weak-form-in-undocumented-dg-poisson-demo">
+		<script type="text/x-mathjax-config">
+  MathJax.Hub.Config({
+    extensions: ["tex2jax.js"],
+    jax: ["input/TeX","output/HTML-CSS"],
+    tex2jax: {inlineMath: [["$","$"],["\\(","\\)"]]},
+    TeX: { extensions: ["AMSmath.js","AMSsymbols.js"]}
+  });
+</script>
+<script type="text/javascript" src="../../mathjax/MathJax.js"></script>
+		<script src="../../jquery-1.7.2.min.js" type="text/javascript"></script>
+		<script src="../../highlight.min.js"></script>
+<script type="text/javascript">
+$(function(){
+	$('.wmd-input').keypress(function(){
+		window.clearTimeout(hljs.Timeout);
+		hljs.Timeout = window.setTimeout(function() {
+			hljs.initHighlighting.called = false;
+			hljs.initHighlighting();
+		}, 500);
+	});
+	window.setTimeout(function() {
+		hljs.initHighlighting.called = false;
+		hljs.initHighlighting();
+	}, 500);
+});
+</script>
+
+
+	</head>
+	<body class="qa-template-question qa-body-js-off">
+		<div class="qa-body-wrapper">
+			
+			<div class="qa-header">
+				<div class="qa-logo">
+					<a href="../../" class="qa-logo-link" title="FEniCS Q&amp;A"><img src="../../qa-theme/fenics_qa.png" border="0" alt="FEniCS Q&amp;A"></a>
+				</div>
+				<div class="qa-header-clear">
+				</div>
+			</div> <!-- END qa-header -->
+			
+			<div class="qa-main-shadow">
+				
+				<div class="qa-main-wrapper">
+					
+					<div class="qa-sidepanel">
+						<div class="qa-sidebar">
+							This is a read only copy of the old FEniCS QA forum. Please visit the <a href="https://www.allanswered.com/community/s/fenics-project/">new QA forum</a> to ask questions
+						</div>
+						
+					</div>
+					
+					<div class="qa-main">
+						<h1>
+							<span class="entry-title">Derivation of weak form in undocumented DG Poisson demo</span>
+						</h1>
+						<div class="qa-part-q-view">
+							<div class="qa-q-view  hentry question" id="q9020">
+								<form method="post" action="../../9020/derivation-of-weak-form-in-undocumented-dg-poisson-demo">
+									<div class="qa-q-view-stats">
+										<div class="qa-voting qa-voting-net" id="voting_9020">
+											<div class="qa-vote-count qa-vote-count-net">
+												<span class="qa-netvote-count">
+													<span class="qa-netvote-count-data">+1<span class="votes-up"><span class="value-title" title="1"></span></span><span class="votes-down"><span class="value-title" title="0"></span></span></span><span class="qa-netvote-count-pad"> vote</span>
+												</span>
+											</div>
+											<div class="qa-vote-clear">
+											</div>
+										</div>
+									</div>
+									<input type="hidden" name="code" value="0-1516468204-c1b2731ba94e430fc562d4ea82fdbb9562ea0b0d">
+								</form>
+								<div class="qa-q-view-main">
+									<form method="post" action="../../9020/derivation-of-weak-form-in-undocumented-dg-poisson-demo">
+										<div class="qa-q-view-content">
+											<a name="9020"></a><div class="entry-content"><p>In an attempt to become familiar with discontinuous Galerkin methods, I tried to derive the weak form for the simple Poisson equation, as used in the code <a rel="nofollow" href="https://github.com/FEniCS/dolfin/blob/master/demo/undocumented/dg-poisson/python/demo_dg-poisson.py">here</a></p>
+
+<pre><code># Define variational problem (ds(1) is Dirichlet, ds(2) is Neumann)
+a = dot(grad(v), grad(u))*dx \
+   - dot(avg(grad(v)), jump(u, n))*dS \
+   - dot(jump(v, n), avg(grad(u)))*dS \
+   + alpha/h_avg*dot(jump(v, n), jump(u, n))*dS \
+   - dot(grad(v), u*n)*ds(1) \
+   - dot(v*n, grad(u))*ds(1) \
+   + (gamma/h)*v*u*ds(1)
+L = v*f*dx - u0*dot(grad(v), n)*ds(1) + (gamma/h)*u0*v*ds(1) + g*v*ds(2)
+</code></pre>
+
+<p>I used a FEniCS lecture as a guide, which can be found <a rel="nofollow" href="http://fenicsproject.org/pub/course/lectures/2015-08-logg-beijing/lecture_10_discontinuous_galerkin.pdf">here</a>, and I understand the derivations made there. I will repeat the weak form from those slides below:</p>
+
+<p>$$<br>
+\int_{\Omega} \nabla u \cdot \nabla v dx + \int_{\Gamma_i} \left( - \langle\nabla u\rangle[v] - \langle\nabla v\rangle[u] + \frac{\alpha}{h}[u][v] \right) dS + $$ $$\int_{\Gamma_e} \left( - \nabla u \cdot n v - \nabla v \cdot n u + \frac{\alpha}{h} u v \right) ds = \int_{\Omega} f v dx<br>
+$$</p>
+
+<p>My question now is how to go from here to the form above? This is what I got so far:</p>
+
+<ol>
+<li>Add the terms containing gamma on both sides to weakly enforce the Dirichlet boundary condition.</li>
+<li>Split the external boundary in a Dirichlet and a Neumann part, and use <code>dot(grad u, n) = g</code> on the Neumann boundary</li>
+</ol>
+
+<p>Doing so also results in  term $\int_{\Gamma_N} \nabla v \cdot n u$ that is not accounted for in the code. I also miss a term with alpha on the external boundaries.</p>
+
+<p>On the other hand, I cannot explain where the second term on the RHS comes from (<code>u0*dot(grad(v), n)*ds(1)</code>), neither why terms containing a testfunction <code>v</code> on the Dirichlet boundary don't disappear.</p>
+
+<p>Any help on this would be very welcome.</p>
+</div>
+										</div>
+										<div class="qa-q-view-tags">
+											<ul class="qa-q-view-tag-list">
+												<li class="qa-q-view-tag-item"><a href="../../tag/poisson" rel="tag" class="qa-tag-link">poisson</a></li>
+												<li class="qa-q-view-tag-item"><a href="../../tag/dg" rel="tag" class="qa-tag-link">dg</a></li>
+												<li class="qa-q-view-tag-item"><a href="../../tag/demo" rel="tag" class="qa-tag-link">demo</a></li>
+												<li class="qa-q-view-tag-item"><a href="../../tag/derivation" rel="tag" class="qa-tag-link">derivation</a></li>
+											</ul>
+										</div>
+										<span class="qa-q-view-avatar-meta">
+											<span class="qa-q-view-meta">
+												<a href="../../9020/derivation-of-weak-form-in-undocumented-dg-poisson-demo" class="qa-q-view-what">asked</a>
+												<span class="qa-q-view-when">
+													<span class="qa-q-view-when-data"><span class="published"><span class="value-title" title="2016-01-13T15:40:48+0000"></span>Jan 13, 2016</span></span>
+												</span>
+												<span class="qa-q-view-who">
+													<span class="qa-q-view-who-pad">by </span>
+													<span class="qa-q-view-who-data"><span class="vcard author"><a href="../../user/maartent" class="qa-user-link url nickname">maartent</a></span></span>
+													<span class="qa-q-view-who-title">FEniCS User</span>
+													<span class="qa-q-view-who-points">
+														<span class="qa-q-view-who-points-pad">(</span><span class="qa-q-view-who-points-data">3,910</span><span class="qa-q-view-who-points-pad"> points)</span>
+													</span>
+												</span>
+												<br>
+												<span class="qa-q-view-what">edited</span>
+												<span class="qa-q-view-when">
+													<span class="qa-q-view-when-data"><span class="updated"><span class="value-title" title="2016-01-13T15:48:32+0000"></span>Jan 13, 2016</span></span>
+												</span>
+												<span class="qa-q-view-who">
+													<span class="qa-q-view-who-pad">by </span><span class="qa-q-view-who-data"><a href="../../user/maartent" class="qa-user-link url nickname">maartent</a></span>
+												</span>
+											</span>
+										</span>
+										<div class="qa-q-view-buttons">
+										</div>
+										
+										<div class="qa-q-view-c-list" style="display:none;" id="c9020_list">
+										</div> <!-- END qa-c-list -->
+										
+										<input type="hidden" name="code" value="0-1516468204-799230c3107c0acee6d4e64a7c2830d8e96be7ec">
+										<input type="hidden" name="qa_click" value="">
+									</form>
+									<div class="qa-c-form">
+									</div> <!-- END qa-c-form -->
+									
+								</div> <!-- END qa-q-view-main -->
+								<div class="qa-q-view-clear">
+								</div>
+							</div> <!-- END qa-q-view -->
+							
+						</div>
+						<div class="qa-part-a-list">
+							<h2 id="a_list_title">1 Answer</h2>
+							<div class="qa-a-list" id="a_list">
+								
+								<div class="qa-a-list-item  hentry answer answer-selected qa-a-list-item-selected" id="a9031">
+									<form method="post" action="../../9020/derivation-of-weak-form-in-undocumented-dg-poisson-demo">
+										<div class="qa-voting qa-voting-net" id="voting_9031">
+											<div class="qa-vote-count qa-vote-count-net">
+												<span class="qa-netvote-count">
+													<span class="qa-netvote-count-data">+1<span class="votes-up"><span class="value-title" title="1"></span></span><span class="votes-down"><span class="value-title" title="0"></span></span></span><span class="qa-netvote-count-pad"> vote</span>
+												</span>
+											</div>
+											<div class="qa-vote-clear">
+											</div>
+										</div>
+										<input type="hidden" name="code" value="0-1516468204-c1b2731ba94e430fc562d4ea82fdbb9562ea0b0d">
+									</form>
+									<div class="qa-a-item-main">
+										<form method="post" action="../../9020/derivation-of-weak-form-in-undocumented-dg-poisson-demo">
+											<div class="qa-a-item-selected">
+												<div class="qa-a-selection">
+													<div class="qa-a-selected">&#160;</div>
+													<div class="qa-a-selected-text">Best answer</div>
+												</div>
+												<div class="qa-a-item-content">
+													<a name="9031"></a><div class="entry-content"><p>The symmetry terms are only added on the Dirichlet boundary and the penalty term with alpha is a term with gamma here. This one is also not added at the Neumann part of the boundary. The penalty terms are essential for stability and enforcing the boundary conditions and everything with the normal derivative of the test function is added solely for symmetry and should be consistent, i.e. vanish for the strong solution.</p>
+</div>
+												</div>
+												<span class="qa-a-item-avatar-meta">
+													<span class="qa-a-item-meta">
+														<a href="../../9020/derivation-of-weak-form-in-undocumented-dg-poisson-demo?show=9031#a9031" class="qa-a-item-what">answered</a>
+														<span class="qa-a-item-when">
+															<span class="qa-a-item-when-data"><span class="published"><span class="value-title" title="2016-01-13T20:21:31+0000"></span>Jan 13, 2016</span></span>
+														</span>
+														<span class="qa-a-item-who">
+															<span class="qa-a-item-who-pad">by </span>
+															<span class="qa-a-item-who-data"><span class="vcard author"><a href="../../user/Christian+Waluga" class="qa-user-link url nickname">Christian Waluga</a></span></span>
+															<span class="qa-a-item-who-title">FEniCS Expert</span>
+															<span class="qa-a-item-who-points">
+																<span class="qa-a-item-who-points-pad">(</span><span class="qa-a-item-who-points-data">12,310</span><span class="qa-a-item-who-points-pad"> points)</span>
+															</span>
+														</span>
+														<br>
+														<span class="qa-a-item-what">selected</span>
+														<span class="qa-a-item-when">
+															<span class="qa-a-item-when-data"><span class="updated"><span class="value-title" title="2016-01-15T14:23:50+0000"></span>Jan 15, 2016</span></span>
+														</span>
+														<span class="qa-a-item-who">
+															<span class="qa-a-item-who-pad">by </span><span class="qa-a-item-who-data"><a href="../../user/maartent" class="qa-user-link url nickname">maartent</a></span>
+														</span>
+													</span>
+												</span>
+											</div>
+											<div class="qa-a-item-buttons">
+												</div>
+											
+											<div class="qa-a-item-c-list" id="c9031_list">
+												<div class="qa-c-list-item  hentry comment" id="c9033">
+													<div class="qa-c-item-content">
+														<a name="9033"></a><div class="entry-content"><p>Thank you for helping but I am still left with questions:</p>
+
+<blockquote>
+  <p>The symmetry terms are only added on the Dirichlet boundary</p>
+</blockquote>
+
+<p>Why can you <em>choose</em> to only add them on the Dirichlet boundary? Following the derivation on the slides, you end up with a term over the whole external boundary (last term in slide 10), so if you add the symmetric term, wouldn't it be necessary over the whole boundary again?</p>
+
+<blockquote>
+  <p>and the penalty term with alpha is a term with gamma here.</p>
+</blockquote>
+
+<p>There is a term with alpha in the code. It was my understanding that both terms with gamma (on the LHS and RHS) where added to weakly enforce the Dirichlet BC. If the terms with gamma in the code come from the term with alpha on the external boundary in the formula, then I don't see how?</p>
+
+<p>I still don't understand where <code>u0*dot(grad(v), n)*ds(1)</code> comes from in the RHS, neither why it would vanish for the strong solution, since there is no <code>u</code> in here.</p>
+</div>
+													</div>
+													<div class="qa-c-item-footer">
+														<span class="qa-c-item-avatar-meta">
+															<span class="qa-c-item-meta">
+																<a href="../../9020/derivation-of-weak-form-in-undocumented-dg-poisson-demo?show=9033#c9033" class="qa-c-item-what">commented</a>
+																<span class="qa-c-item-when">
+																	<span class="qa-c-item-when-data"><span class="published"><span class="value-title" title="2016-01-14T10:36:01+0000"></span>Jan 14, 2016</span></span>
+																</span>
+																<span class="qa-c-item-who">
+																	<span class="qa-c-item-who-pad">by </span>
+																	<span class="qa-c-item-who-data"><span class="vcard author"><a href="../../user/maartent" class="qa-user-link url nickname">maartent</a></span></span>
+																	<span class="qa-c-item-who-title">FEniCS User</span>
+																	<span class="qa-c-item-who-points">
+																		<span class="qa-c-item-who-points-pad">(</span><span class="qa-c-item-who-points-data">3,910</span><span class="qa-c-item-who-points-pad"> points)</span>
+																	</span>
+																</span>
+															</span>
+														</span>
+														<div class="qa-c-item-buttons">
+														</div>
+													</div>
+													<div class="qa-c-item-clear">
+													</div>
+												</div> <!-- END qa-c-item -->
+												<div class="qa-c-list-item  hentry comment" id="c9034">
+													<div class="qa-c-item-content">
+														<a name="9034"></a><div class="entry-content"><p>You can always add consistent terms, since in the derivation they are zero for exact solutions of your problem (u can be seen as continuous then, sufficient regularity assumed). They only matter in a discrete sense when you want to show stability of the finite-dimensional problem. Since u=u0 on the boundary, you can also add terms like (u-u0) times something, it doesn't matter in the derivation. Where it matters is in the discrete sense, since they penalize the jump at the boundaries, thus weakly enforce Dirichlet conditions for sufficiently large gamma (something like 10 times the polynomial degree squared is often sufficient). The terms with alpha are only present on interior facets in the example code (dS is for interior, ds for exterior facets, a small but important difference in the caps).</p>
+</div>
+													</div>
+													<div class="qa-c-item-footer">
+														<span class="qa-c-item-avatar-meta">
+															<span class="qa-c-item-meta">
+																<a href="../../9020/derivation-of-weak-form-in-undocumented-dg-poisson-demo?show=9034#c9034" class="qa-c-item-what">commented</a>
+																<span class="qa-c-item-when">
+																	<span class="qa-c-item-when-data"><span class="published"><span class="value-title" title="2016-01-14T16:14:48+0000"></span>Jan 14, 2016</span></span>
+																</span>
+																<span class="qa-c-item-who">
+																	<span class="qa-c-item-who-pad">by </span>
+																	<span class="qa-c-item-who-data"><span class="vcard author"><a href="../../user/Christian+Waluga" class="qa-user-link url nickname">Christian Waluga</a></span></span>
+																	<span class="qa-c-item-who-title">FEniCS Expert</span>
+																	<span class="qa-c-item-who-points">
+																		<span class="qa-c-item-who-points-pad">(</span><span class="qa-c-item-who-points-data">12,310</span><span class="qa-c-item-who-points-pad"> points)</span>
+																	</span>
+																</span>
+															</span>
+														</span>
+														<div class="qa-c-item-buttons">
+														</div>
+													</div>
+													<div class="qa-c-item-clear">
+													</div>
+												</div> <!-- END qa-c-item -->
+												<div class="qa-c-list-item  hentry comment" id="c9035">
+													<div class="qa-c-item-content">
+														<a name="9035"></a><div class="entry-content"><p>I think I understand, but then again I think I don't :-)<br>
+The way I see it one has to start with the original equation --&gt; multiply by a testfunction and integrate over an element --&gt; sum over all elements --&gt; integrate by parts, resulting in the average and jump terms. It is only from here that you can add (or remove) consistent terms, no?</p>
+
+<p>The two terms containing gamma meet the '(u - u0) times something' criterium, so those I understand.</p>
+
+<p>The RHS term <code>u0*dot(grad(v), n)*ds(1)</code> on the other hand does not IMHO, because its opposite on the LHS <code>dot(grad(v), u*n)*ds(1)</code> was derived from the original PDE, and hence not added afterwards (second term on the second line of the formula above). So I still fail to see where that RHS term comes from, or why one can just add it here?</p>
+</div>
+													</div>
+													<div class="qa-c-item-footer">
+														<span class="qa-c-item-avatar-meta">
+															<span class="qa-c-item-meta">
+																<a href="../../9020/derivation-of-weak-form-in-undocumented-dg-poisson-demo?show=9035#c9035" class="qa-c-item-what">commented</a>
+																<span class="qa-c-item-when">
+																	<span class="qa-c-item-when-data"><span class="published"><span class="value-title" title="2016-01-14T16:48:49+0000"></span>Jan 14, 2016</span></span>
+																</span>
+																<span class="qa-c-item-who">
+																	<span class="qa-c-item-who-pad">by </span>
+																	<span class="qa-c-item-who-data"><span class="vcard author"><a href="../../user/maartent" class="qa-user-link url nickname">maartent</a></span></span>
+																	<span class="qa-c-item-who-title">FEniCS User</span>
+																	<span class="qa-c-item-who-points">
+																		<span class="qa-c-item-who-points-pad">(</span><span class="qa-c-item-who-points-data">3,910</span><span class="qa-c-item-who-points-pad"> points)</span>
+																	</span>
+																</span>
+															</span>
+														</span>
+														<div class="qa-c-item-buttons">
+														</div>
+													</div>
+													<div class="qa-c-item-clear">
+													</div>
+												</div> <!-- END qa-c-item -->
+												<div class="qa-c-list-item  hentry comment" id="c9036">
+													<div class="qa-c-item-content">
+														<a name="9036"></a><div class="entry-content"><p>The term with grad(v) is also on the left with u instead of u0 (third but last on the LHS). It is just written differently for some reason. Put the u out of the brackets, subtract the RHS, and observe that it is again a term that contains (u-u0). You can add terms in strong or weak forms, it is always only a question of regularity and desireable properties you want to achieve for the discrete setting. Obtaining symmetry is the only reason why one would want the grad(v).n terms. The penalty is enough for stability, and you can actually also omit the symmetry term and obtain another variant or flip the sign and obtain unconditional stability in the DG norm (wrt gamma). However, the latter options sacrifice adjoint consistency which is crucial for optimal L2 error estimates.</p>
+</div>
+													</div>
+													<div class="qa-c-item-footer">
+														<span class="qa-c-item-avatar-meta">
+															<span class="qa-c-item-meta">
+																<a href="../../9020/derivation-of-weak-form-in-undocumented-dg-poisson-demo?show=9036#c9036" class="qa-c-item-what">commented</a>
+																<span class="qa-c-item-when">
+																	<span class="qa-c-item-when-data"><span class="published"><span class="value-title" title="2016-01-14T18:08:32+0000"></span>Jan 14, 2016</span></span>
+																</span>
+																<span class="qa-c-item-who">
+																	<span class="qa-c-item-who-pad">by </span>
+																	<span class="qa-c-item-who-data"><span class="vcard author"><a href="../../user/Christian+Waluga" class="qa-user-link url nickname">Christian Waluga</a></span></span>
+																	<span class="qa-c-item-who-title">FEniCS Expert</span>
+																	<span class="qa-c-item-who-points">
+																		<span class="qa-c-item-who-points-pad">(</span><span class="qa-c-item-who-points-data">12,310</span><span class="qa-c-item-who-points-pad"> points)</span>
+																	</span>
+																</span>
+																<br>
+																<span class="qa-c-item-what">edited</span>
+																<span class="qa-c-item-when">
+																	<span class="qa-c-item-when-data"><span class="updated"><span class="value-title" title="2016-01-14T18:17:58+0000"></span>Jan 14, 2016</span></span>
+																</span>
+																<span class="qa-c-item-who">
+																	<span class="qa-c-item-who-pad">by </span><span class="qa-c-item-who-data"><a href="../../user/Christian+Waluga" class="qa-user-link url nickname">Christian Waluga</a></span>
+																</span>
+															</span>
+														</span>
+														<div class="qa-c-item-buttons">
+														</div>
+													</div>
+													<div class="qa-c-item-clear">
+													</div>
+												</div> <!-- END qa-c-item -->
+												<div class="qa-c-list-item  hentry comment" id="c9041">
+													<div class="qa-c-item-content">
+														<a name="9041"></a><div class="entry-content"><p>As I mentioned in my previous comment, I realize that apart from the two terms containing gamma, there is another pair that can be rewritten into an '(u - u0) x ...' form. I also understand that one can add consistent terms like that at will.</p>
+
+<p>But for this second pair, the term containing u was already present from the derivation. Hence only a term with u0 was added at some point, i.e. not consistent. I obviously am mistaken somewhere, but I can't put my finger on it.</p>
+</div>
+													</div>
+													<div class="qa-c-item-footer">
+														<span class="qa-c-item-avatar-meta">
+															<span class="qa-c-item-meta">
+																<a href="../../9020/derivation-of-weak-form-in-undocumented-dg-poisson-demo?show=9041#c9041" class="qa-c-item-what">commented</a>
+																<span class="qa-c-item-when">
+																	<span class="qa-c-item-when-data"><span class="published"><span class="value-title" title="2016-01-15T10:52:27+0000"></span>Jan 15, 2016</span></span>
+																</span>
+																<span class="qa-c-item-who">
+																	<span class="qa-c-item-who-pad">by </span>
+																	<span class="qa-c-item-who-data"><span class="vcard author"><a href="../../user/maartent" class="qa-user-link url nickname">maartent</a></span></span>
+																	<span class="qa-c-item-who-title">FEniCS User</span>
+																	<span class="qa-c-item-who-points">
+																		<span class="qa-c-item-who-points-pad">(</span><span class="qa-c-item-who-points-data">3,910</span><span class="qa-c-item-who-points-pad"> points)</span>
+																	</span>
+																</span>
+															</span>
+														</span>
+														<div class="qa-c-item-buttons">
+														</div>
+													</div>
+													<div class="qa-c-item-clear">
+													</div>
+												</div> <!-- END qa-c-item -->
+												<div class="qa-c-list-item  hentry comment" id="c9042">
+													<div class="qa-c-item-content">
+														<a name="9042"></a><div class="entry-content"><p>Well, how do you think dot(grad(v), u<em>n)</em>ds(1) is derived? A term dot(grad(u), v<em>n)</em>ds(1) pops out naturally using integration by parts, but how would you think one could end up with a term containing dot(grad(v),n) on the boundaries? See slide 7 of the PDF you linked to. The grad(v) terms are added on slide 12 for symmetry... They play no role in the derivation up to this point.</p>
+</div>
+													</div>
+													<div class="qa-c-item-footer">
+														<span class="qa-c-item-avatar-meta">
+															<span class="qa-c-item-meta">
+																<a href="../../9020/derivation-of-weak-form-in-undocumented-dg-poisson-demo?show=9042#c9042" class="qa-c-item-what">commented</a>
+																<span class="qa-c-item-when">
+																	<span class="qa-c-item-when-data"><span class="published"><span class="value-title" title="2016-01-15T12:35:10+0000"></span>Jan 15, 2016</span></span>
+																</span>
+																<span class="qa-c-item-who">
+																	<span class="qa-c-item-who-pad">by </span>
+																	<span class="qa-c-item-who-data"><span class="vcard author"><a href="../../user/Christian+Waluga" class="qa-user-link url nickname">Christian Waluga</a></span></span>
+																	<span class="qa-c-item-who-title">FEniCS Expert</span>
+																	<span class="qa-c-item-who-points">
+																		<span class="qa-c-item-who-points-pad">(</span><span class="qa-c-item-who-points-data">12,310</span><span class="qa-c-item-who-points-pad"> points)</span>
+																	</span>
+																</span>
+															</span>
+														</span>
+														<div class="qa-c-item-buttons">
+														</div>
+													</div>
+													<div class="qa-c-item-clear">
+													</div>
+												</div> <!-- END qa-c-item -->
+												<div class="qa-c-list-item  hentry comment" id="c9043">
+													<div class="qa-c-item-content">
+														<a name="9043"></a><div class="entry-content"><p>Ok, I believe I found my mistake. Thanks for your patience! I have a derivation now that reconstructs the weak form from the code, and that makes sense in my head.</p>
+
+<p>I must say though, that if I'm correct, I find the slides very misleading (or maybe even wrong?).<br>
+Slide 11 mentions <em>continuity of the solution [u] = 0 over all facets</em>. It then adds a term $\int_{\Gamma} \langle \nabla v \rangle [u]$ over <strong>all</strong> facets, subsequently splitted in an integral over interior and exterior facets in slide 12. That is where I thought the boundary term containing <code>dot(grad(v),n)</code> came from, and hence why there is no matching term with u0 instead of u in the RHS.</p>
+
+<p>In the derivation as I have it now, I assume that the continuity of the solution, [u] = 0, is something that only has meaning in the interior facets, so the correct term to add for symmetry is $\int_{\Gamma_{i}} \langle \nabla v \rangle [u] dS$ for the interior facets only, and then another $\int_{\Gamma_D} (u - u0) \nabla v \cdot n$ for the Dirichlet boundary, as you tried to tell me.</p>
+</div>
+													</div>
+													<div class="qa-c-item-footer">
+														<span class="qa-c-item-avatar-meta">
+															<span class="qa-c-item-meta">
+																<a href="../../9020/derivation-of-weak-form-in-undocumented-dg-poisson-demo?show=9043#c9043" class="qa-c-item-what">commented</a>
+																<span class="qa-c-item-when">
+																	<span class="qa-c-item-when-data"><span class="published"><span class="value-title" title="2016-01-15T14:21:16+0000"></span>Jan 15, 2016</span></span>
+																</span>
+																<span class="qa-c-item-who">
+																	<span class="qa-c-item-who-pad">by </span>
+																	<span class="qa-c-item-who-data"><span class="vcard author"><a href="../../user/maartent" class="qa-user-link url nickname">maartent</a></span></span>
+																	<span class="qa-c-item-who-title">FEniCS User</span>
+																	<span class="qa-c-item-who-points">
+																		<span class="qa-c-item-who-points-pad">(</span><span class="qa-c-item-who-points-data">3,910</span><span class="qa-c-item-who-points-pad"> points)</span>
+																	</span>
+																</span>
+															</span>
+														</span>
+														<div class="qa-c-item-buttons">
+														</div>
+													</div>
+													<div class="qa-c-item-clear">
+													</div>
+												</div> <!-- END qa-c-item -->
+												<div class="qa-c-list-item  hentry comment" id="c9044">
+													<div class="qa-c-item-content">
+														<a name="9044"></a><div class="entry-content"><p>Glad you have it. Note that the derivation in the slides is for homogeneous Dirichlet BCs. This simplifies presentation, because you do not have to worry about the boundaries so much.</p>
+</div>
+													</div>
+													<div class="qa-c-item-footer">
+														<span class="qa-c-item-avatar-meta">
+															<span class="qa-c-item-meta">
+																<a href="../../9020/derivation-of-weak-form-in-undocumented-dg-poisson-demo?show=9044#c9044" class="qa-c-item-what">commented</a>
+																<span class="qa-c-item-when">
+																	<span class="qa-c-item-when-data"><span class="published"><span class="value-title" title="2016-01-15T15:09:21+0000"></span>Jan 15, 2016</span></span>
+																</span>
+																<span class="qa-c-item-who">
+																	<span class="qa-c-item-who-pad">by </span>
+																	<span class="qa-c-item-who-data"><span class="vcard author"><a href="../../user/Christian+Waluga" class="qa-user-link url nickname">Christian Waluga</a></span></span>
+																	<span class="qa-c-item-who-title">FEniCS Expert</span>
+																	<span class="qa-c-item-who-points">
+																		<span class="qa-c-item-who-points-pad">(</span><span class="qa-c-item-who-points-data">12,310</span><span class="qa-c-item-who-points-pad"> points)</span>
+																	</span>
+																</span>
+															</span>
+														</span>
+														<div class="qa-c-item-buttons">
+														</div>
+													</div>
+													<div class="qa-c-item-clear">
+													</div>
+												</div> <!-- END qa-c-item -->
+												<div class="qa-c-list-item  hentry comment" id="c9045">
+													<div class="qa-c-item-content">
+														<a name="9045"></a><div class="entry-content"><p>Oh, I forgot the fact that the example was for homogeneous Dirichlet BCs only. Then the slides are correct&#8212;although I think the attempt to keep things simple rather obscures the derivation here. Perhaps a matter of preference.</p>
+
+<p>Thanks again for the help.</p>
+</div>
+													</div>
+													<div class="qa-c-item-footer">
+														<span class="qa-c-item-avatar-meta">
+															<span class="qa-c-item-meta">
+																<a href="../../9020/derivation-of-weak-form-in-undocumented-dg-poisson-demo?show=9045#c9045" class="qa-c-item-what">commented</a>
+																<span class="qa-c-item-when">
+																	<span class="qa-c-item-when-data"><span class="published"><span class="value-title" title="2016-01-15T15:22:38+0000"></span>Jan 15, 2016</span></span>
+																</span>
+																<span class="qa-c-item-who">
+																	<span class="qa-c-item-who-pad">by </span>
+																	<span class="qa-c-item-who-data"><span class="vcard author"><a href="../../user/maartent" class="qa-user-link url nickname">maartent</a></span></span>
+																	<span class="qa-c-item-who-title">FEniCS User</span>
+																	<span class="qa-c-item-who-points">
+																		<span class="qa-c-item-who-points-pad">(</span><span class="qa-c-item-who-points-data">3,910</span><span class="qa-c-item-who-points-pad"> points)</span>
+																	</span>
+																</span>
+															</span>
+														</span>
+														<div class="qa-c-item-buttons">
+														</div>
+													</div>
+													<div class="qa-c-item-clear">
+													</div>
+												</div> <!-- END qa-c-item -->
+											</div> <!-- END qa-c-list -->
+											
+											<input type="hidden" name="code" value="0-1516468204-8398f9d535372fdabaf6789b0d1b815e8e0f5092">
+											<input type="hidden" name="qa_click" value="">
+										</form>
+										<div class="qa-c-form">
+										</div> <!-- END qa-c-form -->
+										
+									</div> <!-- END qa-a-item-main -->
+									<div class="qa-a-item-clear">
+									</div>
+								</div> <!-- END qa-a-list-item -->
+								
+							</div> <!-- END qa-a-list -->
+							
+						</div>
+					</div> <!-- END qa-main -->
+					
+				</div> <!-- END main-wrapper -->
+			</div> <!-- END main-shadow -->
+		</div> <!-- END body-wrapper -->
+		<!-- END footer-bottom-group -->
+		
+		<div style="position:absolute; left:-9999px; top:-9999px;">
+			<span id="qa-waiting-template" class="qa-waiting">...</span>
+		</div>
+	
+	
+
+</body><!-- Powered by Question2Answer - http://www.question2answer.org/ --></html>

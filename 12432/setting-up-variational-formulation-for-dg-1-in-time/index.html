@@ -1,0 +1,338 @@
+<html><!-- Powered by Question2Answer - http://www.question2answer.org/ --><head>
+		<meta http-equiv="content-type" content="text/html; charset=utf-8">
+		<title>Setting up variational formulation for DG 1 in time - FEniCS Q&amp;A</title>
+		<meta name="description" content="I'm trying to set up the variational formulation for DG1 in time for the linear test equation $$ \ ... 0.8) expected Any help/advice would be welcome!">
+		<meta name="keywords" content="discontinuous-galerkin,time-dependent,time-stepping">
+		<link rel="stylesheet" type="text/css" href="../../qa-theme/Snow/qa-styles.css">
+		<link rel="canonical" href="http://fenicsproject.org/qa/12432/setting-up-variational-formulation-for-dg-1-in-time">
+		<script type="text/x-mathjax-config">
+  MathJax.Hub.Config({
+    extensions: ["tex2jax.js"],
+    jax: ["input/TeX","output/HTML-CSS"],
+    tex2jax: {inlineMath: [["$","$"],["\\(","\\)"]]},
+    TeX: { extensions: ["AMSmath.js","AMSsymbols.js"]}
+  });
+</script>
+<script type="text/javascript" src="../../mathjax/MathJax.js"></script>
+		<script src="../../jquery-1.7.2.min.js" type="text/javascript"></script>
+		<script src="../../highlight.min.js"></script>
+<script type="text/javascript">
+$(function(){
+	$('.wmd-input').keypress(function(){
+		window.clearTimeout(hljs.Timeout);
+		hljs.Timeout = window.setTimeout(function() {
+			hljs.initHighlighting.called = false;
+			hljs.initHighlighting();
+		}, 500);
+	});
+	window.setTimeout(function() {
+		hljs.initHighlighting.called = false;
+		hljs.initHighlighting();
+	}, 500);
+});
+</script>
+
+
+	</head>
+	<body class="qa-template-question qa-body-js-off">
+		<div class="qa-body-wrapper">
+			
+			<div class="qa-header">
+				<div class="qa-logo">
+					<a href="../" class="qa-logo-link" title="FEniCS Q&amp;A"><img src="../../qa-theme/fenics_qa.png" border="0" alt="FEniCS Q&amp;A"></a>
+				</div>
+				<div class="qa-header-clear">
+				</div>
+			</div> <!-- END qa-header -->
+			
+			<div class="qa-main-shadow">
+				
+				<div class="qa-main-wrapper">
+					
+					<div class="qa-sidepanel">
+						<div class="qa-sidebar">
+							This is a read only copy of the old FEniCS QA forum. Please visit the <a href="https://www.allanswered.com/community/s/fenics-project/">new QA forum</a> to ask questions
+						</div>
+						
+					</div>
+					
+					<div class="qa-main">
+						<h1>
+							<span class="entry-title">Setting up variational formulation for DG 1 in time</span>
+						</h1>
+						<div class="qa-part-q-view">
+							<div class="qa-q-view qa-q-closed hentry question" id="q12432">
+								<form method="post" action="../12432">
+									<div class="qa-q-view-stats">
+										<div class="qa-voting qa-voting-net" id="voting_12432">
+											<div class="qa-vote-count qa-vote-count-net">
+												<span class="qa-netvote-count">
+													<span class="qa-netvote-count-data">+1<span class="votes-up"><span class="value-title" title="1"></span></span><span class="votes-down"><span class="value-title" title="0"></span></span></span><span class="qa-netvote-count-pad"> vote</span>
+												</span>
+											</div>
+											<div class="qa-vote-clear">
+											</div>
+										</div>
+									</div>
+									<input type="hidden" name="code" value="0-1516478272-b3604b5830374bbd13fff96151a03ed0c5216e43">
+								</form>
+								<div class="qa-q-view-main">
+									<form method="post" action="../12432">
+										<div class="qa-q-view-content">
+											<a name="12432"></a><div class="entry-content"><p>I'm trying to set up the variational formulation for DG1 in time for the linear test equation<br>
+$$ \frac{d}{dt}u(t) = -u(t), $$<br>
+which would be<br>
+$$\int_{I_n} \frac{d}{dt}u^n(t)v(t)dt + (u^n(t_n) - u^{n-1}(t_n))v(t_n) + \frac{\Delta t_n}{2}(u^n(t_n) v(t_n) + u^n(t_{n+1})v(t_{n+1})),$$<br>
+with $$ I_n := (t_n, t_{n+1}) $$ being the interval for the current timestep, $$u^n(t)$$ the solution associated to $$I_n$$ and $$u^{n-1}(t)$$ corresponding to the previous timestep/initial value.</p>
+
+<p>I figure I can implement the derivative term by</p>
+
+<pre><code>inner(v, u_new.dx(0))*dx
+</code></pre>
+
+<p>and the term $$\frac{\Delta t_n}{2}(u^n(t_n) v(t_n) + u^n(t_{n+1})v(t_{n+1}))$$ by </p>
+
+<pre><code>0.5*timestep*inner(v, u_new)*ds
+</code></pre>
+
+<p>but I'm a little clueless on how to implement the remaining term. I don't quite understand how to use the restrictions like v('+'), v('-') to make this work.</p>
+
+<p>Minimal example until now:</p>
+
+<pre><code>mesh = UnitIntervalMesh(1)
+V = FunctionSpace(mesh, 'DG', 1)
+u_old = Function(V)
+u_old.interpolate(Expression('1'))
+v = TestFunction(V)
+u_new = Function(V)
+timestep = Constant(1)
+F = inner(v, u_new.dx(0))*dx + 0.5*timestep*inner(v, u_new)*ds 
+solve(F == 0, u_new)
+print('result', u_new.vector().array()) # (0.4, 0.8) expected
+</code></pre>
+
+<p>Any help/advice would be welcome!</p>
+</div>
+										</div>
+										<div class="qa-q-view-closed">
+											closed with the note:
+											<span class="qa-q-view-closed-content">
+												Found a solution.
+											</span>
+										</div>
+										<div class="qa-q-view-tags">
+											<ul class="qa-q-view-tag-list">
+												<li class="qa-q-view-tag-item"><a href="../tag/discontinuous-galerkin" rel="tag" class="qa-tag-link">discontinuous-galerkin</a></li>
+												<li class="qa-q-view-tag-item"><a href="../tag/time-dependent" rel="tag" class="qa-tag-link">time-dependent</a></li>
+												<li class="qa-q-view-tag-item"><a href="../tag/time-stepping" rel="tag" class="qa-tag-link">time-stepping</a></li>
+											</ul>
+										</div>
+										<span class="qa-q-view-avatar-meta">
+											<span class="qa-q-view-meta">
+												<a href="../12432/setting-up-variational-formulation-for-dg-1-in-time" class="qa-q-view-what">asked</a>
+												<span class="qa-q-view-when">
+													<span class="qa-q-view-when-data"><span class="published"><span class="value-title" title="2017-02-15T13:53:25+0000"></span>Feb 15, 2017</span></span>
+												</span>
+												<span class="qa-q-view-who">
+													<span class="qa-q-view-who-pad">by </span>
+													<span class="qa-q-view-who-data"><span class="vcard author"><a href="../../user/Peter+Meisrimel" class="qa-user-link url nickname">Peter Meisrimel</a></span></span>
+													<span class="qa-q-view-who-title">FEniCS Novice</span>
+													<span class="qa-q-view-who-points">
+														<span class="qa-q-view-who-points-pad">(</span><span class="qa-q-view-who-points-data">250</span><span class="qa-q-view-who-points-pad"> points)</span>
+													</span>
+												</span>
+												<br>
+												<span class="qa-q-view-what">closed</span>
+												<span class="qa-q-view-when">
+													<span class="qa-q-view-when-data"><span class="updated"><span class="value-title" title="2017-02-21T10:16:47+0000"></span>Feb 21, 2017</span></span>
+												</span>
+												<span class="qa-q-view-who">
+													<span class="qa-q-view-who-pad">by </span><span class="qa-q-view-who-data"><a href="../../user/Peter+Meisrimel" class="qa-user-link url nickname">Peter Meisrimel</a></span>
+												</span>
+											</span>
+										</span>
+										<div class="qa-q-view-buttons">
+										</div>
+										
+										<div class="qa-q-view-c-list" id="c12432_list">
+											<div class="qa-c-list-item  hentry comment" id="c12445">
+												<div class="qa-c-item-content">
+													<a name="12445"></a><div class="entry-content"><p>Could solve the problem by using Subdomains to integrate over the specific facets.</p>
+</div>
+												</div>
+												<div class="qa-c-item-footer">
+													<span class="qa-c-item-avatar-meta">
+														<span class="qa-c-item-meta">
+															<a href="../12432/setting-up-variational-formulation-for-dg-1-in-time?show=12445#c12445" class="qa-c-item-what">commented</a>
+															<span class="qa-c-item-when">
+																<span class="qa-c-item-when-data"><span class="published"><span class="value-title" title="2017-02-17T12:46:07+0000"></span>Feb 17, 2017</span></span>
+															</span>
+															<span class="qa-c-item-who">
+																<span class="qa-c-item-who-pad">by </span>
+																<span class="qa-c-item-who-data"><span class="vcard author"><a href="../../user/Peter+Meisrimel" class="qa-user-link url nickname">Peter Meisrimel</a></span></span>
+																<span class="qa-c-item-who-title">FEniCS Novice</span>
+																<span class="qa-c-item-who-points">
+																	<span class="qa-c-item-who-points-pad">(</span><span class="qa-c-item-who-points-data">250</span><span class="qa-c-item-who-points-pad"> points)</span>
+																</span>
+															</span>
+														</span>
+													</span>
+													<div class="qa-c-item-buttons">
+													</div>
+												</div>
+												<div class="qa-c-item-clear">
+												</div>
+											</div> <!-- END qa-c-item -->
+											<div class="qa-c-list-item  hentry comment" id="c12465">
+												<div class="qa-c-item-content">
+													<a name="12465"></a><div class="entry-content"><p>Hello Peter, would you mind posting your solution? I'm intested in a similar case... thanks!</p>
+</div>
+												</div>
+												<div class="qa-c-item-footer">
+													<span class="qa-c-item-avatar-meta">
+														<span class="qa-c-item-meta">
+															<a href="../12432/setting-up-variational-formulation-for-dg-1-in-time?show=12465#c12465" class="qa-c-item-what">commented</a>
+															<span class="qa-c-item-when">
+																<span class="qa-c-item-when-data"><span class="published"><span class="value-title" title="2017-02-21T07:37:25+0000"></span>Feb 21, 2017</span></span>
+															</span>
+															<span class="qa-c-item-who">
+																<span class="qa-c-item-who-pad">by </span>
+																<span class="qa-c-item-who-data"><span class="vcard author"><a href="../../user/lhdamiani" class="qa-user-link url nickname">lhdamiani</a></span></span>
+																<span class="qa-c-item-who-title">FEniCS User</span>
+																<span class="qa-c-item-who-points">
+																	<span class="qa-c-item-who-points-pad">(</span><span class="qa-c-item-who-points-data">2,580</span><span class="qa-c-item-who-points-pad"> points)</span>
+																</span>
+															</span>
+														</span>
+													</span>
+													<div class="qa-c-item-buttons">
+													</div>
+												</div>
+												<div class="qa-c-item-clear">
+												</div>
+											</div> <!-- END qa-c-item -->
+										</div> <!-- END qa-c-list -->
+										
+										<input type="hidden" name="code" value="0-1516478272-83f4a5c68e4fe7ee61aa10713dedee2a4174c56e">
+										<input type="hidden" name="qa_click" value="">
+									</form>
+									<div class="qa-c-form">
+									</div> <!-- END qa-c-form -->
+									
+								</div> <!-- END qa-q-view-main -->
+								<div class="qa-q-view-clear">
+								</div>
+							</div> <!-- END qa-q-view -->
+							
+						</div>
+						<div class="qa-part-a-list">
+							<h2 id="a_list_title">1 Answer</h2>
+							<div class="qa-a-list" id="a_list">
+								
+								<div class="qa-a-list-item  hentry answer answer-selected qa-a-list-item-selected" id="a12466">
+									<form method="post" action="../12432">
+										<div class="qa-voting qa-voting-net" id="voting_12466">
+											<div class="qa-vote-count qa-vote-count-net">
+												<span class="qa-netvote-count">
+													<span class="qa-netvote-count-data">0<span class="votes-up"><span class="value-title" title="0"></span></span><span class="votes-down"><span class="value-title" title="0"></span></span></span><span class="qa-netvote-count-pad"> votes</span>
+												</span>
+											</div>
+											<div class="qa-vote-clear">
+											</div>
+										</div>
+										<input type="hidden" name="code" value="0-1516478272-b3604b5830374bbd13fff96151a03ed0c5216e43">
+									</form>
+									<div class="qa-a-item-main">
+										<form method="post" action="../12432">
+											<div class="qa-a-item-selected">
+												<div class="qa-a-selection">
+													<div class="qa-a-selected">&#160;</div>
+													<div class="qa-a-selected-text">Best answer</div>
+												</div>
+												<div class="qa-a-item-content">
+													<a name="12466"></a><div class="entry-content"><p>Solution I found:</p>
+
+<pre><code>T = 1
+n = 100
+timestep = Constant(T/n)
+
+mesh = UnitIntervalMesh(1)
+V = FunctionSpace(mesh, 'DG', 1)
+class bound_left(SubDomain):
+    def inside(self, x, on_boundary):
+        return near(x[0], 0.0)
+class bound_right(SubDomain):
+    def inside(self, x, on_boundary):
+        return near(x[0], 1.0)
+
+leftboundary = bound_left()
+rightboundary = bound_right()
+
+boundaries = FacetFunction('size_t', mesh)
+leftboundary.mark(boundaries, 1)
+rightboundary.mark(boundaries, 2)
+ds = Measure('ds')[boundaries]
+
+u_new, u_old = Function(V), Function(V)
+u_old.interpolate(Expression('1'))
+v = TestFunction(V)
+F = (inner(u_new.dx(0), v)*dx + 0.5*timestep*inner(u_new, v)*ds + (u_new - u_old)*v*ds(1))
+for i in range(n):
+    solve(F == 0, u_new)
+    u_old.interpolate(Constant(assemble(u_new*ds(2))))
+</code></pre>
+
+<p>I use subdomains to be able to evaluate a given Function at a specific side of my intervals via ds(1), ds(2). I resolved the problem of evaluating $$ u^{n-1}(t_n)v(t_n)$$, which needs right side for u and left side for v, by interpolating u_old to a constant function with the right value after every step.</p>
+</div>
+												</div>
+												<span class="qa-a-item-avatar-meta">
+													<span class="qa-a-item-meta">
+														<a href="../12432/setting-up-variational-formulation-for-dg-1-in-time?show=12466#a12466" class="qa-a-item-what">answered</a>
+														<span class="qa-a-item-when">
+															<span class="qa-a-item-when-data"><span class="published"><span class="value-title" title="2017-02-21T10:16:29+0000"></span>Feb 21, 2017</span></span>
+														</span>
+														<span class="qa-a-item-who">
+															<span class="qa-a-item-who-pad">by </span>
+															<span class="qa-a-item-who-data"><span class="vcard author"><a href="../../user/Peter+Meisrimel" class="qa-user-link url nickname">Peter Meisrimel</a></span></span>
+															<span class="qa-a-item-who-title">FEniCS Novice</span>
+															<span class="qa-a-item-who-points">
+																<span class="qa-a-item-who-points-pad">(</span><span class="qa-a-item-who-points-data">250</span><span class="qa-a-item-who-points-pad"> points)</span>
+															</span>
+														</span>
+													</span>
+												</span>
+											</div>
+											<div class="qa-a-item-buttons">
+												</div>
+											
+											<div class="qa-a-item-c-list" style="display:none;" id="c12466_list">
+											</div> <!-- END qa-c-list -->
+											
+											<input type="hidden" name="code" value="0-1516478272-0a360a7391cc3d862f4b3858f15b4a7f56d88eb5">
+											<input type="hidden" name="qa_click" value="">
+										</form>
+										<div class="qa-c-form">
+										</div> <!-- END qa-c-form -->
+										
+									</div> <!-- END qa-a-item-main -->
+									<div class="qa-a-item-clear">
+									</div>
+								</div> <!-- END qa-a-list-item -->
+								
+							</div> <!-- END qa-a-list -->
+							
+						</div>
+					</div> <!-- END qa-main -->
+					
+				</div> <!-- END main-wrapper -->
+			</div> <!-- END main-shadow -->
+		</div> <!-- END body-wrapper -->
+		<!-- END footer-bottom-group -->
+		
+		<div style="position:absolute; left:-9999px; top:-9999px;">
+			<span id="qa-waiting-template" class="qa-waiting">...</span>
+		</div>
+	
+	
+
+</body><!-- Powered by Question2Answer - http://www.question2answer.org/ --></html>

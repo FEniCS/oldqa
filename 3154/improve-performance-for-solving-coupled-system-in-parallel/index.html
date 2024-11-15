@@ -1,0 +1,409 @@
+<html><!-- Powered by Question2Answer - http://www.question2answer.org/ --><head>
+		<meta http-equiv="content-type" content="text/html; charset=utf-8">
+		<title>Improve performance for solving a coupled system in parallel - FEniCS Q&amp;A</title>
+		<meta name="description" content="Hey, this is a follow up question to [this question][1]. I want solve a coupled system (3 equations) of ( ... (3) # ---------- time steps while t">
+		<meta name="keywords" content="time-dependent,parallel,sparse,imex,performance">
+		<link rel="stylesheet" type="text/css" href="../../qa-theme/Snow/qa-styles.css">
+		<link rel="canonical" href="http://fenicsproject.org/qa/3154/improve-performance-for-solving-coupled-system-in-parallel">
+		<script type="text/x-mathjax-config">
+  MathJax.Hub.Config({
+    extensions: ["tex2jax.js"],
+    jax: ["input/TeX","output/HTML-CSS"],
+    tex2jax: {inlineMath: [["$","$"],["\\(","\\)"]]},
+    TeX: { extensions: ["AMSmath.js","AMSsymbols.js"]}
+  });
+</script>
+<script type="text/javascript" src="../../mathjax/MathJax.js"></script>
+		<script src="../../jquery-1.7.2.min.js" type="text/javascript"></script>
+		<script src="../../highlight.min.js"></script>
+<script type="text/javascript">
+$(function(){
+	$('.wmd-input').keypress(function(){
+		window.clearTimeout(hljs.Timeout);
+		hljs.Timeout = window.setTimeout(function() {
+			hljs.initHighlighting.called = false;
+			hljs.initHighlighting();
+		}, 500);
+	});
+	window.setTimeout(function() {
+		hljs.initHighlighting.called = false;
+		hljs.initHighlighting();
+	}, 500);
+});
+</script>
+
+
+	</head>
+	<body class="qa-template-question qa-body-js-off">
+		<div class="qa-body-wrapper">
+			
+			<div class="qa-header">
+				<div class="qa-logo">
+					<a href="../../" class="qa-logo-link" title="FEniCS Q&amp;A"><img src="../../qa-theme/fenics_qa.png" border="0" alt="FEniCS Q&amp;A"></a>
+				</div>
+				<div class="qa-header-clear">
+				</div>
+			</div> <!-- END qa-header -->
+			
+			<div class="qa-main-shadow">
+				
+				<div class="qa-main-wrapper">
+					
+					<div class="qa-sidepanel">
+						<div class="qa-sidebar">
+							This is a read only copy of the old FEniCS QA forum. Please visit the <a href="https://www.allanswered.com/community/s/fenics-project/">new QA forum</a> to ask questions
+						</div>
+						
+					</div>
+					
+					<div class="qa-main">
+						<h1>
+							<span class="entry-title">Improve performance for solving a coupled system in parallel</span>
+						</h1>
+						<div class="qa-part-q-view">
+							<div class="qa-q-view  hentry question" id="q3154">
+								<form method="post" action="../../3154/improve-performance-for-solving-coupled-system-in-parallel">
+									<div class="qa-q-view-stats">
+										<div class="qa-voting qa-voting-net" id="voting_3154">
+											<div class="qa-vote-count qa-vote-count-net">
+												<span class="qa-netvote-count">
+													<span class="qa-netvote-count-data">+1<span class="votes-up"><span class="value-title" title="1"></span></span><span class="votes-down"><span class="value-title" title="0"></span></span></span><span class="qa-netvote-count-pad"> vote</span>
+												</span>
+											</div>
+											<div class="qa-vote-clear">
+											</div>
+										</div>
+									</div>
+									<input type="hidden" name="code" value="0-1516467959-4aa9b32e45bac046f225f546dbeafd3db79388ab">
+								</form>
+								<div class="qa-q-view-main">
+									<form method="post" action="../../3154/improve-performance-for-solving-coupled-system-in-parallel">
+										<div class="qa-q-view-content">
+											<a name="3154"></a><div class="entry-content"><p>Hey,</p>
+
+<p>this is a follow up question to <a rel="nofollow" href="http://fenicsproject.org/qa/2682/solve-independent-equations-on-different-cores">this question</a>. I want solve a coupled system (3 equations) of (nonlinear) parabolic PDEs using an IMEX method <strong>in parallel</strong>. As written in my last comment, I'm able to solve them in parallel with <code>multiprocessing</code> and sparse matrices from <code>scipy.sparse</code>, but I'm not getting a notable performance boost as expected in comparison to solving the equations one after another in serial, solving it in parallel takes around 80% the time solving the equations in serial.</p>
+
+<p>Is there any possibility to improve the performance any further? I'm assembling the matrices before the time loops and, as written, use sparse matrices and the sparse solver. </p>
+
+<p>Following is the important part of my program, most of the code only listed for the first equation. I'm very grateful for any suggestion.</p>
+
+<pre><code>from __future__ import division
+
+from dolfin import *
+import numpy as np
+import scipy.sparse.linalg as spla
+import scipy.sparse as sparse
+import multiprocessing as mp
+
+import time
+
+# to shut off the output
+set_log_level(WARNING)
+
+# ------------------- settings, definitions
+nx = 320
+T = 1.0
+dt = T / nx
+
+mesh = IntervalMesh(nx, 0, 1.0)
+
+# definition of solving method
+V = FunctionSpace(mesh, 'CG', 1)
+
+# ------------------- boundary conditions
+# defining subdomains and boundary conditions bcs1, bcs2 and bcs3
+...
+# ------------------- RHS, exact solution
+# defining the right hand sides and the exact solution
+...
+
+# ------------------- IMEX
+# ---------- Euler, defining the method, 
+# listed only for m1_E, for m2_E and m3_E analogously
+m1_E = TrialFunction(V)
+m1_old_E = interpolate(u1_start, V)
+n1_E = TestFunction(V)
+
+G1_E = (m1_E - m1_old_E)*n1_E*dx + dt*inner(nabla_grad(m1_E), nabla_grad(n1_E))*dx - dt*rhs1_old(m1_old_E, m2_old_E, m3_old_E)*n1_E*dx
+B1_E = lhs(G1_E)
+
+A1_E = assemble(B1_E)
+for bc in bcs1:
+  bc.apply(A1_E)
+
+A1_E_mat = A1_E.array()
+sparse_A1_E_mat = sparse.csr_matrix(A1_E_mat)
+
+M1_E = rhs(G1_E)
+m1_E = Function(V)
+m1_E = interpolate(u1_start, V)
+# ---------- Euler
+# ------------------- IMEX
+
+t = dt
+
+b1_E_vec = np.zeros(len(A1_E_mat))
+
+# start 3 worker processes
+pool = mp.Pool(3)
+
+# ---------- time steps
+while t &lt;= T+1/2*dt:
+
+    #---------- IMEX parallel
+    # analogously for m2_E and m3_E 
+    start_time1 = time.time()
+
+    # assemble vector b and apply bdcs
+    b1_E = assemble(M1_E)
+    for bc in bcs1:
+      bc.apply(b1_E)
+    b1_E_vec[:] = b1_E.array()
+    res1 = pool.apply_async(spla.spsolve, [sparse_A1_E_mat, b1_E_vec])
+
+    b2_E = ...        
+    b3_E = ...        
+
+    m1_E.vector()[:] = res1.get()
+    m2_E.vector()[:] = res2.get()
+    m3_E.vector()[:] = res3.get()
+    stop_time_parallel = time.time() - start_time1
+    totaltime_parallel_IMEX += stop_time_parallel
+
+    #---------- IMEX serial
+    # analogously for m2_E and m3_E 
+    start_time1 = time.time()
+
+    # assemble vector b and apply bdcs
+    b1_E = assemble(M1_E)
+    for bc in bcs1:
+      bc.apply(b1_E)
+
+    m1_E = solve(A1_E, m1_E.vector(), b1_E)
+
+    stop_time1 = time.time() - start_time1
+    totaltime1_IMEX += stop_time1
+
+    b2_E = ...        
+    b3_E = ...    
+
+    m1_old_E.assign(m1_E)
+    m2_old_E.assign(m2_E)
+    m3_old_E.assign(m3_E)
+
+    # ---------- computation of error with exact solution
+
+    t += dt
+
+pool.close()
+</code></pre>
+</div>
+										</div>
+										<div class="qa-q-view-tags">
+											<ul class="qa-q-view-tag-list">
+												<li class="qa-q-view-tag-item"><a href="../../tag/time-dependent" rel="tag" class="qa-tag-link">time-dependent</a></li>
+												<li class="qa-q-view-tag-item"><a href="../../tag/parallel" rel="tag" class="qa-tag-link">parallel</a></li>
+												<li class="qa-q-view-tag-item"><a href="../../tag/sparse" rel="tag" class="qa-tag-link">sparse</a></li>
+												<li class="qa-q-view-tag-item"><a href="../../tag/imex" rel="tag" class="qa-tag-link">imex</a></li>
+												<li class="qa-q-view-tag-item"><a href="../../tag/performance" rel="tag" class="qa-tag-link">performance</a></li>
+											</ul>
+										</div>
+										<span class="qa-q-view-avatar-meta">
+											<span class="qa-q-view-meta">
+												<a href="../../3154/improve-performance-for-solving-coupled-system-in-parallel" class="qa-q-view-what">asked</a>
+												<span class="qa-q-view-when">
+													<span class="qa-q-view-when-data"><span class="published"><span class="value-title" title="2014-04-01T12:30:05+0000"></span>Apr 1, 2014</span></span>
+												</span>
+												<span class="qa-q-view-who">
+													<span class="qa-q-view-who-pad">by </span>
+													<span class="qa-q-view-who-data"><span class="vcard author"><a href="../../user/bobby53" class="qa-user-link url nickname">bobby53</a></span></span>
+													<span class="qa-q-view-who-title">FEniCS User</span>
+													<span class="qa-q-view-who-points">
+														<span class="qa-q-view-who-points-pad">(</span><span class="qa-q-view-who-points-data">1,260</span><span class="qa-q-view-who-points-pad"> points)</span>
+													</span>
+												</span>
+											</span>
+										</span>
+										<div class="qa-q-view-buttons">
+										</div>
+										
+										<div class="qa-q-view-c-list" style="display:none;" id="c3154_list">
+										</div> <!-- END qa-c-list -->
+										
+										<input type="hidden" name="code" value="0-1516467959-3461e335fc85557adcd2ddb4fa954ab8b2835c18">
+										<input type="hidden" name="qa_click" value="">
+									</form>
+									<div class="qa-c-form">
+									</div> <!-- END qa-c-form -->
+									
+								</div> <!-- END qa-q-view-main -->
+								<div class="qa-q-view-clear">
+								</div>
+							</div> <!-- END qa-q-view -->
+							
+						</div>
+						<div class="qa-part-a-list">
+							<h2 id="a_list_title">1 Answer</h2>
+							<div class="qa-a-list" id="a_list">
+								
+								<div class="qa-a-list-item  hentry answer" id="a3155">
+									<form method="post" action="../../3154/improve-performance-for-solving-coupled-system-in-parallel">
+										<div class="qa-voting qa-voting-net" id="voting_3155">
+											<div class="qa-vote-count qa-vote-count-net">
+												<span class="qa-netvote-count">
+													<span class="qa-netvote-count-data">+2<span class="votes-up"><span class="value-title" title="2"></span></span><span class="votes-down"><span class="value-title" title="0"></span></span></span><span class="qa-netvote-count-pad"> votes</span>
+												</span>
+											</div>
+											<div class="qa-vote-clear">
+											</div>
+										</div>
+										<input type="hidden" name="code" value="0-1516467959-4aa9b32e45bac046f225f546dbeafd3db79388ab">
+									</form>
+									<div class="qa-a-item-main">
+										<form method="post" action="../../3154/improve-performance-for-solving-coupled-system-in-parallel">
+											<div class="qa-a-selection">
+											</div>
+											<div class="qa-a-item-content">
+												<a name="3155"></a><div class="entry-content"><p>The PETSc and Epetra backends are optimized for parallel performance. <br>
+You could consider these backends. They also <br>
+have a variety of Krylov solvers and preconditioners that<br>
+you can test. </p>
+</div>
+											</div>
+											<span class="qa-a-item-avatar-meta">
+												<span class="qa-a-item-meta">
+													<a href="../../3154/improve-performance-for-solving-coupled-system-in-parallel?show=3155#a3155" class="qa-a-item-what">answered</a>
+													<span class="qa-a-item-when">
+														<span class="qa-a-item-when-data"><span class="published"><span class="value-title" title="2014-04-01T13:00:25+0000"></span>Apr 1, 2014</span></span>
+													</span>
+													<span class="qa-a-item-who">
+														<span class="qa-a-item-who-pad">by </span>
+														<span class="qa-a-item-who-data"><span class="vcard author"><a href="../../user/Kent-Andre+Mardal" class="qa-user-link url nickname">Kent-Andre Mardal</a></span></span>
+														<span class="qa-a-item-who-title">FEniCS Expert</span>
+														<span class="qa-a-item-who-points">
+															<span class="qa-a-item-who-points-pad">(</span><span class="qa-a-item-who-points-data">14,380</span><span class="qa-a-item-who-points-pad"> points)</span>
+														</span>
+													</span>
+												</span>
+											</span>
+											<div class="qa-a-item-buttons">
+												</div>
+											
+											<div class="qa-a-item-c-list" id="c3155_list">
+												<div class="qa-c-list-item  hentry comment" id="c3175">
+													<div class="qa-c-item-content">
+														<a name="3175"></a><div class="entry-content"><p>What I want to do is to call the solvers on different cores in a fast way, rather than call the solvers after each other, even if the solvers work in parallel.</p>
+</div>
+													</div>
+													<div class="qa-c-item-footer">
+														<span class="qa-c-item-avatar-meta">
+															<span class="qa-c-item-meta">
+																<a href="../../3154/improve-performance-for-solving-coupled-system-in-parallel?show=3175#c3175" class="qa-c-item-what">commented</a>
+																<span class="qa-c-item-when">
+																	<span class="qa-c-item-when-data"><span class="published"><span class="value-title" title="2014-04-02T20:11:52+0000"></span>Apr 2, 2014</span></span>
+																</span>
+																<span class="qa-c-item-who">
+																	<span class="qa-c-item-who-pad">by </span>
+																	<span class="qa-c-item-who-data"><span class="vcard author"><a href="../../user/bobby53" class="qa-user-link url nickname">bobby53</a></span></span>
+																	<span class="qa-c-item-who-title">FEniCS User</span>
+																	<span class="qa-c-item-who-points">
+																		<span class="qa-c-item-who-points-pad">(</span><span class="qa-c-item-who-points-data">1,260</span><span class="qa-c-item-who-points-pad"> points)</span>
+																	</span>
+																</span>
+															</span>
+														</span>
+														<div class="qa-c-item-buttons">
+														</div>
+													</div>
+													<div class="qa-c-item-clear">
+													</div>
+												</div> <!-- END qa-c-item -->
+												<div class="qa-c-list-item  hentry comment" id="c3180">
+													<div class="qa-c-item-content">
+														<a name="3180"></a><div class="entry-content"><p>OK, I see. Then it might depend on the machine you are using. <br>
+The application will need quite a bit of memory and the performance<br>
+might be dominated by memory transfers rather than computations. <br>
+This is often the case for FEM codes using on unstructured meshes. </p>
+</div>
+													</div>
+													<div class="qa-c-item-footer">
+														<span class="qa-c-item-avatar-meta">
+															<span class="qa-c-item-meta">
+																<a href="../../3154/improve-performance-for-solving-coupled-system-in-parallel?show=3180#c3180" class="qa-c-item-what">commented</a>
+																<span class="qa-c-item-when">
+																	<span class="qa-c-item-when-data"><span class="published"><span class="value-title" title="2014-04-03T08:37:02+0000"></span>Apr 3, 2014</span></span>
+																</span>
+																<span class="qa-c-item-who">
+																	<span class="qa-c-item-who-pad">by </span>
+																	<span class="qa-c-item-who-data"><span class="vcard author"><a href="../../user/Kent-Andre+Mardal" class="qa-user-link url nickname">Kent-Andre Mardal</a></span></span>
+																	<span class="qa-c-item-who-title">FEniCS Expert</span>
+																	<span class="qa-c-item-who-points">
+																		<span class="qa-c-item-who-points-pad">(</span><span class="qa-c-item-who-points-data">14,380</span><span class="qa-c-item-who-points-pad"> points)</span>
+																	</span>
+																</span>
+															</span>
+														</span>
+														<div class="qa-c-item-buttons">
+														</div>
+													</div>
+													<div class="qa-c-item-clear">
+													</div>
+												</div> <!-- END qa-c-item -->
+												<div class="qa-c-list-item  hentry comment" id="c3181">
+													<div class="qa-c-item-content">
+														<a name="3181"></a><div class="entry-content"><p>Yes, I thought so. What I wanted to know is whether there are possibilities to speed up the memory transfer and or other ways to reduce the overhead created by the parallelization.</p>
+</div>
+													</div>
+													<div class="qa-c-item-footer">
+														<span class="qa-c-item-avatar-meta">
+															<span class="qa-c-item-meta">
+																<a href="../../3154/improve-performance-for-solving-coupled-system-in-parallel?show=3181#c3181" class="qa-c-item-what">commented</a>
+																<span class="qa-c-item-when">
+																	<span class="qa-c-item-when-data"><span class="published"><span class="value-title" title="2014-04-03T16:11:33+0000"></span>Apr 3, 2014</span></span>
+																</span>
+																<span class="qa-c-item-who">
+																	<span class="qa-c-item-who-pad">by </span>
+																	<span class="qa-c-item-who-data"><span class="vcard author"><a href="../../user/bobby53" class="qa-user-link url nickname">bobby53</a></span></span>
+																	<span class="qa-c-item-who-title">FEniCS User</span>
+																	<span class="qa-c-item-who-points">
+																		<span class="qa-c-item-who-points-pad">(</span><span class="qa-c-item-who-points-data">1,260</span><span class="qa-c-item-who-points-pad"> points)</span>
+																	</span>
+																</span>
+															</span>
+														</span>
+														<div class="qa-c-item-buttons">
+														</div>
+													</div>
+													<div class="qa-c-item-clear">
+													</div>
+												</div> <!-- END qa-c-item -->
+											</div> <!-- END qa-c-list -->
+											
+											<input type="hidden" name="code" value="0-1516467959-6e70f9159aac0b264939ae846acc07b138ff57a7">
+											<input type="hidden" name="qa_click" value="">
+										</form>
+										<div class="qa-c-form">
+										</div> <!-- END qa-c-form -->
+										
+									</div> <!-- END qa-a-item-main -->
+									<div class="qa-a-item-clear">
+									</div>
+								</div> <!-- END qa-a-list-item -->
+								
+							</div> <!-- END qa-a-list -->
+							
+						</div>
+					</div> <!-- END qa-main -->
+					
+				</div> <!-- END main-wrapper -->
+			</div> <!-- END main-shadow -->
+		</div> <!-- END body-wrapper -->
+		<!-- END footer-bottom-group -->
+		
+		<div style="position:absolute; left:-9999px; top:-9999px;">
+			<span id="qa-waiting-template" class="qa-waiting">...</span>
+		</div>
+	
+	
+
+</body><!-- Powered by Question2Answer - http://www.question2answer.org/ --></html>

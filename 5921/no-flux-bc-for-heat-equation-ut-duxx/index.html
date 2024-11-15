@@ -1,0 +1,301 @@
+<html><!-- Powered by Question2Answer - http://www.question2answer.org/ --><head>
+		<meta http-equiv="content-type" content="text/html; charset=utf-8">
+		<title>No flux BC for heat equation ut=Duxx - FEniCS Q&amp;A</title>
+		<meta name="description" content="Hi, I was solving a simple parabolic heat equation with step initial condition in the middle of the domain and  ... 0. T = 1 u_ic = Expression('(x[0]">
+		<link rel="stylesheet" type="text/css" href="../../qa-theme/Snow/qa-styles.css">
+		<link rel="canonical" href="http://fenicsproject.org/qa/5921/no-flux-bc-for-heat-equation-ut-duxx">
+		<script type="text/x-mathjax-config">
+  MathJax.Hub.Config({
+    extensions: ["tex2jax.js"],
+    jax: ["input/TeX","output/HTML-CSS"],
+    tex2jax: {inlineMath: [["$","$"],["\\(","\\)"]]},
+    TeX: { extensions: ["AMSmath.js","AMSsymbols.js"]}
+  });
+</script>
+<script type="text/javascript" src="../../mathjax/MathJax.js"></script>
+		<script src="../../jquery-1.7.2.min.js" type="text/javascript"></script>
+		<script src="../../highlight.min.js"></script>
+<script type="text/javascript">
+$(function(){
+	$('.wmd-input').keypress(function(){
+		window.clearTimeout(hljs.Timeout);
+		hljs.Timeout = window.setTimeout(function() {
+			hljs.initHighlighting.called = false;
+			hljs.initHighlighting();
+		}, 500);
+	});
+	window.setTimeout(function() {
+		hljs.initHighlighting.called = false;
+		hljs.initHighlighting();
+	}, 500);
+});
+</script>
+
+
+	</head>
+	<body class="qa-template-question qa-body-js-off">
+		<div class="qa-body-wrapper">
+			
+			<div class="qa-header">
+				<div class="qa-logo">
+					<a href="../../" class="qa-logo-link" title="FEniCS Q&amp;A"><img src="../../qa-theme/fenics_qa.png" border="0" alt="FEniCS Q&amp;A"></a>
+				</div>
+				<div class="qa-header-clear">
+				</div>
+			</div> <!-- END qa-header -->
+			
+			<div class="qa-main-shadow">
+				
+				<div class="qa-main-wrapper">
+					
+					<div class="qa-sidepanel">
+						<div class="qa-sidebar">
+							This is a read only copy of the old FEniCS QA forum. Please visit the <a href="https://www.allanswered.com/community/s/fenics-project/">new QA forum</a> to ask questions
+						</div>
+						
+					</div>
+					
+					<div class="qa-main">
+						<h1>
+							<span class="entry-title">No flux BC for heat equation ut=Duxx</span>
+						</h1>
+						<div class="qa-part-q-view">
+							<div class="qa-q-view  hentry question" id="q5921">
+								<form method="post" action="../../5921/no-flux-bc-for-heat-equation-ut-duxx">
+									<div class="qa-q-view-stats">
+										<div class="qa-voting qa-voting-net" id="voting_5921">
+											<div class="qa-vote-count qa-vote-count-net">
+												<span class="qa-netvote-count">
+													<span class="qa-netvote-count-data">&#8211;1<span class="votes-up"><span class="value-title" title="0"></span></span><span class="votes-down"><span class="value-title" title="1"></span></span></span><span class="qa-netvote-count-pad"> vote</span>
+												</span>
+											</div>
+											<div class="qa-vote-clear">
+											</div>
+										</div>
+									</div>
+									<input type="hidden" name="code" value="0-1516468049-83203ef50217c898bee4b450a899136392877f1b">
+								</form>
+								<div class="qa-q-view-main">
+									<form method="post" action="../../5921/no-flux-bc-for-heat-equation-ut-duxx">
+										<div class="qa-q-view-content">
+											<a name="5921"></a><div class="entry-content"><p>Hi,</p>
+
+<p>I was solving a simple parabolic heat equation with step initial condition in the middle of the domain and no flux BC at the boundaries. For simplicity, take 1D interval as the domain. When I solve it, for smaller number of elements, say 5, no flux BC does not hold and also I get overshoot at the nodes next to discontinuous edge (at least at early time steps). I also did manual FE discretization and I saw the same behavior. However, when I increase the number of the elements (like &gt; 11), all of the mentioned issues are resolved. I was wondering why is it like that? Also, is there any workaround for it? I appreciate if anyone can help me.</p>
+
+<p>Here is my code:</p>
+
+<h2>Governing equation: time-dependent heat equation</h2>
+
+<h2>ut = D grad.grad(u) + f</h2>
+
+<h2>grad_n(u).n = 0 at x = 0,1</h2>
+
+<h2>u(x,0) = step at x=0.5</h2>
+
+<p>from dolfin import *<br>
+from numpy import *<br>
+import matplotlib.pyplot as plt</p>
+
+<p>set_log_active(False)</p>
+
+<p>mesh = UnitIntervalMesh(5)<br>
+x_mesh = mesh.coordinates()[:,0]</p>
+
+<p>V = FunctionSpace(mesh,"CG",1)<br>
+u = TrialFunction(V)<br>
+v = TestFunction(V)<br>
+f = Constant(0.0)<br>
+g = Constant(0.0)<br>
+D = Constant(0.01)<br>
+dt = 0.1<br>
+t = 0.<br>
+T = 1</p>
+
+<p>u_ic = Expression('(x[0]&lt;0.5)')<br>
+u_1 = interpolate(u_ic,V)</p>
+
+<p>theta = 1.0  # theta in [0.5,1]<br>
+a = v<em>u</em>dx + theta<em>dt</em>D<em>inner(nabla_grad(v), nabla_grad(u))</em>dx<br>
+L = v<em>u_1</em>dx - (1.-theta)<em>dt</em>D<em>inner(nabla_grad(v), nabla_grad(u_1))</em>dx + dt<em>D</em>v<em>g</em>ds + dt<em>v</em>f*dx</p>
+
+<p>A = assemble(a)<br>
+b = None</p>
+
+<p>solver = LUSolver(A)<br>
+solver.parameters["reuse_factorization"]=True</p>
+
+<p>w = Function(V)<br>
+count = 0<br>
+fn = 0</p>
+
+<p>while (t&lt;T):</p>
+
+<pre><code>if mod(count,1)==0:
+    fn += 1
+    plt.figure(fn)
+    plt.plot(x_mesh,u_1.vector().array(),'-o',markersize=8,lw=2)
+    plt.xlabel('Domain')
+    plt.ylabel('Solution')
+    plt.ylim(-0.1,1.1)
+    plt.grid()
+
+b = assemble(L, tensor=b)
+solver.solve(w.vector(),b)
+u_1.assign(w)
+t += dt
+count += 1
+</code></pre>
+
+<p>plt.show()</p>
+
+<h2>print A.array()</h2>
+</div>
+										</div>
+										<span class="qa-q-view-avatar-meta">
+											<span class="qa-q-view-meta">
+												<a href="../../5921/no-flux-bc-for-heat-equation-ut-duxx" class="qa-q-view-what">asked</a>
+												<span class="qa-q-view-when">
+													<span class="qa-q-view-when-data"><span class="published"><span class="value-title" title="2014-11-06T23:48:43+0000"></span>Nov 7, 2014</span></span>
+												</span>
+												<span class="qa-q-view-who">
+													<span class="qa-q-view-who-pad">by </span>
+													<span class="qa-q-view-who-data"><span class="vcard author"><a href="../../user/sysbio89" class="qa-user-link url nickname">sysbio89</a></span></span>
+													<span class="qa-q-view-who-title">FEniCS Novice</span>
+													<span class="qa-q-view-who-points">
+														<span class="qa-q-view-who-points-pad">(</span><span class="qa-q-view-who-points-data">110</span><span class="qa-q-view-who-points-pad"> points)</span>
+													</span>
+												</span>
+											</span>
+										</span>
+										<div class="qa-q-view-buttons">
+										</div>
+										
+										<div class="qa-q-view-c-list" id="c5921_list">
+											<div class="qa-c-list-item  hentry comment" id="c5966">
+												<div class="qa-c-item-content">
+													<a name="5966"></a><div class="entry-content"><p>Please fix the formatting of your question.</p>
+</div>
+												</div>
+												<div class="qa-c-item-footer">
+													<span class="qa-c-item-avatar-meta">
+														<span class="qa-c-item-meta">
+															<a href="../../5921/no-flux-bc-for-heat-equation-ut-duxx?show=5966#c5966" class="qa-c-item-what">commented</a>
+															<span class="qa-c-item-when">
+																<span class="qa-c-item-when-data"><span class="published"><span class="value-title" title="2014-11-11T10:13:15+0000"></span>Nov 11, 2014</span></span>
+															</span>
+															<span class="qa-c-item-who">
+																<span class="qa-c-item-who-pad">by </span>
+																<span class="qa-c-item-who-data"><span class="vcard author"><a href="../../user/Garth+N.+Wells" class="qa-user-link url nickname">Garth N. Wells</a></span></span>
+																<span class="qa-c-item-who-title">FEniCS Expert</span>
+																<span class="qa-c-item-who-points">
+																	<span class="qa-c-item-who-points-pad">(</span><span class="qa-c-item-who-points-data">35,930</span><span class="qa-c-item-who-points-pad"> points)</span>
+																</span>
+															</span>
+														</span>
+													</span>
+													<div class="qa-c-item-buttons">
+													</div>
+												</div>
+												<div class="qa-c-item-clear">
+												</div>
+											</div> <!-- END qa-c-item -->
+										</div> <!-- END qa-c-list -->
+										
+										<input type="hidden" name="code" value="0-1516468049-8691aca8eaec8a9a3bdf5cc0bd5fb8276a74f011">
+										<input type="hidden" name="qa_click" value="">
+									</form>
+									<div class="qa-c-form">
+									</div> <!-- END qa-c-form -->
+									
+								</div> <!-- END qa-q-view-main -->
+								<div class="qa-q-view-clear">
+								</div>
+							</div> <!-- END qa-q-view -->
+							
+						</div>
+						<div class="qa-part-a-list">
+							<h2 id="a_list_title">1 Answer</h2>
+							<div class="qa-a-list" id="a_list">
+								
+								<div class="qa-a-list-item  hentry answer" id="a6011">
+									<form method="post" action="../../5921/no-flux-bc-for-heat-equation-ut-duxx">
+										<div class="qa-voting qa-voting-net" id="voting_6011">
+											<div class="qa-vote-count qa-vote-count-net">
+												<span class="qa-netvote-count">
+													<span class="qa-netvote-count-data">0<span class="votes-up"><span class="value-title" title="0"></span></span><span class="votes-down"><span class="value-title" title="0"></span></span></span><span class="qa-netvote-count-pad"> votes</span>
+												</span>
+											</div>
+											<div class="qa-vote-clear">
+											</div>
+										</div>
+										<input type="hidden" name="code" value="0-1516468049-83203ef50217c898bee4b450a899136392877f1b">
+									</form>
+									<div class="qa-a-item-main">
+										<form method="post" action="../../5921/no-flux-bc-for-heat-equation-ut-duxx">
+											<div class="qa-a-selection">
+											</div>
+											<div class="qa-a-item-content">
+												<a name="6011"></a><div class="entry-content"><p>There is a specific Robin BC description in the manual.</p>
+</div>
+											</div>
+											<span class="qa-a-item-avatar-meta">
+												<span class="qa-a-item-avatar">
+													<a href="../../user/boutor" class="qa-avatar-link"><img src="https://www.gravatar.com/avatar/274806978e0410cf1c199453396e5550?s=40" width="40" height="40" class="qa-avatar-image" alt=""></a>
+												</span>
+												<span class="qa-a-item-meta">
+													<a href="../../5921/no-flux-bc-for-heat-equation-ut-duxx?show=6011#a6011" class="qa-a-item-what">answered</a>
+													<span class="qa-a-item-when">
+														<span class="qa-a-item-when-data"><span class="published"><span class="value-title" title="2014-11-15T13:13:05+0000"></span>Nov 15, 2014</span></span>
+													</span>
+													<span class="qa-a-item-who">
+														<span class="qa-a-item-who-pad">by </span>
+														<span class="qa-a-item-who-data"><span class="vcard author"><a href="../../user/boutor" class="qa-user-link url nickname">boutor</a></span></span>
+														<span class="qa-a-item-who-title">FEniCS Novice</span>
+														<span class="qa-a-item-who-points">
+															<span class="qa-a-item-who-points-pad">(</span><span class="qa-a-item-who-points-data">170</span><span class="qa-a-item-who-points-pad"> points)</span>
+														</span>
+													</span>
+													<br>
+													<span class="qa-a-item-what">reshown</span>
+													<span class="qa-a-item-when">
+														<span class="qa-a-item-when-data"><span class="updated"><span class="value-title" title="2014-11-15T18:35:11+0000"></span>Nov 15, 2014</span></span>
+													</span>
+													<span class="qa-a-item-who">
+														<span class="qa-a-item-who-pad">by </span><span class="qa-a-item-who-data"><a href="../../user/chris_richardson" class="qa-user-link url nickname">chris_richardson</a></span>
+													</span>
+												</span>
+											</span>
+											<div class="qa-a-item-buttons">
+												</div>
+											
+											<div class="qa-a-item-c-list" style="display:none;" id="c6011_list">
+											</div> <!-- END qa-c-list -->
+											
+											<input type="hidden" name="code" value="0-1516468049-97e17d6066a0a7420f726befc4cd33afc182192f">
+											<input type="hidden" name="qa_click" value="">
+										</form>
+										<div class="qa-c-form">
+										</div> <!-- END qa-c-form -->
+										
+									</div> <!-- END qa-a-item-main -->
+									<div class="qa-a-item-clear">
+									</div>
+								</div> <!-- END qa-a-list-item -->
+								
+							</div> <!-- END qa-a-list -->
+							
+						</div>
+					</div> <!-- END qa-main -->
+					
+				</div> <!-- END main-wrapper -->
+			</div> <!-- END main-shadow -->
+		</div> <!-- END body-wrapper -->
+		<!-- END footer-bottom-group -->
+		
+		<div style="position:absolute; left:-9999px; top:-9999px;">
+			<span id="qa-waiting-template" class="qa-waiting">...</span>
+		</div>
+	
+	
+
+</body><!-- Powered by Question2Answer - http://www.question2answer.org/ --></html>

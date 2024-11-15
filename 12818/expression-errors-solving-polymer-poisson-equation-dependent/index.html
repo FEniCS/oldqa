@@ -1,0 +1,368 @@
+<html><!-- Powered by Question2Answer - http://www.question2answer.org/ --><head>
+		<meta http-equiv="content-type" content="text/html; charset=utf-8">
+		<title>Expression errors when solving PDEs for 1D polymer curing (poisson equation with time dependent source term) - FEniCS Q&amp;A</title>
+		<meta name="description" content="I am trying to solve the 1D polymer curing problem as stated in the COMSOL blog: https://www. ... total simulation time: 8 minutes t = dt while t">
+		<meta name="keywords" content="time-dependent,boundary-conditions,heat-equation,boundary-markers,expression">
+		<link rel="stylesheet" type="text/css" href="../../qa-theme/Snow/qa-styles.css">
+		<link rel="canonical" href="http://fenicsproject.org/qa/12818/expression-errors-solving-polymer-poisson-equation-dependent">
+		<script type="text/x-mathjax-config">
+  MathJax.Hub.Config({
+    extensions: ["tex2jax.js"],
+    jax: ["input/TeX","output/HTML-CSS"],
+    tex2jax: {inlineMath: [["$","$"],["\\(","\\)"]]},
+    TeX: { extensions: ["AMSmath.js","AMSsymbols.js"]}
+  });
+</script>
+<script type="text/javascript" src="../../mathjax/MathJax.js"></script>
+		<script src="../../jquery-1.7.2.min.js" type="text/javascript"></script>
+		<script src="../../highlight.min.js"></script>
+<script type="text/javascript">
+$(function(){
+	$('.wmd-input').keypress(function(){
+		window.clearTimeout(hljs.Timeout);
+		hljs.Timeout = window.setTimeout(function() {
+			hljs.initHighlighting.called = false;
+			hljs.initHighlighting();
+		}, 500);
+	});
+	window.setTimeout(function() {
+		hljs.initHighlighting.called = false;
+		hljs.initHighlighting();
+	}, 500);
+});
+</script>
+
+
+	</head>
+	<body class="qa-template-question qa-body-js-off">
+		<div class="qa-body-wrapper">
+			
+			<div class="qa-header">
+				<div class="qa-logo">
+					<a href="../../" class="qa-logo-link" title="FEniCS Q&amp;A"><img src="../../qa-theme/fenics_qa.png" border="0" alt="FEniCS Q&amp;A"></a>
+				</div>
+				<div class="qa-header-clear">
+				</div>
+			</div> <!-- END qa-header -->
+			
+			<div class="qa-main-shadow">
+				
+				<div class="qa-main-wrapper">
+					
+					<div class="qa-sidepanel">
+						<div class="qa-sidebar">
+							This is a read only copy of the old FEniCS QA forum. Please visit the <a href="https://www.allanswered.com/community/s/fenics-project/">new QA forum</a> to ask questions
+						</div>
+						
+					</div>
+					
+					<div class="qa-main">
+						<h1>
+							<span class="entry-title">Expression errors when solving PDEs for 1D polymer curing (poisson equation with time dependent source term)</span>
+						</h1>
+						<div class="qa-part-q-view">
+							<div class="qa-q-view  hentry question" id="q12818">
+								<form method="post" action="../../12818/expression-errors-solving-polymer-poisson-equation-dependent">
+									<div class="qa-q-view-stats">
+										<div class="qa-voting qa-voting-net" id="voting_12818">
+											<div class="qa-vote-count qa-vote-count-net">
+												<span class="qa-netvote-count">
+													<span class="qa-netvote-count-data">0<span class="votes-up"><span class="value-title" title="0"></span></span><span class="votes-down"><span class="value-title" title="0"></span></span></span><span class="qa-netvote-count-pad"> votes</span>
+												</span>
+											</div>
+											<div class="qa-vote-clear">
+											</div>
+										</div>
+									</div>
+									<input type="hidden" name="code" value="0-1516467840-4991410b0f5fc4a7af4d2b315d7dbb80e7d885d8">
+								</form>
+								<div class="qa-q-view-main">
+									<form method="post" action="../../12818/expression-errors-solving-polymer-poisson-equation-dependent">
+										<div class="qa-q-view-content">
+											<a name="12818"></a><div class="entry-content"><p>I am trying to solve the 1D polymer curing problem as stated in the COMSOL blog:<br>
+<a rel="nofollow" href="https://www.comsol.com/blogs/modeling-the-thermal-curing-process/">https://www.comsol.com/blogs/modeling-the-thermal-curing-process/</a><br>
+It is a coupled heat equation with a cure equation to find two scalar fields: one is the temperature and the other the degree of cure alpha</p>
+
+<p>By modifying the Fenics poisson PDE example:<br>
+<a rel="nofollow" href="http://home.simula.no/~hpl/homepage/fenics-tutorial/release-1.0/webm/timedep.html">http://home.simula.no/~hpl/homepage/fenics-tutorial/release-1.0/webm/timedep.html</a></p>
+
+<p>To do this I'm basically defining two scalar fields, alpha_1 and alpha (the degree of cure for two different time steps, and computing its derivative as a finite difference, which is then updated to the source term f. However when I evaluate this I get a long expression error. </p>
+
+<p>Does it have to do with the degree value in the Expression?</p>
+
+<p>The code is shown below:</p>
+
+<pre><code>"""
+Heat transfer problem based on: 
+FEniCS tutorial demo program: Diffusion equation with Dirichlet
+conditions and a solution that will be exact at all nodes.
+
+This is for 1D polymer thermal curing, using same setup as shown below  for COMSOL
+https://www.comsol.com/blogs/modeling-the-thermal-curing-process/ 
+"""
+
+from __future__ import print_function
+from dolfin import *
+import numpy as np
+
+#Constants (all in SI units)
+rho = 1200    #density
+C_p = 1000    #specific heat
+k   = 0.2     #thermal conductivity
+H_r = 5.0e5   #total heat of reaction
+
+A   = 2.0e4   #frequency factor
+E_a = 5.0e4   #activation energy
+R   = 8.314   #universal gas constant
+n   = 1.4     #order of reaction
+
+l   = 5.0e-3  #length of 1D interval
+
+numElems = 20 #number of finite elements
+
+Q_heat    = 10.0e3 #10 kW/m^2 for one m^2 which is 10 kW of heating power
+T_ambient = 20.0
+
+
+# Get mesh and define function spaces
+mesh = IntervalMesh(numElems, 0.0,l)
+
+V = FunctionSpace(mesh, 'Lagrange', 2)
+Q = FunctionSpace(mesh, 'Lagrange', 1)
+
+
+
+class HeatFlux(SubDomain):
+    def inside(self, x, on_boundary):
+        return on_boundary and (x[0] &gt; (l-DOLFIN_EPS))
+
+#Initialize sub-domain instances
+right = HeatFlux()
+
+# Initialize mesh function for boundary domains
+boundaries = FacetFunction("size_t", mesh)
+boundaries.set_all(0)
+right.mark(boundaries, 1)
+
+ds = Measure("ds")[boundaries]
+
+#Insulation boundary given already and not needed
+
+plot(mesh, title="1D mesh")
+interactive()
+
+# Initial condition
+u_1 = project(T_ambient, V)
+
+g = Expression('Q_heat', degree=1, Q_heat=Q_heat)
+
+alpha_1 = project(Expression('0.0', degree=1), V)
+alpha   = alpha_1
+
+dt = 1.0      # time step
+
+# Define variational problem
+u = TrialFunction(V)
+v = TestFunction(V)
+
+f = (alpha - alpha_1)/dt
+
+a = rho*C_p*u*v*dx + dt*k*inner(nabla_grad(u), nabla_grad(v))*dx
+L = (u_1 + dt*f)*v*dx + g*v*ds(1)
+
+A = assemble(a)   # assemble only once, before the time stepping
+b = None          # necessary for memory saving assemeble call
+
+uFile = File("tempRise/temperatureDist.pvd")
+
+# Compute solution
+u = Function(V)   # the unknown at a new time level
+T = 8.0*60.0      # total simulation time: 8 minutes
+t = dt
+while t &lt;= T:
+    print('time =', t)
+    b = assemble(L, tensor=b)
+
+    #bc.apply(A, b)
+    solve(A, u.vector(), b)
+
+    t += dt
+
+    u_1.assign(u)
+
+    alpha_1.assign(alpha)
+    alpha = project(Expression('-rho*H_r*A*exp(-E_a/R/u)*(1-alpha)^n', degree=2, rho=rho,H_r=H_r,A=A,E_a=E_a,R=R,n=n, u=u,alpha=alpha), V)
+    f.assign((alpha - alpha_1)/dt)
+
+    uFile &lt;&lt; u
+
+File("finalTemperatureDist.pvd") &lt;&lt; u
+plot(u, title="Temperature")
+interactive()
+</code></pre>
+</div>
+										</div>
+										<div class="qa-q-view-tags">
+											<ul class="qa-q-view-tag-list">
+												<li class="qa-q-view-tag-item"><a href="../../tag/time-dependent" rel="tag" class="qa-tag-link">time-dependent</a></li>
+												<li class="qa-q-view-tag-item"><a href="../../tag/boundary-conditions" rel="tag" class="qa-tag-link">boundary-conditions</a></li>
+												<li class="qa-q-view-tag-item"><a href="../../tag/heat-equation" rel="tag" class="qa-tag-link">heat-equation</a></li>
+												<li class="qa-q-view-tag-item"><a href="../../tag/boundary-markers" rel="tag" class="qa-tag-link">boundary-markers</a></li>
+												<li class="qa-q-view-tag-item"><a href="../../tag/expression" rel="tag" class="qa-tag-link">expression</a></li>
+											</ul>
+										</div>
+										<span class="qa-q-view-avatar-meta">
+											<span class="qa-q-view-meta">
+												<a href="../../12818/expression-errors-solving-polymer-poisson-equation-dependent" class="qa-q-view-what">asked</a>
+												<span class="qa-q-view-when">
+													<span class="qa-q-view-when-data"><span class="published"><span class="value-title" title="2017-03-26T22:02:04+0000"></span>Mar 27, 2017</span></span>
+												</span>
+												<span class="qa-q-view-who">
+													<span class="qa-q-view-who-pad">by </span>
+													<span class="qa-q-view-who-data"><span class="vcard author"><a href="../../user/alexmm" class="qa-user-link url nickname">alexmm</a></span></span>
+													<span class="qa-q-view-who-title">FEniCS User</span>
+													<span class="qa-q-view-who-points">
+														<span class="qa-q-view-who-points-pad">(</span><span class="qa-q-view-who-points-data">4,240</span><span class="qa-q-view-who-points-pad"> points)</span>
+													</span>
+												</span>
+											</span>
+										</span>
+										<div class="qa-q-view-buttons">
+										</div>
+										
+										<div class="qa-q-view-c-list" style="display:none;" id="c12818_list">
+										</div> <!-- END qa-c-list -->
+										
+										<input type="hidden" name="code" value="0-1516467840-5a9ad7a712f2422bb8aa72bf34dbb9c8bf8a29bd">
+										<input type="hidden" name="qa_click" value="">
+									</form>
+									<div class="qa-c-form">
+									</div> <!-- END qa-c-form -->
+									
+								</div> <!-- END qa-q-view-main -->
+								<div class="qa-q-view-clear">
+								</div>
+							</div> <!-- END qa-q-view -->
+							
+						</div>
+						<div class="qa-part-a-list">
+							<h2 id="a_list_title">1 Answer</h2>
+							<div class="qa-a-list" id="a_list">
+								
+								<div class="qa-a-list-item  hentry answer answer-selected qa-a-list-item-selected" id="a12824">
+									<form method="post" action="../../12818/expression-errors-solving-polymer-poisson-equation-dependent">
+										<div class="qa-voting qa-voting-net" id="voting_12824">
+											<div class="qa-vote-count qa-vote-count-net">
+												<span class="qa-netvote-count">
+													<span class="qa-netvote-count-data">0<span class="votes-up"><span class="value-title" title="0"></span></span><span class="votes-down"><span class="value-title" title="0"></span></span></span><span class="qa-netvote-count-pad"> votes</span>
+												</span>
+											</div>
+											<div class="qa-vote-clear">
+											</div>
+										</div>
+										<input type="hidden" name="code" value="0-1516467840-4991410b0f5fc4a7af4d2b315d7dbb80e7d885d8">
+									</form>
+									<div class="qa-a-item-main">
+										<form method="post" action="../../12818/expression-errors-solving-polymer-poisson-equation-dependent">
+											<div class="qa-a-item-selected">
+												<div class="qa-a-selection">
+													<div class="qa-a-selected">&#160;</div>
+													<div class="qa-a-selected-text">Best answer</div>
+												</div>
+												<div class="qa-a-item-content">
+													<a name="12824"></a><div class="entry-content"><p>^ is not supported in C++. Use</p>
+
+<pre><code>    alpha = project(Expression('pow(-rho*H_r*A*exp(-E_a/R/u)*(1-alpha),n)', degree=2, rho=rho,H_r=H_r,A=A,E_a=E_a,R=R,n=n, u=u,alpha=alpha), V)
+</code></pre>
+</div>
+												</div>
+												<span class="qa-a-item-avatar-meta">
+													<span class="qa-a-item-avatar">
+														<a href="../../user/KristianE" class="qa-avatar-link"><img src="https://www.gravatar.com/avatar/8e8c30d82e263e44bd8fe50055a60421?s=40" width="40" height="40" class="qa-avatar-image" alt=""></a>
+													</span>
+													<span class="qa-a-item-meta">
+														<a href="../../12818/expression-errors-solving-polymer-poisson-equation-dependent?show=12824#a12824" class="qa-a-item-what">answered</a>
+														<span class="qa-a-item-when">
+															<span class="qa-a-item-when-data"><span class="published"><span class="value-title" title="2017-03-27T12:29:08+0000"></span>Mar 27, 2017</span></span>
+														</span>
+														<span class="qa-a-item-who">
+															<span class="qa-a-item-who-pad">by </span>
+															<span class="qa-a-item-who-data"><span class="vcard author"><a href="../../user/KristianE" class="qa-user-link url nickname">KristianE</a></span></span>
+															<span class="qa-a-item-who-title">FEniCS Expert</span>
+															<span class="qa-a-item-who-points">
+																<span class="qa-a-item-who-points-pad">(</span><span class="qa-a-item-who-points-data">12,900</span><span class="qa-a-item-who-points-pad"> points)</span>
+															</span>
+														</span>
+														<br>
+														<span class="qa-a-item-what">selected</span>
+														<span class="qa-a-item-when">
+															<span class="qa-a-item-when-data"><span class="updated"><span class="value-title" title="2017-04-21T02:41:50+0000"></span>Apr 21, 2017</span></span>
+														</span>
+														<span class="qa-a-item-who">
+															<span class="qa-a-item-who-pad">by </span><span class="qa-a-item-who-data"><a href="../../user/alexmm" class="qa-user-link url nickname">alexmm</a></span>
+														</span>
+													</span>
+												</span>
+											</div>
+											<div class="qa-a-item-buttons">
+												</div>
+											
+											<div class="qa-a-item-c-list" id="c12824_list">
+												<div class="qa-c-list-item  hentry comment" id="c12837">
+													<div class="qa-c-item-content">
+														<a name="12837"></a><div class="entry-content"><p>Yes that worked thank you. Now I'm getting different ambient temperatures, 0 temperatures or NaN values based on the time step and scaling of the problem. I wrote about this in another question</p>
+</div>
+													</div>
+													<div class="qa-c-item-footer">
+														<span class="qa-c-item-avatar-meta">
+															<span class="qa-c-item-meta">
+																<a href="../../12818/expression-errors-solving-polymer-poisson-equation-dependent?show=12837#c12837" class="qa-c-item-what">commented</a>
+																<span class="qa-c-item-when">
+																	<span class="qa-c-item-when-data"><span class="published"><span class="value-title" title="2017-03-29T00:41:21+0000"></span>Mar 29, 2017</span></span>
+																</span>
+																<span class="qa-c-item-who">
+																	<span class="qa-c-item-who-pad">by </span>
+																	<span class="qa-c-item-who-data"><span class="vcard author"><a href="../../user/alexmm" class="qa-user-link url nickname">alexmm</a></span></span>
+																	<span class="qa-c-item-who-title">FEniCS User</span>
+																	<span class="qa-c-item-who-points">
+																		<span class="qa-c-item-who-points-pad">(</span><span class="qa-c-item-who-points-data">4,240</span><span class="qa-c-item-who-points-pad"> points)</span>
+																	</span>
+																</span>
+															</span>
+														</span>
+														<div class="qa-c-item-buttons">
+														</div>
+													</div>
+													<div class="qa-c-item-clear">
+													</div>
+												</div> <!-- END qa-c-item -->
+											</div> <!-- END qa-c-list -->
+											
+											<input type="hidden" name="code" value="0-1516467840-79b5c72e2128c8557c08fc63786fce80626ff411">
+											<input type="hidden" name="qa_click" value="">
+										</form>
+										<div class="qa-c-form">
+										</div> <!-- END qa-c-form -->
+										
+									</div> <!-- END qa-a-item-main -->
+									<div class="qa-a-item-clear">
+									</div>
+								</div> <!-- END qa-a-list-item -->
+								
+							</div> <!-- END qa-a-list -->
+							
+						</div>
+					</div> <!-- END qa-main -->
+					
+				</div> <!-- END main-wrapper -->
+			</div> <!-- END main-shadow -->
+		</div> <!-- END body-wrapper -->
+		<!-- END footer-bottom-group -->
+		
+		<div style="position:absolute; left:-9999px; top:-9999px;">
+			<span id="qa-waiting-template" class="qa-waiting">...</span>
+		</div>
+	
+	
+
+</body><!-- Powered by Question2Answer - http://www.question2answer.org/ --></html>

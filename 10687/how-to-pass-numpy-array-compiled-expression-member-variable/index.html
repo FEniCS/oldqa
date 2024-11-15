@@ -1,0 +1,581 @@
+<html><!-- Powered by Question2Answer - http://www.question2answer.org/ --><head>
+		<meta http-equiv="content-type" content="text/html; charset=utf-8">
+		<title>How to pass numpy array to compiled expression member variable? - FEniCS Q&amp;A</title>
+		<meta name="description" content="Trying to pass a numpy array to a compiled expression member variable, to no avail. Consider the following code ...  Array&amp; vv) { v = &amp;vv; std::cout">
+		<link rel="stylesheet" type="text/css" href="../../qa-theme/Snow/qa-styles.css">
+		<link rel="canonical" href="http://fenicsproject.org/qa/10687/how-to-pass-numpy-array-compiled-expression-member-variable">
+		<script type="text/x-mathjax-config">
+  MathJax.Hub.Config({
+    extensions: ["tex2jax.js"],
+    jax: ["input/TeX","output/HTML-CSS"],
+    tex2jax: {inlineMath: [["$","$"],["\\(","\\)"]]},
+    TeX: { extensions: ["AMSmath.js","AMSsymbols.js"]}
+  });
+</script>
+<script type="text/javascript" src="../../mathjax/MathJax.js"></script>
+		<script src="../../jquery-1.7.2.min.js" type="text/javascript"></script>
+		<script src="../../highlight.min.js"></script>
+<script type="text/javascript">
+$(function(){
+	$('.wmd-input').keypress(function(){
+		window.clearTimeout(hljs.Timeout);
+		hljs.Timeout = window.setTimeout(function() {
+			hljs.initHighlighting.called = false;
+			hljs.initHighlighting();
+		}, 500);
+	});
+	window.setTimeout(function() {
+		hljs.initHighlighting.called = false;
+		hljs.initHighlighting();
+	}, 500);
+});
+</script>
+
+
+	</head>
+	<body class="qa-template-question qa-body-js-off">
+		<div class="qa-body-wrapper">
+			
+			<div class="qa-header">
+				<div class="qa-logo">
+					<a href="../../" class="qa-logo-link" title="FEniCS Q&amp;A"><img src="../../qa-theme/fenics_qa.png" border="0" alt="FEniCS Q&amp;A"></a>
+				</div>
+				<div class="qa-header-clear">
+				</div>
+			</div> <!-- END qa-header -->
+			
+			<div class="qa-main-shadow">
+				
+				<div class="qa-main-wrapper">
+					
+					<div class="qa-sidepanel">
+						<div class="qa-sidebar">
+							This is a read only copy of the old FEniCS QA forum. Please visit the <a href="https://www.allanswered.com/community/s/fenics-project/">new QA forum</a> to ask questions
+						</div>
+						
+					</div>
+					
+					<div class="qa-main">
+						<h1>
+							<span class="entry-title">How to pass numpy array to compiled expression member variable?</span>
+						</h1>
+						<div class="qa-part-q-view">
+							<div class="qa-q-view  hentry question" id="q10687">
+								<form method="post" action="../../10687/how-to-pass-numpy-array-compiled-expression-member-variable">
+									<div class="qa-q-view-stats">
+										<div class="qa-voting qa-voting-net" id="voting_10687">
+											<div class="qa-vote-count qa-vote-count-net">
+												<span class="qa-netvote-count">
+													<span class="qa-netvote-count-data">+3<span class="votes-up"><span class="value-title" title="3"></span></span><span class="votes-down"><span class="value-title" title="0"></span></span></span><span class="qa-netvote-count-pad"> votes</span>
+												</span>
+											</div>
+											<div class="qa-vote-clear">
+											</div>
+										</div>
+									</div>
+									<input type="hidden" name="code" value="0-1516467073-c45b18cea0071d576a0255008eae784a13a6c4ed">
+								</form>
+								<div class="qa-q-view-main">
+									<form method="post" action="../../10687/how-to-pass-numpy-array-compiled-expression-member-variable">
+										<div class="qa-q-view-content">
+											<a name="10687"></a><div class="entry-content"><p>Trying to pass a numpy array to a compiled expression member variable, to no avail. Consider the following code:</p>
+
+<pre><code>import numpy
+import dolfin
+mesh = dolfin.UnitSquareMesh(1,1)
+fe = dolfin.FiniteElement(
+    family="Quadrature",
+    cell=mesh.ufl_cell(),
+    degree=1,
+    quad_scheme="default")
+cpp_code = '''\
+namespace dolfin
+{
+class MyExpr : public Expression
+{
+    const Array&lt;double&gt;* v;
+public:
+    MyExpr(): Expression() {}
+    void init_v(
+        const Array&lt;double&gt;&amp; vv)
+    {
+        v = &amp;vv;
+        std::cout &lt;&lt; "v = " &lt;&lt; v-&gt;str(1) &lt;&lt; std::endl;
+    }
+    void eval(Array&lt;double&gt; &amp;expr, const Array&lt;double&gt; &amp;pos) const
+    {
+        std::cout &lt;&lt; "v = " &lt;&lt; v-&gt;str(1) &lt;&lt; std::endl;
+    }
+};
+}'''
+my_expr = dolfin.Expression(
+    cppcode=cpp_code,
+    element=fe)
+my_expr.init_v(numpy.zeros(2))
+my_expr.eval(numpy.zeros(1), numpy.zeros(2))
+</code></pre>
+
+<p>This compiles and runs fine but of course, since the member pointer <code>v</code> is <code>const</code>, even after assigning a vector to it in the <code>init_v</code> function (actually I'm not even sure how/why I can do that since it is <code>const</code>, but anyway), it is still empty when executing the <code>eval</code> function. Now, if I make the member pointer not <code>const</code>:</p>
+
+<pre><code>cpp_code = '''\
+namespace dolfin
+{
+class MyExpr : public Expression
+{
+    Array&lt;double&gt;* v;
+public:
+    MyExpr(): Expression() {}
+    void init_v(
+        const Array&lt;double&gt;&amp; vv)
+    {
+        v = &amp;vv;
+        std::cout &lt;&lt; "v = " &lt;&lt; v-&gt;str(1) &lt;&lt; std::endl;
+    }
+    void eval(Array&lt;double&gt; &amp;expr, const Array&lt;double&gt; &amp;pos) const
+    {
+        std::cout &lt;&lt; "v = " &lt;&lt; v-&gt;str(1) &lt;&lt; std::endl;
+    }
+};
+}'''
+my_expr = dolfin.Expression(
+    cppcode=cpp_code,
+    element=fe)
+my_expr.init_v(numpy.zeros(2))
+my_expr.eval(numpy.zeros(1), numpy.zeros(2))
+</code></pre>
+
+<p>This won't compile with the error:</p>
+
+<pre><code>error: invalid conversion from &#8216;const dolfin::Array&lt;double&gt;*&#8217; to &#8216;dolfin::Array&lt;double&gt;*&#8217; [-fpermissive]
+     v = &amp;vv;
+       ^
+</code></pre>
+
+<p>This makes sense. Now, if I remove the other <code>const</code> as well:</p>
+
+<pre><code>cpp_code = '''\
+namespace dolfin
+{
+class MyExpr : public Expression
+{
+    Array&lt;double&gt;* v;
+public:
+    MyExpr(): Expression() {}
+    void init_v(
+        Array&lt;double&gt;&amp; vv)
+    {
+        v = &amp;vv;
+        std::cout &lt;&lt; "v = " &lt;&lt; v-&gt;str(1) &lt;&lt; std::endl;
+    }
+    void eval(Array&lt;double&gt; &amp;expr, const Array&lt;double&gt; &amp;pos) const
+    {
+        std::cout &lt;&lt; "v = " &lt;&lt; v-&gt;str(1) &lt;&lt; std::endl;
+    }
+};
+}'''
+my_expr = dolfin.Expression(
+    cppcode=cpp_code,
+    element=fe)
+my_expr.init_v(numpy.zeros(2))
+my_expr.eval(numpy.zeros(1), numpy.zeros(2))
+</code></pre>
+
+<p>This compiles fine, but at runtime I'm getting the following error:</p>
+
+<pre><code>my_expr.init_v(numpy.zeros(2))
+TypeError: in method 'MyExpr_init_v', argument 2 of type 'dolfin::Array&lt; double &gt; &amp;'
+</code></pre>
+
+<p>So apparently, the compiled module recognizes a numpy array as <code>const dolfin::Array&lt; double &gt; &amp;</code>, but not as <code>dolfin::Array&lt; double &gt; &amp;</code>. Any idea on how to make this work? Thanks! Martin</p>
+</div>
+										</div>
+										<span class="qa-q-view-avatar-meta">
+											<span class="qa-q-view-avatar">
+												<a href="../../user/Martin+Genet" class="qa-avatar-link"><img src="../../?qa=image&amp;qa_blobid=4996080535152988109&amp;qa_size=50" width="50" height="50" class="qa-avatar-image" alt=""></a>
+											</span>
+											<span class="qa-q-view-meta">
+												<a href="../../10687/how-to-pass-numpy-array-compiled-expression-member-variable" class="qa-q-view-what">asked</a>
+												<span class="qa-q-view-when">
+													<span class="qa-q-view-when-data"><span class="published"><span class="value-title" title="2016-07-17T17:48:01+0000"></span>Jul 17, 2016</span></span>
+												</span>
+												<span class="qa-q-view-who">
+													<span class="qa-q-view-who-pad">by </span>
+													<span class="qa-q-view-who-data"><span class="vcard author"><a href="../../user/Martin+Genet" class="qa-user-link url nickname">Martin Genet</a></span></span>
+													<span class="qa-q-view-who-title">FEniCS User</span>
+													<span class="qa-q-view-who-points">
+														<span class="qa-q-view-who-points-pad">(</span><span class="qa-q-view-who-points-data">1,460</span><span class="qa-q-view-who-points-pad"> points)</span>
+													</span>
+												</span>
+											</span>
+										</span>
+										<div class="qa-q-view-buttons">
+										</div>
+										
+										<div class="qa-q-view-c-list" id="c10687_list">
+											<div class="qa-c-list-item  hentry comment" id="c10723">
+												<div class="qa-c-item-content">
+													<a name="10723"></a><div class="entry-content"><p>Any hint, anyone? Thanks! Martin</p>
+</div>
+												</div>
+												<div class="qa-c-item-footer">
+													<span class="qa-c-item-avatar-meta">
+														<span class="qa-c-item-avatar">
+															<a href="../../user/Martin+Genet" class="qa-avatar-link"><img src="../../?qa=image&amp;qa_blobid=4996080535152988109&amp;qa_size=20" width="20" height="20" class="qa-avatar-image" alt=""></a>
+														</span>
+														<span class="qa-c-item-meta">
+															<a href="../../10687/how-to-pass-numpy-array-compiled-expression-member-variable?show=10723#c10723" class="qa-c-item-what">commented</a>
+															<span class="qa-c-item-when">
+																<span class="qa-c-item-when-data"><span class="published"><span class="value-title" title="2016-07-21T16:32:42+0000"></span>Jul 21, 2016</span></span>
+															</span>
+															<span class="qa-c-item-who">
+																<span class="qa-c-item-who-pad">by </span>
+																<span class="qa-c-item-who-data"><span class="vcard author"><a href="../../user/Martin+Genet" class="qa-user-link url nickname">Martin Genet</a></span></span>
+																<span class="qa-c-item-who-title">FEniCS User</span>
+																<span class="qa-c-item-who-points">
+																	<span class="qa-c-item-who-points-pad">(</span><span class="qa-c-item-who-points-data">1,460</span><span class="qa-c-item-who-points-pad"> points)</span>
+																</span>
+															</span>
+														</span>
+													</span>
+													<div class="qa-c-item-buttons">
+													</div>
+												</div>
+												<div class="qa-c-item-clear">
+												</div>
+											</div> <!-- END qa-c-item -->
+											<div class="qa-c-list-item  hentry comment" id="c12285">
+												<div class="qa-c-item-content">
+													<a name="12285"></a><div class="entry-content"><p>I found a proposed solution in this thread:</p>
+
+<p><a rel="nofollow" href="https://answers.launchpad.net/dolfin/+question/227358">https://answers.launchpad.net/dolfin/+question/227358</a></p>
+
+<p>(see Response  #4)</p>
+
+<p>however, this code does not appear to run in the current version of fenics (?)</p>
+
+<p>When I run this code, I get the error:</p>
+
+<pre><code>... PYTHON_wrap.cxx: In function &#8216;PyObject* 
+        _wrap_K__coeffs_set(PyObject*, PyObject*)&#8217;:
+... PYTHON_wrap.cxx:6423:58: error: 
+    &#8216;PyArrayObject {aka struct tagPyArrayObject}&#8217; 
+     has no member named &#8216;data&#8217;
+       double *data = reinterpret_cast&lt;double*&gt;((*xa).data); 
+        for (int i=0;i&lt;m;++i) arg2[i] = &amp;data[i*n]; }  else {
+                                                      ^
+</code></pre>
+</div>
+												</div>
+												<div class="qa-c-item-footer">
+													<span class="qa-c-item-avatar-meta">
+														<span class="qa-c-item-meta">
+															<a href="../../10687/how-to-pass-numpy-array-compiled-expression-member-variable?show=12285#c12285" class="qa-c-item-what">commented</a>
+															<span class="qa-c-item-when">
+																<span class="qa-c-item-when-data"><span class="published"><span class="value-title" title="2017-01-30T21:36:11+0000"></span>Jan 30, 2017</span></span>
+															</span>
+															<span class="qa-c-item-who">
+																<span class="qa-c-item-who-pad">by </span>
+																<span class="qa-c-item-who-data"><span class="vcard author"><a href="../../user/radbiv_kylops" class="qa-user-link url nickname">radbiv_kylops</a></span></span>
+																<span class="qa-c-item-who-title">FEniCS Novice</span>
+																<span class="qa-c-item-who-points">
+																	<span class="qa-c-item-who-points-pad">(</span><span class="qa-c-item-who-points-data">680</span><span class="qa-c-item-who-points-pad"> points)</span>
+																</span>
+															</span>
+															<br>
+															<span class="qa-c-item-what">edited</span>
+															<span class="qa-c-item-when">
+																<span class="qa-c-item-when-data"><span class="updated"><span class="value-title" title="2017-01-31T02:44:41+0000"></span>Jan 31, 2017</span></span>
+															</span>
+															<span class="qa-c-item-who">
+																<span class="qa-c-item-who-pad">by </span><span class="qa-c-item-who-data"><a href="../../user/radbiv_kylops" class="qa-user-link url nickname">radbiv_kylops</a></span>
+															</span>
+														</span>
+													</span>
+													<div class="qa-c-item-buttons">
+													</div>
+												</div>
+												<div class="qa-c-item-clear">
+												</div>
+											</div> <!-- END qa-c-item -->
+										</div> <!-- END qa-c-list -->
+										
+										<input type="hidden" name="code" value="0-1516467073-8f3176ea9576806167a07e0eafe74608cd5f9cf4">
+										<input type="hidden" name="qa_click" value="">
+									</form>
+									<div class="qa-c-form">
+									</div> <!-- END qa-c-form -->
+									
+								</div> <!-- END qa-q-view-main -->
+								<div class="qa-q-view-clear">
+								</div>
+							</div> <!-- END qa-q-view -->
+							
+						</div>
+						<div class="qa-part-a-list">
+							<h2 id="a_list_title">3 Answers</h2>
+							<div class="qa-a-list" id="a_list">
+								
+								<div class="qa-a-list-item  hentry answer" id="a12286">
+									<form method="post" action="../../10687/how-to-pass-numpy-array-compiled-expression-member-variable">
+										<div class="qa-voting qa-voting-net" id="voting_12286">
+											<div class="qa-vote-count qa-vote-count-net">
+												<span class="qa-netvote-count">
+													<span class="qa-netvote-count-data">0<span class="votes-up"><span class="value-title" title="0"></span></span><span class="votes-down"><span class="value-title" title="0"></span></span></span><span class="qa-netvote-count-pad"> votes</span>
+												</span>
+											</div>
+											<div class="qa-vote-clear">
+											</div>
+										</div>
+										<input type="hidden" name="code" value="0-1516467073-c45b18cea0071d576a0255008eae784a13a6c4ed">
+									</form>
+									<div class="qa-a-item-main">
+										<form method="post" action="../../10687/how-to-pass-numpy-array-compiled-expression-member-variable">
+											<div class="qa-a-selection">
+											</div>
+											<div class="qa-a-item-content">
+												<a name="12286"></a><div class="entry-content"><p>Does anybody on this forum know how to do this using Instant?</p>
+</div>
+											</div>
+											<span class="qa-a-item-avatar-meta">
+												<span class="qa-a-item-meta">
+													<a href="../../10687/how-to-pass-numpy-array-compiled-expression-member-variable?show=12286#a12286" class="qa-a-item-what">answered</a>
+													<span class="qa-a-item-when">
+														<span class="qa-a-item-when-data"><span class="published"><span class="value-title" title="2017-01-30T21:52:54+0000"></span>Jan 30, 2017</span></span>
+													</span>
+													<span class="qa-a-item-who">
+														<span class="qa-a-item-who-pad">by </span>
+														<span class="qa-a-item-who-data"><span class="vcard author"><a href="../../user/radbiv_kylops" class="qa-user-link url nickname">radbiv_kylops</a></span></span>
+														<span class="qa-a-item-who-title">FEniCS Novice</span>
+														<span class="qa-a-item-who-points">
+															<span class="qa-a-item-who-points-pad">(</span><span class="qa-a-item-who-points-data">680</span><span class="qa-a-item-who-points-pad"> points)</span>
+														</span>
+													</span>
+													<br>
+													<span class="qa-a-item-what">edited</span>
+													<span class="qa-a-item-when">
+														<span class="qa-a-item-when-data"><span class="updated"><span class="value-title" title="2017-02-01T14:45:55+0000"></span>Feb 1, 2017</span></span>
+													</span>
+													<span class="qa-a-item-who">
+														<span class="qa-a-item-who-pad">by </span><span class="qa-a-item-who-data"><a href="../../user/radbiv_kylops" class="qa-user-link url nickname">radbiv_kylops</a></span>
+													</span>
+												</span>
+											</span>
+											<div class="qa-a-item-buttons">
+												</div>
+											
+											<div class="qa-a-item-c-list" style="display:none;" id="c12286_list">
+											</div> <!-- END qa-c-list -->
+											
+											<input type="hidden" name="code" value="0-1516467073-225849301a91f42e54b0e4d9bcdb4b480971031c">
+											<input type="hidden" name="qa_click" value="">
+										</form>
+										<div class="qa-c-form">
+										</div> <!-- END qa-c-form -->
+										
+									</div> <!-- END qa-a-item-main -->
+									<div class="qa-a-item-clear">
+									</div>
+								</div> <!-- END qa-a-list-item -->
+								
+								<div class="qa-a-list-item  hentry answer" id="a12297">
+									<form method="post" action="../../10687/how-to-pass-numpy-array-compiled-expression-member-variable">
+										<div class="qa-voting qa-voting-net" id="voting_12297">
+											<div class="qa-vote-count qa-vote-count-net">
+												<span class="qa-netvote-count">
+													<span class="qa-netvote-count-data">0<span class="votes-up"><span class="value-title" title="0"></span></span><span class="votes-down"><span class="value-title" title="0"></span></span></span><span class="qa-netvote-count-pad"> votes</span>
+												</span>
+											</div>
+											<div class="qa-vote-clear">
+											</div>
+										</div>
+										<input type="hidden" name="code" value="0-1516467073-c45b18cea0071d576a0255008eae784a13a6c4ed">
+									</form>
+									<div class="qa-a-item-main">
+										<form method="post" action="../../10687/how-to-pass-numpy-array-compiled-expression-member-variable">
+											<div class="qa-a-selection">
+											</div>
+											<div class="qa-a-item-content">
+												<a name="12297"></a><div class="entry-content"><p>Have you tried to cast away the const? The compiler will react on const, but it may be cast away.  It is of course a hack of a solution. </p>
+</div>
+											</div>
+											<span class="qa-a-item-avatar-meta">
+												<span class="qa-a-item-meta">
+													<a href="../../10687/how-to-pass-numpy-array-compiled-expression-member-variable?show=12297#a12297" class="qa-a-item-what">answered</a>
+													<span class="qa-a-item-when">
+														<span class="qa-a-item-when-data"><span class="published"><span class="value-title" title="2017-01-31T20:34:25+0000"></span>Jan 31, 2017</span></span>
+													</span>
+													<span class="qa-a-item-who">
+														<span class="qa-a-item-who-pad">by </span>
+														<span class="qa-a-item-who-data"><span class="vcard author"><a href="../../user/Kent-Andre+Mardal" class="qa-user-link url nickname">Kent-Andre Mardal</a></span></span>
+														<span class="qa-a-item-who-title">FEniCS Expert</span>
+														<span class="qa-a-item-who-points">
+															<span class="qa-a-item-who-points-pad">(</span><span class="qa-a-item-who-points-data">14,380</span><span class="qa-a-item-who-points-pad"> points)</span>
+														</span>
+													</span>
+												</span>
+											</span>
+											<div class="qa-a-item-buttons">
+												</div>
+											
+											<div class="qa-a-item-c-list" style="display:none;" id="c12297_list">
+											</div> <!-- END qa-c-list -->
+											
+											<input type="hidden" name="code" value="0-1516467073-cce88d08f0e42e8c146df555ecd33ce5c7f46c80">
+											<input type="hidden" name="qa_click" value="">
+										</form>
+										<div class="qa-c-form">
+										</div> <!-- END qa-c-form -->
+										
+									</div> <!-- END qa-a-item-main -->
+									<div class="qa-a-item-clear">
+									</div>
+								</div> <!-- END qa-a-list-item -->
+								
+								<div class="qa-a-list-item  hentry answer" id="a12307">
+									<form method="post" action="../../10687/how-to-pass-numpy-array-compiled-expression-member-variable">
+										<div class="qa-voting qa-voting-net" id="voting_12307">
+											<div class="qa-vote-count qa-vote-count-net">
+												<span class="qa-netvote-count">
+													<span class="qa-netvote-count-data">0<span class="votes-up"><span class="value-title" title="0"></span></span><span class="votes-down"><span class="value-title" title="0"></span></span></span><span class="qa-netvote-count-pad"> votes</span>
+												</span>
+											</div>
+											<div class="qa-vote-clear">
+											</div>
+										</div>
+										<input type="hidden" name="code" value="0-1516467073-c45b18cea0071d576a0255008eae784a13a6c4ed">
+									</form>
+									<div class="qa-a-item-main">
+										<form method="post" action="../../10687/how-to-pass-numpy-array-compiled-expression-member-variable">
+											<div class="qa-a-selection">
+											</div>
+											<div class="qa-a-item-content">
+												<a name="12307"></a><div class="entry-content"><p>I found a solution that involves implementing a linked list in C++ and then adding the array elements one at a time to the list.  This doesn't seem very elegant, especially with all the work that people have done on more sophisticated structures using Instant.  Unfortunately, I'm not really a C++ programmer and I couldn't figure out how to implement the stuff in Ch 14 of the Fenics Book.  Oh well, this works for my purposes and it's pretty fast too.</p>
+
+<p>First, I have this C++ file:</p>
+
+<pre><code>namespace dolfin {
+
+struct node {
+    double x;
+    double v;
+    node *next;
+};
+
+
+class MyFun : public Expression
+{
+    private:
+        node *root;
+
+    public:
+        MyFun(): Expression()
+        {
+            root = new node;
+            root-&gt;next = 0;
+        };
+        void eval(Array&lt;double&gt;&amp; values, const Array&lt;double&gt;&amp; x) const
+        {
+            double vv = findval(x[0]);
+            values[0] = vv;
+        };
+
+        void update(double _x, double _v)
+        {
+            node *newNode = new node;
+            newNode-&gt;x = _x;
+            newNode-&gt;v = _v;
+            newNode-&gt;next = root;
+            root = newNode;
+        };
+
+        double findval(double _x) const
+        {
+            node *p = root-&gt;next;
+            node *q = root;
+            while (true)
+            {
+            // Assume that root node has biggest x-value.
+            // Traverse down the list until p.x is too small.
+                if (p-&gt;x &lt;= _x) break;
+                else
+                {
+                    q = p;
+                    p = p-&gt;next;
+                }
+            }
+            // Linear interpolation
+            double interp = p-&gt;v + (_x - p-&gt;x) * (p-&gt;v - q-&gt;v) / (p-&gt;x - q-&gt;x);
+            return interp;
+
+        };
+
+};
+};
+</code></pre>
+
+<p>As you can see, in my particular application I need to interpolate over elements of the Numpy Array.  This could could obviously be modified to do other things.</p>
+
+<p>Then on the Python side I call C++ as:</p>
+
+<pre><code>header_file = open("ll.cpp")
+code = "\n".join(header_file.readlines())
+ub = Expression(cppcode=code, degree=2)
+for j in range(0,5):  ub.update(vx[j],vv[j])
+</code></pre>
+
+<p>This then allows me to interpolate the values (vx,vy) over the boundary as a compiled expression:</p>
+
+<pre><code>bc_ux = DirichletBC(W.sub(0).sub(0), ub, bed);
+</code></pre>
+</div>
+											</div>
+											<span class="qa-a-item-avatar-meta">
+												<span class="qa-a-item-meta">
+													<a href="../../10687/how-to-pass-numpy-array-compiled-expression-member-variable?show=12307#a12307" class="qa-a-item-what">answered</a>
+													<span class="qa-a-item-when">
+														<span class="qa-a-item-when-data"><span class="published"><span class="value-title" title="2017-02-01T14:45:30+0000"></span>Feb 1, 2017</span></span>
+													</span>
+													<span class="qa-a-item-who">
+														<span class="qa-a-item-who-pad">by </span>
+														<span class="qa-a-item-who-data"><span class="vcard author"><a href="../../user/radbiv_kylops" class="qa-user-link url nickname">radbiv_kylops</a></span></span>
+														<span class="qa-a-item-who-title">FEniCS Novice</span>
+														<span class="qa-a-item-who-points">
+															<span class="qa-a-item-who-points-pad">(</span><span class="qa-a-item-who-points-data">680</span><span class="qa-a-item-who-points-pad"> points)</span>
+														</span>
+													</span>
+												</span>
+											</span>
+											<div class="qa-a-item-buttons">
+												</div>
+											
+											<div class="qa-a-item-c-list" style="display:none;" id="c12307_list">
+											</div> <!-- END qa-c-list -->
+											
+											<input type="hidden" name="code" value="0-1516467073-7a0e46cad954a790d7bf7ce9ded5bc5dfed5a7d9">
+											<input type="hidden" name="qa_click" value="">
+										</form>
+										<div class="qa-c-form">
+										</div> <!-- END qa-c-form -->
+										
+									</div> <!-- END qa-a-item-main -->
+									<div class="qa-a-item-clear">
+									</div>
+								</div> <!-- END qa-a-list-item -->
+								
+							</div> <!-- END qa-a-list -->
+							
+						</div>
+					</div> <!-- END qa-main -->
+					
+				</div> <!-- END main-wrapper -->
+			</div> <!-- END main-shadow -->
+		</div> <!-- END body-wrapper -->
+		<!-- END footer-bottom-group -->
+		
+		<div style="position:absolute; left:-9999px; top:-9999px;">
+			<span id="qa-waiting-template" class="qa-waiting">...</span>
+		</div>
+	
+	
+
+</body><!-- Powered by Question2Answer - http://www.question2answer.org/ --></html>

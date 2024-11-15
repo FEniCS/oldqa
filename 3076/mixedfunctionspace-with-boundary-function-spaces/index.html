@@ -1,0 +1,454 @@
+<html><!-- Powered by Question2Answer - http://www.question2answer.org/ --><head>
+		<meta http-equiv="content-type" content="text/html; charset=utf-8">
+		<title>MixedFunctionSpace with boundary function spaces - FEniCS Q&amp;A</title>
+		<meta name="description" content="Hi, I am trying to solve a non-linear three-dimensional problem coupling elasticity and solvent diffusion. ...  upccs.split()[2] plot(w) interactive()">
+		<meta name="keywords" content="mixed-function-space,boundary,nonlinear">
+		<link rel="stylesheet" type="text/css" href="../../qa-theme/Snow/qa-styles.css">
+		<link rel="canonical" href="http://fenicsproject.org/qa/3076/mixedfunctionspace-with-boundary-function-spaces">
+		<script type="text/x-mathjax-config">
+  MathJax.Hub.Config({
+    extensions: ["tex2jax.js"],
+    jax: ["input/TeX","output/HTML-CSS"],
+    tex2jax: {inlineMath: [["$","$"],["\\(","\\)"]]},
+    TeX: { extensions: ["AMSmath.js","AMSsymbols.js"]}
+  });
+</script>
+<script type="text/javascript" src="../../mathjax/MathJax.js"></script>
+		<script src="../../jquery-1.7.2.min.js" type="text/javascript"></script>
+		<script src="../../highlight.min.js"></script>
+<script type="text/javascript">
+$(function(){
+	$('.wmd-input').keypress(function(){
+		window.clearTimeout(hljs.Timeout);
+		hljs.Timeout = window.setTimeout(function() {
+			hljs.initHighlighting.called = false;
+			hljs.initHighlighting();
+		}, 500);
+	});
+	window.setTimeout(function() {
+		hljs.initHighlighting.called = false;
+		hljs.initHighlighting();
+	}, 500);
+});
+</script>
+
+
+	</head>
+	<body class="qa-template-question qa-body-js-off">
+		<div class="qa-body-wrapper">
+			
+			<div class="qa-header">
+				<div class="qa-logo">
+					<a href="../../" class="qa-logo-link" title="FEniCS Q&amp;A"><img src="../../qa-theme/fenics_qa.png" border="0" alt="FEniCS Q&amp;A"></a>
+				</div>
+				<div class="qa-header-clear">
+				</div>
+			</div> <!-- END qa-header -->
+			
+			<div class="qa-main-shadow">
+				
+				<div class="qa-main-wrapper">
+					
+					<div class="qa-sidepanel">
+						<div class="qa-sidebar">
+							This is a read only copy of the old FEniCS QA forum. Please visit the <a href="https://www.allanswered.com/community/s/fenics-project/">new QA forum</a> to ask questions
+						</div>
+						
+					</div>
+					
+					<div class="qa-main">
+						<h1>
+							<span class="entry-title">MixedFunctionSpace with boundary function spaces</span>
+						</h1>
+						<div class="qa-part-q-view">
+							<div class="qa-q-view  hentry question" id="q3076">
+								<form method="post" action="../../3076/mixedfunctionspace-with-boundary-function-spaces">
+									<div class="qa-q-view-stats">
+										<div class="qa-voting qa-voting-net" id="voting_3076">
+											<div class="qa-vote-count qa-vote-count-net">
+												<span class="qa-netvote-count">
+													<span class="qa-netvote-count-data">+2<span class="votes-up"><span class="value-title" title="2"></span></span><span class="votes-down"><span class="value-title" title="0"></span></span></span><span class="qa-netvote-count-pad"> votes</span>
+												</span>
+											</div>
+											<div class="qa-vote-clear">
+											</div>
+										</div>
+									</div>
+									<input type="hidden" name="code" value="0-1516467956-8242a48c9077632a7bdfc1983f8f6a99c2effa8b">
+								</form>
+								<div class="qa-q-view-main">
+									<form method="post" action="../../3076/mixedfunctionspace-with-boundary-function-spaces">
+										<div class="qa-q-view-content">
+											<a name="3076"></a><div class="entry-content"><p>Hi, I am trying to solve a non-linear three-dimensional problem coupling elasticity and solvent diffusion. The state variables, defined over a three-dimensional body, are the displacement vector u, the pressure p and the solvent concentration c. To enforce the boundary conditions I have to define additional degrees of freedom (corresponding to a Lagrange multiplier) on the boundary. So, in the end, I have a mixed function space consisting of three spaces (for u, c and p) over the three-dimensional body and one function space over the boundary. When I run the script (see below) I get this error:</p>
+
+<blockquote>
+  <p>Sub elements must live in the same top level domain. Traceback (most<br>
+  recent call last):   File "swelling_gel_equilibrium_clean.py", line<br>
+  14, in <br>
+      W = MixedFunctionSpace([V,Q,R,M])   File "/Applications/FEniCS.app/Contents/Resources/lib/python2.7/site-packages/dolfin/functions/functionspace.py",<br>
+  line 502, in <strong>init</strong><br>
+      element = ufl.MixedElement(<em>[V.ufl_element() for V in spaces])   File<br>
+  "/Applications/FEniCS.app/Contents/Resources/lib/python2.7/site-packages/ufl/finiteelement/mixedelement.py",<br>
+  line 64, in <strong>init</strong><br>
+      error("Sub elements must live in the same top level domain.")   File<br>
+  "/Applications/FEniCS.app/Contents/Resources/lib/python2.7/site-packages/ufl/log.py",<br>
+  line 154, in error<br>
+      raise self._exception_type(self._format_raw(</em>message)) ufl.log.UFLException: Sub elements must live in the same top level<br>
+  domain.</p>
+</blockquote>
+
+<p>My guess is that I cannot define a mixed function space combining function spaces over the 3D domain and function spaces over the boundary: is it right? Is there a workaround for this problem, in case this feature is not supported? </p>
+
+<p>Thanks a lot! AL</p>
+
+<pre><code>from dolfin import *
+import math
+import ufl
+
+mesh = UnitCubeMesh(1,1,1)
+
+V = VectorFunctionSpace(mesh, 'Lagrange', 2) # displacement
+Q = FunctionSpace(mesh,'Lagrange',1) # pressure
+R = FunctionSpace(mesh,'Lagrange',2) # bulk concentration
+
+boundary_mesh = BoundaryMesh(mesh, "exterior")
+
+M = FunctionSpace(boundary_mesh,'Lagrange',2) # Lagrange multiplier
+W = MixedFunctionSpace([V,Q,R,M])
+
+# Test and trial functions
+vqrm  = TestFunction(W) # Test function in the mixed space
+v,q,r,tcs = split(vqrm)
+dupccs = TrialFunction(W) # Trial function in the mixed space (solution increment)
+
+upccs = Function(W) # Function in the mixed space to store the solution
+u,p,c,cs = split(upccs) # Function in each subspace to write the functional
+
+# nonlinear effective diffusion coefficient
+def g(c):
+    return D*((2*chi-1.)*Omega*Jo*c-1.)/pow((1.+Omega*Jo*c),3)
+
+def dmudc(c):
+    return -(Rg*T)*((2.*chi-1.)*Omega*Jo-1./c)/pow((1.+Omega*Jo*c),3)
+
+# Parameters
+Omega = 6.023e-5
+D = 1E-1
+Gdry = 4E5
+Rg = 8.314
+T = 293.0
+lamo = 1.001
+Jo = lamo**3
+cod = (lamo**3-1.0)/Omega
+co = cod/Jo
+chi = 0.2
+po = Gdry/lamo
+muo = Rg*T*(math.log(Omega*cod/(1+Omega*cod))+1/(1+Omega*cod)+ chi/pow((1+Omega*cod),2)) \
++Omega*po
+mus = muo
+mutop = -10000
+
+# Kinematics
+I = Identity(3)
+F = I + grad(u)
+J = det(F)
+
+# Constitutive equations
+
+S = (Gdry/lamo)*F-p*cofac(F)
+mu = Rg*T*(ufl.ln(Omega*Jo*c/(1+Omega*Jo*c)) + 1./(1.+Omega*Jo*c)+ \
+         chi/pow((1.+Omega*Jo*c),2))+Omega*p
+
+h = g(c)*grad(c)+(-c*D/(Rg*T))*Omega*grad(p)
+
+dmudp = Omega
+dmu = mu-mus
+
+# Boundary conditions
+
+def left_boundary(x, on_boundary): # x = 0
+    return on_boundary and abs(x[0]) &lt; DOLFIN_EPS
+
+def back_boundary(x, on_boundary): # y = 0
+    return on_boundary and abs(x[1]) &lt; DOLFIN_EPS
+
+def bottom_boundary(x, on_boundary): # z = 0
+    return on_boundary and abs(x[2]) &lt; DOLFIN_EPS
+
+bcl = DirichletBC((W.sub(0)).sub(0), Constant(0.), left_boundary) # u = 0 on x = 0
+bcb = DirichletBC((W.sub(0)).sub(1), Constant(0.), back_boundary) # v = 0 on y = 0
+bcbo = DirichletBC((W.sub(0)).sub(2), Constant(0.), bottom_boundary) # w = 0 on z = 0
+bc = [bcl,bcb,bcbo]
+
+# WEAK FORM OF BALANCE EQUATIONS
+
+a = inner(S,grad(v))*dx + q*(J-(1./Jo+Omega*c))*dx + inner(h,grad(r))*dx + inner(dmu,tcs)*ds \
+        + inner(dmudc(c)*cs,r)*ds + inner(dmudp*cs,q)*ds
+
+Jac = derivative(a,upccs,dupccs)
+
+problem = NonlinearVariationalProblem(a, upccs, bc, Jac)
+solver = NonlinearVariationalSolver(problem)
+
+# Initial guess for unknowns
+c = interpolate(Constant(co), R)
+p = interpolate(Constant(po), Q)
+cs = interpolate(Constant(co),M)
+
+# solve non-linear problem
+solver.solve()
+
+# plot solvent concentration
+w = Function(V)
+w = upccs.split()[2]
+plot(w)
+interactive()
+</code></pre>
+</div>
+										</div>
+										<div class="qa-q-view-tags">
+											<ul class="qa-q-view-tag-list">
+												<li class="qa-q-view-tag-item"><a href="../../tag/mixed-function-space" rel="tag" class="qa-tag-link">mixed-function-space</a></li>
+												<li class="qa-q-view-tag-item"><a href="../../tag/boundary" rel="tag" class="qa-tag-link">boundary</a></li>
+												<li class="qa-q-view-tag-item"><a href="../../tag/nonlinear" rel="tag" class="qa-tag-link">nonlinear</a></li>
+											</ul>
+										</div>
+										<span class="qa-q-view-avatar-meta">
+											<span class="qa-q-view-meta">
+												<a href="../../3076/mixedfunctionspace-with-boundary-function-spaces" class="qa-q-view-what">asked</a>
+												<span class="qa-q-view-when">
+													<span class="qa-q-view-when-data"><span class="published"><span class="value-title" title="2014-03-25T13:27:46+0000"></span>Mar 25, 2014</span></span>
+												</span>
+												<span class="qa-q-view-who">
+													<span class="qa-q-view-who-pad">by </span>
+													<span class="qa-q-view-who-data"><span class="vcard author"><a href="../../user/al6" class="qa-user-link url nickname">al6</a></span></span>
+													<span class="qa-q-view-who-title">FEniCS Novice</span>
+													<span class="qa-q-view-who-points">
+														<span class="qa-q-view-who-points-pad">(</span><span class="qa-q-view-who-points-data">170</span><span class="qa-q-view-who-points-pad"> points)</span>
+													</span>
+												</span>
+											</span>
+										</span>
+										<div class="qa-q-view-buttons">
+										</div>
+										
+										<div class="qa-q-view-c-list" style="display:none;" id="c3076_list">
+										</div> <!-- END qa-c-list -->
+										
+										<input type="hidden" name="code" value="0-1516467956-1e260e9f1792601378cb1671bc0c26fe46cd4f6a">
+										<input type="hidden" name="qa_click" value="">
+									</form>
+									<div class="qa-c-form">
+									</div> <!-- END qa-c-form -->
+									
+								</div> <!-- END qa-q-view-main -->
+								<div class="qa-q-view-clear">
+								</div>
+							</div> <!-- END qa-q-view -->
+							
+						</div>
+						<div class="qa-part-a-list">
+							<h2 id="a_list_title">1 Answer</h2>
+							<div class="qa-a-list" id="a_list">
+								
+								<div class="qa-a-list-item  hentry answer answer-selected qa-a-list-item-selected" id="a3084">
+									<form method="post" action="../../3076/mixedfunctionspace-with-boundary-function-spaces">
+										<div class="qa-voting qa-voting-net" id="voting_3084">
+											<div class="qa-vote-count qa-vote-count-net">
+												<span class="qa-netvote-count">
+													<span class="qa-netvote-count-data">+2<span class="votes-up"><span class="value-title" title="2"></span></span><span class="votes-down"><span class="value-title" title="0"></span></span></span><span class="qa-netvote-count-pad"> votes</span>
+												</span>
+											</div>
+											<div class="qa-vote-clear">
+											</div>
+										</div>
+										<input type="hidden" name="code" value="0-1516467956-8242a48c9077632a7bdfc1983f8f6a99c2effa8b">
+									</form>
+									<div class="qa-a-item-main">
+										<form method="post" action="../../3076/mixedfunctionspace-with-boundary-function-spaces">
+											<div class="qa-a-item-selected">
+												<div class="qa-a-selection">
+													<div class="qa-a-selected">&#160;</div>
+													<div class="qa-a-selected-text">Best answer</div>
+												</div>
+												<div class="qa-a-item-content">
+													<a name="3084"></a><div class="entry-content"><p>Correct, this feature is not yet supported. It is in the pipeline however. </p>
+</div>
+												</div>
+												<span class="qa-a-item-avatar-meta">
+													<span class="qa-a-item-avatar">
+														<a href="../../user/Marie+E.+Rognes" class="qa-avatar-link"><img src="https://www.gravatar.com/avatar/3fe6d56fa31612bacc6320b6a19b0ba5?s=40" width="40" height="40" class="qa-avatar-image" alt=""></a>
+													</span>
+													<span class="qa-a-item-meta">
+														<a href="../../3076/mixedfunctionspace-with-boundary-function-spaces?show=3084#a3084" class="qa-a-item-what">answered</a>
+														<span class="qa-a-item-when">
+															<span class="qa-a-item-when-data"><span class="published"><span class="value-title" title="2014-03-25T20:42:12+0000"></span>Mar 25, 2014</span></span>
+														</span>
+														<span class="qa-a-item-who">
+															<span class="qa-a-item-who-pad">by </span>
+															<span class="qa-a-item-who-data"><span class="vcard author"><a href="../../user/Marie+E.+Rognes" class="qa-user-link url nickname">Marie E. Rognes</a></span></span>
+															<span class="qa-a-item-who-title">FEniCS User</span>
+															<span class="qa-a-item-who-points">
+																<span class="qa-a-item-who-points-pad">(</span><span class="qa-a-item-who-points-data">5,380</span><span class="qa-a-item-who-points-pad"> points)</span>
+															</span>
+														</span>
+														<br>
+														<span class="qa-a-item-what">selected</span>
+														<span class="qa-a-item-when">
+															<span class="qa-a-item-when-data"><span class="updated"><span class="value-title" title="2014-03-26T07:10:07+0000"></span>Mar 26, 2014</span></span>
+														</span>
+														<span class="qa-a-item-who">
+															<span class="qa-a-item-who-pad">by </span><span class="qa-a-item-who-data"><a href="../../user/al6" class="qa-user-link url nickname">al6</a></span>
+														</span>
+													</span>
+												</span>
+											</div>
+											<div class="qa-a-item-buttons">
+												</div>
+											
+											<div class="qa-a-item-c-list" id="c3084_list">
+												<div class="qa-c-list-item  hentry comment" id="c3091">
+													<div class="qa-c-item-content">
+														<a name="3091"></a><div class="entry-content"><p>Thanks, I will wait for the implementation of the feature, then. Meanwhile, I think I will try to use for the Lagrange multiplier a function space defined all over the 3D domain, instead of a boundary function space, and constrain to zero the inner dofs.</p>
+</div>
+													</div>
+													<div class="qa-c-item-footer">
+														<span class="qa-c-item-avatar-meta">
+															<span class="qa-c-item-meta">
+																<a href="../../3076/mixedfunctionspace-with-boundary-function-spaces?show=3091#c3091" class="qa-c-item-what">commented</a>
+																<span class="qa-c-item-when">
+																	<span class="qa-c-item-when-data"><span class="published"><span class="value-title" title="2014-03-26T07:13:23+0000"></span>Mar 26, 2014</span></span>
+																</span>
+																<span class="qa-c-item-who">
+																	<span class="qa-c-item-who-pad">by </span>
+																	<span class="qa-c-item-who-data"><span class="vcard author"><a href="../../user/al6" class="qa-user-link url nickname">al6</a></span></span>
+																	<span class="qa-c-item-who-title">FEniCS Novice</span>
+																	<span class="qa-c-item-who-points">
+																		<span class="qa-c-item-who-points-pad">(</span><span class="qa-c-item-who-points-data">170</span><span class="qa-c-item-who-points-pad"> points)</span>
+																	</span>
+																</span>
+															</span>
+														</span>
+														<div class="qa-c-item-buttons">
+														</div>
+													</div>
+													<div class="qa-c-item-clear">
+													</div>
+												</div> <!-- END qa-c-item -->
+												<div class="qa-c-list-item  hentry comment" id="c10487">
+													<div class="qa-c-item-content">
+														<a name="10487"></a><div class="entry-content"><p>Is this feature supported yet?</p>
+</div>
+													</div>
+													<div class="qa-c-item-footer">
+														<span class="qa-c-item-avatar-meta">
+															<span class="qa-c-item-meta">
+																<a href="../../3076/mixedfunctionspace-with-boundary-function-spaces?show=10487#c10487" class="qa-c-item-what">commented</a>
+																<span class="qa-c-item-when">
+																	<span class="qa-c-item-when-data"><span class="published"><span class="value-title" title="2016-06-24T23:20:47+0000"></span>Jun 25, 2016</span></span>
+																</span>
+																<span class="qa-c-item-who">
+																	<span class="qa-c-item-who-pad">by </span>
+																	<span class="qa-c-item-who-data"><span class="vcard author"><a href="../../user/sarah" class="qa-user-link url nickname">sarah</a></span></span>
+																	<span class="qa-c-item-who-title">FEniCS Novice</span>
+																	<span class="qa-c-item-who-points">
+																		<span class="qa-c-item-who-points-pad">(</span><span class="qa-c-item-who-points-data">430</span><span class="qa-c-item-who-points-pad"> points)</span>
+																	</span>
+																</span>
+															</span>
+														</span>
+														<div class="qa-c-item-buttons">
+														</div>
+													</div>
+													<div class="qa-c-item-clear">
+													</div>
+												</div> <!-- END qa-c-item -->
+												<div class="qa-c-list-item  hentry comment" id="c10493">
+													<div class="qa-c-item-content">
+														<a name="10493"></a><div class="entry-content"><p>No, not yet. </p>
+</div>
+													</div>
+													<div class="qa-c-item-footer">
+														<span class="qa-c-item-avatar-meta">
+															<span class="qa-c-item-avatar">
+																<a href="../../user/Marie+E.+Rognes" class="qa-avatar-link"><img src="https://www.gravatar.com/avatar/3fe6d56fa31612bacc6320b6a19b0ba5?s=20" width="20" height="20" class="qa-avatar-image" alt=""></a>
+															</span>
+															<span class="qa-c-item-meta">
+																<a href="../../3076/mixedfunctionspace-with-boundary-function-spaces?show=10493#c10493" class="qa-c-item-what">commented</a>
+																<span class="qa-c-item-when">
+																	<span class="qa-c-item-when-data"><span class="published"><span class="value-title" title="2016-06-27T08:23:10+0000"></span>Jun 27, 2016</span></span>
+																</span>
+																<span class="qa-c-item-who">
+																	<span class="qa-c-item-who-pad">by </span>
+																	<span class="qa-c-item-who-data"><span class="vcard author"><a href="../../user/Marie+E.+Rognes" class="qa-user-link url nickname">Marie E. Rognes</a></span></span>
+																	<span class="qa-c-item-who-title">FEniCS User</span>
+																	<span class="qa-c-item-who-points">
+																		<span class="qa-c-item-who-points-pad">(</span><span class="qa-c-item-who-points-data">5,380</span><span class="qa-c-item-who-points-pad"> points)</span>
+																	</span>
+																</span>
+															</span>
+														</span>
+														<div class="qa-c-item-buttons">
+														</div>
+													</div>
+													<div class="qa-c-item-clear">
+													</div>
+												</div> <!-- END qa-c-item -->
+												<div class="qa-c-list-item  hentry comment" id="c10604">
+													<div class="qa-c-item-content">
+														<a name="10604"></a><div class="entry-content"><p>Hi ! I am trying to do something similar (<a rel="nofollow" href="https://fenicsproject.org/qa/10593/formulation-distinct-domains-application-kinematic-constraint),">https://fenicsproject.org/qa/10593/formulation-distinct-domains-application-kinematic-constraint),</a> I wonder if you found an alternative solution ?</p>
+</div>
+													</div>
+													<div class="qa-c-item-footer">
+														<span class="qa-c-item-avatar-meta">
+															<span class="qa-c-item-meta">
+																<a href="../../3076/mixedfunctionspace-with-boundary-function-spaces?show=10604#c10604" class="qa-c-item-what">commented</a>
+																<span class="qa-c-item-when">
+																	<span class="qa-c-item-when-data"><span class="published"><span class="value-title" title="2016-07-06T07:24:54+0000"></span>Jul 6, 2016</span></span>
+																</span>
+																<span class="qa-c-item-who">
+																	<span class="qa-c-item-who-pad">by </span>
+																	<span class="qa-c-item-who-data"><span class="vcard author"><a href="../../user/Claire+L" class="qa-user-link url nickname">Claire L</a></span></span>
+																	<span class="qa-c-item-who-title">FEniCS User</span>
+																	<span class="qa-c-item-who-points">
+																		<span class="qa-c-item-who-points-pad">(</span><span class="qa-c-item-who-points-data">2,120</span><span class="qa-c-item-who-points-pad"> points)</span>
+																	</span>
+																</span>
+															</span>
+														</span>
+														<div class="qa-c-item-buttons">
+														</div>
+													</div>
+													<div class="qa-c-item-clear">
+													</div>
+												</div> <!-- END qa-c-item -->
+											</div> <!-- END qa-c-list -->
+											
+											<input type="hidden" name="code" value="0-1516467956-3f2bbd7dab8486b554faa52f723fb290913dfd91">
+											<input type="hidden" name="qa_click" value="">
+										</form>
+										<div class="qa-c-form">
+										</div> <!-- END qa-c-form -->
+										
+									</div> <!-- END qa-a-item-main -->
+									<div class="qa-a-item-clear">
+									</div>
+								</div> <!-- END qa-a-list-item -->
+								
+							</div> <!-- END qa-a-list -->
+							
+						</div>
+					</div> <!-- END qa-main -->
+					
+				</div> <!-- END main-wrapper -->
+			</div> <!-- END main-shadow -->
+		</div> <!-- END body-wrapper -->
+		<!-- END footer-bottom-group -->
+		
+		<div style="position:absolute; left:-9999px; top:-9999px;">
+			<span id="qa-waiting-template" class="qa-waiting">...</span>
+		</div>
+	
+	
+
+</body><!-- Powered by Question2Answer - http://www.question2answer.org/ --></html>

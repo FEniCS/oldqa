@@ -1,0 +1,332 @@
+<html><!-- Powered by Question2Answer - http://www.question2answer.org/ --><head>
+		<meta http-equiv="content-type" content="text/html; charset=utf-8">
+		<title>Found no facets matching domain for boundary condition , newton iteration did not converge - FEniCS Q&amp;A</title>
+		<meta name="description" content="I just want to understand the cause of the error . What I got from the error message is ...  error was encountered inside NewtonSolver.cpp. Process: 0">
+		<meta name="keywords" content="boundary-conditions,mixed-function-space">
+		<link rel="stylesheet" type="text/css" href="../../qa-theme/Snow/qa-styles.css">
+		<link rel="canonical" href="http://fenicsproject.org/qa/2165/facets-matching-domain-boundary-condition-iteration-converge">
+		<script type="text/x-mathjax-config">
+  MathJax.Hub.Config({
+    extensions: ["tex2jax.js"],
+    jax: ["input/TeX","output/HTML-CSS"],
+    tex2jax: {inlineMath: [["$","$"],["\\(","\\)"]]},
+    TeX: { extensions: ["AMSmath.js","AMSsymbols.js"]}
+  });
+</script>
+<script type="text/javascript" src="../../mathjax/MathJax.js"></script>
+		<script src="../../jquery-1.7.2.min.js" type="text/javascript"></script>
+		<script src="../../highlight.min.js"></script>
+<script type="text/javascript">
+$(function(){
+	$('.wmd-input').keypress(function(){
+		window.clearTimeout(hljs.Timeout);
+		hljs.Timeout = window.setTimeout(function() {
+			hljs.initHighlighting.called = false;
+			hljs.initHighlighting();
+		}, 500);
+	});
+	window.setTimeout(function() {
+		hljs.initHighlighting.called = false;
+		hljs.initHighlighting();
+	}, 500);
+});
+</script>
+
+
+	</head>
+	<body class="qa-template-question qa-body-js-off">
+		<div class="qa-body-wrapper">
+			
+			<div class="qa-header">
+				<div class="qa-logo">
+					<a href="../../" class="qa-logo-link" title="FEniCS Q&amp;A"><img src="../../qa-theme/fenics_qa.png" border="0" alt="FEniCS Q&amp;A"></a>
+				</div>
+				<div class="qa-header-clear">
+				</div>
+			</div> <!-- END qa-header -->
+			
+			<div class="qa-main-shadow">
+				
+				<div class="qa-main-wrapper">
+					
+					<div class="qa-sidepanel">
+						<div class="qa-sidebar">
+							This is a read only copy of the old FEniCS QA forum. Please visit the <a href="https://www.allanswered.com/community/s/fenics-project/">new QA forum</a> to ask questions
+						</div>
+						
+					</div>
+					
+					<div class="qa-main">
+						<h1>
+							<span class="entry-title">Found no facets matching domain for boundary condition , newton iteration did not converge</span>
+						</h1>
+						<div class="qa-part-q-view">
+							<div class="qa-q-view  hentry question" id="q2165">
+								<form method="post" action="../../2165/facets-matching-domain-boundary-condition-iteration-converge">
+									<div class="qa-q-view-stats">
+										<div class="qa-voting qa-voting-net" id="voting_2165">
+											<div class="qa-vote-count qa-vote-count-net">
+												<span class="qa-netvote-count">
+													<span class="qa-netvote-count-data">0<span class="votes-up"><span class="value-title" title="0"></span></span><span class="votes-down"><span class="value-title" title="0"></span></span></span><span class="qa-netvote-count-pad"> votes</span>
+												</span>
+											</div>
+											<div class="qa-vote-clear">
+											</div>
+										</div>
+									</div>
+									<input type="hidden" name="code" value="0-1516467915-7d7da813b26d9422022be2909bba8e0ff53108ca">
+								</form>
+								<div class="qa-q-view-main">
+									<form method="post" action="../../2165/facets-matching-domain-boundary-condition-iteration-converge">
+										<div class="qa-q-view-content">
+											<a name="2165"></a><div class="entry-content"><p>I just want to understand the cause of the error . What I got from the error message is that the newton iterations are not converging . What could be the reason for the for this error?  Is it because the problem formulation is wrong.  Also I got the error  "Found no facets matching domain for boundary condition." Is this error due to improper boundary conditions ? Or these errors are due to some fundamental mistake I am doing in writing the code. Please let me know.</p>
+
+<p>from dolfin import *<br>
+    import numpy, sys </p>
+
+<pre><code># create mesh
+mesh = UnitSquare(5,5)
+
+V = FunctionSpace(mesh,"Lagrange",1) # Function space for u ( Temperature)
+Q = FunctionSpace(mesh,"Lagrange",1)  # Function space for \mu ( materi#property
+L = FunctionSpace(mesh,"Lagrange",1)  # Function space for \lembda 
+
+
+M = MixedFunctionSpace([V,Q,L]) # M is mixed function space
+
+# Define the test function space
+TestFunction = TestFunction(M)
+(v,q,w) = split(TestFunction)
+
+# split the mixed function space into components
+# Define the trial function space
+solution = Function(M)
+(u,mu,lmd) = split(solution)
+PrescribedU=Expression("0.25*(pow(x[0],2)+pow(x[1],2))-x[0]*x[1]*0.5-x[0]+0.5*x[1]")
+
+# projecting analytical solution on the function space
+u_m = interpolate(PrescribedU,V)
+
+F=inner(nabla_grad(lmd),nabla_grad(v))*mu*dx \
+        +inner(nabla_grad(lmd),nabla_grad(u))*q*dx\
+        +inner(nabla_grad(w),nabla_grad(u))*mu*dx+inner(v,u-u_m)*dx
+
+def boundary_u(x,on_boundary):
+    on_boundary and (near(x[0],0.0) or near(x[0],1.0) \
+            or near(x[1],0.0) or near(x[1],1.0))
+
+def boundary_lmd(x,on_boundary):
+    on_boundary and (near(x[0],0.0) or near(x[0],1.0) \
+            or near(x[1],0.0) or near(x[1],1.0))
+
+# \mu boundaries
+def boundary_mu(x,on_boundary):
+    on_boundary and (near(x[1],0.0) or near(x[0],1.0))
+
+# u is prescribed on entire boundary
+bcs_u = DirichletBC(M.sub(0),PrescribedU , boundary_u)
+# \mu prescribed where vector(a).vector(n) &lt; 0 ,i.e inflow boudaries
+# inflow boundaries are x[0]=1. and x[1]=0.
+# a = Expression("0.5*(x[0]-x[1])-1","(x[1]-x[0])*0.5+0.5")
+PrescribedMU= Expression("(2/(exp(2)-1))*(exp(2*x[0])+2*x[1])")
+bcs_mu=DirichletBC(M.sub(1),PrescribedMU,boundary_mu)
+
+# \lmd is 0. on entire boundary
+bcs_lmd=DirichletBC(M.sub(2),Constant(0.0),boundary_lmd)
+
+bcs=[bcs_u ,bcs_mu , bcs_lmd]
+
+
+#solution = Function(M)
+solve(F==0,solution, bcs)
+</code></pre>
+
+<p>Error message is as follows: </p>
+
+<p>Newton iteration 6: r (abs) = nan (tol = 1.000e-10) r (rel) = nan (tol = 1.000e-09)<br>
+  Warning: Found no facets matching domain for boundary condition.<br>
+   Warning: Found no facets matching domain for boundary condition.</p>
+
+<p>[0]PETSC ERROR: --------------------- Error Message ------------------------------------<br>
+[0]PETSC ERROR: Floating point exception!<br>
+[0]PETSC ERROR: Infinite or not-a-number generated in norm!<br>
+[0]PETSC ERROR: ------------------------------------------------------------------------<br>
+[0]PETSC ERROR: Petsc Release Version 3.2.0, Patch 5, Sat Oct 29 13:45:54 CDT 2011 <br>
+[0]PETSC ERROR: See docs/changes/index.html for recent updates.<br>
+[0]PETSC ERROR: See docs/faq.html for hints about trouble shooting.<br>
+[0]PETSC ERROR: See docs/index.html for manual pages.<br>
+[0]PETSC ERROR: ------------------------------------------------------------------------<br>
+[0]PETSC ERROR: Unknown Name on a linux-gnu named linuxGeek by mohit Mon Jan  6 17:05:55 2014<br>
+[0]PETSC ERROR: Libraries linked from /build/buildd/petsc-3.2.dfsg/linux-gnu-c-opt/lib<br>
+[0]PETSC ERROR: Configure run at Tue Dec  4 14:42:55 2012</p>
+
+<p>Error:   Unable to solve nonlinear system with NewtonSolver.<br>
+Reason:  Newton solver did not converge. Bummer.<br>
+Where:   This error was encountered inside NewtonSolver.cpp.<br>
+ Process: 0</p>
+</div>
+										</div>
+										<div class="qa-q-view-tags">
+											<ul class="qa-q-view-tag-list">
+												<li class="qa-q-view-tag-item"><a href="../../tag/boundary-conditions" rel="tag" class="qa-tag-link">boundary-conditions</a></li>
+												<li class="qa-q-view-tag-item"><a href="../../tag/mixed-function-space" rel="tag" class="qa-tag-link">mixed-function-space</a></li>
+											</ul>
+										</div>
+										<span class="qa-q-view-avatar-meta">
+											<span class="qa-q-view-meta">
+												<a href="../../2165/facets-matching-domain-boundary-condition-iteration-converge" class="qa-q-view-what">asked</a>
+												<span class="qa-q-view-when">
+													<span class="qa-q-view-when-data"><span class="published"><span class="value-title" title="2014-01-06T12:15:04+0000"></span>Jan 6, 2014</span></span>
+												</span>
+												<span class="qa-q-view-who">
+													<span class="qa-q-view-who-pad">by </span>
+													<span class="qa-q-view-who-data"><span class="vcard author"><a href="../../user/mt.fan" class="qa-user-link url nickname">mt.fan</a></span></span>
+													<span class="qa-q-view-who-title">FEniCS Novice</span>
+													<span class="qa-q-view-who-points">
+														<span class="qa-q-view-who-points-pad">(</span><span class="qa-q-view-who-points-data">260</span><span class="qa-q-view-who-points-pad"> points)</span>
+													</span>
+												</span>
+											</span>
+										</span>
+										<div class="qa-q-view-buttons">
+										</div>
+										
+										<div class="qa-q-view-c-list" style="display:none;" id="c2165_list">
+										</div> <!-- END qa-c-list -->
+										
+										<input type="hidden" name="code" value="0-1516467915-df56a845c050e25ae2a31acfd13906b9075c14f2">
+										<input type="hidden" name="qa_click" value="">
+									</form>
+									<div class="qa-c-form">
+									</div> <!-- END qa-c-form -->
+									
+								</div> <!-- END qa-q-view-main -->
+								<div class="qa-q-view-clear">
+								</div>
+							</div> <!-- END qa-q-view -->
+							
+						</div>
+						<div class="qa-part-a-list">
+							<h2 id="a_list_title">1 Answer</h2>
+							<div class="qa-a-list" id="a_list">
+								
+								<div class="qa-a-list-item  hentry answer" id="a2167">
+									<form method="post" action="../../2165/facets-matching-domain-boundary-condition-iteration-converge">
+										<div class="qa-voting qa-voting-net" id="voting_2167">
+											<div class="qa-vote-count qa-vote-count-net">
+												<span class="qa-netvote-count">
+													<span class="qa-netvote-count-data">+4<span class="votes-up"><span class="value-title" title="4"></span></span><span class="votes-down"><span class="value-title" title="0"></span></span></span><span class="qa-netvote-count-pad"> votes</span>
+												</span>
+											</div>
+											<div class="qa-vote-clear">
+											</div>
+										</div>
+										<input type="hidden" name="code" value="0-1516467915-7d7da813b26d9422022be2909bba8e0ff53108ca">
+									</form>
+									<div class="qa-a-item-main">
+										<form method="post" action="../../2165/facets-matching-domain-boundary-condition-iteration-converge">
+											<div class="qa-a-selection">
+											</div>
+											<div class="qa-a-item-content">
+												<a name="2167"></a><div class="entry-content"><pre><code>"Found no facets matching domain for boundary condition."
+</code></pre>
+
+<p>This is a coding error - you're missing <code>return</code> keyword</p>
+
+<pre><code>def boundary_u(x,on_boundary):
+    return on_boundary and (near(x[0],0.0) or near(x[0],1.0) \
+            or near(x[1],0.0) or near(x[1],1.0))
+
+def boundary_lmd(x,on_boundary):
+    return on_boundary and (near(x[0],0.0) or near(x[0],1.0) \
+            or near(x[1],0.0) or near(x[1],1.0))
+
+# \mu boundaries
+def boundary_mu(x,on_boundary):
+    return on_boundary and (near(x[1],0.0) or near(x[0],1.0))
+</code></pre>
+
+<p>Then Newton solver fails because of infinity in second iteration hence your problem is probably singular.</p>
+</div>
+											</div>
+											<span class="qa-a-item-avatar-meta">
+												<span class="qa-a-item-avatar">
+													<a href="../../user/Jan+Blechta" class="qa-avatar-link"><img src="https://www.gravatar.com/avatar/dc6f8dce77e4a0bd5adc7ff31ab83741?s=40" width="40" height="40" class="qa-avatar-image" alt=""></a>
+												</span>
+												<span class="qa-a-item-meta">
+													<a href="../../2165/facets-matching-domain-boundary-condition-iteration-converge?show=2167#a2167" class="qa-a-item-what">answered</a>
+													<span class="qa-a-item-when">
+														<span class="qa-a-item-when-data"><span class="published"><span class="value-title" title="2014-01-06T17:28:16+0000"></span>Jan 6, 2014</span></span>
+													</span>
+													<span class="qa-a-item-who">
+														<span class="qa-a-item-who-pad">by </span>
+														<span class="qa-a-item-who-data"><span class="vcard author"><a href="../../user/Jan+Blechta" class="qa-user-link url nickname">Jan Blechta</a></span></span>
+														<span class="qa-a-item-who-title">FEniCS Expert</span>
+														<span class="qa-a-item-who-points">
+															<span class="qa-a-item-who-points-pad">(</span><span class="qa-a-item-who-points-data">51,420</span><span class="qa-a-item-who-points-pad"> points)</span>
+														</span>
+													</span>
+												</span>
+											</span>
+											<div class="qa-a-item-buttons">
+												</div>
+											
+											<div class="qa-a-item-c-list" id="c2167_list">
+												<div class="qa-c-list-item  hentry comment" id="c2168">
+													<div class="qa-c-item-content">
+														<a name="2168"></a><div class="entry-content"><p>Thanks ..this helped </p>
+</div>
+													</div>
+													<div class="qa-c-item-footer">
+														<span class="qa-c-item-avatar-meta">
+															<span class="qa-c-item-meta">
+																<a href="../../2165/facets-matching-domain-boundary-condition-iteration-converge?show=2168#c2168" class="qa-c-item-what">commented</a>
+																<span class="qa-c-item-when">
+																	<span class="qa-c-item-when-data"><span class="published"><span class="value-title" title="2014-01-06T17:35:40+0000"></span>Jan 6, 2014</span></span>
+																</span>
+																<span class="qa-c-item-who">
+																	<span class="qa-c-item-who-pad">by </span>
+																	<span class="qa-c-item-who-data"><span class="vcard author"><a href="../../user/mt.fan" class="qa-user-link url nickname">mt.fan</a></span></span>
+																	<span class="qa-c-item-who-title">FEniCS Novice</span>
+																	<span class="qa-c-item-who-points">
+																		<span class="qa-c-item-who-points-pad">(</span><span class="qa-c-item-who-points-data">260</span><span class="qa-c-item-who-points-pad"> points)</span>
+																	</span>
+																</span>
+															</span>
+														</span>
+														<div class="qa-c-item-buttons">
+														</div>
+													</div>
+													<div class="qa-c-item-clear">
+													</div>
+												</div> <!-- END qa-c-item -->
+											</div> <!-- END qa-c-list -->
+											
+											<input type="hidden" name="code" value="0-1516467915-944a56a4645360018e38c46ee5cf7b7f0c6fae67">
+											<input type="hidden" name="qa_click" value="">
+										</form>
+										<div class="qa-c-form">
+										</div> <!-- END qa-c-form -->
+										
+									</div> <!-- END qa-a-item-main -->
+									<div class="qa-a-item-clear">
+									</div>
+								</div> <!-- END qa-a-list-item -->
+								
+							</div> <!-- END qa-a-list -->
+							
+						</div>
+					</div> <!-- END qa-main -->
+					
+				</div> <!-- END main-wrapper -->
+			</div> <!-- END main-shadow -->
+		</div> <!-- END body-wrapper -->
+		<!-- END footer-bottom-group -->
+		
+		<div style="position:absolute; left:-9999px; top:-9999px;">
+			<span id="qa-waiting-template" class="qa-waiting">...</span>
+		</div>
+	
+	
+
+</body><!-- Powered by Question2Answer - http://www.question2answer.org/ --></html>

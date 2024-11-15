@@ -1,0 +1,614 @@
+<html><!-- Powered by Question2Answer - http://www.question2answer.org/ --><head>
+		<meta http-equiv="content-type" content="text/html; charset=utf-8">
+		<title>The error of Stokes problem  with mini element - FEniCS Q&amp;A</title>
+		<meta name="description" content="Hi every one The error of stokes problem with mini element has obsessed me. I have not fixed it. The error  ... 0]; Function p = w[1]; return 0; }">
+		<link rel="stylesheet" type="text/css" href="../../qa-theme/Snow/qa-styles.css">
+		<link rel="canonical" href="http://fenicsproject.org/qa/10264/the-error-of-stokes-problem-with-mini-element">
+		<script type="text/x-mathjax-config">
+  MathJax.Hub.Config({
+    extensions: ["tex2jax.js"],
+    jax: ["input/TeX","output/HTML-CSS"],
+    tex2jax: {inlineMath: [["$","$"],["\\(","\\)"]]},
+    TeX: { extensions: ["AMSmath.js","AMSsymbols.js"]}
+  });
+</script>
+<script type="text/javascript" src="../../mathjax/MathJax.js"></script>
+		<script src="../../jquery-1.7.2.min.js" type="text/javascript"></script>
+		<script src="../../highlight.min.js"></script>
+<script type="text/javascript">
+$(function(){
+	$('.wmd-input').keypress(function(){
+		window.clearTimeout(hljs.Timeout);
+		hljs.Timeout = window.setTimeout(function() {
+			hljs.initHighlighting.called = false;
+			hljs.initHighlighting();
+		}, 500);
+	});
+	window.setTimeout(function() {
+		hljs.initHighlighting.called = false;
+		hljs.initHighlighting();
+	}, 500);
+});
+</script>
+
+
+	</head>
+	<body class="qa-template-question qa-body-js-off">
+		<div class="qa-body-wrapper">
+			
+			<div class="qa-header">
+				<div class="qa-logo">
+					<a href="../../" class="qa-logo-link" title="FEniCS Q&amp;A"><img src="../../qa-theme/fenics_qa.png" border="0" alt="FEniCS Q&amp;A"></a>
+				</div>
+				<div class="qa-header-clear">
+				</div>
+			</div> <!-- END qa-header -->
+			
+			<div class="qa-main-shadow">
+				
+				<div class="qa-main-wrapper">
+					
+					<div class="qa-sidepanel">
+						<div class="qa-sidebar">
+							This is a read only copy of the old FEniCS QA forum. Please visit the <a href="https://www.allanswered.com/community/s/fenics-project/">new QA forum</a> to ask questions
+						</div>
+						
+					</div>
+					
+					<div class="qa-main">
+						<h1>
+							<span class="entry-title">The error of Stokes problem  with mini element</span>
+						</h1>
+						<div class="qa-part-q-view">
+							<div class="qa-q-view  hentry question" id="q10264">
+								<form method="post" action="../../10264/the-error-of-stokes-problem-with-mini-element">
+									<div class="qa-q-view-stats">
+										<div class="qa-voting qa-voting-net" id="voting_10264">
+											<div class="qa-vote-count qa-vote-count-net">
+												<span class="qa-netvote-count">
+													<span class="qa-netvote-count-data">+2<span class="votes-up"><span class="value-title" title="2"></span></span><span class="votes-down"><span class="value-title" title="0"></span></span></span><span class="qa-netvote-count-pad"> votes</span>
+												</span>
+											</div>
+											<div class="qa-vote-clear">
+											</div>
+										</div>
+									</div>
+									<input type="hidden" name="code" value="0-1516467049-4b7217d21549739c07d9467432ab26ed0cdf5820">
+								</form>
+								<div class="qa-q-view-main">
+									<form method="post" action="../../10264/the-error-of-stokes-problem-with-mini-element">
+										<div class="qa-q-view-content">
+											<a name="10264"></a><div class="entry-content"><p>Hi every one<br>
+The error of  stokes problem with mini element  has  obsessed me. I have not fixed it.  The error exists. When I run the code, the error appears:<br>
+ evaluate_dof(s) for enriched element not implemented.</p>
+
+<p>Could you give some suggestions? Any comments are appreciated.</p>
+
+<p>Stokes.ufl code:</p>
+
+<pre><code>P1 = VectorElement("Lagrange", triangle, 1)
+B = VectorElement("Bubble", triangle, 3)
+Q = FiniteElement("Lagrange", triangle, 1)
+MixElement = (P1 + B) * Q   
+f=Coefficient (P1)
+(u, p) = TrialFunctions(MixElement)
+(v, q) = TestFunctions(MixElement)
+a=inner (grad(u), grad(v))*dx - p*div(v)*dx + q*div(u)*dx  
+L=inner(f,v)*dx
+</code></pre>
+
+<p>My main cpp:</p>
+
+<pre><code>#include &lt;dolfin.h&gt;
+#include "Stokes.h"
+using namespace dolfin;
+class Source : public Expression
+{
+ public:
+ Source() : Expression(2) {}
+ void eval(Array&lt;double&gt;&amp; values, const Array&lt;double&gt;&amp; x) const
+ {
+  values[0] = -20.0*x[1]*x[1]*x[1] +20.0 * (2*x[1]-1);
+  values[1] = -20.0*x[0]*x[0]*x[0] +20.0 * (2*x[0]-1);
+  }
+ };
+
+// Exact solution velocity
+class ExactSolutionVelocity : public Expression
+{
+public:
+ExactSolutionVelocity() : Expression(2) {}
+void eval(Array&lt;double&gt;&amp; values, const Array&lt;double&gt;&amp; x) const
+{
+  values[0] = x[1]*x[1]*x[1]*x[1]*x[1];
+  values[1] = x[0]*x[0]*x[0]*x[0]*x[0];
+}
+};
+// Exact solution pressure
+class ExactSolutionPressure : public Expression
+{
+public:
+void eval(Array&lt;double&gt;&amp; values, const Array&lt;double&gt;&amp; x) const
+{
+  values[0] = 10.0*(2*x[0]-1) * (2*x[1]-1);
+  }
+ };
+
+class DirichletBoundary : public SubDomain
+{
+ bool inside(const Array&lt;double&gt;&amp; x, bool on_boundary) const
+{
+return on_boundary;
+}
+};
+
+int main()
+{
+int n=64;
+UnitSquareMesh mesh(n,n);
+Stokes:: FunctionSpace W(mesh);
+SubSpace W0(W,0);
+SubSpace W1(W,1);
+DirichletBoundary boundary;
+ExactSolutionVelocity u_boundary;
+DirichletBC bc(W0, u_boundary, boundary);
+Source f;  
+Stokes:: BilinearForm a(W,W);
+Stokes:: LinearForm L(W);
+L.f=f;
+Function w(W);
+solve(a==L, w, bc);
+Function u = w[0];
+Function p = w[1]; 
+return 0;
+}
+</code></pre>
+</div>
+										</div>
+										<span class="qa-q-view-avatar-meta">
+											<span class="qa-q-view-meta">
+												<a href="../../10264/the-error-of-stokes-problem-with-mini-element" class="qa-q-view-what">asked</a>
+												<span class="qa-q-view-when">
+													<span class="qa-q-view-when-data"><span class="published"><span class="value-title" title="2016-06-05T01:42:09+0000"></span>Jun 5, 2016</span></span>
+												</span>
+												<span class="qa-q-view-who">
+													<span class="qa-q-view-who-pad">by </span>
+													<span class="qa-q-view-who-data"><span class="vcard author"><a href="../../user/Guodong+Zhang" class="qa-user-link url nickname">Guodong Zhang</a></span></span>
+													<span class="qa-q-view-who-title">FEniCS Novice</span>
+													<span class="qa-q-view-who-points">
+														<span class="qa-q-view-who-points-pad">(</span><span class="qa-q-view-who-points-data">420</span><span class="qa-q-view-who-points-pad"> points)</span>
+													</span>
+												</span>
+											</span>
+										</span>
+										<div class="qa-q-view-buttons">
+										</div>
+										
+										<div class="qa-q-view-c-list" style="display:none;" id="c10264_list">
+										</div> <!-- END qa-c-list -->
+										
+										<input type="hidden" name="code" value="0-1516467049-cd65b3b8109acfead44c8a1b1d59de290b9b7b8a">
+										<input type="hidden" name="qa_click" value="">
+									</form>
+									<div class="qa-c-form">
+									</div> <!-- END qa-c-form -->
+									
+								</div> <!-- END qa-q-view-main -->
+								<div class="qa-q-view-clear">
+								</div>
+							</div> <!-- END qa-q-view -->
+							
+						</div>
+						<div class="qa-part-a-list">
+							<h2 id="a_list_title">1 Answer</h2>
+							<div class="qa-a-list" id="a_list">
+								
+								<div class="qa-a-list-item  hentry answer answer-selected qa-a-list-item-selected" id="a10266">
+									<form method="post" action="../../10264/the-error-of-stokes-problem-with-mini-element">
+										<div class="qa-voting qa-voting-net" id="voting_10266">
+											<div class="qa-vote-count qa-vote-count-net">
+												<span class="qa-netvote-count">
+													<span class="qa-netvote-count-data">+4<span class="votes-up"><span class="value-title" title="4"></span></span><span class="votes-down"><span class="value-title" title="0"></span></span></span><span class="qa-netvote-count-pad"> votes</span>
+												</span>
+											</div>
+											<div class="qa-vote-clear">
+											</div>
+										</div>
+										<input type="hidden" name="code" value="0-1516467049-4b7217d21549739c07d9467432ab26ed0cdf5820">
+									</form>
+									<div class="qa-a-item-main">
+										<form method="post" action="../../10264/the-error-of-stokes-problem-with-mini-element">
+											<div class="qa-a-item-selected">
+												<div class="qa-a-selection">
+													<div class="qa-a-selected">&#160;</div>
+													<div class="qa-a-selected-text">Best answer</div>
+												</div>
+												<div class="qa-a-item-content">
+													<a name="10266"></a><div class="entry-content"><p>Nodal basis for enriched elements is not supported yet, see <a rel="nofollow" href="https://bitbucket.org/fenics-project/ffc/issues/69/.">https://bitbucket.org/fenics-project/ffc/issues/69/.</a> As a result following features in DOLFIN do not work:</p>
+
+<ul>
+<li>interpolation to enriched space,</li>
+<li>projection from enriched to another mesh,</li>
+<li>using expressions and constants in Dirichlet BCs on enriched space</li>
+</ul>
+
+<p>The rest should be working.</p>
+
+<p>Problem is probably in <code>DirichletBC</code> and workaround is described in <a rel="nofollow" href="http://fenicsproject.org/documentation/dolfin/1.6.0/python/demo/documented/stokes-mini/python/documentation.html">http://fenicsproject.org/documentation/dolfin/1.6.0/python/demo/documented/stokes-mini/python/documentation.html</a> .</p>
+</div>
+												</div>
+												<span class="qa-a-item-avatar-meta">
+													<span class="qa-a-item-avatar">
+														<a href="../../user/Jan+Blechta" class="qa-avatar-link"><img src="https://www.gravatar.com/avatar/dc6f8dce77e4a0bd5adc7ff31ab83741?s=40" width="40" height="40" class="qa-avatar-image" alt=""></a>
+													</span>
+													<span class="qa-a-item-meta">
+														<a href="../../10264/the-error-of-stokes-problem-with-mini-element?show=10266#a10266" class="qa-a-item-what">answered</a>
+														<span class="qa-a-item-when">
+															<span class="qa-a-item-when-data"><span class="published"><span class="value-title" title="2016-06-05T14:53:49+0000"></span>Jun 5, 2016</span></span>
+														</span>
+														<span class="qa-a-item-who">
+															<span class="qa-a-item-who-pad">by </span>
+															<span class="qa-a-item-who-data"><span class="vcard author"><a href="../../user/Jan+Blechta" class="qa-user-link url nickname">Jan Blechta</a></span></span>
+															<span class="qa-a-item-who-title">FEniCS Expert</span>
+															<span class="qa-a-item-who-points">
+																<span class="qa-a-item-who-points-pad">(</span><span class="qa-a-item-who-points-data">51,420</span><span class="qa-a-item-who-points-pad"> points)</span>
+															</span>
+														</span>
+														<br>
+														<span class="qa-a-item-what">selected</span>
+														<span class="qa-a-item-when">
+															<span class="qa-a-item-when-data"><span class="updated"><span class="value-title" title="2016-06-16T21:00:03+0000"></span>Jun 16, 2016</span></span>
+														</span>
+														<span class="qa-a-item-who">
+															<span class="qa-a-item-who-pad">by </span><span class="qa-a-item-who-data"><a href="../../user/Garth+N.+Wells" class="qa-user-link url nickname">Garth N. Wells</a></span>
+														</span>
+													</span>
+												</span>
+											</div>
+											<div class="qa-a-item-buttons">
+												</div>
+											
+											<div class="qa-a-item-c-list" id="c10266_list">
+												<div class="qa-c-list-item  hentry comment" id="c10274">
+													<div class="qa-c-item-content">
+														<a name="10274"></a><div class="entry-content"><p>Thank you! Jan Blechta.  And are there some methods to make the mini element work? Or, we <br>
+have to turn to Taylor hood element? </p>
+</div>
+													</div>
+													<div class="qa-c-item-footer">
+														<span class="qa-c-item-avatar-meta">
+															<span class="qa-c-item-meta">
+																<a href="../../10264/the-error-of-stokes-problem-with-mini-element?show=10274#c10274" class="qa-c-item-what">commented</a>
+																<span class="qa-c-item-when">
+																	<span class="qa-c-item-when-data"><span class="published"><span class="value-title" title="2016-06-06T02:38:52+0000"></span>Jun 6, 2016</span></span>
+																</span>
+																<span class="qa-c-item-who">
+																	<span class="qa-c-item-who-pad">by </span>
+																	<span class="qa-c-item-who-data"><span class="vcard author"><a href="../../user/Guodong+Zhang" class="qa-user-link url nickname">Guodong Zhang</a></span></span>
+																	<span class="qa-c-item-who-title">FEniCS Novice</span>
+																	<span class="qa-c-item-who-points">
+																		<span class="qa-c-item-who-points-pad">(</span><span class="qa-c-item-who-points-data">420</span><span class="qa-c-item-who-points-pad"> points)</span>
+																	</span>
+																</span>
+															</span>
+														</span>
+														<div class="qa-c-item-buttons">
+														</div>
+													</div>
+													<div class="qa-c-item-clear">
+													</div>
+												</div> <!-- END qa-c-item -->
+												<div class="qa-c-list-item  hentry comment" id="c10275">
+													<div class="qa-c-item-content">
+														<a name="10275"></a><div class="entry-content"><p>Basis works. Nodes do not. Only mentioned operations on the element do not work. Assembly works so that you can solve your problem. See the mentioned demo.</p>
+</div>
+													</div>
+													<div class="qa-c-item-footer">
+														<span class="qa-c-item-avatar-meta">
+															<span class="qa-c-item-avatar">
+																<a href="../../user/Jan+Blechta" class="qa-avatar-link"><img src="https://www.gravatar.com/avatar/dc6f8dce77e4a0bd5adc7ff31ab83741?s=20" width="20" height="20" class="qa-avatar-image" alt=""></a>
+															</span>
+															<span class="qa-c-item-meta">
+																<a href="../../10264/the-error-of-stokes-problem-with-mini-element?show=10275#c10275" class="qa-c-item-what">commented</a>
+																<span class="qa-c-item-when">
+																	<span class="qa-c-item-when-data"><span class="published"><span class="value-title" title="2016-06-06T02:43:32+0000"></span>Jun 6, 2016</span></span>
+																</span>
+																<span class="qa-c-item-who">
+																	<span class="qa-c-item-who-pad">by </span>
+																	<span class="qa-c-item-who-data"><span class="vcard author"><a href="../../user/Jan+Blechta" class="qa-user-link url nickname">Jan Blechta</a></span></span>
+																	<span class="qa-c-item-who-title">FEniCS Expert</span>
+																	<span class="qa-c-item-who-points">
+																		<span class="qa-c-item-who-points-pad">(</span><span class="qa-c-item-who-points-data">51,420</span><span class="qa-c-item-who-points-pad"> points)</span>
+																	</span>
+																</span>
+															</span>
+														</span>
+														<div class="qa-c-item-buttons">
+														</div>
+													</div>
+													<div class="qa-c-item-clear">
+													</div>
+												</div> <!-- END qa-c-item -->
+												<div class="qa-c-list-item  hentry comment" id="c10276">
+													<div class="qa-c-item-content">
+														<a name="10276"></a><div class="entry-content"><p>Hi Jan Blechta<br>
+So, we can assemble stiff matrix, but we can not implement DirichletBC on enriched, No the DirichletBC, we also can not solve stokes. Is that right? Thank you! </p>
+</div>
+													</div>
+													<div class="qa-c-item-footer">
+														<span class="qa-c-item-avatar-meta">
+															<span class="qa-c-item-meta">
+																<a href="../../10264/the-error-of-stokes-problem-with-mini-element?show=10276#c10276" class="qa-c-item-what">commented</a>
+																<span class="qa-c-item-when">
+																	<span class="qa-c-item-when-data"><span class="published"><span class="value-title" title="2016-06-06T02:59:00+0000"></span>Jun 6, 2016</span></span>
+																</span>
+																<span class="qa-c-item-who">
+																	<span class="qa-c-item-who-pad">by </span>
+																	<span class="qa-c-item-who-data"><span class="vcard author"><a href="../../user/Guodong+Zhang" class="qa-user-link url nickname">Guodong Zhang</a></span></span>
+																	<span class="qa-c-item-who-title">FEniCS Novice</span>
+																	<span class="qa-c-item-who-points">
+																		<span class="qa-c-item-who-points-pad">(</span><span class="qa-c-item-who-points-data">420</span><span class="qa-c-item-who-points-pad"> points)</span>
+																	</span>
+																</span>
+															</span>
+														</span>
+														<div class="qa-c-item-buttons">
+														</div>
+													</div>
+													<div class="qa-c-item-clear">
+													</div>
+												</div> <!-- END qa-c-item -->
+												<div class="qa-c-list-item  hentry comment" id="c10277">
+													<div class="qa-c-item-content">
+														<a name="10277"></a><div class="entry-content"><p>No, it isn't. You can use <code>DirichletBC</code> but not with <code>Expression</code> or <code>Constant</code>. You need to supply <code>Function</code> on the matching space. See the mentioned demo. It works.</p>
+</div>
+													</div>
+													<div class="qa-c-item-footer">
+														<span class="qa-c-item-avatar-meta">
+															<span class="qa-c-item-avatar">
+																<a href="../../user/Jan+Blechta" class="qa-avatar-link"><img src="https://www.gravatar.com/avatar/dc6f8dce77e4a0bd5adc7ff31ab83741?s=20" width="20" height="20" class="qa-avatar-image" alt=""></a>
+															</span>
+															<span class="qa-c-item-meta">
+																<a href="../../10264/the-error-of-stokes-problem-with-mini-element?show=10277#c10277" class="qa-c-item-what">commented</a>
+																<span class="qa-c-item-when">
+																	<span class="qa-c-item-when-data"><span class="published"><span class="value-title" title="2016-06-06T04:01:31+0000"></span>Jun 6, 2016</span></span>
+																</span>
+																<span class="qa-c-item-who">
+																	<span class="qa-c-item-who-pad">by </span>
+																	<span class="qa-c-item-who-data"><span class="vcard author"><a href="../../user/Jan+Blechta" class="qa-user-link url nickname">Jan Blechta</a></span></span>
+																	<span class="qa-c-item-who-title">FEniCS Expert</span>
+																	<span class="qa-c-item-who-points">
+																		<span class="qa-c-item-who-points-pad">(</span><span class="qa-c-item-who-points-data">51,420</span><span class="qa-c-item-who-points-pad"> points)</span>
+																	</span>
+																</span>
+															</span>
+														</span>
+														<div class="qa-c-item-buttons">
+														</div>
+													</div>
+													<div class="qa-c-item-clear">
+													</div>
+												</div> <!-- END qa-c-item -->
+												<div class="qa-c-list-item  hentry comment" id="c10293">
+													<div class="qa-c-item-content">
+														<a name="10293"></a><div class="entry-content"><p>Hi Jan Blechta, I solved the problem  by following you suggestions. Thank you for you kind help!  <br>
+Guodong zhang </p>
+</div>
+													</div>
+													<div class="qa-c-item-footer">
+														<span class="qa-c-item-avatar-meta">
+															<span class="qa-c-item-meta">
+																<a href="../../10264/the-error-of-stokes-problem-with-mini-element?show=10293#c10293" class="qa-c-item-what">commented</a>
+																<span class="qa-c-item-when">
+																	<span class="qa-c-item-when-data"><span class="published"><span class="value-title" title="2016-06-07T09:42:34+0000"></span>Jun 7, 2016</span></span>
+																</span>
+																<span class="qa-c-item-who">
+																	<span class="qa-c-item-who-pad">by </span>
+																	<span class="qa-c-item-who-data"><span class="vcard author"><a href="../../user/Guodong+Zhang" class="qa-user-link url nickname">Guodong Zhang</a></span></span>
+																	<span class="qa-c-item-who-title">FEniCS Novice</span>
+																	<span class="qa-c-item-who-points">
+																		<span class="qa-c-item-who-points-pad">(</span><span class="qa-c-item-who-points-data">420</span><span class="qa-c-item-who-points-pad"> points)</span>
+																	</span>
+																</span>
+															</span>
+														</span>
+														<div class="qa-c-item-buttons">
+														</div>
+													</div>
+													<div class="qa-c-item-clear">
+													</div>
+												</div> <!-- END qa-c-item -->
+												<div class="qa-c-list-item  hentry comment" id="c11909">
+													<div class="qa-c-item-content">
+														<a name="11909"></a><div class="entry-content"><p>I am trying to get this workaround, but the web page is not available anymore.</p>
+</div>
+													</div>
+													<div class="qa-c-item-footer">
+														<span class="qa-c-item-avatar-meta">
+															<span class="qa-c-item-avatar">
+																<a href="../../user/RDOLL" class="qa-avatar-link"><img src="../../?qa=image&amp;qa_blobid=7500326985274084040&amp;qa_size=20" width="20" height="11" class="qa-avatar-image" alt=""></a>
+															</span>
+															<span class="qa-c-item-meta">
+																<a href="../../10264/the-error-of-stokes-problem-with-mini-element?show=11909#c11909" class="qa-c-item-what">commented</a>
+																<span class="qa-c-item-when">
+																	<span class="qa-c-item-when-data"><span class="published"><span class="value-title" title="2016-12-11T13:33:26+0000"></span>Dec 11, 2016</span></span>
+																</span>
+																<span class="qa-c-item-who">
+																	<span class="qa-c-item-who-pad">by </span>
+																	<span class="qa-c-item-who-data"><span class="vcard author"><a href="../../user/RDOLL" class="qa-user-link url nickname">RDOLL</a></span></span>
+																	<span class="qa-c-item-who-title">FEniCS User</span>
+																	<span class="qa-c-item-who-points">
+																		<span class="qa-c-item-who-points-pad">(</span><span class="qa-c-item-who-points-data">2,230</span><span class="qa-c-item-who-points-pad"> points)</span>
+																	</span>
+																</span>
+															</span>
+														</span>
+														<div class="qa-c-item-buttons">
+														</div>
+													</div>
+													<div class="qa-c-item-clear">
+													</div>
+												</div> <!-- END qa-c-item -->
+												<div class="qa-c-list-item  hentry comment" id="c11910">
+													<div class="qa-c-item-content">
+														<a name="11910"></a><div class="entry-content"><p>Substitute the prefix <a rel="nofollow" href="https://fenicsproject.org/documentation">https://fenicsproject.org/documentation</a> for <a rel="nofollow" href="https://fenicsproject.org/olddocs.">https://fenicsproject.org/olddocs.</a></p>
+</div>
+													</div>
+													<div class="qa-c-item-footer">
+														<span class="qa-c-item-avatar-meta">
+															<span class="qa-c-item-avatar">
+																<a href="../../user/Jan+Blechta" class="qa-avatar-link"><img src="https://www.gravatar.com/avatar/dc6f8dce77e4a0bd5adc7ff31ab83741?s=20" width="20" height="20" class="qa-avatar-image" alt=""></a>
+															</span>
+															<span class="qa-c-item-meta">
+																<a href="../../10264/the-error-of-stokes-problem-with-mini-element?show=11910#c11910" class="qa-c-item-what">commented</a>
+																<span class="qa-c-item-when">
+																	<span class="qa-c-item-when-data"><span class="published"><span class="value-title" title="2016-12-11T14:43:27+0000"></span>Dec 11, 2016</span></span>
+																</span>
+																<span class="qa-c-item-who">
+																	<span class="qa-c-item-who-pad">by </span>
+																	<span class="qa-c-item-who-data"><span class="vcard author"><a href="../../user/Jan+Blechta" class="qa-user-link url nickname">Jan Blechta</a></span></span>
+																	<span class="qa-c-item-who-title">FEniCS Expert</span>
+																	<span class="qa-c-item-who-points">
+																		<span class="qa-c-item-who-points-pad">(</span><span class="qa-c-item-who-points-data">51,420</span><span class="qa-c-item-who-points-pad"> points)</span>
+																	</span>
+																</span>
+															</span>
+														</span>
+														<div class="qa-c-item-buttons">
+														</div>
+													</div>
+													<div class="qa-c-item-clear">
+													</div>
+												</div> <!-- END qa-c-item -->
+												<div class="qa-c-list-item  hentry comment" id="c11911">
+													<div class="qa-c-item-content">
+														<a name="11911"></a><div class="entry-content"><p>Thank, but it is strange, this example is not working anymore.</p>
+
+<p>The error start at:</p>
+
+<pre><code>V = P1 + B
+</code></pre>
+
+<p>TypeError: unsupported operand type(s) for +: 'FunctionSpace' and 'FunctionSpace'</p>
+
+<p>The new version change the way to enrich the element function?</p>
+</div>
+													</div>
+													<div class="qa-c-item-footer">
+														<span class="qa-c-item-avatar-meta">
+															<span class="qa-c-item-avatar">
+																<a href="../../user/RDOLL" class="qa-avatar-link"><img src="../../?qa=image&amp;qa_blobid=7500326985274084040&amp;qa_size=20" width="20" height="11" class="qa-avatar-image" alt=""></a>
+															</span>
+															<span class="qa-c-item-meta">
+																<a href="../../10264/the-error-of-stokes-problem-with-mini-element?show=11911#c11911" class="qa-c-item-what">commented</a>
+																<span class="qa-c-item-when">
+																	<span class="qa-c-item-when-data"><span class="published"><span class="value-title" title="2016-12-11T19:09:11+0000"></span>Dec 11, 2016</span></span>
+																</span>
+																<span class="qa-c-item-who">
+																	<span class="qa-c-item-who-pad">by </span>
+																	<span class="qa-c-item-who-data"><span class="vcard author"><a href="../../user/RDOLL" class="qa-user-link url nickname">RDOLL</a></span></span>
+																	<span class="qa-c-item-who-title">FEniCS User</span>
+																	<span class="qa-c-item-who-points">
+																		<span class="qa-c-item-who-points-pad">(</span><span class="qa-c-item-who-points-data">2,230</span><span class="qa-c-item-who-points-pad"> points)</span>
+																	</span>
+																</span>
+															</span>
+														</span>
+														<div class="qa-c-item-buttons">
+														</div>
+													</div>
+													<div class="qa-c-item-clear">
+													</div>
+												</div> <!-- END qa-c-item -->
+												<div class="qa-c-list-item  hentry comment" id="c11912">
+													<div class="qa-c-item-content">
+														<a name="11912"></a><div class="entry-content"><p>Yes. See <a rel="nofollow" href="https://bitbucket.org/fenics-project/dolfin/src/80eb912b3c799c86ea8a6075e5530953fa478273/demo/documented/stokes-mini/python/documentation.rst?at=master&amp;fileviewer=file-view-default.">https://bitbucket.org/fenics-project/dolfin/src/80eb912b3c799c86ea8a6075e5530953fa478273/demo/documented/stokes-mini/python/documentation.rst?at=master&amp;fileviewer=file-view-default.</a></p>
+</div>
+													</div>
+													<div class="qa-c-item-footer">
+														<span class="qa-c-item-avatar-meta">
+															<span class="qa-c-item-avatar">
+																<a href="../../user/Jan+Blechta" class="qa-avatar-link"><img src="https://www.gravatar.com/avatar/dc6f8dce77e4a0bd5adc7ff31ab83741?s=20" width="20" height="20" class="qa-avatar-image" alt=""></a>
+															</span>
+															<span class="qa-c-item-meta">
+																<a href="../../10264/the-error-of-stokes-problem-with-mini-element?show=11912#c11912" class="qa-c-item-what">commented</a>
+																<span class="qa-c-item-when">
+																	<span class="qa-c-item-when-data"><span class="published"><span class="value-title" title="2016-12-11T19:32:14+0000"></span>Dec 11, 2016</span></span>
+																</span>
+																<span class="qa-c-item-who">
+																	<span class="qa-c-item-who-pad">by </span>
+																	<span class="qa-c-item-who-data"><span class="vcard author"><a href="../../user/Jan+Blechta" class="qa-user-link url nickname">Jan Blechta</a></span></span>
+																	<span class="qa-c-item-who-title">FEniCS Expert</span>
+																	<span class="qa-c-item-who-points">
+																		<span class="qa-c-item-who-points-pad">(</span><span class="qa-c-item-who-points-data">51,420</span><span class="qa-c-item-who-points-pad"> points)</span>
+																	</span>
+																</span>
+															</span>
+														</span>
+														<div class="qa-c-item-buttons">
+														</div>
+													</div>
+													<div class="qa-c-item-clear">
+													</div>
+												</div> <!-- END qa-c-item -->
+												<div class="qa-c-list-item  hentry comment" id="c11913">
+													<div class="qa-c-item-content">
+														<a name="11913"></a><div class="entry-content"><p>In other words, costly building of intermediate function spaces <code>P1</code>, <code>B</code>, <code>V</code> is avoided.</p>
+</div>
+													</div>
+													<div class="qa-c-item-footer">
+														<span class="qa-c-item-avatar-meta">
+															<span class="qa-c-item-avatar">
+																<a href="../../user/Jan+Blechta" class="qa-avatar-link"><img src="https://www.gravatar.com/avatar/dc6f8dce77e4a0bd5adc7ff31ab83741?s=20" width="20" height="20" class="qa-avatar-image" alt=""></a>
+															</span>
+															<span class="qa-c-item-meta">
+																<a href="../../10264/the-error-of-stokes-problem-with-mini-element?show=11913#c11913" class="qa-c-item-what">commented</a>
+																<span class="qa-c-item-when">
+																	<span class="qa-c-item-when-data"><span class="published"><span class="value-title" title="2016-12-11T19:33:54+0000"></span>Dec 11, 2016</span></span>
+																</span>
+																<span class="qa-c-item-who">
+																	<span class="qa-c-item-who-pad">by </span>
+																	<span class="qa-c-item-who-data"><span class="vcard author"><a href="../../user/Jan+Blechta" class="qa-user-link url nickname">Jan Blechta</a></span></span>
+																	<span class="qa-c-item-who-title">FEniCS Expert</span>
+																	<span class="qa-c-item-who-points">
+																		<span class="qa-c-item-who-points-pad">(</span><span class="qa-c-item-who-points-data">51,420</span><span class="qa-c-item-who-points-pad"> points)</span>
+																	</span>
+																</span>
+															</span>
+														</span>
+														<div class="qa-c-item-buttons">
+														</div>
+													</div>
+													<div class="qa-c-item-clear">
+													</div>
+												</div> <!-- END qa-c-item -->
+											</div> <!-- END qa-c-list -->
+											
+											<input type="hidden" name="code" value="0-1516467049-1f60cebd45222d6b3459ccea9a8a172967b4dfed">
+											<input type="hidden" name="qa_click" value="">
+										</form>
+										<div class="qa-c-form">
+										</div> <!-- END qa-c-form -->
+										
+									</div> <!-- END qa-a-item-main -->
+									<div class="qa-a-item-clear">
+									</div>
+								</div> <!-- END qa-a-list-item -->
+								
+							</div> <!-- END qa-a-list -->
+							
+						</div>
+					</div> <!-- END qa-main -->
+					
+				</div> <!-- END main-wrapper -->
+			</div> <!-- END main-shadow -->
+		</div> <!-- END body-wrapper -->
+		<!-- END footer-bottom-group -->
+		
+		<div style="position:absolute; left:-9999px; top:-9999px;">
+			<span id="qa-waiting-template" class="qa-waiting">...</span>
+		</div>
+	
+	
+
+</body><!-- Powered by Question2Answer - http://www.question2answer.org/ --></html>

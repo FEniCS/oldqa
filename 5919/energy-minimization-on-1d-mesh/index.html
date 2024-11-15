@@ -1,0 +1,261 @@
+<html><!-- Powered by Question2Answer - http://www.question2answer.org/ --><head>
+		<meta http-equiv="content-type" content="text/html; charset=utf-8">
+		<title>Energy minimization on 1D mesh - FEniCS Q&amp;A</title>
+		<meta name="description" content="The code below is based on the hyperelasticity demo but breaks at J = Form(J) with /usr/local/lib ... (self, values, x): inside_function = lambda y: y">
+		<link rel="stylesheet" type="text/css" href="../../qa-theme/Snow/qa-styles.css">
+		<link rel="canonical" href="http://fenicsproject.org/qa/5919/energy-minimization-on-1d-mesh">
+		<script type="text/x-mathjax-config">
+  MathJax.Hub.Config({
+    extensions: ["tex2jax.js"],
+    jax: ["input/TeX","output/HTML-CSS"],
+    tex2jax: {inlineMath: [["$","$"],["\\(","\\)"]]},
+    TeX: { extensions: ["AMSmath.js","AMSsymbols.js"]}
+  });
+</script>
+<script type="text/javascript" src="../../mathjax/MathJax.js"></script>
+		<script src="../../jquery-1.7.2.min.js" type="text/javascript"></script>
+		<script src="../../highlight.min.js"></script>
+<script type="text/javascript">
+$(function(){
+	$('.wmd-input').keypress(function(){
+		window.clearTimeout(hljs.Timeout);
+		hljs.Timeout = window.setTimeout(function() {
+			hljs.initHighlighting.called = false;
+			hljs.initHighlighting();
+		}, 500);
+	});
+	window.setTimeout(function() {
+		hljs.initHighlighting.called = false;
+		hljs.initHighlighting();
+	}, 500);
+});
+</script>
+
+
+	</head>
+	<body class="qa-template-question qa-body-js-off">
+		<div class="qa-body-wrapper">
+			
+			<div class="qa-header">
+				<div class="qa-logo">
+					<a href="../" class="qa-logo-link" title="FEniCS Q&amp;A"><img src="../../qa-theme/fenics_qa.png" border="0" alt="FEniCS Q&amp;A"></a>
+				</div>
+				<div class="qa-header-clear">
+				</div>
+			</div> <!-- END qa-header -->
+			
+			<div class="qa-main-shadow">
+				
+				<div class="qa-main-wrapper">
+					
+					<div class="qa-sidepanel">
+						<div class="qa-sidebar">
+							This is a read only copy of the old FEniCS QA forum. Please visit the <a href="https://www.allanswered.com/community/s/fenics-project/">new QA forum</a> to ask questions
+						</div>
+						
+					</div>
+					
+					<div class="qa-main">
+						<h1>
+							<span class="entry-title">Energy minimization on 1D mesh</span>
+						</h1>
+						<div class="qa-part-q-view">
+							<div class="qa-q-view qa-q-closed hentry question" id="q5919">
+								<form method="post" action="../5919">
+									<div class="qa-q-view-stats">
+										<div class="qa-voting qa-voting-net" id="voting_5919">
+											<div class="qa-vote-count qa-vote-count-net">
+												<span class="qa-netvote-count">
+													<span class="qa-netvote-count-data">0<span class="votes-up"><span class="value-title" title="0"></span></span><span class="votes-down"><span class="value-title" title="0"></span></span></span><span class="qa-netvote-count-pad"> votes</span>
+												</span>
+											</div>
+											<div class="qa-vote-clear">
+											</div>
+										</div>
+									</div>
+									<input type="hidden" name="code" value="0-1516477677-bc5bb7b232a4cc8756d8aeea1d6218991bf0d5dc">
+								</form>
+								<div class="qa-q-view-main">
+									<form method="post" action="../5919">
+										<div class="qa-q-view-content">
+											<a name="5919"></a><div class="entry-content"><p>The code below is based on the hyperelasticity demo but breaks at J = Form(J) with </p>
+
+<p>/usr/local/lib/python2.7/dist-packages/ffc/analysis.pyc in    _attach_integral_metadata(form_data, parameters)<br>
+    258     # Update scheme for QuadratureElements<br>
+    259     if all_equal(quad_schemes):<br>
+--&gt; 260         scheme = quad_schemes[0]<br>
+    261     else:<br>
+    262         scheme = "canonical"</p>
+
+<p>IndexError: list index out of range</p>
+
+<p>Something to do with quad_schemes that I don't understant. My hyperelasticity demo works fine. Any help?</p>
+
+<pre><code>from dolfin import *
+
+
+# Optimization options for the form compiler 
+parameters["form_compiler"]["cpp_optimize"] = True
+ffc_options = {"optimize": True, \
+           "eliminate_zeros": False, \
+           "precompute_basis_const": True, \
+           "precompute_ip_const": True}
+
+class Primitive(Expression):
+ def __init__(self,f,mesh,**kwargs):
+    self._f = f
+    self._mesh = mesh
+    subdomains = CellFunction('size_t',mesh)
+    self._subdomains = subdomains
+    dx = Measure('dx',domain=mesh)[subdomains]
+    self._dx=dx
+    self._F = Form(f*dx(1))
+
+def eval(self, values, x):
+
+    inside_function = lambda y: y&lt;x[0]
+    domain = AutoSubDomain(inside_function=inside_function)
+    self._subdomains.set_all(0)
+    domain.mark(self._subdomains,1)
+    F = self._F
+    values[0] = assemble(F)
+
+
+mesh = IntervalMesh(100,0,1.0)
+
+V = FunctionSpace(mesh, "CG", 1)
+
+right = CompiledSubDomain("(std::abs(x[0] - 1.0) &lt; DOLFIN_EPS) &amp;&amp; on_boundary")
+
+class LinearMismatchProfile(Expression):
+
+def __init__(self, G, W, W_b, f_0,**kwargs):
+    self._W = W
+    self._G = G
+    self._W_b = W_b
+    self._f_0 = f_0
+
+def eval(self, values, x):
+    W = self._W
+    W_b = self._W_b
+    f_0 = self._f_0
+    G = self._G
+
+    if x[0] &lt;= W-W_b:
+        values[0] = G*x[0] + f_0
+    else:
+        values[0] = G*(W-W_b)
+
+Ed = Constant(8.138931143006406e-09) #energy per unit length of dislocation
+c = Constant(92017082108.12033) #elastic constant for biaxial strain
+b = Constant(2.161453136448972e-10) #part of Burger's vector responsible for relaxation    (in-plane component)
+
+W = 1e-6
+W_b = 100e-9
+G =  1e5 #PQ(0.1,'1/mum').inBaseUnits().value
+f_0 = 0.0
+
+f = LinearMismatchProfile(G=G,W=W,W_b=W_b,f_0=f_0)
+
+u = Function(V) # dislocation density profile
+v  = TestFunction(V) 
+du = TrialFunction(V)
+
+epsilon = f - b*Primitive(f=u,mesh=mesh,) #in-plane strain
+
+
+
+E = 2*Ed*u*dx(mesh) + epsilon**2*dx(mesh)
+
+F = derivative(E,u,v)
+J = derivative(F, u, du)
+
+F = Form(F)
+J = Form(J)
+
+bcr = DirichletBC(V,0.0,right)
+bcs = [bcr]
+
+# Solve non-linear variational problem
+solve(F == 0, u, bcs, J=J,
+  form_compiler_parameters=ffc_options,
+  solver_parameters={'newton_solver':
+                     {"linear_solver": "lu",
+                      "maximum_iterations": 100,
+                      'relative_tolerance': 1e-30
+                      }})
+
+# Plot and hold solution
+plot(u, interactive = False)
+</code></pre>
+</div>
+										</div>
+										<div class="qa-q-view-closed">
+											closed as a duplicate of:
+											<a href="../5920/general-strategy-for-solving-energy-minimization-problem" class="qa-q-view-closed-content">
+												General strategy for solving 1D energy minimization problem
+											</a>
+										</div>
+										<span class="qa-q-view-avatar-meta">
+											<span class="qa-q-view-meta">
+												<a href="../5919/energy-minimization-on-1d-mesh" class="qa-q-view-what">asked</a>
+												<span class="qa-q-view-when">
+													<span class="qa-q-view-when-data"><span class="published"><span class="value-title" title="2014-11-06T16:28:08+0000"></span>Nov 6, 2014</span></span>
+												</span>
+												<span class="qa-q-view-who">
+													<span class="qa-q-view-who-pad">by </span>
+													<span class="qa-q-view-who-data"><span class="vcard author"><a href="../../user/chaffra" class="qa-user-link url nickname">chaffra</a></span></span>
+													<span class="qa-q-view-who-title">FEniCS User</span>
+													<span class="qa-q-view-who-points">
+														<span class="qa-q-view-who-points-pad">(</span><span class="qa-q-view-who-points-data">1,830</span><span class="qa-q-view-who-points-pad"> points)</span>
+													</span>
+												</span>
+												<br>
+												<span class="qa-q-view-what">closed</span>
+												<span class="qa-q-view-when">
+													<span class="qa-q-view-when-data"><span class="updated"><span class="value-title" title="2014-11-12T15:40:11+0000"></span>Nov 12, 2014</span></span>
+												</span>
+												<span class="qa-q-view-who">
+													<span class="qa-q-view-who-pad">by </span><span class="qa-q-view-who-data"><a href="../../user/chaffra" class="qa-user-link url nickname">chaffra</a></span>
+												</span>
+											</span>
+										</span>
+										<div class="qa-q-view-buttons">
+										</div>
+										
+										<div class="qa-q-view-c-list" style="display:none;" id="c5919_list">
+										</div> <!-- END qa-c-list -->
+										
+										<input type="hidden" name="code" value="0-1516477677-abd93742822cbc883519f0c9f69a68412f3b45ab">
+										<input type="hidden" name="qa_click" value="">
+									</form>
+									<div class="qa-c-form">
+									</div> <!-- END qa-c-form -->
+									
+								</div> <!-- END qa-q-view-main -->
+								<div class="qa-q-view-clear">
+								</div>
+							</div> <!-- END qa-q-view -->
+							
+						</div>
+						<div class="qa-part-a-list">
+							<h2 id="a_list_title" style="display:none;"></h2>
+							<div class="qa-a-list" id="a_list">
+								
+							</div> <!-- END qa-a-list -->
+							
+						</div>
+					</div> <!-- END qa-main -->
+					
+				</div> <!-- END main-wrapper -->
+			</div> <!-- END main-shadow -->
+		</div> <!-- END body-wrapper -->
+		<!-- END footer-bottom-group -->
+		
+		<div style="position:absolute; left:-9999px; top:-9999px;">
+			<span id="qa-waiting-template" class="qa-waiting">...</span>
+		</div>
+	
+	
+
+</body><!-- Powered by Question2Answer - http://www.question2answer.org/ --></html>

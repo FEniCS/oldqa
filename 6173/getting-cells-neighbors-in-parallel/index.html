@@ -1,0 +1,287 @@
+<html><!-- Powered by Question2Answer - http://www.question2answer.org/ --><head>
+		<meta http-equiv="content-type" content="text/html; charset=utf-8">
+		<title>Getting cells neighbors in parallel - FEniCS Q&amp;A</title>
+		<meta name="description" content='Dear all, for some regularization issues I need to compute the average of a DG-0 function in the ... neighbor_average(f) file_g = File("g.pvd") file_g'>
+		<meta name="keywords" content="cells,parallel,neighbor">
+		<link rel="stylesheet" type="text/css" href="../../qa-theme/Snow/qa-styles.css">
+		<link rel="canonical" href="http://fenicsproject.org/qa/6173/getting-cells-neighbors-in-parallel">
+		<script type="text/x-mathjax-config">
+  MathJax.Hub.Config({
+    extensions: ["tex2jax.js"],
+    jax: ["input/TeX","output/HTML-CSS"],
+    tex2jax: {inlineMath: [["$","$"],["\\(","\\)"]]},
+    TeX: { extensions: ["AMSmath.js","AMSsymbols.js"]}
+  });
+</script>
+<script type="text/javascript" src="../../mathjax/MathJax.js"></script>
+		<script src="../../jquery-1.7.2.min.js" type="text/javascript"></script>
+		<script src="../../highlight.min.js"></script>
+<script type="text/javascript">
+$(function(){
+	$('.wmd-input').keypress(function(){
+		window.clearTimeout(hljs.Timeout);
+		hljs.Timeout = window.setTimeout(function() {
+			hljs.initHighlighting.called = false;
+			hljs.initHighlighting();
+		}, 500);
+	});
+	window.setTimeout(function() {
+		hljs.initHighlighting.called = false;
+		hljs.initHighlighting();
+	}, 500);
+});
+</script>
+
+
+	</head>
+	<body class="qa-template-question qa-body-js-off">
+		<div class="qa-body-wrapper">
+			
+			<div class="qa-header">
+				<div class="qa-logo">
+					<a href="../../" class="qa-logo-link" title="FEniCS Q&amp;A"><img src="../../qa-theme/fenics_qa.png" border="0" alt="FEniCS Q&amp;A"></a>
+				</div>
+				<div class="qa-header-clear">
+				</div>
+			</div> <!-- END qa-header -->
+			
+			<div class="qa-main-shadow">
+				
+				<div class="qa-main-wrapper">
+					
+					<div class="qa-sidepanel">
+						<div class="qa-sidebar">
+							This is a read only copy of the old FEniCS QA forum. Please visit the <a href="https://www.allanswered.com/community/s/fenics-project/">new QA forum</a> to ask questions
+						</div>
+						
+					</div>
+					
+					<div class="qa-main">
+						<h1>
+							<span class="entry-title">Getting cells neighbors in parallel</span>
+						</h1>
+						<div class="qa-part-q-view">
+							<div class="qa-q-view  hentry question" id="q6173">
+								<form method="post" action="../../6173/getting-cells-neighbors-in-parallel">
+									<div class="qa-q-view-stats">
+										<div class="qa-voting qa-voting-net" id="voting_6173">
+											<div class="qa-vote-count qa-vote-count-net">
+												<span class="qa-netvote-count">
+													<span class="qa-netvote-count-data">+3<span class="votes-up"><span class="value-title" title="3"></span></span><span class="votes-down"><span class="value-title" title="0"></span></span></span><span class="qa-netvote-count-pad"> votes</span>
+												</span>
+											</div>
+											<div class="qa-vote-clear">
+											</div>
+										</div>
+									</div>
+									<input type="hidden" name="code" value="0-1516468061-58603861c162ad7aa4aa635eafc99dc8049a2af9">
+								</form>
+								<div class="qa-q-view-main">
+									<form method="post" action="../../6173/getting-cells-neighbors-in-parallel">
+										<div class="qa-q-view-content">
+											<a name="6173"></a><div class="entry-content"><p>Dear all,<br>
+for some regularization issues I need to compute the average of a DG-0 function in the neighborhood of every cell. Using cells(current_cell) I get only the neighbors on the same process. So the following code gives good results in serial, but shows the mesh partition when it is run with two threads.</p>
+
+<pre><code>from dolfin import *
+
+
+def neighbor_average(alpha):
+    start_dof = dm0.ownership_range()[0]
+    valpha = alpha.vector().get_local()
+    average = Function(V0, name="average")
+    vaverage = average.vector().get_local()
+    for c in cells(mesh):
+        dof_c = dm0.cell_dofs(c.index())[0] - start_dof
+        n_count = 0
+        n_sum = 0
+        for n in cells(c):
+            dof_n = dm0.cell_dofs(n.index())[0] - start_dof
+            neighbor_value = valpha[dof_n]
+            n_sum = n_sum + neighbor_value
+            n_count = n_count + 1
+        vaverage[dof_c] = n_sum / n_count
+    average.vector().set_local(vaverage)
+    return average
+
+
+mesh = UnitSquareMesh(10, 10)
+V0 = FunctionSpace(mesh, "DG", 0)
+dm0 = V0.dofmap()
+
+f = project(Expression("x[0]"), V0)
+g = neighbor_average(f)
+
+file_g = File("g.pvd")
+file_g &lt;&lt; g
+</code></pre>
+
+<p>My questions are:<br>
+Is there a possibility to find neighbor cells and getting reading acces to off-process neighbors without producing a communication overkill?<br>
+Is there a better way to access the dof of a cell than mine?<br>
+Is there a big benefit of using c++ instead of python for such tasks?</p>
+
+<p>Thanks in advance for any help!</p>
+</div>
+										</div>
+										<div class="qa-q-view-tags">
+											<ul class="qa-q-view-tag-list">
+												<li class="qa-q-view-tag-item"><a href="../../tag/cells" rel="tag" class="qa-tag-link">cells</a></li>
+												<li class="qa-q-view-tag-item"><a href="../../tag/parallel" rel="tag" class="qa-tag-link">parallel</a></li>
+												<li class="qa-q-view-tag-item"><a href="../../tag/neighbor" rel="tag" class="qa-tag-link">neighbor</a></li>
+											</ul>
+										</div>
+										<span class="qa-q-view-avatar-meta">
+											<span class="qa-q-view-meta">
+												<a href="../../6173/getting-cells-neighbors-in-parallel" class="qa-q-view-what">asked</a>
+												<span class="qa-q-view-when">
+													<span class="qa-q-view-when-data"><span class="published"><span class="value-title" title="2014-12-09T13:15:13+0000"></span>Dec 9, 2014</span></span>
+												</span>
+												<span class="qa-q-view-who">
+													<span class="qa-q-view-who-pad">by </span>
+													<span class="qa-q-view-who-data"><span class="vcard author"><a href="../../user/hezo" class="qa-user-link url nickname">hezo</a></span></span>
+													<span class="qa-q-view-who-title">FEniCS Novice</span>
+													<span class="qa-q-view-who-points">
+														<span class="qa-q-view-who-points-pad">(</span><span class="qa-q-view-who-points-data">230</span><span class="qa-q-view-who-points-pad"> points)</span>
+													</span>
+												</span>
+											</span>
+										</span>
+										<div class="qa-q-view-buttons">
+										</div>
+										
+										<div class="qa-q-view-c-list" style="display:none;" id="c6173_list">
+										</div> <!-- END qa-c-list -->
+										
+										<input type="hidden" name="code" value="0-1516468061-c91ccf8bbeb451c980038a969e396c8d029cb68c">
+										<input type="hidden" name="qa_click" value="">
+									</form>
+									<div class="qa-c-form">
+									</div> <!-- END qa-c-form -->
+									
+								</div> <!-- END qa-q-view-main -->
+								<div class="qa-q-view-clear">
+								</div>
+							</div> <!-- END qa-q-view -->
+							
+						</div>
+						<div class="qa-part-a-list">
+							<h2 id="a_list_title">1 Answer</h2>
+							<div class="qa-a-list" id="a_list">
+								
+								<div class="qa-a-list-item  hentry answer" id="a6174">
+									<form method="post" action="../../6173/getting-cells-neighbors-in-parallel">
+										<div class="qa-voting qa-voting-net" id="voting_6174">
+											<div class="qa-vote-count qa-vote-count-net">
+												<span class="qa-netvote-count">
+													<span class="qa-netvote-count-data">+3<span class="votes-up"><span class="value-title" title="3"></span></span><span class="votes-down"><span class="value-title" title="0"></span></span></span><span class="qa-netvote-count-pad"> votes</span>
+												</span>
+											</div>
+											<div class="qa-vote-clear">
+											</div>
+										</div>
+										<input type="hidden" name="code" value="0-1516468061-58603861c162ad7aa4aa635eafc99dc8049a2af9">
+									</form>
+									<div class="qa-a-item-main">
+										<form method="post" action="../../6173/getting-cells-neighbors-in-parallel">
+											<div class="qa-a-selection">
+											</div>
+											<div class="qa-a-item-content">
+												<a name="6174"></a><div class="entry-content"><p>Recently in dolfin, the developers introduced ghost cells, allowing for access to neighbour cells without communication. You can specify this with <em>ghost_mode</em> in parameters. In your case, this should be set to <em>shared_vertex</em>. The iterator <em>cells(c)</em> will then also iterate over the ghost cell neighbours.</p>
+
+<p>Secondly, the call to <em>get_local()</em> returns the vector owned by the current process. However, you can also get values of shared dofs through this method by passing value and index arrays as arguments. This logic seems a bit strange, and I believe this is being adressed.</p>
+
+<p>Thirdly, pvd files have a bug in parallel, which don't allow for ghost cells. Therefore, I suggest using xdmf files.</p>
+
+<p>For your case, the following code should do the trick with the development version (but <strong>not with 1.4</strong>):</p>
+
+<pre><code>from dolfin import *
+import numpy as np
+
+def neighbor_average(alpha):
+    start_dof = dm0.ownership_range()[0]
+    valpha = alpha.vector()
+    average = Function(V0, name="average")
+    vaverage = average.vector().get_local()
+    for c in cells(mesh):
+        dof_c = dm0.cell_dofs(c.index())[0]
+        n_count = 0
+        n_sum = 0
+        for n in cells(c):
+            dof_n = dm0.cell_dofs(n.index())[0]
+            neighbor_value = np.array([0.0], dtype=np.float)
+            idx = np.array([dof_n], dtype=np.intc)
+            valpha.get_local(neighbor_value, idx)
+            n_sum = n_sum + neighbor_value[0]
+            n_count = n_count + 1
+        vaverage[dof_c] = n_sum / n_count
+    average.vector().set_local(vaverage)
+    return average
+
+parameters["ghost_mode"] = "shared_vertex"
+
+mesh = UnitSquareMesh(10,10)
+V0 = FunctionSpace(mesh, "DG", 0)
+dm0 = V0.dofmap()
+
+f = project(Expression("x[0]"), V0)
+g = neighbor_average(f)
+
+print norm(g)
+
+file_g = File("g.xdmf")
+file_g &lt;&lt; g
+</code></pre>
+
+<p>This can also easily be improved by gathering the indices in the inner loop, and making a single call to get_local.</p>
+</div>
+											</div>
+											<span class="qa-a-item-avatar-meta">
+												<span class="qa-a-item-meta">
+													<a href="../../6173/getting-cells-neighbors-in-parallel?show=6174#a6174" class="qa-a-item-what">answered</a>
+													<span class="qa-a-item-when">
+														<span class="qa-a-item-when-data"><span class="published"><span class="value-title" title="2014-12-09T14:47:08+0000"></span>Dec 9, 2014</span></span>
+													</span>
+													<span class="qa-a-item-who">
+														<span class="qa-a-item-who-pad">by </span>
+														<span class="qa-a-item-who-data"><span class="vcard author"><a href="../../user/%C3%98yvind+Evju" class="qa-user-link url nickname">&#216;yvind Evju</a></span></span>
+														<span class="qa-a-item-who-title">FEniCS Expert</span>
+														<span class="qa-a-item-who-points">
+															<span class="qa-a-item-who-points-pad">(</span><span class="qa-a-item-who-points-data">17,700</span><span class="qa-a-item-who-points-pad"> points)</span>
+														</span>
+													</span>
+												</span>
+											</span>
+											<div class="qa-a-item-buttons">
+												</div>
+											
+											<div class="qa-a-item-c-list" style="display:none;" id="c6174_list">
+											</div> <!-- END qa-c-list -->
+											
+											<input type="hidden" name="code" value="0-1516468061-1c628db4d998717248623e2262dd91f9981ec6f0">
+											<input type="hidden" name="qa_click" value="">
+										</form>
+										<div class="qa-c-form">
+										</div> <!-- END qa-c-form -->
+										
+									</div> <!-- END qa-a-item-main -->
+									<div class="qa-a-item-clear">
+									</div>
+								</div> <!-- END qa-a-list-item -->
+								
+							</div> <!-- END qa-a-list -->
+							
+						</div>
+					</div> <!-- END qa-main -->
+					
+				</div> <!-- END main-wrapper -->
+			</div> <!-- END main-shadow -->
+		</div> <!-- END body-wrapper -->
+		<!-- END footer-bottom-group -->
+		
+		<div style="position:absolute; left:-9999px; top:-9999px;">
+			<span id="qa-waiting-template" class="qa-waiting">...</span>
+		</div>
+	
+	
+
+</body><!-- Powered by Question2Answer - http://www.question2answer.org/ --></html>

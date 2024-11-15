@@ -1,0 +1,302 @@
+<html><!-- Powered by Question2Answer - http://www.question2answer.org/ --><head>
+		<meta http-equiv="content-type" content="text/html; charset=utf-8">
+		<title>both normal and tangential stress boundary conditions for elasticity? - FEniCS Q&amp;A</title>
+		<meta name="description" content="I would like to have both the normal (xx) component and shear (xy) component of a  ... -boundary-conditions-in-normal-and-tangential-direction-of-mesh">
+		<meta name="keywords" content="boundary-conditions,tangent,stress,elasticity">
+		<link rel="stylesheet" type="text/css" href="../../qa-theme/Snow/qa-styles.css">
+		<link rel="canonical" href="http://fenicsproject.org/qa/8335/normal-tangential-stress-boundary-conditions-elasticity">
+		<script type="text/x-mathjax-config">
+  MathJax.Hub.Config({
+    extensions: ["tex2jax.js"],
+    jax: ["input/TeX","output/HTML-CSS"],
+    tex2jax: {inlineMath: [["$","$"],["\\(","\\)"]]},
+    TeX: { extensions: ["AMSmath.js","AMSsymbols.js"]}
+  });
+</script>
+<script type="text/javascript" src="../../mathjax/MathJax.js"></script>
+		<script src="../../jquery-1.7.2.min.js" type="text/javascript"></script>
+		<script src="../../highlight.min.js"></script>
+<script type="text/javascript">
+$(function(){
+	$('.wmd-input').keypress(function(){
+		window.clearTimeout(hljs.Timeout);
+		hljs.Timeout = window.setTimeout(function() {
+			hljs.initHighlighting.called = false;
+			hljs.initHighlighting();
+		}, 500);
+	});
+	window.setTimeout(function() {
+		hljs.initHighlighting.called = false;
+		hljs.initHighlighting();
+	}, 500);
+});
+</script>
+
+
+	</head>
+	<body class="qa-template-question qa-body-js-off">
+		<div class="qa-body-wrapper">
+			
+			<div class="qa-header">
+				<div class="qa-logo">
+					<a href="../../" class="qa-logo-link" title="FEniCS Q&amp;A"><img src="../../qa-theme/fenics_qa.png" border="0" alt="FEniCS Q&amp;A"></a>
+				</div>
+				<div class="qa-header-clear">
+				</div>
+			</div> <!-- END qa-header -->
+			
+			<div class="qa-main-shadow">
+				
+				<div class="qa-main-wrapper">
+					
+					<div class="qa-sidepanel">
+						<div class="qa-sidebar">
+							This is a read only copy of the old FEniCS QA forum. Please visit the <a href="https://www.allanswered.com/community/s/fenics-project/">new QA forum</a> to ask questions
+						</div>
+						
+					</div>
+					
+					<div class="qa-main">
+						<h1>
+							<span class="entry-title">both normal and tangential stress boundary conditions for elasticity?</span>
+						</h1>
+						<div class="qa-part-q-view">
+							<div class="qa-q-view  hentry question" id="q8335">
+								<form method="post" action="../../8335/normal-tangential-stress-boundary-conditions-elasticity">
+									<div class="qa-q-view-stats">
+										<div class="qa-voting qa-voting-net" id="voting_8335">
+											<div class="qa-vote-count qa-vote-count-net">
+												<span class="qa-netvote-count">
+													<span class="qa-netvote-count-data">+1<span class="votes-up"><span class="value-title" title="1"></span></span><span class="votes-down"><span class="value-title" title="0"></span></span></span><span class="qa-netvote-count-pad"> vote</span>
+												</span>
+											</div>
+											<div class="qa-vote-clear">
+											</div>
+										</div>
+									</div>
+									<input type="hidden" name="code" value="0-1516468168-8c83875af04e7ede75a6eab70f1aa72ac90d3cc6">
+								</form>
+								<div class="qa-q-view-main">
+									<form method="post" action="../../8335/normal-tangential-stress-boundary-conditions-elasticity">
+										<div class="qa-q-view-content">
+											<a name="8335"></a><div class="entry-content"><p>I would like to have both the normal (xx) component and shear (xy) component of a 2D (stress) tensor defined on a boundary (x=const, for instance) for an equation which is of the type</p>
+
+<pre><code>div(sigma) = 0 
+</code></pre>
+
+<p>The normal value of <code>sigma_{xx}=P</code> at <code>x=0,1</code> can be accounted for via a Neumann boundary condition, in the term obtained by integration by parts in weak form:</p>
+
+<pre><code>inner(sigma, sym(grad(tau))) *dx =   dot(P, tau) *ds 
+</code></pre>
+
+<p><code>tau</code> is a vector test function for the trial function <code>u</code>, which physically is the displacement.<br>
+However, I am having difficulty fixing the shear stress at the boundaries <code>x=0,1</code> of the unit square, as a simple example of my goal. How can one best accomplish this in FEniCS?</p>
+
+<p>My question is similar to <a rel="nofollow" href="http://scicomp.stackexchange.com/questions/7123/fenics-separate-boundary-conditions-in-normal-and-tangential-direction-of-mesh">this one</a>, but as far as I can tell, they are distinct.</p>
+
+<p>A minimal running code in FEniCS (in python) which gives incorrect results for <code>sigma</code> is below. Thank you!</p>
+
+<pre><code>from dolfin import *
+
+# Mesh Params ################
+E, nu = 1.0, 0.4 #material params
+mesh = UnitSquareMesh(100, 100)
+
+print 'Creating Lagrangian function spaces...'
+Vv = VectorFunctionSpace(mesh, "Lagrange", 1)
+Vf = FunctionSpace(mesh, "Lagrange", 1)
+Vt = TensorFunctionSpace(mesh, "Lagrange", 1)
+
+# P is stress vector of stress values normal and tangent to boundary 
+P = Expression(('(x[0]-xc)','(x[0]-xc)'),xc=0.5)
+
+class LeftBoundary(SubDomain):
+    def inside(self, x, on_boundary):
+        tol = 1E-7
+        return on_boundary and abs(x[0]) &lt; tol
+
+class RightBoundary(SubDomain):
+    def inside(self, x, on_boundary):
+        tol = 1E-7
+        return on_boundary and abs(x[0] - 1) &lt; tol
+
+left_boundary = LeftBoundary()        
+right_boundary = RightBoundary()        
+
+boundary_parts = MeshFunction("size_t", mesh, mesh.topology().dim() - 1)
+boundary_parts.set_all(0)
+right_boundary.mark(boundary_parts, 1)
+left_boundary.mark(boundary_parts, 2)
+ds = Measure("ds")[boundary_parts]
+
+##############################
+# Define variational problem #
+##############################
+print 'Defining test and trial functions...'
+v = TestFunction(Vf)
+tau = TestFunction(Vv)
+phi = TrialFunction(Vf)
+u = TrialFunction(Vv)
+
+# functions for variational problem
+d = u.geometric_dimension()
+epsilon = sym(nabla_grad(u))
+# PLANE STRESS
+sigma = E/(1+nu)* (epsilon) + E*nu/((1-nu**2)) * tr(epsilon)*Identity(d)
+
+# Define normal and tangent directions on mesh
+norm = FacetNormal(mesh)
+tang = as_vector([norm[1], -norm[0]])
+
+tau_n = dot(tau,norm)
+tau_t = dot(tau,tang)
+P_n = dot(P,norm)
+P_t = dot(P,tang)
+
+#################
+# SOLVE
+#################
+au = inner(sigma, sym(nabla_grad(tau)))*dx 
+Lu = dot(P_n,tau_n)*ds(1) + dot(P_n,tau_n)*ds(2) + dot(P_t,tau_t)*ds(1) + dot(P_t,tau_t)*ds(2)
+u = Function(Vv)
+solve(au == Lu, u)
+
+## View the results
+sigma = E/(1+nu)* (sym(nabla_grad(u))) + E*nu/((1-nu**2)) * tr(sym(nabla_grad(u)))*Identity(d)
+s_V = project( sigma, Vt)
+sxx = project(s_V[0,0], Vf); 
+sxy = project(s_V[0,1], Vf); 
+syx = project(s_V[1,0], Vf);  
+syy = project(s_V[1,1], Vf);
+plot(sxx, interactive=True, rescale=False,scalarbar=True)
+plot(syy, interactive=True, rescale=False,scalarbar=True)
+plot(sxy, interactive=True, rescale=False,scalarbar=True)
+</code></pre>
+</div>
+										</div>
+										<div class="qa-q-view-tags">
+											<ul class="qa-q-view-tag-list">
+												<li class="qa-q-view-tag-item"><a href="../../tag/boundary-conditions" rel="tag" class="qa-tag-link">boundary-conditions</a></li>
+												<li class="qa-q-view-tag-item"><a href="../../tag/tangent" rel="tag" class="qa-tag-link">tangent</a></li>
+												<li class="qa-q-view-tag-item"><a href="../../tag/stress" rel="tag" class="qa-tag-link">stress</a></li>
+												<li class="qa-q-view-tag-item"><a href="../../tag/elasticity" rel="tag" class="qa-tag-link">elasticity</a></li>
+											</ul>
+										</div>
+										<span class="qa-q-view-avatar-meta">
+											<span class="qa-q-view-avatar">
+												<a href="../../user/npmitchell" class="qa-avatar-link"><img src="../../?qa=image&amp;qa_blobid=9257140417293154692&amp;qa_size=50" width="41" height="50" class="qa-avatar-image" alt=""></a>
+											</span>
+											<span class="qa-q-view-meta">
+												<a href="../../8335/normal-tangential-stress-boundary-conditions-elasticity" class="qa-q-view-what">asked</a>
+												<span class="qa-q-view-when">
+													<span class="qa-q-view-when-data"><span class="published"><span class="value-title" title="2015-10-10T23:03:28+0000"></span>Oct 11, 2015</span></span>
+												</span>
+												<span class="qa-q-view-who">
+													<span class="qa-q-view-who-pad">by </span>
+													<span class="qa-q-view-who-data"><span class="vcard author"><a href="../../user/npmitchell" class="qa-user-link url nickname">npmitchell</a></span></span>
+													<span class="qa-q-view-who-title">FEniCS Novice</span>
+													<span class="qa-q-view-who-points">
+														<span class="qa-q-view-who-points-pad">(</span><span class="qa-q-view-who-points-data">600</span><span class="qa-q-view-who-points-pad"> points)</span>
+													</span>
+												</span>
+											</span>
+										</span>
+										<div class="qa-q-view-buttons">
+										</div>
+										
+										<div class="qa-q-view-c-list" style="display:none;" id="c8335_list">
+										</div> <!-- END qa-c-list -->
+										
+										<input type="hidden" name="code" value="0-1516468168-44eec69743a55c2eee1ebf362b6957e089c4a24c">
+										<input type="hidden" name="qa_click" value="">
+									</form>
+									<div class="qa-c-form">
+									</div> <!-- END qa-c-form -->
+									
+								</div> <!-- END qa-q-view-main -->
+								<div class="qa-q-view-clear">
+								</div>
+							</div> <!-- END qa-q-view -->
+							
+						</div>
+						<div class="qa-part-a-list">
+							<h2 id="a_list_title">1 Answer</h2>
+							<div class="qa-a-list" id="a_list">
+								
+								<div class="qa-a-list-item  hentry answer" id="a11278">
+									<form method="post" action="../../8335/normal-tangential-stress-boundary-conditions-elasticity">
+										<div class="qa-voting qa-voting-net" id="voting_11278">
+											<div class="qa-vote-count qa-vote-count-net">
+												<span class="qa-netvote-count">
+													<span class="qa-netvote-count-data">0<span class="votes-up"><span class="value-title" title="0"></span></span><span class="votes-down"><span class="value-title" title="0"></span></span></span><span class="qa-netvote-count-pad"> votes</span>
+												</span>
+											</div>
+											<div class="qa-vote-clear">
+											</div>
+										</div>
+										<input type="hidden" name="code" value="0-1516468168-8c83875af04e7ede75a6eab70f1aa72ac90d3cc6">
+									</form>
+									<div class="qa-a-item-main">
+										<form method="post" action="../../8335/normal-tangential-stress-boundary-conditions-elasticity">
+											<div class="qa-a-selection">
+											</div>
+											<div class="qa-a-item-content">
+												<a name="11278"></a><div class="entry-content"><p>Hi.</p>
+
+<p>This question was proposed a long time ago though, let me answer it.</p>
+
+<p>I think the main reason is that your problem does not have boundary conditions on the top and bottom boundaries. You need boundary conditions of displacement to have a well-posed problem. Computer codes usually don't complain it but just give a wrong answer.</p>
+
+<p>And your traction boundary condition can be simply imposed by dot(P, tau)*ds(1), instead of putting normal and tangential components separately.</p>
+</div>
+											</div>
+											<span class="qa-a-item-avatar-meta">
+												<span class="qa-a-item-meta">
+													<a href="../../8335/normal-tangential-stress-boundary-conditions-elasticity?show=11278#a11278" class="qa-a-item-what">answered</a>
+													<span class="qa-a-item-when">
+														<span class="qa-a-item-when-data"><span class="published"><span class="value-title" title="2016-10-04T16:55:20+0000"></span>Oct 4, 2016</span></span>
+													</span>
+													<span class="qa-a-item-who">
+														<span class="qa-a-item-who-pad">by </span>
+														<span class="qa-a-item-who-data"><span class="vcard author"><a href="../../user/JeonghunLee" class="qa-user-link url nickname">JeonghunLee</a></span></span>
+														<span class="qa-a-item-who-title">FEniCS User</span>
+														<span class="qa-a-item-who-points">
+															<span class="qa-a-item-who-points-pad">(</span><span class="qa-a-item-who-points-data">1,050</span><span class="qa-a-item-who-points-pad"> points)</span>
+														</span>
+													</span>
+												</span>
+											</span>
+											<div class="qa-a-item-buttons">
+												</div>
+											
+											<div class="qa-a-item-c-list" style="display:none;" id="c11278_list">
+											</div> <!-- END qa-c-list -->
+											
+											<input type="hidden" name="code" value="0-1516468168-0d553e708c8f12bba28d9ef8e00562db084391e8">
+											<input type="hidden" name="qa_click" value="">
+										</form>
+										<div class="qa-c-form">
+										</div> <!-- END qa-c-form -->
+										
+									</div> <!-- END qa-a-item-main -->
+									<div class="qa-a-item-clear">
+									</div>
+								</div> <!-- END qa-a-list-item -->
+								
+							</div> <!-- END qa-a-list -->
+							
+						</div>
+					</div> <!-- END qa-main -->
+					
+				</div> <!-- END main-wrapper -->
+			</div> <!-- END main-shadow -->
+		</div> <!-- END body-wrapper -->
+		<!-- END footer-bottom-group -->
+		
+		<div style="position:absolute; left:-9999px; top:-9999px;">
+			<span id="qa-waiting-template" class="qa-waiting">...</span>
+		</div>
+	
+	
+
+</body><!-- Powered by Question2Answer - http://www.question2answer.org/ --></html>

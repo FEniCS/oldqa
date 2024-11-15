@@ -1,0 +1,480 @@
+<html><!-- Powered by Question2Answer - http://www.question2answer.org/ --><head>
+		<meta http-equiv="content-type" content="text/html; charset=utf-8">
+		<title>Implementation a modified DG jump condition with ODE - FEniCS Q&amp;A</title>
+		<meta name="description" content="Hi--I'm trying to implement an ODE on the internal boundary (manifold?) between two different subdomains I've ... (0.0) X2 = Constant(0.0) while(t">
+		<meta name="keywords" content="dg,internal-boundary,jump">
+		<link rel="stylesheet" type="text/css" href="../../qa-theme/Snow/qa-styles.css">
+		<link rel="canonical" href="http://fenicsproject.org/qa/13906/implementation-a-modified-dg-jump-condition-with-ode">
+		<script type="text/x-mathjax-config">
+  MathJax.Hub.Config({
+    extensions: ["tex2jax.js"],
+    jax: ["input/TeX","output/HTML-CSS"],
+    tex2jax: {inlineMath: [["$","$"],["\\(","\\)"]]},
+    TeX: { extensions: ["AMSmath.js","AMSsymbols.js"]}
+  });
+</script>
+<script type="text/javascript" src="../../mathjax/MathJax.js"></script>
+		<script src="../../jquery-1.7.2.min.js" type="text/javascript"></script>
+		<script src="../../highlight.min.js"></script>
+<script type="text/javascript">
+$(function(){
+	$('.wmd-input').keypress(function(){
+		window.clearTimeout(hljs.Timeout);
+		hljs.Timeout = window.setTimeout(function() {
+			hljs.initHighlighting.called = false;
+			hljs.initHighlighting();
+		}, 500);
+	});
+	window.setTimeout(function() {
+		hljs.initHighlighting.called = false;
+		hljs.initHighlighting();
+	}, 500);
+});
+</script>
+
+
+	</head>
+	<body class="qa-template-question qa-body-js-off">
+		<div class="qa-body-wrapper">
+			
+			<div class="qa-header">
+				<div class="qa-logo">
+					<a href="../../" class="qa-logo-link" title="FEniCS Q&amp;A"><img src="../../qa-theme/fenics_qa.png" border="0" alt="FEniCS Q&amp;A"></a>
+				</div>
+				<div class="qa-header-clear">
+				</div>
+			</div> <!-- END qa-header -->
+			
+			<div class="qa-main-shadow">
+				
+				<div class="qa-main-wrapper">
+					
+					<div class="qa-sidepanel">
+						<div class="qa-sidebar">
+							This is a read only copy of the old FEniCS QA forum. Please visit the <a href="https://www.allanswered.com/community/s/fenics-project/">new QA forum</a> to ask questions
+						</div>
+						
+					</div>
+					
+					<div class="qa-main">
+						<h1>
+							<span class="entry-title">Implementation a modified DG jump condition with ODE</span>
+						</h1>
+						<div class="qa-part-q-view">
+							<div class="qa-q-view  hentry question" id="q13906">
+								<form method="post" action="../../13906/implementation-a-modified-dg-jump-condition-with-ode">
+									<div class="qa-q-view-stats">
+										<div class="qa-voting qa-voting-net" id="voting_13906">
+											<div class="qa-vote-count qa-vote-count-net">
+												<span class="qa-netvote-count">
+													<span class="qa-netvote-count-data">0<span class="votes-up"><span class="value-title" title="0"></span></span><span class="votes-down"><span class="value-title" title="0"></span></span></span><span class="qa-netvote-count-pad"> votes</span>
+												</span>
+											</div>
+											<div class="qa-vote-clear">
+											</div>
+										</div>
+									</div>
+									<input type="hidden" name="code" value="0-1516466499-9c09c9ad18e6d832a454092a7c23ff7a9b73ac6a">
+								</form>
+								<div class="qa-q-view-main">
+									<form method="post" action="../../13906/implementation-a-modified-dg-jump-condition-with-ode">
+										<div class="qa-q-view-content">
+											<a name="13906"></a><div class="entry-content"><p>Hi--I'm trying to implement an ODE on the internal boundary (manifold?) between two different subdomains I've created in GMSH. The mesh is [0,1] x [0,1] with the internal boundary down the center at x=0.5. The mesh size at each point is 0.025 if that helps any. My test code compiles and is below:</p>
+
+<pre><code>from fenics import *
+import time
+
+ofilename = 'dg_jump_mesh.xml'
+mesh = Mesh(ofilename)
+subdomains0 = MeshFunction("size_t", mesh, "%s_physical_region.xml"%ofilename.split('.')[0])
+boundaries0 = MeshFunction("size_t", mesh, "%s_facet_region.xml"%ofilename.split('.')[0])
+
+# Rename subdomain numbers from GMSH
+subdomains = CellFunction("size_t", mesh, 0)
+subdomains.set_all(0)
+subdomains.array()[subdomains0.array()==1] = 0
+subdomains.array()[subdomains0.array()==2] = 1
+
+# Rename boundary numbers from GMSH
+boundaries = FacetFunction("size_t", mesh, 0)
+boundaries.set_all(0)
+boundaries.array()[boundaries0.array()==1] = 1
+boundaries.array()[boundaries0.array()==2] = 2
+boundaries.array()[boundaries0.array()==3] = 3
+
+# Define function space and basis functions
+V = FunctionSpace(mesh, "DG", 2)
+u = TrialFunction(V)
+v = TestFunction(V)
+
+# Define new measures associated with the interior domains and
+ds = Measure('ds', domain=mesh, subdomain_data=boundaries)
+dS = Measure('dS', domain=mesh, subdomain_data=boundaries)
+dx = Measure('dx', domain=mesh, subdomain_data=subdomains)
+
+alpha = 10.0
+gamma = alpha
+
+n = FacetNormal(mesh)
+h = CellSize(mesh)
+h_avg = (h('+') + h('-'))/2
+
+D1 = 1.0
+D2 = 0.0
+
+f = Constant(0.0)
+
+u_0 = interpolate(Constant(0), V)
+
+t_end = 1e-6
+dt = 0.1e-6  
+t = 0. 
+
+X1 = Constant(0.0)
+X2 = Constant(0.0)
+
+while(t&lt;t_end):
+
+    X1 = dt*jump(u_0)*X1 + X1
+    X2 = dt*X1*X2 + X2
+
+    S = (X1 + X2)/2
+
+    J = jump(u_0)*S
+
+    ## Deal with volume integrals (stiffness matrix)
+    a = inner(grad(v), grad(u))*dx
+
+    ## Deal with internal element interface conditions on non-boundary elements
+    a += - inner(jump(u, n), avg(grad(v)))*dS(0) \
+       - inner(jump(v, n), avg(grad(u)))*dS(0) \
+       + (alpha/h_avg)*inner(jump(v, n), jump(u, n))*dS(0)
+
+    ## Deal with boundary conditions
+    a += - inner(grad(v), u*n)*ds(1) \
+       + (gamma/h)*v*u*ds(1) \
+       - inner(grad(v), u*n)*ds(2) \
+       + (gamma/h)*v*u*ds(2) \
+
+    ## Deal with imposed jump condition explicitly
+    a += - inner(avg(grad(v)), jump(u, n))*dS(3) \
+        - inner(jump(v, n), avg(grad(u)))*dS(3) \
+        + (gamma/h_avg)*inner(jump(u, n), jump(v, n))*dS(3)
+
+    ## Deal with source term  
+    L = v*f*dx
+
+    ## Deal with Dirichlet boundary conditions explicitly
+    L += - D1*inner(grad(v), n)*ds(1) \
+        + (gamma/h)*D1*v*ds(1) \
+        - D2*inner(grad(v), n)*ds(2) \
+        + (gamma/h)*D2*v*ds(2) \
+
+    L += - inner(J*n('+'), avg(grad(v)))*dS(3) \
+        + (gamma/h_avg)*inner(J, jump(v))*dS(3) 
+
+    start = time.time()
+    solve(a == L, u_0)  
+    print('Calculation Time = %s'%(time.time()-start))
+
+    t += dt
+</code></pre>
+
+<p>The output is</p>
+
+<pre><code>      Solving linear variational problem.
+  Calculation Time = 0.36479687690734863
+      Solving linear variational problem.
+  Calculation Time = 0.37340474128723145
+      Solving linear variational problem.
+  Calculation Time = 0.38163280487060547
+      Solving linear variational problem.
+  Calculation Time = 0.364102840423584
+      Calling FFC just-in-time (JIT) compiler, this may take some time.
+</code></pre>
+
+<p>However, after only a few iterations, my code stops solving or, rather, takes a lot longer to solve. Am I correct in assuming that this is due to the complexity of X1 and X2 increasing with each iteration? If so, is there a way to evaluate this function at each time step so that these functions do not become overly complicated because of the iterative nesting? </p>
+
+<p>Alternatively, I'm just using these functions on the boundary between the two subdomains, so is there a better way to define it that wouldn't cause my solver to get more complex with each iteration?</p>
+</div>
+										</div>
+										<div class="qa-q-view-tags">
+											<ul class="qa-q-view-tag-list">
+												<li class="qa-q-view-tag-item"><a href="../../tag/dg" rel="tag" class="qa-tag-link">dg</a></li>
+												<li class="qa-q-view-tag-item"><a href="../../tag/internal-boundary" rel="tag" class="qa-tag-link">internal-boundary</a></li>
+												<li class="qa-q-view-tag-item"><a href="../../tag/jump" rel="tag" class="qa-tag-link">jump</a></li>
+											</ul>
+										</div>
+										<span class="qa-q-view-avatar-meta">
+											<span class="qa-q-view-meta">
+												<a href="../../13906/implementation-a-modified-dg-jump-condition-with-ode" class="qa-q-view-what">asked</a>
+												<span class="qa-q-view-when">
+													<span class="qa-q-view-when-data"><span class="published"><span class="value-title" title="2017-06-11T17:20:29+0000"></span>Jun 11, 2017</span></span>
+												</span>
+												<span class="qa-q-view-who">
+													<span class="qa-q-view-who-pad">by </span>
+													<span class="qa-q-view-who-data"><span class="vcard author"><a href="../../user/treblebrewing" class="qa-user-link url nickname">treblebrewing</a></span></span>
+													<span class="qa-q-view-who-title">FEniCS Novice</span>
+													<span class="qa-q-view-who-points">
+														<span class="qa-q-view-who-points-pad">(</span><span class="qa-q-view-who-points-data">760</span><span class="qa-q-view-who-points-pad"> points)</span>
+													</span>
+												</span>
+											</span>
+										</span>
+										<div class="qa-q-view-buttons">
+										</div>
+										
+										<div class="qa-q-view-c-list" style="display:none;" id="c13906_list">
+										</div> <!-- END qa-c-list -->
+										
+										<input type="hidden" name="code" value="0-1516466499-19e06e497e558434c54be320ee23ddb6aa921ee5">
+										<input type="hidden" name="qa_click" value="">
+									</form>
+									<div class="qa-c-form">
+									</div> <!-- END qa-c-form -->
+									
+								</div> <!-- END qa-q-view-main -->
+								<div class="qa-q-view-clear">
+								</div>
+							</div> <!-- END qa-q-view -->
+							
+						</div>
+						<div class="qa-part-a-list">
+							<h2 id="a_list_title">1 Answer</h2>
+							<div class="qa-a-list" id="a_list">
+								
+								<div class="qa-a-list-item  hentry answer" id="a13931">
+									<form method="post" action="../../13906/implementation-a-modified-dg-jump-condition-with-ode">
+										<div class="qa-voting qa-voting-net" id="voting_13931">
+											<div class="qa-vote-count qa-vote-count-net">
+												<span class="qa-netvote-count">
+													<span class="qa-netvote-count-data">0<span class="votes-up"><span class="value-title" title="0"></span></span><span class="votes-down"><span class="value-title" title="0"></span></span></span><span class="qa-netvote-count-pad"> votes</span>
+												</span>
+											</div>
+											<div class="qa-vote-clear">
+											</div>
+										</div>
+										<input type="hidden" name="code" value="0-1516466499-9c09c9ad18e6d832a454092a7c23ff7a9b73ac6a">
+									</form>
+									<div class="qa-a-item-main">
+										<form method="post" action="../../13906/implementation-a-modified-dg-jump-condition-with-ode">
+											<div class="qa-a-selection">
+											</div>
+											<div class="qa-a-item-content">
+												<a name="13931"></a><div class="entry-content"><p>I think I came across a method for doing this based on this post:</p>
+
+<p><a rel="nofollow" href="https://fenicsproject.org/qa/12282/change-values-function-mesh-function-defined-boundarymesh">https://fenicsproject.org/qa/12282/change-values-function-mesh-function-defined-boundarymesh</a></p>
+
+<p>There's probably a better way to do this and I'm still trying to check it for validity, but maybe this helps someone. Any comments to make this code better are appreciated!</p>
+
+<pre><code>from fenics import *
+import time
+import numpy as np
+
+parameters['allow_extrapolation'] = True
+
+ofilename = 'dg_jump_mesh.xml'
+mesh = Mesh(ofilename)
+subdomains0 = MeshFunction("size_t", mesh, "%s_physical_region.xml"%ofilename.split('.')[0])
+boundaries0 = MeshFunction("size_t", mesh, "%s_facet_region.xml"%ofilename.split('.')[0])
+
+# Rename subdomain numbers from GMSH
+subdomains = CellFunction("size_t", mesh, 0)
+subdomains.set_all(0)
+subdomains.array()[subdomains0.array()==4] = 0
+subdomains.array()[subdomains0.array()==5] = 1
+
+# Rename boundary numbers from GMSH
+boundaries = FacetFunction("size_t", mesh, 0)
+boundaries.set_all(0)
+boundaries.array()[boundaries0.array()==1] = 1
+boundaries.array()[boundaries0.array()==2] = 2
+boundaries.array()[boundaries0.array()==3] = 3
+
+# Define function space and basis functions
+V = FunctionSpace(mesh, 'DG', 2)
+Vcg = FunctionSpace(mesh, 'CG', 1)
+u = TrialFunction(V)
+v = TestFunction(V)
+
+# Define new measures associated with the interior domains and
+ds = Measure('ds', domain=mesh, subdomain_data=boundaries)
+dS = Measure('dS', domain=mesh, subdomain_data=boundaries)
+dx = Measure('dx', domain=mesh, subdomain_data=subdomains)
+
+dom1 = SubMesh(mesh, subdomains, 1)
+Vc = FunctionSpace(dom1, 'CG', 1)
+
+dom2 = SubMesh(mesh, subdomains, 0)
+Vm = FunctionSpace(dom2, 'CG', 1)
+
+bmesh = BoundaryMesh(R, 'exterior')
+Vb = FunctionSpace(bmesh, 'CG', 1)
+
+interface = SubMesh(bmesh, subdomains, 0)
+Vi = FunctionSpace(interface, 'CG', 1)
+ui = TrialFunction(Vi)
+vi = TestFunction(Vi)
+
+dxi = Measure('dx', domain=interface)
+
+alpha = 10.0
+gamma = alpha
+
+n = FacetNormal(mesh)
+h = CellSize(mesh)
+h_avg = (h('+') + h('-'))/2
+
+D1 = 1.0
+D2 = 0.0
+
+f = Constant(0.0)
+
+u_0 = interpolate(Constant(0.0), V)
+ui_0 = interpolate(Constant(0), Vi)
+J = Function(V)
+Jb = Function(Vb)
+J = Function(Vcg)
+
+dofb_vb = np.array(dof_to_vertex_map(Vb), dtype=int)
+vb_v = np.array(bmesh.entity_map(0), dtype=int)
+v_dof = np.array(vertex_to_dof_map(Vcg), dtype=int)
+
+ofile = 'Simulation Results/TEST_%s.pvd'%ofilename.split('.')[0]
+print('  [+] Output to %s'%(ofile))
+vtkfile = File(ofile)
+
+t_end = 2e-6
+dt = 0.1e-6  
+t = 0. 
+
+while(t&lt;t_end):
+
+    ## interpolate u_0 onto submesh for each side
+    u_i = interpolate(u_0, Vc)
+    u_o = interpolate(u_0, Vm)
+
+    ## interpolate each submesh to boundary mesh
+    ub_i = interpolate(u_i, Vb)
+    ub_o = interpolate(u_o, Vb)
+
+    ## subtract interpolated values to obtain jump(u_0) on boundary mesh
+    tmpb = ub_i - ub_o
+    tmpi = project(tmpb, Vi)
+
+    ## perform calculation
+    ab = inner(grad(ui), grad(vi))*dxi
+    Lb = dt*inner(grad(tmpi), grad(vi))*dxi + inner(grad(tmpi), grad(vi))*dxi
+    Lb = f*vi*dxi
+
+    solve(ab == Lb, ui_0)
+
+    ## Interpolate solution back to boundary mesh
+    Jb.interpolate(ui_0)
+
+    ## Interpolate boundary mesh back to submesh
+    array = J.vector().array()
+    array[v_dof[vb_v[dofb_vb]]] = Jb.vector().array()
+    J.vector()[:] = array
+
+    ## Deal with volume integrals (stiffness matrix)
+    a = inner(grad(v), grad(u))*dx
+
+    ## Deal with internal element interface conditions on non-boundary elements
+    a += - inner(jump(u, n), avg(grad(v)))*dS(0) \
+       - inner(jump(v, n), avg(grad(u)))*dS(0) \
+       + (alpha/h_avg)*inner(jump(v, n), jump(u, n))*dS(0)
+
+    ## Deal with boundary conditions
+    a += - inner(grad(v), u*n)*ds(1) \
+       + (gamma/h)*v*u*ds(1) \
+       - inner(grad(v), u*n)*ds(2) \
+       + (gamma/h)*v*u*ds(2) \
+
+    ## Deal with imposed jump condition explicitly
+    a += - inner(avg(grad(v)), jump(u, n))*dS(3) \
+        - inner(jump(v, n), avg(grad(u)))*dS(3) \
+        + (gamma/h_avg)*inner(jump(u, n), jump(v, n))*dS(3)
+
+    ## Deal with source term  
+    L = v*f*dx
+
+    ## Deal with Dirichlet boundary conditions explicitly
+    L += - D1*inner(grad(v), n)*ds(1) \
+        + (gamma/h)*D1*v*ds(1) \
+        - D2*inner(grad(v), n)*ds(2) \
+        + (gamma/h)*D2*v*ds(2) \
+
+    L += - inner(J*n('-'), avg(grad(v)))*dS(3) \
+        + (gamma/h_avg)*inner(J, jump(v))*dS(3) 
+#        
+    start = time.time()
+    solve(a == L, u_0) 
+    vtkfile &lt;&lt; u_0
+#    vtkfile &lt;&lt; J
+#    vtkfile &lt;&lt; tmpi
+
+    print('Calculation Time = %s'%(time.time()-start))
+
+    t += dt
+</code></pre>
+</div>
+											</div>
+											<span class="qa-a-item-avatar-meta">
+												<span class="qa-a-item-meta">
+													<a href="../../13906/implementation-a-modified-dg-jump-condition-with-ode?show=13931#a13931" class="qa-a-item-what">answered</a>
+													<span class="qa-a-item-when">
+														<span class="qa-a-item-when-data"><span class="published"><span class="value-title" title="2017-06-13T01:04:17+0000"></span>Jun 13, 2017</span></span>
+													</span>
+													<span class="qa-a-item-who">
+														<span class="qa-a-item-who-pad">by </span>
+														<span class="qa-a-item-who-data"><span class="vcard author"><a href="../../user/treblebrewing" class="qa-user-link url nickname">treblebrewing</a></span></span>
+														<span class="qa-a-item-who-title">FEniCS Novice</span>
+														<span class="qa-a-item-who-points">
+															<span class="qa-a-item-who-points-pad">(</span><span class="qa-a-item-who-points-data">760</span><span class="qa-a-item-who-points-pad"> points)</span>
+														</span>
+													</span>
+													<br>
+													<span class="qa-a-item-what">edited</span>
+													<span class="qa-a-item-when">
+														<span class="qa-a-item-when-data"><span class="updated"><span class="value-title" title="2017-06-13T01:12:58+0000"></span>Jun 13, 2017</span></span>
+													</span>
+													<span class="qa-a-item-who">
+														<span class="qa-a-item-who-pad">by </span><span class="qa-a-item-who-data"><a href="../../user/treblebrewing" class="qa-user-link url nickname">treblebrewing</a></span>
+													</span>
+												</span>
+											</span>
+											<div class="qa-a-item-buttons">
+												</div>
+											
+											<div class="qa-a-item-c-list" style="display:none;" id="c13931_list">
+											</div> <!-- END qa-c-list -->
+											
+											<input type="hidden" name="code" value="0-1516466499-33ba9e57ef2df8a9643c50e46b46e64cf0ea8b38">
+											<input type="hidden" name="qa_click" value="">
+										</form>
+										<div class="qa-c-form">
+										</div> <!-- END qa-c-form -->
+										
+									</div> <!-- END qa-a-item-main -->
+									<div class="qa-a-item-clear">
+									</div>
+								</div> <!-- END qa-a-list-item -->
+								
+							</div> <!-- END qa-a-list -->
+							
+						</div>
+					</div> <!-- END qa-main -->
+					
+				</div> <!-- END main-wrapper -->
+			</div> <!-- END main-shadow -->
+		</div> <!-- END body-wrapper -->
+		<!-- END footer-bottom-group -->
+		
+		<div style="position:absolute; left:-9999px; top:-9999px;">
+			<span id="qa-waiting-template" class="qa-waiting">...</span>
+		</div>
+	
+	
+
+</body><!-- Powered by Question2Answer - http://www.question2answer.org/ --></html>

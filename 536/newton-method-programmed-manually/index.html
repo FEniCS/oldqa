@@ -1,0 +1,798 @@
+<html><!-- Powered by Question2Answer - http://www.question2answer.org/ --><head>
+		<meta http-equiv="content-type" content="text/html; charset=utf-8">
+		<title>Newton method programmed manually - FEniCS Q&amp;A</title>
+		<meta name="description" content="Hi all, This is probably a simple thing but I've been hitting my head against it. I need to ... 121320e+00 Can anyone point out my error? Thanks, Mike">
+		<meta name="keywords" content="newton-solver">
+		<link rel="stylesheet" type="text/css" href="../../qa-theme/Snow/qa-styles.css">
+		<link rel="canonical" href="http://fenicsproject.org/qa/536/newton-method-programmed-manually">
+		<script type="text/x-mathjax-config">
+  MathJax.Hub.Config({
+    extensions: ["tex2jax.js"],
+    jax: ["input/TeX","output/HTML-CSS"],
+    tex2jax: {inlineMath: [["$","$"],["\\(","\\)"]]},
+    TeX: { extensions: ["AMSmath.js","AMSsymbols.js"]}
+  });
+</script>
+<script type="text/javascript" src="../../mathjax/MathJax.js"></script>
+		<script src="../../jquery-1.7.2.min.js" type="text/javascript"></script>
+		<script src="../../highlight.min.js"></script>
+<script type="text/javascript">
+$(function(){
+	$('.wmd-input').keypress(function(){
+		window.clearTimeout(hljs.Timeout);
+		hljs.Timeout = window.setTimeout(function() {
+			hljs.initHighlighting.called = false;
+			hljs.initHighlighting();
+		}, 500);
+	});
+	window.setTimeout(function() {
+		hljs.initHighlighting.called = false;
+		hljs.initHighlighting();
+	}, 500);
+});
+</script>
+
+
+	</head>
+	<body class="qa-template-question qa-body-js-off">
+		<div class="qa-body-wrapper">
+			
+			<div class="qa-header">
+				<div class="qa-logo">
+					<a href="../../" class="qa-logo-link" title="FEniCS Q&amp;A"><img src="../../qa-theme/fenics_qa.png" border="0" alt="FEniCS Q&amp;A"></a>
+				</div>
+				<div class="qa-header-clear">
+				</div>
+			</div> <!-- END qa-header -->
+			
+			<div class="qa-main-shadow">
+				
+				<div class="qa-main-wrapper">
+					
+					<div class="qa-sidepanel">
+						<div class="qa-sidebar">
+							This is a read only copy of the old FEniCS QA forum. Please visit the <a href="https://www.allanswered.com/community/s/fenics-project/">new QA forum</a> to ask questions
+						</div>
+						
+					</div>
+					
+					<div class="qa-main">
+						<h1>
+							<span class="entry-title">Newton method programmed manually</span>
+						</h1>
+						<div class="qa-part-q-view">
+							<div class="qa-q-view  hentry question" id="q536">
+								<form method="post" action="../../536/newton-method-programmed-manually">
+									<div class="qa-q-view-stats">
+										<div class="qa-voting qa-voting-net" id="voting_536">
+											<div class="qa-vote-count qa-vote-count-net">
+												<span class="qa-netvote-count">
+													<span class="qa-netvote-count-data">+5<span class="votes-up"><span class="value-title" title="5"></span></span><span class="votes-down"><span class="value-title" title="0"></span></span></span><span class="qa-netvote-count-pad"> votes</span>
+												</span>
+											</div>
+											<div class="qa-vote-clear">
+											</div>
+										</div>
+									</div>
+									<input type="hidden" name="code" value="0-1516468025-06faaec2cbe618102bda6db3e03f06a1368646bd">
+								</form>
+								<div class="qa-q-view-main">
+									<form method="post" action="../../536/newton-method-programmed-manually">
+										<div class="qa-q-view-content">
+											<a name="536"></a><div class="entry-content"><p>Hi all, This is probably a simple thing but I've been hitting my head against it. I need to program the newton method manually, and want to compare it to the nonlinearvariationalsolver. Both converge but I can't seem to match my residual norms. Here is my code:</p>
+
+<pre><code>from dolfin import *
+import numpy as np
+
+
+mesh = IntervalMesh(100, 0,1)  
+V = FunctionSpace(mesh, "Lagrange",1)    # Order 1 function space
+
+dU = TrialFunction(V)
+test_U = TestFunction(V)
+U = Function(V)
+
+
+left, right = compile_subdomains([
+    "(std::abs( x[0] )           &lt; DOLFIN_EPS) &amp;&amp; on_boundary",
+    "(std::abs( x[0]-1.0 ) &lt; DOLFIN_EPS) &amp;&amp; on_boundary"])
+
+bcs = [
+    DirichletBC(V, 1, left),
+    DirichletBC(V, 0 , right),
+    ]
+
+k = 1.0*U+1.0
+
+F = inner(k*grad(U), grad(test_U))*dx
+Jac = derivative(F, U, dU)
+
+U_init = Expression("1-x[0]")
+
+U.interpolate(U_init)
+
+
+if False:
+    problem = NonlinearVariationalProblem(F, U, bcs, Jac) #,form_compiler_parameters=ffc_options
+    solver = NonlinearVariationalSolver(problem)
+    solver.solve()
+else:
+    a_tol, r_tol = 1e-7, 1e-10
+    bcs_du = homogenize(bcs)
+    U_inc = Function(V)
+    nIter = 0
+    eps = 1
+
+    while eps &gt; 1e-10 and nIter &lt; 10:              # Newton iterations
+        nIter += 1
+        A, b = assemble_system(Jac, -F, bcs_du)
+        solve(A, U_inc.vector(), b)     # Determine step direction
+        eps = np.linalg.norm(U_inc.vector().array(), ord = 2)
+
+        a = assemble(F)
+        fnorm = np.linalg.norm(a.array(), ord = 2)
+        lmbda = 1.0     # step size, initially 1
+
+        U.vector()[:] += lmbda*U_inc.vector()    # New u vector
+
+        print '      {0:2d}  {1:3.2E}  {2:5e}'.format(nIter, eps, fnorm)
+
+plot(U)
+interactive()
+</code></pre>
+
+<p>Change the True / False above to switch methods. With the nonlinearvariationalsolver I get the output:</p>
+
+<pre><code>Solving nonlinear variational problem.
+  Newton iteration 1: r (abs) = 5.898e-03 (tol = 1.000e-10) r (rel) = 5.927e-02 (tol = 1.000e-09)
+  Newton iteration 2: r (abs) = 6.381e-06 (tol = 1.000e-10) r (rel) = 6.413e-05 (tol = 1.000e-09)
+  Newton iteration 3: r (abs) = 7.288e-12 (tol = 1.000e-10) r (rel) = 7.325e-11 (tol = 1.000e-09)
+  Newton solver finished in 3 iterations and 3 linear solver iterations.
+</code></pre>
+
+<p>With my code I get:</p>
+
+<pre><code>   1  6.24E-01  2.236057e+00
+   2  1.56E-02  2.121959e+00
+   3  1.14E-05  2.121320e+00
+   4  7.20E-12  2.121320e+00
+</code></pre>
+
+<p>Can anyone point out my error? </p>
+
+<p>Thanks, <br>
+Mike</p>
+</div>
+										</div>
+										<div class="qa-q-view-tags">
+											<ul class="qa-q-view-tag-list">
+												<li class="qa-q-view-tag-item"><a href="../../tag/newton-solver" rel="tag" class="qa-tag-link">newton-solver</a></li>
+											</ul>
+										</div>
+										<span class="qa-q-view-avatar-meta">
+											<span class="qa-q-view-avatar">
+												<a href="../../user/mwelland" class="qa-avatar-link"><img src="https://www.gravatar.com/avatar/af936799ea3fe5bd1cb6abb922ebbe83?s=50" width="50" height="50" class="qa-avatar-image" alt=""></a>
+											</span>
+											<span class="qa-q-view-meta">
+												<a href="../../536/newton-method-programmed-manually" class="qa-q-view-what">asked</a>
+												<span class="qa-q-view-when">
+													<span class="qa-q-view-when-data"><span class="published"><span class="value-title" title="2013-07-12T17:29:15+0000"></span>Jul 12, 2013</span></span>
+												</span>
+												<span class="qa-q-view-who">
+													<span class="qa-q-view-who-pad">by </span>
+													<span class="qa-q-view-who-data"><span class="vcard author"><a href="../../user/mwelland" class="qa-user-link url nickname">mwelland</a></span></span>
+													<span class="qa-q-view-who-title">FEniCS User</span>
+													<span class="qa-q-view-who-points">
+														<span class="qa-q-view-who-points-pad">(</span><span class="qa-q-view-who-points-data">8,410</span><span class="qa-q-view-who-points-pad"> points)</span>
+													</span>
+												</span>
+											</span>
+										</span>
+										<div class="qa-q-view-buttons">
+										</div>
+										
+										<div class="qa-q-view-c-list" id="c536_list">
+											<div class="qa-c-list-item  hentry comment" id="c538">
+												<div class="qa-c-item-content">
+													<a name="538"></a><div class="entry-content"><p>In your second column there is a norm of the increment while <code>NewtonSolver</code> checks convergence using norm of the equation residual by default. You can change this behaviour by</p>
+
+<pre><code>solver.parameters['newton_solver']['convergence_criterion'] = 'incremental'
+</code></pre>
+</div>
+												</div>
+												<div class="qa-c-item-footer">
+													<span class="qa-c-item-avatar-meta">
+														<span class="qa-c-item-avatar">
+															<a href="../../user/Jan+Blechta" class="qa-avatar-link"><img src="https://www.gravatar.com/avatar/dc6f8dce77e4a0bd5adc7ff31ab83741?s=20" width="20" height="20" class="qa-avatar-image" alt=""></a>
+														</span>
+														<span class="qa-c-item-meta">
+															<a href="../../536/newton-method-programmed-manually?show=538#c538" class="qa-c-item-what">commented</a>
+															<span class="qa-c-item-when">
+																<span class="qa-c-item-when-data"><span class="published"><span class="value-title" title="2013-07-12T18:03:46+0000"></span>Jul 12, 2013</span></span>
+															</span>
+															<span class="qa-c-item-who">
+																<span class="qa-c-item-who-pad">by </span>
+																<span class="qa-c-item-who-data"><span class="vcard author"><a href="../../user/Jan+Blechta" class="qa-user-link url nickname">Jan Blechta</a></span></span>
+																<span class="qa-c-item-who-title">FEniCS Expert</span>
+																<span class="qa-c-item-who-points">
+																	<span class="qa-c-item-who-points-pad">(</span><span class="qa-c-item-who-points-data">51,420</span><span class="qa-c-item-who-points-pad"> points)</span>
+																</span>
+															</span>
+														</span>
+													</span>
+													<div class="qa-c-item-buttons">
+													</div>
+												</div>
+												<div class="qa-c-item-clear">
+												</div>
+											</div> <!-- END qa-c-item -->
+											<div class="qa-c-list-item  hentry comment" id="c539">
+												<div class="qa-c-item-content">
+													<a name="539"></a><div class="entry-content"><p>Thanks Jan, but I am interested in how to calculate the norm of the equation residual actually. I thought thats what I was doing with the commands:</p>
+
+<pre><code>a = assemble(F)
+fnorm = np.linalg.norm(a.array(), ord = 2)
+</code></pre>
+
+<p>But it doesn't seem to match the output from the newton solver... Maybe I have teh wronge equation?</p>
+</div>
+												</div>
+												<div class="qa-c-item-footer">
+													<span class="qa-c-item-avatar-meta">
+														<span class="qa-c-item-avatar">
+															<a href="../../user/mwelland" class="qa-avatar-link"><img src="https://www.gravatar.com/avatar/af936799ea3fe5bd1cb6abb922ebbe83?s=20" width="20" height="20" class="qa-avatar-image" alt=""></a>
+														</span>
+														<span class="qa-c-item-meta">
+															<a href="../../536/newton-method-programmed-manually?show=539#c539" class="qa-c-item-what">commented</a>
+															<span class="qa-c-item-when">
+																<span class="qa-c-item-when-data"><span class="published"><span class="value-title" title="2013-07-12T18:23:00+0000"></span>Jul 12, 2013</span></span>
+															</span>
+															<span class="qa-c-item-who">
+																<span class="qa-c-item-who-pad">by </span>
+																<span class="qa-c-item-who-data"><span class="vcard author"><a href="../../user/mwelland" class="qa-user-link url nickname">mwelland</a></span></span>
+																<span class="qa-c-item-who-title">FEniCS User</span>
+																<span class="qa-c-item-who-points">
+																	<span class="qa-c-item-who-points-pad">(</span><span class="qa-c-item-who-points-data">8,410</span><span class="qa-c-item-who-points-pad"> points)</span>
+																</span>
+															</span>
+														</span>
+													</span>
+													<div class="qa-c-item-buttons">
+													</div>
+												</div>
+												<div class="qa-c-item-clear">
+												</div>
+											</div> <!-- END qa-c-item -->
+											<div class="qa-c-list-item  hentry comment" id="c551">
+												<div class="qa-c-item-content">
+													<a name="551"></a><div class="entry-content"><p>There has been a little update on how and when the norms are calculated in Dolfin's Newton method, cf. <a rel="nofollow" href="https://bitbucket.org/fenics-project/dolfin/commits/0345014b7cd09bff6bbd8f56665a2832b13ddebb">https://bitbucket.org/fenics-project/dolfin/commits/0345014b7cd09bff6bbd8f56665a2832b13ddebb</a>. You may want to build from Git master.</p>
+</div>
+												</div>
+												<div class="qa-c-item-footer">
+													<span class="qa-c-item-avatar-meta">
+														<span class="qa-c-item-avatar">
+															<a href="../../user/nschloe" class="qa-avatar-link"><img src="https://www.gravatar.com/avatar/500a1e2e864ae08f386afde2cd21add0?s=20" width="20" height="20" class="qa-avatar-image" alt=""></a>
+														</span>
+														<span class="qa-c-item-meta">
+															<a href="../../536/newton-method-programmed-manually?show=551#c551" class="qa-c-item-what">commented</a>
+															<span class="qa-c-item-when">
+																<span class="qa-c-item-when-data"><span class="published"><span class="value-title" title="2013-07-12T23:35:01+0000"></span>Jul 13, 2013</span></span>
+															</span>
+															<span class="qa-c-item-who">
+																<span class="qa-c-item-who-pad">by </span>
+																<span class="qa-c-item-who-data"><span class="vcard author"><a href="../../user/nschloe" class="qa-user-link url nickname">nschloe</a></span></span>
+																<span class="qa-c-item-who-title">FEniCS User</span>
+																<span class="qa-c-item-who-points">
+																	<span class="qa-c-item-who-points-pad">(</span><span class="qa-c-item-who-points-data">7,120</span><span class="qa-c-item-who-points-pad"> points)</span>
+																</span>
+															</span>
+														</span>
+													</span>
+													<div class="qa-c-item-buttons">
+													</div>
+												</div>
+												<div class="qa-c-item-clear">
+												</div>
+											</div> <!-- END qa-c-item -->
+											<div class="qa-c-list-item  hentry comment" id="c554">
+												<div class="qa-c-item-content">
+													<a name="554"></a><div class="entry-content"><p>Nico, this is barely significant to the problem. The problem actually is that mwelland's home-made Newton solver does not show convergence in terms of $||F||_{\ell^2}$. He gets still $||F||_{\ell^2}\approx 2$</p>
+</div>
+												</div>
+												<div class="qa-c-item-footer">
+													<span class="qa-c-item-avatar-meta">
+														<span class="qa-c-item-avatar">
+															<a href="../../user/Jan+Blechta" class="qa-avatar-link"><img src="https://www.gravatar.com/avatar/dc6f8dce77e4a0bd5adc7ff31ab83741?s=20" width="20" height="20" class="qa-avatar-image" alt=""></a>
+														</span>
+														<span class="qa-c-item-meta">
+															<a href="../../536/newton-method-programmed-manually?show=554#c554" class="qa-c-item-what">commented</a>
+															<span class="qa-c-item-when">
+																<span class="qa-c-item-when-data"><span class="published"><span class="value-title" title="2013-07-13T00:55:11+0000"></span>Jul 13, 2013</span></span>
+															</span>
+															<span class="qa-c-item-who">
+																<span class="qa-c-item-who-pad">by </span>
+																<span class="qa-c-item-who-data"><span class="vcard author"><a href="../../user/Jan+Blechta" class="qa-user-link url nickname">Jan Blechta</a></span></span>
+																<span class="qa-c-item-who-title">FEniCS Expert</span>
+																<span class="qa-c-item-who-points">
+																	<span class="qa-c-item-who-points-pad">(</span><span class="qa-c-item-who-points-data">51,420</span><span class="qa-c-item-who-points-pad"> points)</span>
+																</span>
+															</span>
+														</span>
+													</span>
+													<div class="qa-c-item-buttons">
+													</div>
+												</div>
+												<div class="qa-c-item-clear">
+												</div>
+											</div> <!-- END qa-c-item -->
+										</div> <!-- END qa-c-list -->
+										
+										<input type="hidden" name="code" value="0-1516468025-977b26f03f2295066b0839b2526e8fa81c69e01e">
+										<input type="hidden" name="qa_click" value="">
+									</form>
+									<div class="qa-c-form">
+									</div> <!-- END qa-c-form -->
+									
+								</div> <!-- END qa-q-view-main -->
+								<div class="qa-q-view-clear">
+								</div>
+							</div> <!-- END qa-q-view -->
+							
+						</div>
+						<div class="qa-part-a-list">
+							<h2 id="a_list_title">1 Answer</h2>
+							<div class="qa-a-list" id="a_list">
+								
+								<div class="qa-a-list-item  hentry answer answer-selected qa-a-list-item-selected" id="a573">
+									<form method="post" action="../../536/newton-method-programmed-manually">
+										<div class="qa-voting qa-voting-net" id="voting_573">
+											<div class="qa-vote-count qa-vote-count-net">
+												<span class="qa-netvote-count">
+													<span class="qa-netvote-count-data">+2<span class="votes-up"><span class="value-title" title="2"></span></span><span class="votes-down"><span class="value-title" title="0"></span></span></span><span class="qa-netvote-count-pad"> votes</span>
+												</span>
+											</div>
+											<div class="qa-vote-clear">
+											</div>
+										</div>
+										<input type="hidden" name="code" value="0-1516468025-06faaec2cbe618102bda6db3e03f06a1368646bd">
+									</form>
+									<div class="qa-a-item-main">
+										<form method="post" action="../../536/newton-method-programmed-manually">
+											<div class="qa-a-item-selected">
+												<div class="qa-a-selection">
+													<div class="qa-a-selected">&#160;</div>
+													<div class="qa-a-selected-text">Best answer</div>
+												</div>
+												<div class="qa-a-item-content">
+													<a name="573"></a><div class="entry-content"><p>Thanks for the comments guys, looks like my problem was not applying the bcs_du to the matrix 'a' before calculating the norm. I tried just b.norm (inspired from nschole's notes) and it matches the nonlinearvariationalsolver output.  </p>
+</div>
+												</div>
+												<span class="qa-a-item-avatar-meta">
+													<span class="qa-a-item-avatar">
+														<a href="../../user/mwelland" class="qa-avatar-link"><img src="https://www.gravatar.com/avatar/af936799ea3fe5bd1cb6abb922ebbe83?s=40" width="40" height="40" class="qa-avatar-image" alt=""></a>
+													</span>
+													<span class="qa-a-item-meta">
+														<a href="../../536/newton-method-programmed-manually?show=573#a573" class="qa-a-item-what">answered</a>
+														<span class="qa-a-item-when">
+															<span class="qa-a-item-when-data"><span class="published"><span class="value-title" title="2013-07-14T20:03:33+0000"></span>Jul 14, 2013</span></span>
+														</span>
+														<span class="qa-a-item-who">
+															<span class="qa-a-item-who-pad">by </span>
+															<span class="qa-a-item-who-data"><span class="vcard author"><a href="../../user/mwelland" class="qa-user-link url nickname">mwelland</a></span></span>
+															<span class="qa-a-item-who-title">FEniCS User</span>
+															<span class="qa-a-item-who-points">
+																<span class="qa-a-item-who-points-pad">(</span><span class="qa-a-item-who-points-data">8,410</span><span class="qa-a-item-who-points-pad"> points)</span>
+															</span>
+														</span>
+														<br>
+														<span class="qa-a-item-what">selected</span>
+														<span class="qa-a-item-when">
+															<span class="qa-a-item-when-data"><span class="updated"><span class="value-title" title="2013-07-14T20:33:09+0000"></span>Jul 14, 2013</span></span>
+														</span>
+														<span class="qa-a-item-who">
+															<span class="qa-a-item-who-pad">by </span><span class="qa-a-item-who-data"><a href="../../user/Jan+Blechta" class="qa-user-link url nickname">Jan Blechta</a></span>
+														</span>
+													</span>
+												</span>
+											</div>
+											<div class="qa-a-item-buttons">
+												</div>
+											
+											<div class="qa-a-item-c-list" id="c573_list">
+												<div class="qa-c-list-item  hentry comment" id="c574">
+													<div class="qa-c-item-content">
+														<a name="574"></a><div class="entry-content"><p>Yeah, it was tricky for me too to realize that <code>assemble(F)</code> needs application of <code>bcs_du</code> because test space of Dirichlet problem <code>F</code> is constrained by <code>bcs_du</code> ;-)</p>
+</div>
+													</div>
+													<div class="qa-c-item-footer">
+														<span class="qa-c-item-avatar-meta">
+															<span class="qa-c-item-avatar">
+																<a href="../../user/Jan+Blechta" class="qa-avatar-link"><img src="https://www.gravatar.com/avatar/dc6f8dce77e4a0bd5adc7ff31ab83741?s=20" width="20" height="20" class="qa-avatar-image" alt=""></a>
+															</span>
+															<span class="qa-c-item-meta">
+																<a href="../../536/newton-method-programmed-manually?show=574#c574" class="qa-c-item-what">commented</a>
+																<span class="qa-c-item-when">
+																	<span class="qa-c-item-when-data"><span class="published"><span class="value-title" title="2013-07-14T20:33:05+0000"></span>Jul 14, 2013</span></span>
+																</span>
+																<span class="qa-c-item-who">
+																	<span class="qa-c-item-who-pad">by </span>
+																	<span class="qa-c-item-who-data"><span class="vcard author"><a href="../../user/Jan+Blechta" class="qa-user-link url nickname">Jan Blechta</a></span></span>
+																	<span class="qa-c-item-who-title">FEniCS Expert</span>
+																	<span class="qa-c-item-who-points">
+																		<span class="qa-c-item-who-points-pad">(</span><span class="qa-c-item-who-points-data">51,420</span><span class="qa-c-item-who-points-pad"> points)</span>
+																	</span>
+																</span>
+															</span>
+														</span>
+														<div class="qa-c-item-buttons">
+														</div>
+													</div>
+													<div class="qa-c-item-clear">
+													</div>
+												</div> <!-- END qa-c-item -->
+												<div class="qa-c-list-item  hentry comment" id="c673">
+													<div class="qa-c-item-content">
+														<a name="673"></a><div class="entry-content"><p>can you clarify exactly what you did to make it work, i.e. code?</p>
+</div>
+													</div>
+													<div class="qa-c-item-footer">
+														<span class="qa-c-item-avatar-meta">
+															<span class="qa-c-item-avatar">
+																<a href="../../user/pf4d" class="qa-avatar-link"><img src="https://www.gravatar.com/avatar/102105360e5a49a3d555fb320b328a11?s=20" width="20" height="20" class="qa-avatar-image" alt=""></a>
+															</span>
+															<span class="qa-c-item-meta">
+																<a href="../../536/newton-method-programmed-manually?show=673#c673" class="qa-c-item-what">commented</a>
+																<span class="qa-c-item-when">
+																	<span class="qa-c-item-when-data"><span class="published"><span class="value-title" title="2013-07-22T23:28:25+0000"></span>Jul 23, 2013</span></span>
+																</span>
+																<span class="qa-c-item-who">
+																	<span class="qa-c-item-who-pad">by </span>
+																	<span class="qa-c-item-who-data"><span class="vcard author"><a href="../../user/pf4d" class="qa-user-link url nickname">pf4d</a></span></span>
+																	<span class="qa-c-item-who-title">FEniCS User</span>
+																	<span class="qa-c-item-who-points">
+																		<span class="qa-c-item-who-points-pad">(</span><span class="qa-c-item-who-points-data">2,970</span><span class="qa-c-item-who-points-pad"> points)</span>
+																	</span>
+																</span>
+																<br>
+																<span class="qa-c-item-what">edited</span>
+																<span class="qa-c-item-when">
+																	<span class="qa-c-item-when-data"><span class="updated"><span class="value-title" title="2013-07-22T23:53:47+0000"></span>Jul 23, 2013</span></span>
+																</span>
+																<span class="qa-c-item-who">
+																	<span class="qa-c-item-who-pad">by </span><span class="qa-c-item-who-data"><a href="../../user/pf4d" class="qa-user-link url nickname">pf4d</a></span>
+																</span>
+															</span>
+														</span>
+														<div class="qa-c-item-buttons">
+														</div>
+													</div>
+													<div class="qa-c-item-clear">
+													</div>
+												</div> <!-- END qa-c-item -->
+												<div class="qa-c-list-item  hentry comment" id="c674">
+													<div class="qa-c-item-content">
+														<a name="674"></a><div class="entry-content"><p>I guess</p>
+
+<pre><code>...
+
+a = assemble(F)
+bcs_du.apply(a) # this line added
+fnorm = norm(a, 'l2') # better than numpy function
+lmbda = 1.0     # step size, initially 1
+
+...
+</code></pre>
+</div>
+													</div>
+													<div class="qa-c-item-footer">
+														<span class="qa-c-item-avatar-meta">
+															<span class="qa-c-item-avatar">
+																<a href="../../user/Jan+Blechta" class="qa-avatar-link"><img src="https://www.gravatar.com/avatar/dc6f8dce77e4a0bd5adc7ff31ab83741?s=20" width="20" height="20" class="qa-avatar-image" alt=""></a>
+															</span>
+															<span class="qa-c-item-meta">
+																<a href="../../536/newton-method-programmed-manually?show=674#c674" class="qa-c-item-what">commented</a>
+																<span class="qa-c-item-when">
+																	<span class="qa-c-item-when-data"><span class="published"><span class="value-title" title="2013-07-22T23:35:57+0000"></span>Jul 23, 2013</span></span>
+																</span>
+																<span class="qa-c-item-who">
+																	<span class="qa-c-item-who-pad">by </span>
+																	<span class="qa-c-item-who-data"><span class="vcard author"><a href="../../user/Jan+Blechta" class="qa-user-link url nickname">Jan Blechta</a></span></span>
+																	<span class="qa-c-item-who-title">FEniCS Expert</span>
+																	<span class="qa-c-item-who-points">
+																		<span class="qa-c-item-who-points-pad">(</span><span class="qa-c-item-who-points-data">51,420</span><span class="qa-c-item-who-points-pad"> points)</span>
+																	</span>
+																</span>
+															</span>
+														</span>
+														<div class="qa-c-item-buttons">
+														</div>
+													</div>
+													<div class="qa-c-item-clear">
+													</div>
+												</div> <!-- END qa-c-item -->
+												<div class="qa-c-list-item  hentry comment" id="c692">
+													<div class="qa-c-item-content">
+														<a name="692"></a><div class="entry-content"><p>actually, I just replaced the calculation of fnorm to <br>
+fnorm = b.norm('l2')<br>
+(which avoids having to assemble F again too!) Here is modified code with a bit more description:</p>
+
+<pre><code>from dolfin import *
+import numpy as np
+
+
+mesh = IntervalMesh(100, 0,1)  
+V = FunctionSpace(mesh, "Lagrange",1)    # Order 1 function space
+
+dU = TrialFunction(V)
+test_U = TestFunction(V)
+U = Function(V)
+
+
+left, right = compile_subdomains([
+    "(std::abs( x[0] )           &lt; DOLFIN_EPS) &amp;&amp; on_boundary",
+    "(std::abs( x[0]-1.0 ) &lt; DOLFIN_EPS) &amp;&amp; on_boundary"])
+
+bcs = [
+    DirichletBC(V, 1, left),
+    DirichletBC(V, 0 , right),
+    ]
+
+k = 1.0*U+1.0
+
+F = inner(k*grad(U), grad(test_U))*dx
+Jac = derivative(F, U, dU)
+
+U_init = Expression("1-x[0]")
+
+U.interpolate(U_init)
+
+
+if False:
+    problem = NonlinearVariationalProblem(F, U, bcs, Jac) #,form_compiler_parameters=ffc_options
+    solver = NonlinearVariationalSolver(problem)
+    solver.solve()
+else:
+    a_tol, r_tol = 1e-7, 1e-10
+    bcs_du = homogenize(bcs)
+    U_inc = Function(V)
+    nIter = 0
+    eps = 1
+
+    while eps &gt; 1e-10 and nIter &lt; 10:              # Newton iterations
+        nIter += 1
+        A, b = assemble_system(Jac, -F, bcs_du)
+        solve(A, U_inc.vector(), b)     # Determine step direction
+        eps = np.linalg.norm(U_inc.vector().array(), ord = 2)
+
+        a = assemble(F)
+        for bc in bcs_du:
+            bc.apply(a)
+        print 'b.norm("l2") = ', b.norm('l2'), 'np.linalg.norm(a.array(), ord = 2) = ', np.linalg.norm(a.array(), ord = 2)
+        fnorm = b.norm('l2')
+        lmbda = 1.0     # step size, initially 1
+
+        U.vector()[:] += lmbda*U_inc.vector()    # New u vector
+
+        print '      {0:2d}  {1:3.2E}  {2:5e}'.format(nIter, eps, fnorm)
+
+plot(U)
+interactive()
+</code></pre>
+
+<p>Hope this helps!</p>
+</div>
+													</div>
+													<div class="qa-c-item-footer">
+														<span class="qa-c-item-avatar-meta">
+															<span class="qa-c-item-avatar">
+																<a href="../../user/mwelland" class="qa-avatar-link"><img src="https://www.gravatar.com/avatar/af936799ea3fe5bd1cb6abb922ebbe83?s=20" width="20" height="20" class="qa-avatar-image" alt=""></a>
+															</span>
+															<span class="qa-c-item-meta">
+																<a href="../../536/newton-method-programmed-manually?show=692#c692" class="qa-c-item-what">commented</a>
+																<span class="qa-c-item-when">
+																	<span class="qa-c-item-when-data"><span class="published"><span class="value-title" title="2013-07-23T14:02:27+0000"></span>Jul 23, 2013</span></span>
+																</span>
+																<span class="qa-c-item-who">
+																	<span class="qa-c-item-who-pad">by </span>
+																	<span class="qa-c-item-who-data"><span class="vcard author"><a href="../../user/mwelland" class="qa-user-link url nickname">mwelland</a></span></span>
+																	<span class="qa-c-item-who-title">FEniCS User</span>
+																	<span class="qa-c-item-who-points">
+																		<span class="qa-c-item-who-points-pad">(</span><span class="qa-c-item-who-points-data">8,410</span><span class="qa-c-item-who-points-pad"> points)</span>
+																	</span>
+																</span>
+															</span>
+														</span>
+														<div class="qa-c-item-buttons">
+														</div>
+													</div>
+													<div class="qa-c-item-clear">
+													</div>
+												</div> <!-- END qa-c-item -->
+												<div class="qa-c-list-item  hentry comment" id="c699">
+													<div class="qa-c-item-content">
+														<a name="699"></a><div class="entry-content"><p>perfect, thanks!</p>
+</div>
+													</div>
+													<div class="qa-c-item-footer">
+														<span class="qa-c-item-avatar-meta">
+															<span class="qa-c-item-avatar">
+																<a href="../../user/pf4d" class="qa-avatar-link"><img src="https://www.gravatar.com/avatar/102105360e5a49a3d555fb320b328a11?s=20" width="20" height="20" class="qa-avatar-image" alt=""></a>
+															</span>
+															<span class="qa-c-item-meta">
+																<a href="../../536/newton-method-programmed-manually?show=699#c699" class="qa-c-item-what">commented</a>
+																<span class="qa-c-item-when">
+																	<span class="qa-c-item-when-data"><span class="published"><span class="value-title" title="2013-07-23T16:06:40+0000"></span>Jul 23, 2013</span></span>
+																</span>
+																<span class="qa-c-item-who">
+																	<span class="qa-c-item-who-pad">by </span>
+																	<span class="qa-c-item-who-data"><span class="vcard author"><a href="../../user/pf4d" class="qa-user-link url nickname">pf4d</a></span></span>
+																	<span class="qa-c-item-who-title">FEniCS User</span>
+																	<span class="qa-c-item-who-points">
+																		<span class="qa-c-item-who-points-pad">(</span><span class="qa-c-item-who-points-data">2,970</span><span class="qa-c-item-who-points-pad"> points)</span>
+																	</span>
+																</span>
+															</span>
+														</span>
+														<div class="qa-c-item-buttons">
+														</div>
+													</div>
+													<div class="qa-c-item-clear">
+													</div>
+												</div> <!-- END qa-c-item -->
+												<div class="qa-c-list-item  hentry comment" id="c753">
+													<div class="qa-c-item-content">
+														<a name="753"></a><div class="entry-content"><p>I'm having an issue with the solver when solving a system of equations :</p>
+
+<pre><code>from dolfin import *
+from pylab  import plot, show, spy
+import sys
+
+bb       = bool(int(sys.argv[1]))
+
+mesh     = IntervalMesh(4, 0, 1)  
+Q        = FunctionSpace(mesh, "Lagrange",1)       # Order 1 function space
+MQ       = Q * Q
+
+dU       = TrialFunction(MQ)
+dU1, dU1 = split(dU)
+test_U   = TestFunction(MQ)
+t1, t2   = split(test_U)
+U        = Function(MQ)
+u1, u2   = split(U)
+
+left, right = compile_subdomains([
+  "(std::abs( x[0] )     &lt; DOLFIN_EPS) &amp;&amp; on_boundary",
+  "(std::abs( x[0]-1.0 ) &lt; DOLFIN_EPS) &amp;&amp; on_boundary"])
+
+bcs = [DirichletBC(MQ.sub(0), 1, left), 
+       DirichletBC(MQ.sub(0), 0, right),
+       DirichletBC(MQ.sub(1), 0, left),
+       DirichletBC(MQ.sub(1), 1, right)]
+
+k   = 1.0*u1 + 1.0
+
+vnorm    = sqrt(dot(u2, u2) + 1e-10)
+cellh    = CellSize(mesh)
+t2hat    = t2 + cellh/(2*vnorm)*dot(u2, t2.dx(0))
+
+F1  = + u1 * u1.dx(0) * t1.dx(0) * dx \
+      + u1.dx(0) * t1.dx(0) * dx
+c   = 1e-9
+F2  = c * u2 * t2hat * dx
+#F2  = u2 * t2 * dx
+F   = F1 + F2
+
+u1_init = Expression("1-x[0]")
+u2_init = Constant(1)
+
+U_k = project(as_vector([u1_init, u2_init]), MQ) # project inital values
+U.vector().set_local(U_k.vector().array())       # initalize u1, u2 in solution
+
+Jac     = derivative(F, U, dU)
+
+if bb:
+  problem = NonlinearVariationalProblem(F, U, bcs, Jac)
+  solver  = NonlinearVariationalSolver(problem)
+  solver.solve()
+else:
+  atol, rtol = 1e-7, 1e-10                      # abs/rel tolerances
+  lmbda      = 1.0                              # relaxation parameter    
+  U_inc      = Function(MQ)                     # residual
+  bcs_u      = homogenize(bcs)                  # residual is zero on boundary
+  nIter      = 0                                # number of iterations
+  residual   = 1                                # residual
+  rel_res    = residual                         # relative residual
+  maxIter    = 100                              # max iterations
+
+  while residual &gt; atol and rel_res &gt; rtol and nIter &lt; maxIter: 
+    nIter  += 1                                 # increment interation
+    A, b    = assemble_system(Jac, -F, bcs_u)   # assemble system
+    solve(A, U_inc.vector(), b)                 # determine step direction
+    rel_res = U_inc.vector().norm('l2')         # calculate norm
+
+    # calculate absolute residual :
+    a = assemble(F)
+    for bc in bcs_u:
+      bc.apply(a)
+    residual = b.norm('l2')
+
+    U.vector()[:] += lmbda*U_inc.vector()       # New u vector
+
+    string = "Newton iteration %d: r (abs) = %.3e (tol = %.3e) " \
+             +"r (rel) = %.3e (tol = %.3e)"
+    print string % (nIter, residual, atol, rel_res, rtol)
+
+xcrd = mesh.coordinates()[:,0]
+plot(xcrd, project(u1, Q).vector().array())
+plot(xcrd, project(u2, Q).vector().array())
+
+show()
+</code></pre>
+
+<p>it appears that the u2 solution's boundary conditions are not being applied properly.  Any ideas?</p>
+</div>
+													</div>
+													<div class="qa-c-item-footer">
+														<span class="qa-c-item-avatar-meta">
+															<span class="qa-c-item-avatar">
+																<a href="../../user/pf4d" class="qa-avatar-link"><img src="https://www.gravatar.com/avatar/102105360e5a49a3d555fb320b328a11?s=20" width="20" height="20" class="qa-avatar-image" alt=""></a>
+															</span>
+															<span class="qa-c-item-meta">
+																<a href="../../536/newton-method-programmed-manually?show=753#c753" class="qa-c-item-what">commented</a>
+																<span class="qa-c-item-when">
+																	<span class="qa-c-item-when-data"><span class="published"><span class="value-title" title="2013-07-25T21:05:20+0000"></span>Jul 25, 2013</span></span>
+																</span>
+																<span class="qa-c-item-who">
+																	<span class="qa-c-item-who-pad">by </span>
+																	<span class="qa-c-item-who-data"><span class="vcard author"><a href="../../user/pf4d" class="qa-user-link url nickname">pf4d</a></span></span>
+																	<span class="qa-c-item-who-title">FEniCS User</span>
+																	<span class="qa-c-item-who-points">
+																		<span class="qa-c-item-who-points-pad">(</span><span class="qa-c-item-who-points-data">2,970</span><span class="qa-c-item-who-points-pad"> points)</span>
+																	</span>
+																</span>
+																<br>
+																<span class="qa-c-item-what">edited</span>
+																<span class="qa-c-item-when">
+																	<span class="qa-c-item-when-data"><span class="updated"><span class="value-title" title="2013-08-01T03:34:28+0000"></span>Aug 1, 2013</span></span>
+																</span>
+																<span class="qa-c-item-who">
+																	<span class="qa-c-item-who-pad">by </span><span class="qa-c-item-who-data"><a href="../../user/pf4d" class="qa-user-link url nickname">pf4d</a></span>
+																</span>
+															</span>
+														</span>
+														<div class="qa-c-item-buttons">
+														</div>
+													</div>
+													<div class="qa-c-item-clear">
+													</div>
+												</div> <!-- END qa-c-item -->
+											</div> <!-- END qa-c-list -->
+											
+											<input type="hidden" name="code" value="0-1516468025-8bb20ae76f4f87701915234a30b4d0cf01ef210a">
+											<input type="hidden" name="qa_click" value="">
+										</form>
+										<div class="qa-c-form">
+										</div> <!-- END qa-c-form -->
+										
+									</div> <!-- END qa-a-item-main -->
+									<div class="qa-a-item-clear">
+									</div>
+								</div> <!-- END qa-a-list-item -->
+								
+							</div> <!-- END qa-a-list -->
+							
+						</div>
+					</div> <!-- END qa-main -->
+					
+				</div> <!-- END main-wrapper -->
+			</div> <!-- END main-shadow -->
+		</div> <!-- END body-wrapper -->
+		<!-- END footer-bottom-group -->
+		
+		<div style="position:absolute; left:-9999px; top:-9999px;">
+			<span id="qa-waiting-template" class="qa-waiting">...</span>
+		</div>
+	
+	
+
+</body><!-- Powered by Question2Answer - http://www.question2answer.org/ --></html>

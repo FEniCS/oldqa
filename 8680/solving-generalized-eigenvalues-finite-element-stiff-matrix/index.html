@@ -1,0 +1,362 @@
+<html><!-- Powered by Question2Answer - http://www.question2answer.org/ --><head>
+		<meta http-equiv="content-type" content="text/html; charset=utf-8">
+		<title>Solving generalized eigenvalues of mixed finite element stiff matrix - FEniCS Q&amp;A</title>
+		<meta name="description" content="Hi friends, I am considering to solve generalized eigenvalues of stiff matrix formed by mixed finite  ... can give me a hint? Thanks in advance!">
+		<meta name="keywords" content="eigenvalue,zero-pivot,mixed-finite-element">
+		<link rel="stylesheet" type="text/css" href="../../qa-theme/Snow/qa-styles.css">
+		<link rel="canonical" href="http://fenicsproject.org/qa/8680/solving-generalized-eigenvalues-finite-element-stiff-matrix">
+		<script type="text/x-mathjax-config">
+  MathJax.Hub.Config({
+    extensions: ["tex2jax.js"],
+    jax: ["input/TeX","output/HTML-CSS"],
+    tex2jax: {inlineMath: [["$","$"],["\\(","\\)"]]},
+    TeX: { extensions: ["AMSmath.js","AMSsymbols.js"]}
+  });
+</script>
+<script type="text/javascript" src="../../mathjax/MathJax.js"></script>
+		<script src="../../jquery-1.7.2.min.js" type="text/javascript"></script>
+		<script src="../../highlight.min.js"></script>
+<script type="text/javascript">
+$(function(){
+	$('.wmd-input').keypress(function(){
+		window.clearTimeout(hljs.Timeout);
+		hljs.Timeout = window.setTimeout(function() {
+			hljs.initHighlighting.called = false;
+			hljs.initHighlighting();
+		}, 500);
+	});
+	window.setTimeout(function() {
+		hljs.initHighlighting.called = false;
+		hljs.initHighlighting();
+	}, 500);
+});
+</script>
+
+
+	</head>
+	<body class="qa-template-question qa-body-js-off">
+		<div class="qa-body-wrapper">
+			
+			<div class="qa-header">
+				<div class="qa-logo">
+					<a href="../../" class="qa-logo-link" title="FEniCS Q&amp;A"><img src="../../qa-theme/fenics_qa.png" border="0" alt="FEniCS Q&amp;A"></a>
+				</div>
+				<div class="qa-header-clear">
+				</div>
+			</div> <!-- END qa-header -->
+			
+			<div class="qa-main-shadow">
+				
+				<div class="qa-main-wrapper">
+					
+					<div class="qa-sidepanel">
+						<div class="qa-sidebar">
+							This is a read only copy of the old FEniCS QA forum. Please visit the <a href="https://www.allanswered.com/community/s/fenics-project/">new QA forum</a> to ask questions
+						</div>
+						
+					</div>
+					
+					<div class="qa-main">
+						<h1>
+							<span class="entry-title">Solving generalized eigenvalues of mixed finite element stiff matrix</span>
+						</h1>
+						<div class="qa-part-q-view">
+							<div class="qa-q-view  hentry question" id="q8680">
+								<form method="post" action="../../8680/solving-generalized-eigenvalues-finite-element-stiff-matrix">
+									<div class="qa-q-view-stats">
+										<div class="qa-voting qa-voting-net" id="voting_8680">
+											<div class="qa-vote-count qa-vote-count-net">
+												<span class="qa-netvote-count">
+													<span class="qa-netvote-count-data">+1<span class="votes-up"><span class="value-title" title="1"></span></span><span class="votes-down"><span class="value-title" title="0"></span></span></span><span class="qa-netvote-count-pad"> vote</span>
+												</span>
+											</div>
+											<div class="qa-vote-clear">
+											</div>
+										</div>
+									</div>
+									<input type="hidden" name="code" value="0-1516468187-287b36e068ccba7fac0fd87c412807c635b418d1">
+								</form>
+								<div class="qa-q-view-main">
+									<form method="post" action="../../8680/solving-generalized-eigenvalues-finite-element-stiff-matrix">
+										<div class="qa-q-view-content">
+											<a name="8680"></a><div class="entry-content"><p>Hi friends,<br>
+I am considering to solve generalized eigenvalues of stiff matrix formed by mixed finite element, which involves five subspaces. But an error "Zero pivot row 9 value 0 tolerance 2.22045e-14!" puzzled me. I tried a lot but failed to resolve the error. My code is as follows:</p>
+
+<h2>Load mesh and subdomains</h2>
+
+<p>mesh = UnitSquareMesh(4,4)</p>
+
+<h2>Define function spaces</h2>
+
+<p>Vy = TensorFunctionSpace(mesh, "DG", 1, symmetry=True)<br>
+Vr = FunctionSpace(mesh, "CG", 2)<br>
+Vp = FunctionSpace(mesh, "CG", 1)<br>
+Vu = FunctionSpace(mesh, "CG", 2)<br>
+Vqp = VectorFunctionSpace(mesh, "CG", 2)<br>
+W = MixedFunctionSpace([Vy, Vr, Vp, Vu, Vqp])</p>
+
+<h2>Define boundary conditions</h2>
+
+<p>u0 = Constant(0.0)<br>
+u1 = Constant((0.0,0.0))<br>
+bc1 = DirichletBC(W.sub(1), u0, "on_boundary")<br>
+bc3 = DirichletBC(W.sub(3), u0, "on_boundary")<br>
+bc4 = DirichletBC(W.sub(4), u1, "on_boundary")<br>
+bcs = [bc1, bc3, bc4]</p>
+
+<h2>Define variational problem</h2>
+
+<p>(y, r, p, u, p1) = TrialFunctions(W)<br>
+(z, s, q, v, eta) = TestFunctions(W)</p>
+
+<p>a = (inner(y, z) - inner(nabla_grad(p1),z) - dot(nabla_grad(s), nabla_grad(u)) \<br>
+    +dot(nabla_grad(s), p1) + q<em>rot(p1)-dot(nabla_grad(r), nabla_grad(v)) \<br>
+    -inner(y, nabla_grad(eta))+dot(nabla_grad(r), eta) + p</em>rot(eta))*dx</p>
+
+<p>m = u<em>v</em>dx</p>
+
+<h2>Assemble stiffness matrix</h2>
+
+<p>A = PETScMatrix()<br>
+assemble(a, tensor=A)<br>
+M = PETScMatrix()<br>
+assemble(m, tensor=M)</p>
+
+<h2>Apply the boundary conditions</h2>
+
+<p>for bc in bcs:<br>
+    bc.apply(A)</p>
+
+<p>bc3.apply(M)</p>
+
+<h2>Create eigensolver</h2>
+
+<p>eigensolver = SLEPcEigenSolver(A,M)<br>
+eigensolver.parameters['spectrum'] = 'smallest magnitude'<br>
+eigensolver.parameters['tolerance'] = 1e-6</p>
+
+<h2>Solve for eigenvalues</h2>
+
+<p>eigensolver.solve()</p>
+
+<p>w = Function(W)<br>
+for i in range(eigensolver.get_number_converged()):<br>
+    #extract next eigenpair<br>
+    r, c, rx, cx = eigensolver.get_eigenpair(i)<br>
+    print ("eigenvalue:", i, r, c)<br>
+    #assign eigenvector to function<br>
+    w.vector()[:] = rx<br>
+    y, r, p, u, p1 = w.split()<br>
+    #plot eigenfunction<br>
+    plot(u)<br>
+    interactive()</p>
+
+<p>Does anybody can give me a hint? Thanks in advance!</p>
+</div>
+										</div>
+										<div class="qa-q-view-tags">
+											<ul class="qa-q-view-tag-list">
+												<li class="qa-q-view-tag-item"><a href="../../tag/eigenvalue" rel="tag" class="qa-tag-link">eigenvalue</a></li>
+												<li class="qa-q-view-tag-item"><a href="../../tag/zero-pivot" rel="tag" class="qa-tag-link">zero-pivot</a></li>
+												<li class="qa-q-view-tag-item"><a href="../../tag/mixed-finite-element" rel="tag" class="qa-tag-link">mixed-finite-element</a></li>
+											</ul>
+										</div>
+										<span class="qa-q-view-avatar-meta">
+											<span class="qa-q-view-meta">
+												<a href="../../8680/solving-generalized-eigenvalues-finite-element-stiff-matrix" class="qa-q-view-what">asked</a>
+												<span class="qa-q-view-when">
+													<span class="qa-q-view-when-data"><span class="published"><span class="value-title" title="2015-11-24T17:13:40+0000"></span>Nov 24, 2015</span></span>
+												</span>
+												<span class="qa-q-view-who">
+													<span class="qa-q-view-who-pad">by </span>
+													<span class="qa-q-view-who-data"><span class="vcard author"><a href="../../user/stone" class="qa-user-link url nickname">stone</a></span></span>
+													<span class="qa-q-view-who-title">FEniCS Novice</span>
+													<span class="qa-q-view-who-points">
+														<span class="qa-q-view-who-points-pad">(</span><span class="qa-q-view-who-points-data">140</span><span class="qa-q-view-who-points-pad"> points)</span>
+													</span>
+												</span>
+											</span>
+										</span>
+										<div class="qa-q-view-buttons">
+										</div>
+										
+										<div class="qa-q-view-c-list" id="c8680_list">
+											<div class="qa-c-list-item  hentry comment" id="c8727">
+												<div class="qa-c-item-content">
+													<a name="8727"></a><div class="entry-content"><p>Are you sure, that your form a is correct?</p>
+</div>
+												</div>
+												<div class="qa-c-item-footer">
+													<span class="qa-c-item-avatar-meta">
+														<span class="qa-c-item-meta">
+															<a href="../../8680/solving-generalized-eigenvalues-finite-element-stiff-matrix?show=8727#c8727" class="qa-c-item-what">commented</a>
+															<span class="qa-c-item-when">
+																<span class="qa-c-item-when-data"><span class="published"><span class="value-title" title="2015-11-29T13:33:05+0000"></span>Nov 29, 2015</span></span>
+															</span>
+															<span class="qa-c-item-who">
+																<span class="qa-c-item-who-pad">by </span>
+																<span class="qa-c-item-who-data"><span class="vcard author"><a href="../../user/str" class="qa-user-link url nickname">str</a></span></span>
+																<span class="qa-c-item-who-title">FEniCS User</span>
+																<span class="qa-c-item-who-points">
+																	<span class="qa-c-item-who-points-pad">(</span><span class="qa-c-item-who-points-data">1,600</span><span class="qa-c-item-who-points-pad"> points)</span>
+																</span>
+															</span>
+														</span>
+													</span>
+													<div class="qa-c-item-buttons">
+													</div>
+												</div>
+												<div class="qa-c-item-clear">
+												</div>
+											</div> <!-- END qa-c-item -->
+											<div class="qa-c-list-item  hentry comment" id="c8752">
+												<div class="qa-c-item-content">
+													<a name="8752"></a><div class="entry-content"><p>Yes, the weak form is correct. The problem is there are zero rows in M.</p>
+</div>
+												</div>
+												<div class="qa-c-item-footer">
+													<span class="qa-c-item-avatar-meta">
+														<span class="qa-c-item-meta">
+															<a href="../../8680/solving-generalized-eigenvalues-finite-element-stiff-matrix?show=8752#c8752" class="qa-c-item-what">commented</a>
+															<span class="qa-c-item-when">
+																<span class="qa-c-item-when-data"><span class="published"><span class="value-title" title="2015-12-01T04:15:56+0000"></span>Dec 1, 2015</span></span>
+															</span>
+															<span class="qa-c-item-who">
+																<span class="qa-c-item-who-pad">by </span>
+																<span class="qa-c-item-who-data"><span class="vcard author"><a href="../../user/stone" class="qa-user-link url nickname">stone</a></span></span>
+																<span class="qa-c-item-who-title">FEniCS Novice</span>
+																<span class="qa-c-item-who-points">
+																	<span class="qa-c-item-who-points-pad">(</span><span class="qa-c-item-who-points-data">140</span><span class="qa-c-item-who-points-pad"> points)</span>
+																</span>
+															</span>
+														</span>
+													</span>
+													<div class="qa-c-item-buttons">
+													</div>
+												</div>
+												<div class="qa-c-item-clear">
+												</div>
+											</div> <!-- END qa-c-item -->
+										</div> <!-- END qa-c-list -->
+										
+										<input type="hidden" name="code" value="0-1516468187-011732f16770968085b5c82e8c1973df05819e5b">
+										<input type="hidden" name="qa_click" value="">
+									</form>
+									<div class="qa-c-form">
+									</div> <!-- END qa-c-form -->
+									
+								</div> <!-- END qa-q-view-main -->
+								<div class="qa-q-view-clear">
+								</div>
+							</div> <!-- END qa-q-view -->
+							
+						</div>
+						<div class="qa-part-a-list">
+							<h2 id="a_list_title">1 Answer</h2>
+							<div class="qa-a-list" id="a_list">
+								
+								<div class="qa-a-list-item  hentry answer" id="a8748">
+									<form method="post" action="../../8680/solving-generalized-eigenvalues-finite-element-stiff-matrix">
+										<div class="qa-voting qa-voting-net" id="voting_8748">
+											<div class="qa-vote-count qa-vote-count-net">
+												<span class="qa-netvote-count">
+													<span class="qa-netvote-count-data">+1<span class="votes-up"><span class="value-title" title="1"></span></span><span class="votes-down"><span class="value-title" title="0"></span></span></span><span class="qa-netvote-count-pad"> vote</span>
+												</span>
+											</div>
+											<div class="qa-vote-clear">
+											</div>
+										</div>
+										<input type="hidden" name="code" value="0-1516468187-287b36e068ccba7fac0fd87c412807c635b418d1">
+									</form>
+									<div class="qa-a-item-main">
+										<form method="post" action="../../8680/solving-generalized-eigenvalues-finite-element-stiff-matrix">
+											<div class="qa-a-selection">
+											</div>
+											<div class="qa-a-item-content">
+												<a name="8748"></a><div class="entry-content"><p>The matrix $M$ on the r.h.s. of the generalized eigenproblem is singular. In fact it is non-zeros only for the $u$-block, and zeros for the $y$, $r$, $p$, $p1$-blocks.</p>
+
+<p>I believe that SLEPcEigenSolver only supports generalized eigenproblems with non-singular r.h.s. matrix.</p>
+
+<p>Best,</p>
+
+<p>Umbe</p>
+</div>
+											</div>
+											<span class="qa-a-item-avatar-meta">
+												<span class="qa-a-item-meta">
+													<a href="../../8680/solving-generalized-eigenvalues-finite-element-stiff-matrix?show=8748#a8748" class="qa-a-item-what">answered</a>
+													<span class="qa-a-item-when">
+														<span class="qa-a-item-when-data"><span class="published"><span class="value-title" title="2015-11-30T16:46:52+0000"></span>Nov 30, 2015</span></span>
+													</span>
+													<span class="qa-a-item-who">
+														<span class="qa-a-item-who-pad">by </span>
+														<span class="qa-a-item-who-data"><span class="vcard author"><a href="../../user/umberto" class="qa-user-link url nickname">umberto</a></span></span>
+														<span class="qa-a-item-who-title">FEniCS User</span>
+														<span class="qa-a-item-who-points">
+															<span class="qa-a-item-who-points-pad">(</span><span class="qa-a-item-who-points-data">6,440</span><span class="qa-a-item-who-points-pad"> points)</span>
+														</span>
+													</span>
+												</span>
+											</span>
+											<div class="qa-a-item-buttons">
+												</div>
+											
+											<div class="qa-a-item-c-list" id="c8748_list">
+												<div class="qa-c-list-item  hentry comment" id="c8753">
+													<div class="qa-c-item-content">
+														<a name="8753"></a><div class="entry-content"><p>Umber, you are right. I output the matrices A and M, Matlab can work for me. Thanks.</p>
+</div>
+													</div>
+													<div class="qa-c-item-footer">
+														<span class="qa-c-item-avatar-meta">
+															<span class="qa-c-item-meta">
+																<a href="../../8680/solving-generalized-eigenvalues-finite-element-stiff-matrix?show=8753#c8753" class="qa-c-item-what">commented</a>
+																<span class="qa-c-item-when">
+																	<span class="qa-c-item-when-data"><span class="published"><span class="value-title" title="2015-12-01T04:17:44+0000"></span>Dec 1, 2015</span></span>
+																</span>
+																<span class="qa-c-item-who">
+																	<span class="qa-c-item-who-pad">by </span>
+																	<span class="qa-c-item-who-data"><span class="vcard author"><a href="../../user/stone" class="qa-user-link url nickname">stone</a></span></span>
+																	<span class="qa-c-item-who-title">FEniCS Novice</span>
+																	<span class="qa-c-item-who-points">
+																		<span class="qa-c-item-who-points-pad">(</span><span class="qa-c-item-who-points-data">140</span><span class="qa-c-item-who-points-pad"> points)</span>
+																	</span>
+																</span>
+															</span>
+														</span>
+														<div class="qa-c-item-buttons">
+														</div>
+													</div>
+													<div class="qa-c-item-clear">
+													</div>
+												</div> <!-- END qa-c-item -->
+											</div> <!-- END qa-c-list -->
+											
+											<input type="hidden" name="code" value="0-1516468187-7e7f57ef0a0060ec37b9f7064b84cd64ff21f4c0">
+											<input type="hidden" name="qa_click" value="">
+										</form>
+										<div class="qa-c-form">
+										</div> <!-- END qa-c-form -->
+										
+									</div> <!-- END qa-a-item-main -->
+									<div class="qa-a-item-clear">
+									</div>
+								</div> <!-- END qa-a-list-item -->
+								
+							</div> <!-- END qa-a-list -->
+							
+						</div>
+					</div> <!-- END qa-main -->
+					
+				</div> <!-- END main-wrapper -->
+			</div> <!-- END main-shadow -->
+		</div> <!-- END body-wrapper -->
+		<!-- END footer-bottom-group -->
+		
+		<div style="position:absolute; left:-9999px; top:-9999px;">
+			<span id="qa-waiting-template" class="qa-waiting">...</span>
+		</div>
+	
+	
+
+</body><!-- Powered by Question2Answer - http://www.question2answer.org/ --></html>

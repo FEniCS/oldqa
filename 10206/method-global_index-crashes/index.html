@@ -1,0 +1,334 @@
+<html><!-- Powered by Question2Answer - http://www.question2answer.org/ --><head>
+		<meta http-equiv="content-type" content="text/html; charset=utf-8">
+		<title>method `global_index()` crashes - FEniCS Q&amp;A</title>
+		<meta name="description" content='The code crashes if the method `global_index()` is called to face entity, see the marked line ... np.all(child_face_touched), "Not all faces touched."'>
+		<meta name="keywords" content="submesh,global_index">
+		<link rel="stylesheet" type="text/css" href="../../qa-theme/Snow/qa-styles.css">
+		<link rel="canonical" href="http://fenicsproject.org/qa/10206/method-global_index-crashes">
+		<script type="text/x-mathjax-config">
+  MathJax.Hub.Config({
+    extensions: ["tex2jax.js"],
+    jax: ["input/TeX","output/HTML-CSS"],
+    tex2jax: {inlineMath: [["$","$"],["\\(","\\)"]]},
+    TeX: { extensions: ["AMSmath.js","AMSsymbols.js"]}
+  });
+</script>
+<script type="text/javascript" src="../../mathjax/MathJax.js"></script>
+		<script src="../../jquery-1.7.2.min.js" type="text/javascript"></script>
+		<script src="../../highlight.min.js"></script>
+<script type="text/javascript">
+$(function(){
+	$('.wmd-input').keypress(function(){
+		window.clearTimeout(hljs.Timeout);
+		hljs.Timeout = window.setTimeout(function() {
+			hljs.initHighlighting.called = false;
+			hljs.initHighlighting();
+		}, 500);
+	});
+	window.setTimeout(function() {
+		hljs.initHighlighting.called = false;
+		hljs.initHighlighting();
+	}, 500);
+});
+</script>
+
+
+	</head>
+	<body class="qa-template-question qa-body-js-off">
+		<div class="qa-body-wrapper">
+			
+			<div class="qa-header">
+				<div class="qa-logo">
+					<a href="../../" class="qa-logo-link" title="FEniCS Q&amp;A"><img src="../../qa-theme/fenics_qa.png" border="0" alt="FEniCS Q&amp;A"></a>
+				</div>
+				<div class="qa-header-clear">
+				</div>
+			</div> <!-- END qa-header -->
+			
+			<div class="qa-main-shadow">
+				
+				<div class="qa-main-wrapper">
+					
+					<div class="qa-sidepanel">
+						<div class="qa-sidebar">
+							This is a read only copy of the old FEniCS QA forum. Please visit the <a href="https://www.allanswered.com/community/s/fenics-project/">new QA forum</a> to ask questions
+						</div>
+						
+					</div>
+					
+					<div class="qa-main">
+						<h1>
+							<span class="entry-title">method `global_index()` crashes</span>
+						</h1>
+						<div class="qa-part-q-view">
+							<div class="qa-q-view  hentry question" id="q10206">
+								<form method="post" action="../../10206/method-global_index-crashes">
+									<div class="qa-q-view-stats">
+										<div class="qa-voting qa-voting-net" id="voting_10206">
+											<div class="qa-vote-count qa-vote-count-net">
+												<span class="qa-netvote-count">
+													<span class="qa-netvote-count-data">0<span class="votes-up"><span class="value-title" title="0"></span></span><span class="votes-down"><span class="value-title" title="0"></span></span></span><span class="qa-netvote-count-pad"> votes</span>
+												</span>
+											</div>
+											<div class="qa-vote-clear">
+											</div>
+										</div>
+									</div>
+									<input type="hidden" name="code" value="0-1516467046-a2f4853dfc07a087b41b524ef1951933f7fb75f8">
+								</form>
+								<div class="qa-q-view-main">
+									<form method="post" action="../../10206/method-global_index-crashes">
+										<div class="qa-q-view-content">
+											<a name="10206"></a><div class="entry-content"><p>The code crashes if the method <code>global_index()</code> is called to face entity, see the marked line.</p>
+
+<p>How to get the global_index of a mesh entity? I need this the create face to face mapping between the sub mesh and the parent mesh. Any ideas how to do this?</p>
+
+<pre><code>import dolfin
+import numpy as np
+dolfin.set_log_level(dolfin.ERROR)
+class LeftHalf(dolfin.SubDomain):
+    def inside(self, x, on_boundary):
+        return dolfin.between(x[0], (0.0, 0.5))
+class LeftSide(dolfin.SubDomain):
+    def inside(self, x, on_boundary):
+        return ( dolfin.near(x[0], 0.0) and on_boundary )
+fem_mesh = dolfin.BoxMesh(dolfin.Point(0.,0.,0.), dolfin.Point(1.,1.,1.),10,10,10)
+fem_spacedim = fem_mesh.geometry().dim()
+
+left_domain = LeftHalf()
+left_boundary = LeftSide()
+
+cell_ids = dolfin.CellFunction("size_t", fem_mesh)
+cell_ids.set_all(0)
+left_domain.mark(cell_ids,1)
+
+
+face_ids = dolfin.FaceFunction("size_t", fem_mesh)
+face_ids.set_all(0)
+left_boundary.mark(face_ids,1)
+
+sub_mesh = dolfin.SubMesh(fem_mesh, cell_ids, 1)
+# creating face mapping between meshes
+parent_cells = list(dolfin.cells(fem_mesh))
+
+child_faces = list(dolfin.faces(sub_mesh))
+child_cells = list(dolfin.cells(sub_mesh))
+
+n_child_faces = sub_mesh.num_faces()
+assert n_child_faces &gt; 0, "Number of faces must be larger zero."        
+
+child_face_touched = np.zeros((n_child_faces, ), dtype = np.bool)
+
+parent_face_indices = np.zeros((n_child_faces, ), dtype = np.uintp)
+
+parent_cell_indices = sub_mesh.data().array("parent_cell_indices", fem_spacedim)
+assert parent_cell_indices.size == sub_mesh.num_cells(), "Dimensions mismatch!"
+
+parent_vertex_indices = sub_mesh.data().array("parent_vertex_indices", 0)
+assert parent_vertex_indices.size == sub_mesh.num_vertices(), "Dimensions mismatch!"
+
+
+child_face2parent_vertex = {}
+parent_face2parent_vertex = {}
+
+# loop over cells
+for child_cell_ind, parent_cell_ind in enumerate(parent_cell_indices):
+    parent_cell = parent_cells[parent_cell_ind]
+    child_cell = child_cells[child_cell_ind]
+
+    child_face2parent_vertex.clear()
+
+    for child_face in dolfin.faces(child_cell):
+        # crash in next line
+        if not(child_face_touched[child_face.global_index()]): 
+            child_face2parent_vertex[child_face.global_index()] = parent_vertex_indices[child_face.entities(0)]
+
+    if len(child_face2parent_vertex) &gt; 0:
+        parent_face2parent_vertex.clear()
+
+        for parent_face in dolfin.faces(parent_cell):
+            parent_face2parent_vertex[parent_face.index()] = parent_face.entities(0)
+
+        for sub_key in child_face2parent_vertex:
+            for parent_key in parent_face2parent_vertex:
+                if np.all(child_face2parent_vertex[sub_key] == parent_face2parent_vertex[parent_key]):
+                    parent_face_indices[sub_key] = parent_key
+                    child_face_touched[sub_key] = True
+                    break
+    assert np.all(child_face_touched), "Not all faces touched."
+</code></pre>
+</div>
+										</div>
+										<div class="qa-q-view-tags">
+											<ul class="qa-q-view-tag-list">
+												<li class="qa-q-view-tag-item"><a href="../../tag/submesh" rel="tag" class="qa-tag-link">submesh</a></li>
+												<li class="qa-q-view-tag-item"><a href="../../tag/global_index" rel="tag" class="qa-tag-link">global_index</a></li>
+											</ul>
+										</div>
+										<span class="qa-q-view-avatar-meta">
+											<span class="qa-q-view-meta">
+												<a href="../../10206/method-global_index-crashes" class="qa-q-view-what">asked</a>
+												<span class="qa-q-view-when">
+													<span class="qa-q-view-when-data"><span class="published"><span class="value-title" title="2016-05-30T07:54:33+0000"></span>May 30, 2016</span></span>
+												</span>
+												<span class="qa-q-view-who">
+													<span class="qa-q-view-who-pad">by </span>
+													<span class="qa-q-view-who-data"><span class="vcard author"><a href="../../user/sg" class="qa-user-link url nickname">sg</a></span></span>
+													<span class="qa-q-view-who-title">FEniCS Novice</span>
+													<span class="qa-q-view-who-points">
+														<span class="qa-q-view-who-points-pad">(</span><span class="qa-q-view-who-points-data">260</span><span class="qa-q-view-who-points-pad"> points)</span>
+													</span>
+												</span>
+											</span>
+										</span>
+										<div class="qa-q-view-buttons">
+										</div>
+										
+										<div class="qa-q-view-c-list" id="c10206_list">
+											<div class="qa-c-list-item  hentry comment" id="c10216">
+												<div class="qa-c-item-content">
+													<a name="10216"></a><div class="entry-content"><p>I was able to re-program the code using the method <code>enitities()</code> which returns the global indices. I ask myself what <code>global_index</code> is good for?</p>
+
+<pre><code>import dolfin
+import numpy as np
+dolfin.set_log_level(dolfin.ERROR)
+class LeftHalf(dolfin.SubDomain):
+    def inside(self, x, on_boundary):
+        return dolfin.between(x[0], (0.0, 0.5))
+class LeftSide(dolfin.SubDomain):
+    def inside(self, x, on_boundary):
+        return ( dolfin.near(x[0], 0.0) and on_boundary )
+fem_mesh = dolfin.BoxMesh(dolfin.Point(0.,0.,0.), dolfin.Point(1.,1.,1.),10,10,10)
+fem_spacedim = fem_mesh.geometry().dim()
+
+left_domain = LeftHalf()
+left_boundary = LeftSide()
+
+cell_ids = dolfin.CellFunction("size_t", fem_mesh)
+cell_ids.set_all(0)
+left_domain.mark(cell_ids,1)
+
+face_ids = dolfin.FaceFunction("size_t", fem_mesh)
+face_ids.set_all(0)
+left_boundary.mark(face_ids,1)
+
+dolfin.plot(face_ids)
+dolfin.interactive()
+
+sub_mesh = dolfin.SubMesh(fem_mesh, cell_ids, 1)
+
+parent_faces = list(dolfin.faces(fem_mesh))
+parent_cells = list(dolfin.cells(fem_mesh))
+
+child_faces = list(dolfin.faces(sub_mesh))
+child_cells = list(dolfin.cells(sub_mesh))
+
+n_child_faces = sub_mesh.num_faces()
+assert n_child_faces &gt; 0, "Number of faces must be larger zero."        
+
+child_face_touched = np.zeros((n_child_faces, ), dtype = np.bool)
+
+parent_face_indices = np.zeros((n_child_faces, ), dtype = np.uintp)
+
+parent_cell_indices = sub_mesh.data().array("parent_cell_indices", fem_spacedim)
+assert parent_cell_indices.size == sub_mesh.num_cells(), "Dimensions mismatch!"
+
+parent_vertex_indices = sub_mesh.data().array("parent_vertex_indices", 0)
+assert parent_vertex_indices.size == sub_mesh.num_vertices(), "Dimensions mismatch!"
+
+child_face2parent_vertex = {}
+parent_face2parent_vertex = {}
+
+# loop over cells
+for child_cell_ind, parent_cell_ind in enumerate(parent_cell_indices):
+    parent_cell = parent_cells[parent_cell_ind]
+    child_cell = child_cells[child_cell_ind]
+
+    child_face2parent_vertex.clear()
+
+    for child_face_ind in child_cell.entities(fem_spacedim - 1):
+        if not(child_face_touched[child_face_ind]):
+            child_face = child_faces[child_face_ind]
+            child_face2parent_vertex[child_face_ind] = np.sort(parent_vertex_indices[child_face.entities(0)])
+    if len(child_face2parent_vertex) &gt; 0:
+        parent_face2parent_vertex.clear()
+
+        for parent_face_ind in parent_cell.entities(fem_spacedim - 1):
+            parent_face = parent_faces[parent_face_ind]
+            parent_face2parent_vertex[parent_face_ind] = np.sort(parent_face.entities(0))
+
+        for sub_key in child_face2parent_vertex:
+            for parent_key in parent_face2parent_vertex:
+                if np.all(child_face2parent_vertex[sub_key] == parent_face2parent_vertex[parent_key]):
+                    parent_face_indices[sub_key] = parent_key
+                    child_face_touched[sub_key] = True
+                    break
+assert np.all(child_face_touched), "Not all faces touched."
+
+sub_face_ids = dolfin.FaceFunction("size_t", sub_mesh)
+sub_face_ids.set_all(0)
+sub_face_ids.array()[:] = face_ids.array()[parent_face_indices]
+
+dolfin.plot(sub_face_ids)
+dolfin.interactive()
+</code></pre>
+</div>
+												</div>
+												<div class="qa-c-item-footer">
+													<span class="qa-c-item-avatar-meta">
+														<span class="qa-c-item-meta">
+															<a href="../../10206/method-global_index-crashes?show=10216#c10216" class="qa-c-item-what">commented</a>
+															<span class="qa-c-item-when">
+																<span class="qa-c-item-when-data"><span class="published"><span class="value-title" title="2016-05-31T06:54:42+0000"></span>May 31, 2016</span></span>
+															</span>
+															<span class="qa-c-item-who">
+																<span class="qa-c-item-who-pad">by </span>
+																<span class="qa-c-item-who-data"><span class="vcard author"><a href="../../user/sg" class="qa-user-link url nickname">sg</a></span></span>
+																<span class="qa-c-item-who-title">FEniCS Novice</span>
+																<span class="qa-c-item-who-points">
+																	<span class="qa-c-item-who-points-pad">(</span><span class="qa-c-item-who-points-data">260</span><span class="qa-c-item-who-points-pad"> points)</span>
+																</span>
+															</span>
+														</span>
+													</span>
+													<div class="qa-c-item-buttons">
+													</div>
+												</div>
+												<div class="qa-c-item-clear">
+												</div>
+											</div> <!-- END qa-c-item -->
+										</div> <!-- END qa-c-list -->
+										
+										<input type="hidden" name="code" value="0-1516467046-0fa5bb50d7a7182c4c834246af39a2d2d381d7ec">
+										<input type="hidden" name="qa_click" value="">
+									</form>
+									<div class="qa-c-form">
+									</div> <!-- END qa-c-form -->
+									
+								</div> <!-- END qa-q-view-main -->
+								<div class="qa-q-view-clear">
+								</div>
+							</div> <!-- END qa-q-view -->
+							
+						</div>
+						<div class="qa-part-a-list">
+							<h2 id="a_list_title" style="display:none;"></h2>
+							<div class="qa-a-list" id="a_list">
+								
+							</div> <!-- END qa-a-list -->
+							
+						</div>
+					</div> <!-- END qa-main -->
+					
+				</div> <!-- END main-wrapper -->
+			</div> <!-- END main-shadow -->
+		</div> <!-- END body-wrapper -->
+		<!-- END footer-bottom-group -->
+		
+		<div style="position:absolute; left:-9999px; top:-9999px;">
+			<span id="qa-waiting-template" class="qa-waiting">...</span>
+		</div>
+	
+	
+
+</body><!-- Powered by Question2Answer - http://www.question2answer.org/ --></html>

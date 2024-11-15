@@ -1,0 +1,543 @@
+<html><!-- Powered by Question2Answer - http://www.question2answer.org/ --><head>
+		<meta http-equiv="content-type" content="text/html; charset=utf-8">
+		<title>Manual implementation of preconditioning and proper BC application - FEniCS Q&amp;A</title>
+		<meta name="description" content="Hi, I implemented a DG upwinding scheme for solution of incompressible NS equations in  ... fenicsproject.org/qa/536/newton-method-programmed-manually">
+		<meta name="keywords" content="boundary-conditions,preconditioner">
+		<link rel="stylesheet" type="text/css" href="../../qa-theme/Snow/qa-styles.css">
+		<link rel="canonical" href="http://fenicsproject.org/qa/7654/manual-implementation-preconditioning-proper-application">
+		<script type="text/x-mathjax-config">
+  MathJax.Hub.Config({
+    extensions: ["tex2jax.js"],
+    jax: ["input/TeX","output/HTML-CSS"],
+    tex2jax: {inlineMath: [["$","$"],["\\(","\\)"]]},
+    TeX: { extensions: ["AMSmath.js","AMSsymbols.js"]}
+  });
+</script>
+<script type="text/javascript" src="../../mathjax/MathJax.js"></script>
+		<script src="../../jquery-1.7.2.min.js" type="text/javascript"></script>
+		<script src="../../highlight.min.js"></script>
+<script type="text/javascript">
+$(function(){
+	$('.wmd-input').keypress(function(){
+		window.clearTimeout(hljs.Timeout);
+		hljs.Timeout = window.setTimeout(function() {
+			hljs.initHighlighting.called = false;
+			hljs.initHighlighting();
+		}, 500);
+	});
+	window.setTimeout(function() {
+		hljs.initHighlighting.called = false;
+		hljs.initHighlighting();
+	}, 500);
+});
+</script>
+
+
+	</head>
+	<body class="qa-template-question qa-body-js-off">
+		<div class="qa-body-wrapper">
+			
+			<div class="qa-header">
+				<div class="qa-logo">
+					<a href="../../" class="qa-logo-link" title="FEniCS Q&amp;A"><img src="../../qa-theme/fenics_qa.png" border="0" alt="FEniCS Q&amp;A"></a>
+				</div>
+				<div class="qa-header-clear">
+				</div>
+			</div> <!-- END qa-header -->
+			
+			<div class="qa-main-shadow">
+				
+				<div class="qa-main-wrapper">
+					
+					<div class="qa-sidepanel">
+						<div class="qa-sidebar">
+							This is a read only copy of the old FEniCS QA forum. Please visit the <a href="https://www.allanswered.com/community/s/fenics-project/">new QA forum</a> to ask questions
+						</div>
+						
+					</div>
+					
+					<div class="qa-main">
+						<h1>
+							<span class="entry-title">Manual implementation of preconditioning and proper BC application</span>
+						</h1>
+						<div class="qa-part-q-view">
+							<div class="qa-q-view  hentry question" id="q7654">
+								<form method="post" action="../../7654/manual-implementation-preconditioning-proper-application">
+									<div class="qa-q-view-stats">
+										<div class="qa-voting qa-voting-net" id="voting_7654">
+											<div class="qa-vote-count qa-vote-count-net">
+												<span class="qa-netvote-count">
+													<span class="qa-netvote-count-data">+1<span class="votes-up"><span class="value-title" title="1"></span></span><span class="votes-down"><span class="value-title" title="0"></span></span></span><span class="qa-netvote-count-pad"> vote</span>
+												</span>
+											</div>
+											<div class="qa-vote-clear">
+											</div>
+										</div>
+									</div>
+									<input type="hidden" name="code" value="0-1516468131-20ff001632760cccf2df3a9e2fd922501d4adb63">
+								</form>
+								<div class="qa-q-view-main">
+									<form method="post" action="../../7654/manual-implementation-preconditioning-proper-application">
+										<div class="qa-q-view-content">
+											<a name="7654"></a><div class="entry-content"><p>Hi, I implemented a DG upwinding scheme for solution of incompressible NS equations in 2D/3D. The method leads to a saddle-point problem which I want to solve using a simple preconditioner that I would like to write myself. </p>
+
+<p>If I would use in-build tools I would use among others the following (see <a rel="nofollow" href="http://fenicsproject.org/qa/536/newton-method-programmed-manually">Newton method programmed manually</a>)</p>
+
+<pre><code>A,b = assemble_system(Jac,-T,bcs_hom)
+</code></pre>
+
+<p>in every Newton iteration. Basically, this line I want to rewrite manually, i.e. I have to assemble the system manually and also apply the homogenise BC.</p>
+
+<p>You can see in the following code (sorry for the length, you can ignore most of the code if you want, it is there just in case you would like to run it) in the solve_SP() procedure how I assemble and solve the system</p>
+
+<pre><code>A*x + B*y = R1
+BT*x = R2.
+</code></pre>
+
+<p>As I said, I'm basically interested just in the application of homogenise BC on this saddle-point system - I apply the homogenise BC on the matrix A and vector R1, but if I'm not wrong, I should apply somehow the homogenise BC even on BT and R2, or not? If so, how can I do it? Thanks a lot for any suggestions.</p>
+
+<pre><code>from dolfin import *
+import petsc4py
+petsc4py.init()
+from petsc4py import PETSc
+import numpy as np
+
+dim = 2
+
+# Mesh
+######
+Right   = 2.5
+Top = 1.0
+mesh    = RectangleMesh(0.0,0.0,Right,Top, 25, 10,"crossed")
+bndry   = FacetFunction("size_t", mesh)
+
+# Boundary description
+######################
+class LeftBoundary(SubDomain):
+    def inside(self, x, bndry):
+        return x[0] &lt; DOLFIN_EPS
+
+class RightBoundary(SubDomain):
+    def inside(self, x, bndry):
+        return x[0] &gt; Right-DOLFIN_EPS
+
+class TopBoundary(SubDomain):
+    def inside(self, x, bndry):
+        return x[1] &gt; Top-DOLFIN_EPS
+
+class BottomBoundary(SubDomain):
+    def inside(self, x, bndry):
+        return x[1] &lt; DOLFIN_EPS
+
+# Function spaces
+#################
+V = VectorFunctionSpace(mesh, 'DG', 1)
+Q = FunctionSpace(mesh, 'DG', 0)
+
+# Boundary conditions
+#####################
+noslip    = Expression(("0.0", "0.0"), t = 0.0)
+u_IN      = Expression(("x[1]*(1.0-x[1])", "0.0"), t = 0.0)
+
+bc_top    = DirichletBC(V, noslip, TopBoundary(), 'pointwise')
+bc_bottom = DirichletBC(V, noslip, BottomBoundary(), 'pointwise')
+bc_left   = DirichletBC(V, u_IN, LeftBoundary(), 'pointwise')
+
+bcs     = [bc_top, bc_bottom, bc_left]
+bcs_hom = homogenize(bcs) 
+
+# Unknown and test functions
+############################
+u   = Function(V)
+u_inc   = Function(V) # incremental function for Newton process
+p   = Function(Q)
+p_inc   = Function(Q) # incremental function for Newton process
+
+v   = TestFunction(V)
+q   = TestFunction(Q)
+
+u_1 = Function(V) # velocity from previous time step
+du  = TrialFunction(V)
+dp  = TrialFunction(Q)
+
+# Problem parameters
+####################
+T_end       = 0.02
+dt      = 0.01
+t       = dt # time variable
+nu      = 1.36*1.e-4 # air viscosity
+
+u0      = Expression(("0.0", "0.0"))
+f_rhs       = Expression(("0.0", "0.0"), t = 0.0)
+
+sigma       = 10.0 # penalty parameter in J() form
+
+atol, rtol = 1e-7, 1e-10      # abs/rel tolerances
+lmbda      = 1.0              # relaxation parameter
+maxIter    = 10 
+
+# Variational formulation
+#########################
+n   = FacetNormal(mesh)
+ds  = Measure("ds", subdomain_data = bndry)
+I   = Identity(u.geometric_dimension())
+D   = 0.5*nu*(grad(u) + grad(u).T)
+
+def a(u,v): 
+    M = inner(D,grad(v))*dx - inner(avg(D)*n('+'),jump(v))*dS 
+    return M
+
+def J(u,v):
+    M = sigma*inner(jump(u),jump(v))*dS
+    return M
+
+def b(p,v):
+    M = -p*div(v)*dx  + avg(p)*dot(jump(v),n('+'))*dS
+    return M
+
+def c(u,w,v):   
+    P = avg(dot(w,n))
+    H = conditional(P &lt; 0.0, dot(u('+'),w('+')), dot(u('-'),w('-')))
+    M = -0.5*inner(grad(v)*u,w)*dx + inner(0.5*H*n('+'),jump(v))*dS
+    return M
+
+def L(v):
+    M = inner(f_rhs,v)*dx 
+    return M
+
+r1  = (1/dt)*inner(u - u_1,v)*dx + a(u,v) + J(u,v) + c(u,u_1,v) - L(v) + b(p,v)
+r2  = b(q,u)
+
+a_d     = derivative(r1,u,du)
+b_d = derivative(r1,p,dp)
+b_dT    = derivative(r2,u,du)
+
+# Solution
+##########
+
+plt = plot(u, mesh = mesh, mode="color", interactive = True, wireframe = False)
+pltP = plot(p, mesh = mesh, mode="color", interactive = True, wireframe = False)
+
+u_1.assign(interpolate(u0,V)) # apply initial condition
+for bc in bcs:
+    bc.apply(u.vector())  # apply boundary condition
+
+
+def solve_SP():
+    # Solution vectors
+    x = Function(V)
+    y = Function(Q)
+
+    # Assembling Saddle-point blocks
+    A = PETScMatrix()
+    assemble(a_d, tensor=A)
+    for bc in bcs_hom:
+        bc.apply(A) 
+
+    B = PETScMatrix()
+    assemble(b_d, tensor=B)
+
+    BT = PETScMatrix()
+    assemble(b_dT, tensor=BT)   
+
+    # Assembling RHS for Newton
+    R1 = assemble(-r1)
+    R2 = assemble(-r2)
+    for bc in bcs_hom:
+        bc.apply(R1)
+
+    # Solver
+    solver = LUSolver(A)
+    solver.parameters['reuse_factorization'] = True
+
+    # solving A*x_ = R1 
+    x_ = Function(V)
+    solver.solve(x_.vector(),R1)
+
+    # solving A*xv = b, where xv are solution vectors and b is i-th column of B
+    n = V.dim()
+    m = Q.dim()
+    xv, b = [Vector(None, n) for i in range(2)]
+    ei = Vector(None,m) 
+    # Matrix of solutions x as columns
+    K = PETSc.Mat().createDense([n, m])
+    K.setUp()
+    rows = range(n)
+    for i in range(m):
+        # This is i-th R^m basis vector
+        ei.zero()
+        ei[i] = 1
+        # B.ei gives the i-th colum
+        B.mult(ei, b)
+        solver.solve(xv, b)
+        # Set the column
+        col = [i]
+        K.setValues(rows, col, xv.array())
+    K.assemblyBegin()
+    K.assemblyEnd()
+    K = PETScMatrix(K)
+
+    # Solving BT*K*y = BT*x_ - R2
+    BTK = PETSc.Mat().createDense([m, m])
+    BTK.setUp()
+    iCol = Vector(None,n)
+    iBTK = Vector(None,m)
+    rows = range(m)
+    for i in range(m):
+        # This is i-th R^m basis vector
+        ei.zero()
+        ei[i] = 1
+        # K.ei gives the i-th column iCol
+        K.mult(ei, iCol)
+        # BT.iCol gives i-th column of BT*K
+        BT.mult(iCol,iBTK)
+        # Set the column
+        col = [i]
+        BTK.setValues(rows, col, iBTK.array())
+    BTK.assemblyBegin()
+    BTK.assemblyEnd()
+    BTK = PETScMatrix(BTK)  
+    # Finalizing BT*K*y = BT*x_ - R2
+    rhs = Vector(None,m)
+    BT.mult(x_.vector(),rhs)
+    rhs = rhs - R2
+    solve(BTK,y.vector(),rhs,'gmres','amg') 
+
+    # Computing K*y in order to set x = x_ - K*y    
+    Ky = Function(V)
+    K.mult(y.vector(),Ky.vector())
+    x.vector()[:] = x_.vector() - Ky.vector()
+
+    # COMPUTE ERROR
+    err = np.sqrt(x_.vector().norm('l2')**2 + rhs.norm('l2')**2)
+    return [x,y,err]
+
+while t&lt;=T_end: 
+    print 'time step: ', t
+    nIter = 0
+    res = 1
+    rel_res = 1
+    while res &gt; atol and rel_res &gt; rtol and nIter &lt; maxIter:     # Newton iterations
+        nIter += 1
+        [u_inc,p_inc,res] = solve_SP()
+        if (nIter == 1):
+            rel_res = 1
+        else:
+            rel_res = res/res_1
+        res_1 = res
+        string = "Newton iteration %d: r (abs) = %.3e (tol = %.3e) r (rel) = %.3e (tol = %.3e)"
+        print string % (nIter, res, atol, rel_res, rtol)                            
+            u.vector()[:] += lmbda*u_inc.vector()    # New u vector
+            p.vector()[:] += lmbda*p_inc.vector()    # New p vector
+    u_1.assign(u)
+    t += float(dt)
+
+plt.plot(u)
+pltP.plot(p)
+</code></pre>
+
+<p>PS: I'm comparing the results with results that I get using the in-build NewtonSolver (with GMRES and ILU precond.) and I'm getting different results even though convergence is nice.</p>
+</div>
+										</div>
+										<div class="qa-q-view-tags">
+											<ul class="qa-q-view-tag-list">
+												<li class="qa-q-view-tag-item"><a href="../../tag/boundary-conditions" rel="tag" class="qa-tag-link">boundary-conditions</a></li>
+												<li class="qa-q-view-tag-item"><a href="../../tag/preconditioner" rel="tag" class="qa-tag-link">preconditioner</a></li>
+											</ul>
+										</div>
+										<span class="qa-q-view-avatar-meta">
+											<span class="qa-q-view-meta">
+												<a href="../../7654/manual-implementation-preconditioning-proper-application" class="qa-q-view-what">asked</a>
+												<span class="qa-q-view-when">
+													<span class="qa-q-view-when-data"><span class="published"><span class="value-title" title="2015-07-23T14:51:51+0000"></span>Jul 23, 2015</span></span>
+												</span>
+												<span class="qa-q-view-who">
+													<span class="qa-q-view-who-pad">by </span>
+													<span class="qa-q-view-who-data"><span class="vcard author"><a href="../../user/Ianx86" class="qa-user-link url nickname">Ianx86</a></span></span>
+													<span class="qa-q-view-who-title">FEniCS User</span>
+													<span class="qa-q-view-who-points">
+														<span class="qa-q-view-who-points-pad">(</span><span class="qa-q-view-who-points-data">1,050</span><span class="qa-q-view-who-points-pad"> points)</span>
+													</span>
+												</span>
+												<br>
+												<span class="qa-q-view-what">edited</span>
+												<span class="qa-q-view-when">
+													<span class="qa-q-view-when-data"><span class="updated"><span class="value-title" title="2015-07-23T14:56:54+0000"></span>Jul 23, 2015</span></span>
+												</span>
+												<span class="qa-q-view-who">
+													<span class="qa-q-view-who-pad">by </span><span class="qa-q-view-who-data"><a href="../../user/chris_richardson" class="qa-user-link url nickname">chris_richardson</a></span>
+												</span>
+											</span>
+										</span>
+										<div class="qa-q-view-buttons">
+										</div>
+										
+										<div class="qa-q-view-c-list" id="c7654_list">
+											<div class="qa-c-list-item  hentry comment" id="c7671">
+												<div class="qa-c-item-content">
+													<a name="7671"></a><div class="entry-content"><p>Hi, for applying bcs to matrices, have a look at how the <code>DirichletBC</code> class is implemented. In particular methods <a rel="nofollow" href="https://github.com/FEniCS/dolfin/blob/master/dolfin/fem/DirichletBC.h#L352">zero</a>, <code>zero_columns</code> and <code>apply</code> are relevant. If the symmetry is not important you now only need to modify the B matrix. Since all your bcs are on the <code>V</code> space you have to work with <code>V</code> row of the block matrix. You have already changed A and R1.</p>
+</div>
+												</div>
+												<div class="qa-c-item-footer">
+													<span class="qa-c-item-avatar-meta">
+														<span class="qa-c-item-avatar">
+															<a href="../../user/MiroK" class="qa-avatar-link"><img src="https://www.gravatar.com/avatar/f566be3274ec73e3a6dda27bca11631c?s=20" width="20" height="20" class="qa-avatar-image" alt=""></a>
+														</span>
+														<span class="qa-c-item-meta">
+															<a href="../../7654/manual-implementation-preconditioning-proper-application?show=7671#c7671" class="qa-c-item-what">commented</a>
+															<span class="qa-c-item-when">
+																<span class="qa-c-item-when-data"><span class="published"><span class="value-title" title="2015-07-24T16:14:09+0000"></span>Jul 24, 2015</span></span>
+															</span>
+															<span class="qa-c-item-who">
+																<span class="qa-c-item-who-pad">by </span>
+																<span class="qa-c-item-who-data"><span class="vcard author"><a href="../../user/MiroK" class="qa-user-link url nickname">MiroK</a></span></span>
+																<span class="qa-c-item-who-title">FEniCS Expert</span>
+																<span class="qa-c-item-who-points">
+																	<span class="qa-c-item-who-points-pad">(</span><span class="qa-c-item-who-points-data">80,920</span><span class="qa-c-item-who-points-pad"> points)</span>
+																</span>
+															</span>
+															<br>
+															<span class="qa-c-item-what">edited</span>
+															<span class="qa-c-item-when">
+																<span class="qa-c-item-when-data"><span class="updated"><span class="value-title" title="2015-07-24T16:29:51+0000"></span>Jul 24, 2015</span></span>
+															</span>
+															<span class="qa-c-item-who">
+																<span class="qa-c-item-who-pad">by </span><span class="qa-c-item-who-data"><a href="../../user/MiroK" class="qa-user-link url nickname">MiroK</a></span>
+															</span>
+														</span>
+													</span>
+													<div class="qa-c-item-buttons">
+													</div>
+												</div>
+												<div class="qa-c-item-clear">
+												</div>
+											</div> <!-- END qa-c-item -->
+											<div class="qa-c-list-item  hentry comment" id="c7688">
+												<div class="qa-c-item-content">
+													<a name="7688"></a><div class="entry-content"><p>Thanks a lot for a hint. I'll look at it more thoroughly in a few days. Let me in a meantime add a few remarks/questions:<br>
+1) Is it possible to "mix" python and C++ code or should I make a library in C++ and just import it?<br>
+2) I should apply bcs even on BT and R2, right? Since I have zero BC on V, it should affect columns in BT and R2 (i.e. make them zero), or not?<br>
+3) It seems to me now that main difficulty is to identify rows/columns that are associated with basis functions whose coefficients should be zero.<br>
+4) I'm playing along with cdc.block library for an alternative solution.</p>
+</div>
+												</div>
+												<div class="qa-c-item-footer">
+													<span class="qa-c-item-avatar-meta">
+														<span class="qa-c-item-meta">
+															<a href="../../7654/manual-implementation-preconditioning-proper-application?show=7688#c7688" class="qa-c-item-what">commented</a>
+															<span class="qa-c-item-when">
+																<span class="qa-c-item-when-data"><span class="published"><span class="value-title" title="2015-07-27T09:28:06+0000"></span>Jul 27, 2015</span></span>
+															</span>
+															<span class="qa-c-item-who">
+																<span class="qa-c-item-who-pad">by </span>
+																<span class="qa-c-item-who-data"><span class="vcard author"><a href="../../user/Ianx86" class="qa-user-link url nickname">Ianx86</a></span></span>
+																<span class="qa-c-item-who-title">FEniCS User</span>
+																<span class="qa-c-item-who-points">
+																	<span class="qa-c-item-who-points-pad">(</span><span class="qa-c-item-who-points-data">1,050</span><span class="qa-c-item-who-points-pad"> points)</span>
+																</span>
+															</span>
+														</span>
+													</span>
+													<div class="qa-c-item-buttons">
+													</div>
+												</div>
+												<div class="qa-c-item-clear">
+												</div>
+											</div> <!-- END qa-c-item -->
+											<div class="qa-c-list-item  hentry comment" id="c7699">
+												<div class="qa-c-item-content">
+													<a name="7699"></a><div class="entry-content"><p>Hi, 2) if the problem is symmetric it is desirable to keep that property also after the bcs are applied. In that case you also modify the BT and R2. This is what cbc.block does if you pass <code>symmetric=True</code> to <code>block_bc</code> constructor. For 3) have a look at <code>DirichletBC.get_boundary_values</code>.  4) cbc.block will make your life a lot easier. 1) is a matter of personal preference.</p>
+</div>
+												</div>
+												<div class="qa-c-item-footer">
+													<span class="qa-c-item-avatar-meta">
+														<span class="qa-c-item-avatar">
+															<a href="../../user/MiroK" class="qa-avatar-link"><img src="https://www.gravatar.com/avatar/f566be3274ec73e3a6dda27bca11631c?s=20" width="20" height="20" class="qa-avatar-image" alt=""></a>
+														</span>
+														<span class="qa-c-item-meta">
+															<a href="../../7654/manual-implementation-preconditioning-proper-application?show=7699#c7699" class="qa-c-item-what">commented</a>
+															<span class="qa-c-item-when">
+																<span class="qa-c-item-when-data"><span class="published"><span class="value-title" title="2015-07-27T16:25:49+0000"></span>Jul 27, 2015</span></span>
+															</span>
+															<span class="qa-c-item-who">
+																<span class="qa-c-item-who-pad">by </span>
+																<span class="qa-c-item-who-data"><span class="vcard author"><a href="../../user/MiroK" class="qa-user-link url nickname">MiroK</a></span></span>
+																<span class="qa-c-item-who-title">FEniCS Expert</span>
+																<span class="qa-c-item-who-points">
+																	<span class="qa-c-item-who-points-pad">(</span><span class="qa-c-item-who-points-data">80,920</span><span class="qa-c-item-who-points-pad"> points)</span>
+																</span>
+															</span>
+														</span>
+													</span>
+													<div class="qa-c-item-buttons">
+													</div>
+												</div>
+												<div class="qa-c-item-clear">
+												</div>
+											</div> <!-- END qa-c-item -->
+											<div class="qa-c-list-item  hentry comment" id="c7895">
+												<div class="qa-c-item-content">
+													<a name="7895"></a><div class="entry-content"><p>Hi, I wasn't able to find much time last month to solve the problem. Nevertheless, I recently encounter a few problems and would be grateful for a help. <br>
+1) It turns out, that cbc.block's routine 'block_assemble' works only with forms made of TrialFunctions and fails for forms made of Functions. Since I need to work with classical Functions, it sucks ...<br>
+2) Can you give some example on how to correctly import a self-made c++ library or even how to combine a python and c++ code in one .py file? <br>
+Thanks a lot for any help.</p>
+</div>
+												</div>
+												<div class="qa-c-item-footer">
+													<span class="qa-c-item-avatar-meta">
+														<span class="qa-c-item-meta">
+															<a href="../../7654/manual-implementation-preconditioning-proper-application?show=7895#c7895" class="qa-c-item-what">commented</a>
+															<span class="qa-c-item-when">
+																<span class="qa-c-item-when-data"><span class="published"><span class="value-title" title="2015-08-22T14:03:03+0000"></span>Aug 22, 2015</span></span>
+															</span>
+															<span class="qa-c-item-who">
+																<span class="qa-c-item-who-pad">by </span>
+																<span class="qa-c-item-who-data"><span class="vcard author"><a href="../../user/Ianx86" class="qa-user-link url nickname">Ianx86</a></span></span>
+																<span class="qa-c-item-who-title">FEniCS User</span>
+																<span class="qa-c-item-who-points">
+																	<span class="qa-c-item-who-points-pad">(</span><span class="qa-c-item-who-points-data">1,050</span><span class="qa-c-item-who-points-pad"> points)</span>
+																</span>
+															</span>
+														</span>
+													</span>
+													<div class="qa-c-item-buttons">
+													</div>
+												</div>
+												<div class="qa-c-item-clear">
+												</div>
+											</div> <!-- END qa-c-item -->
+										</div> <!-- END qa-c-list -->
+										
+										<input type="hidden" name="code" value="0-1516468131-72ae00e253abcbd521cd0f855292359f73178cca">
+										<input type="hidden" name="qa_click" value="">
+									</form>
+									<div class="qa-c-form">
+									</div> <!-- END qa-c-form -->
+									
+								</div> <!-- END qa-q-view-main -->
+								<div class="qa-q-view-clear">
+								</div>
+							</div> <!-- END qa-q-view -->
+							
+						</div>
+						<div class="qa-part-a-list">
+							<h2 id="a_list_title" style="display:none;"></h2>
+							<div class="qa-a-list" id="a_list">
+								
+							</div> <!-- END qa-a-list -->
+							
+						</div>
+					</div> <!-- END qa-main -->
+					
+				</div> <!-- END main-wrapper -->
+			</div> <!-- END main-shadow -->
+		</div> <!-- END body-wrapper -->
+		<!-- END footer-bottom-group -->
+		
+		<div style="position:absolute; left:-9999px; top:-9999px;">
+			<span id="qa-waiting-template" class="qa-waiting">...</span>
+		</div>
+	
+	
+
+</body><!-- Powered by Question2Answer - http://www.question2answer.org/ --></html>

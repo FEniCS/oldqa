@@ -1,0 +1,435 @@
+<html><!-- Powered by Question2Answer - http://www.question2answer.org/ --><head>
+		<meta http-equiv="content-type" content="text/html; charset=utf-8">
+		<title>Contour plot of SLEPcEigenSolver eigenvector solution - FEniCS Q&amp;A</title>
+		<meta name="description" content="In order to do a mode analysis on step-index fibers and later PCFs I wanted to check  ... .split() print axial plot(transverse) #plot(axial)">
+		<meta name="keywords" content="plot,slepceigensolver">
+		<link rel="stylesheet" type="text/css" href="../../qa-theme/Snow/qa-styles.css">
+		<link rel="canonical" href="http://fenicsproject.org/qa/6215/contour-plot-of-slepceigensolver-eigenvector-solution">
+		<script type="text/x-mathjax-config">
+  MathJax.Hub.Config({
+    extensions: ["tex2jax.js"],
+    jax: ["input/TeX","output/HTML-CSS"],
+    tex2jax: {inlineMath: [["$","$"],["\\(","\\)"]]},
+    TeX: { extensions: ["AMSmath.js","AMSsymbols.js"]}
+  });
+</script>
+<script type="text/javascript" src="../../mathjax/MathJax.js"></script>
+		<script src="../../jquery-1.7.2.min.js" type="text/javascript"></script>
+		<script src="../../highlight.min.js"></script>
+<script type="text/javascript">
+$(function(){
+	$('.wmd-input').keypress(function(){
+		window.clearTimeout(hljs.Timeout);
+		hljs.Timeout = window.setTimeout(function() {
+			hljs.initHighlighting.called = false;
+			hljs.initHighlighting();
+		}, 500);
+	});
+	window.setTimeout(function() {
+		hljs.initHighlighting.called = false;
+		hljs.initHighlighting();
+	}, 500);
+});
+</script>
+
+
+	</head>
+	<body class="qa-template-question qa-body-js-off">
+		<div class="qa-body-wrapper">
+			
+			<div class="qa-header">
+				<div class="qa-logo">
+					<a href="../../" class="qa-logo-link" title="FEniCS Q&amp;A"><img src="../../qa-theme/fenics_qa.png" border="0" alt="FEniCS Q&amp;A"></a>
+				</div>
+				<div class="qa-header-clear">
+				</div>
+			</div> <!-- END qa-header -->
+			
+			<div class="qa-main-shadow">
+				
+				<div class="qa-main-wrapper">
+					
+					<div class="qa-sidepanel">
+						<div class="qa-sidebar">
+							This is a read only copy of the old FEniCS QA forum. Please visit the <a href="https://www.allanswered.com/community/s/fenics-project/">new QA forum</a> to ask questions
+						</div>
+						
+					</div>
+					
+					<div class="qa-main">
+						<h1>
+							<span class="entry-title">Contour plot of SLEPcEigenSolver eigenvector solution</span>
+						</h1>
+						<div class="qa-part-q-view">
+							<div class="qa-q-view  hentry question" id="q6215">
+								<form method="post" action="../../6215/contour-plot-of-slepceigensolver-eigenvector-solution">
+									<div class="qa-q-view-stats">
+										<div class="qa-voting qa-voting-net" id="voting_6215">
+											<div class="qa-vote-count qa-vote-count-net">
+												<span class="qa-netvote-count">
+													<span class="qa-netvote-count-data">0<span class="votes-up"><span class="value-title" title="0"></span></span><span class="votes-down"><span class="value-title" title="0"></span></span></span><span class="qa-netvote-count-pad"> votes</span>
+												</span>
+											</div>
+											<div class="qa-vote-clear">
+											</div>
+										</div>
+									</div>
+									<input type="hidden" name="code" value="0-1516468063-dcf460f35076e2249abcc8fed5b8305d2aab9ca0">
+								</form>
+								<div class="qa-q-view-main">
+									<form method="post" action="../../6215/contour-plot-of-slepceigensolver-eigenvector-solution">
+										<div class="qa-q-view-content">
+											<a name="6215"></a><div class="entry-content"><p>In order to do a mode analysis on step-index fibers and later PCFs I wanted to check rectangular waveguides to see that everything is working. For a rectangular waveguide I found several code snippets, but I cannot get the final contour plotting of the fundamental mode to work. I assign the eigenvector to my combined function space but I am wondering how I can access the vector components maybe even outside of dolfin with some standard python routines. </p>
+
+<p>A running example is:<br>
+</p><pre><code>from dolfin import *
+
+parameters["linear_algebra_backend"] = "PETSc"
+
+mesh used for the rectangular hollow guides
+
+a = 1.0<br>
+b = 0.5
+
+create a rectangular mesh with origin (0,0) extending to (a,b) with 8 edges along the long side and 4 elements along the short side
+
+mesh = RectangleMesh(0, 0, a, b, 8, 4)
+
+e_r = 1.0<br>
+u_r = 1.0
+
+vector_order = 2<br>
+nodal_order = 2
+
+define the functions spaces
+
+V = FunctionSpace (mesh, "Nedelec 1st kind H(curl)", vector_order)<br>
+Q = FunctionSpace(mesh, "Lagrange", nodal_order)<br>
+W = V * Q 
+
+define the test and trial functions from the combined space here N_v and N_u# are Nedelec basis functions and L_v and L_u are Lagrange basis functions
+
+(N_i, L_i) = TestFunctions(W)<br>
+(N_j, L_j) = TrialFunctions(W)
+
+define the forms (matrix elements) for cutoff analysis for the basis functio# s
+
+def curl_t(w):<br>
+    return Dx(w[1],0) - Dx(w[0],1)
+
+s_tt_ij = 1.0/u_r * dot (curl_t(N_i), curl_t(N_j))<br>
+t_tt_ij = e_r * dot (N_i, N_j)<br>
+s_zz_ij = 1.0/u_r* dot (grad(L_i), grad(L_j))<br>
+t_zz_ij = e_r * L_i * L_j
+
+post-multiplication by dx will result in integration over the domain of the mesh at assembly time
+
+s_ij = (s_tt_ij + s_zz_ij) * dx<br>
+t_ij = (t_tt_ij + t_zz_ij) * dx
+
+assemble the system matrices. DOLFIN automatically evaluates each of the forms for all the relevant test and trial function combinations ie. all possible v
+
+alues of i and j
+
+S = PETScMatrix()<br>
+T = PETScMatrix()<br>
+assemble (s_ij, tensor=S)<br>
+assemble (t_ij, tensor=T)
+
+define the subdomains with BC
+
+class PECWall(SubDomain):<br>
+        def inside(self, x, on_boundary):<br>
+            return on_boundary;
+
+electric_wall = DirichletBC(W, Expression (("0.0", "0.0", "0.0") ) , PECWall())
+
+apply the BC to assembled matrices for the cutoff problem:
+
+electric_wall.apply(S)<br>
+electric_wall.apply(T)
+
+esolver = SLEPcEigenSolver(S,T)<br>
+esolver.parameters["spectrum"] = "smallest real"<br>
+esolver.parameters["solver"] = "lapack"<br>
+esolver.solve()
+
+cutoff = None<br>
+print S.size(1)<br>
+for i in range(S.size(1)):<br>
+        (lr,lc,vr,vc) = esolver.get_eigenpair(i)<br>
+        if lr &gt; 1 and lc == 0:<br>
+            cutoff = sqrt(lr)<br>
+            break
+
+if cutoff is None:<br>
+        print "Unable to find dominant mode"<br>
+else:<br>
+        print "Cutoff frequency: ", cutoff
+
+f = Function(W, vr)<br>
+(transverse,axial) = f.split()<br>
+print axial<br>
+plot(transverse)
+
+plot(axial)
+
+</code></pre>
+</div>
+										</div>
+										<div class="qa-q-view-tags">
+											<ul class="qa-q-view-tag-list">
+												<li class="qa-q-view-tag-item"><a href="../../tag/plot" rel="tag" class="qa-tag-link">plot</a></li>
+												<li class="qa-q-view-tag-item"><a href="../../tag/slepceigensolver" rel="tag" class="qa-tag-link">slepceigensolver</a></li>
+											</ul>
+										</div>
+										<span class="qa-q-view-avatar-meta">
+											<span class="qa-q-view-meta">
+												<a href="../../6215/contour-plot-of-slepceigensolver-eigenvector-solution" class="qa-q-view-what">asked</a>
+												<span class="qa-q-view-when">
+													<span class="qa-q-view-when-data"><span class="published"><span class="value-title" title="2014-12-16T13:17:23+0000"></span>Dec 16, 2014</span></span>
+												</span>
+												<span class="qa-q-view-who">
+													<span class="qa-q-view-who-pad">by </span>
+													<span class="qa-q-view-who-data"><span class="vcard author"><a href="../../user/Steffen+Wittek" class="qa-user-link url nickname">Steffen Wittek</a></span></span>
+													<span class="qa-q-view-who-title">FEniCS Novice</span>
+													<span class="qa-q-view-who-points">
+														<span class="qa-q-view-who-points-pad">(</span><span class="qa-q-view-who-points-data">210</span><span class="qa-q-view-who-points-pad"> points)</span>
+													</span>
+												</span>
+											</span>
+										</span>
+										<div class="qa-q-view-buttons">
+										</div>
+										
+										<div class="qa-q-view-c-list" style="display:none;" id="c6215_list">
+										</div> <!-- END qa-c-list -->
+										
+										<input type="hidden" name="code" value="0-1516468063-cad1689dafeadbeeb0af8e75a6e38d22fd997141">
+										<input type="hidden" name="qa_click" value="">
+									</form>
+									<div class="qa-c-form">
+									</div> <!-- END qa-c-form -->
+									
+								</div> <!-- END qa-q-view-main -->
+								<div class="qa-q-view-clear">
+								</div>
+							</div> <!-- END qa-q-view -->
+							
+						</div>
+						<div class="qa-part-a-list">
+							<h2 id="a_list_title">1 Answer</h2>
+							<div class="qa-a-list" id="a_list">
+								
+								<div class="qa-a-list-item  hentry answer" id="a6224">
+									<form method="post" action="../../6215/contour-plot-of-slepceigensolver-eigenvector-solution">
+										<div class="qa-voting qa-voting-net" id="voting_6224">
+											<div class="qa-vote-count qa-vote-count-net">
+												<span class="qa-netvote-count">
+													<span class="qa-netvote-count-data">0<span class="votes-up"><span class="value-title" title="0"></span></span><span class="votes-down"><span class="value-title" title="0"></span></span></span><span class="qa-netvote-count-pad"> votes</span>
+												</span>
+											</div>
+											<div class="qa-vote-clear">
+											</div>
+										</div>
+										<input type="hidden" name="code" value="0-1516468063-dcf460f35076e2249abcc8fed5b8305d2aab9ca0">
+									</form>
+									<div class="qa-a-item-main">
+										<form method="post" action="../../6215/contour-plot-of-slepceigensolver-eigenvector-solution">
+											<div class="qa-a-selection">
+											</div>
+											<div class="qa-a-item-content">
+												<a name="6224"></a><div class="entry-content"><p>Take a look at the demo in <code>demo/documented/eigenvalue</code>. Write the eigenvector 'function' to a PVD or XDMF file and use ParaView to open it.</p>
+</div>
+											</div>
+											<span class="qa-a-item-avatar-meta">
+												<span class="qa-a-item-meta">
+													<a href="../../6215/contour-plot-of-slepceigensolver-eigenvector-solution?show=6224#a6224" class="qa-a-item-what">answered</a>
+													<span class="qa-a-item-when">
+														<span class="qa-a-item-when-data"><span class="published"><span class="value-title" title="2014-12-17T14:56:49+0000"></span>Dec 17, 2014</span></span>
+													</span>
+													<span class="qa-a-item-who">
+														<span class="qa-a-item-who-pad">by </span>
+														<span class="qa-a-item-who-data"><span class="vcard author"><a href="../../user/Garth+N.+Wells" class="qa-user-link url nickname">Garth N. Wells</a></span></span>
+														<span class="qa-a-item-who-title">FEniCS Expert</span>
+														<span class="qa-a-item-who-points">
+															<span class="qa-a-item-who-points-pad">(</span><span class="qa-a-item-who-points-data">35,930</span><span class="qa-a-item-who-points-pad"> points)</span>
+														</span>
+													</span>
+												</span>
+											</span>
+											<div class="qa-a-item-buttons">
+												</div>
+											
+											<div class="qa-a-item-c-list" id="c6224_list">
+												<div class="qa-c-list-item  hentry comment" id="c6229">
+													<div class="qa-c-item-content">
+														<a name="6229"></a><div class="entry-content"><p>I wrote the eigenvector 'function' u (as in the demo_eigenvalue.py) to a pvd file, but that file an the associated vtu are empty.</p>
+
+<p>Below</p>
+
+<pre><code>u = Function(V)
+u.vector()[:] = rx
+</code></pre>
+
+<p>I added </p>
+
+<pre><code>file = File('eigenvalue.pvd')
+file &lt;&lt; u
+</code></pre>
+
+<p>Any idea what I am doing wrong here?</p>
+</div>
+													</div>
+													<div class="qa-c-item-footer">
+														<span class="qa-c-item-avatar-meta">
+															<span class="qa-c-item-meta">
+																<a href="../../6215/contour-plot-of-slepceigensolver-eigenvector-solution?show=6229#c6229" class="qa-c-item-what">commented</a>
+																<span class="qa-c-item-when">
+																	<span class="qa-c-item-when-data"><span class="published"><span class="value-title" title="2014-12-17T15:53:19+0000"></span>Dec 17, 2014</span></span>
+																</span>
+																<span class="qa-c-item-who">
+																	<span class="qa-c-item-who-pad">by </span>
+																	<span class="qa-c-item-who-data"><span class="vcard author"><a href="../../user/Steffen+Wittek" class="qa-user-link url nickname">Steffen Wittek</a></span></span>
+																	<span class="qa-c-item-who-title">FEniCS Novice</span>
+																	<span class="qa-c-item-who-points">
+																		<span class="qa-c-item-who-points-pad">(</span><span class="qa-c-item-who-points-data">210</span><span class="qa-c-item-who-points-pad"> points)</span>
+																	</span>
+																</span>
+															</span>
+														</span>
+														<div class="qa-c-item-buttons">
+														</div>
+													</div>
+													<div class="qa-c-item-clear">
+													</div>
+												</div> <!-- END qa-c-item -->
+												<div class="qa-c-list-item  hentry comment" id="c6234">
+													<div class="qa-c-item-content">
+														<a name="6234"></a><div class="entry-content"><p>Post the shortest possible (but complete) code that leads to an 'empty' pvd file.</p>
+</div>
+													</div>
+													<div class="qa-c-item-footer">
+														<span class="qa-c-item-avatar-meta">
+															<span class="qa-c-item-meta">
+																<a href="../../6215/contour-plot-of-slepceigensolver-eigenvector-solution?show=6234#c6234" class="qa-c-item-what">commented</a>
+																<span class="qa-c-item-when">
+																	<span class="qa-c-item-when-data"><span class="published"><span class="value-title" title="2014-12-17T18:10:09+0000"></span>Dec 17, 2014</span></span>
+																</span>
+																<span class="qa-c-item-who">
+																	<span class="qa-c-item-who-pad">by </span>
+																	<span class="qa-c-item-who-data"><span class="vcard author"><a href="../../user/Garth+N.+Wells" class="qa-user-link url nickname">Garth N. Wells</a></span></span>
+																	<span class="qa-c-item-who-title">FEniCS Expert</span>
+																	<span class="qa-c-item-who-points">
+																		<span class="qa-c-item-who-points-pad">(</span><span class="qa-c-item-who-points-data">35,930</span><span class="qa-c-item-who-points-pad"> points)</span>
+																	</span>
+																</span>
+															</span>
+														</span>
+														<div class="qa-c-item-buttons">
+														</div>
+													</div>
+													<div class="qa-c-item-clear">
+													</div>
+												</div> <!-- END qa-c-item -->
+												<div class="qa-c-list-item  hentry comment" id="c6237">
+													<div class="qa-c-item-content">
+														<a name="6237"></a><div class="entry-content"><p>based on the demo_eigenvalue.py</p>
+
+<pre><code>from dolfin import *
+# Test for PETSc and SLEPc
+if not has_linear_algebra_backend("PETSc"):
+    print "DOLFIN has not been configured with PETSc. Exiting."
+    exit()
+
+if not has_slepc():
+    print "DOLFIN has not been configured with SLEPc. Exiting."
+    exit()
+
+# Define mesh, function space
+mesh = Mesh("box_with_dent.xml.gz")
+V = FunctionSpace(mesh, "Lagrange", 1)
+
+# Define basis and bilinear form
+u = TrialFunction(V)
+v = TestFunction(V)
+a = dot(grad(u), grad(v))*dx
+
+# Assemble stiffness form
+A = PETScMatrix()
+assemble(a, tensor=A)
+
+# Create eigensolver
+eigensolver = SLEPcEigenSolver(A)
+
+# Compute all eigenvalues of A x = \lambda x
+print "Computing eigenvalues. This can take a minute."
+eigensolver.solve()
+
+# Extract largest (first) eigenpair
+r, c, rx, cx = eigensolver.get_eigenpair(0)
+
+print "Largest eigenvalue: ", r
+
+# Initialize function and assign eigenvector
+u = Function(V)
+u.vector()[:] = rx
+
+file = File('eigenvalue.pvd')
+file &lt;&lt; u 
+</code></pre>
+</div>
+													</div>
+													<div class="qa-c-item-footer">
+														<span class="qa-c-item-avatar-meta">
+															<span class="qa-c-item-meta">
+																<a href="../../6215/contour-plot-of-slepceigensolver-eigenvector-solution?show=6237#c6237" class="qa-c-item-what">commented</a>
+																<span class="qa-c-item-when">
+																	<span class="qa-c-item-when-data"><span class="published"><span class="value-title" title="2014-12-18T09:22:06+0000"></span>Dec 18, 2014</span></span>
+																</span>
+																<span class="qa-c-item-who">
+																	<span class="qa-c-item-who-pad">by </span>
+																	<span class="qa-c-item-who-data"><span class="vcard author"><a href="../../user/Steffen+Wittek" class="qa-user-link url nickname">Steffen Wittek</a></span></span>
+																	<span class="qa-c-item-who-title">FEniCS Novice</span>
+																	<span class="qa-c-item-who-points">
+																		<span class="qa-c-item-who-points-pad">(</span><span class="qa-c-item-who-points-data">210</span><span class="qa-c-item-who-points-pad"> points)</span>
+																	</span>
+																</span>
+															</span>
+														</span>
+														<div class="qa-c-item-buttons">
+														</div>
+													</div>
+													<div class="qa-c-item-clear">
+													</div>
+												</div> <!-- END qa-c-item -->
+											</div> <!-- END qa-c-list -->
+											
+											<input type="hidden" name="code" value="0-1516468063-3465ec363faef8af6217c5913b9c5f1393944673">
+											<input type="hidden" name="qa_click" value="">
+										</form>
+										<div class="qa-c-form">
+										</div> <!-- END qa-c-form -->
+										
+									</div> <!-- END qa-a-item-main -->
+									<div class="qa-a-item-clear">
+									</div>
+								</div> <!-- END qa-a-list-item -->
+								
+							</div> <!-- END qa-a-list -->
+							
+						</div>
+					</div> <!-- END qa-main -->
+					
+				</div> <!-- END main-wrapper -->
+			</div> <!-- END main-shadow -->
+		</div> <!-- END body-wrapper -->
+		<!-- END footer-bottom-group -->
+		
+		<div style="position:absolute; left:-9999px; top:-9999px;">
+			<span id="qa-waiting-template" class="qa-waiting">...</span>
+		</div>
+	
+	
+
+</body><!-- Powered by Question2Answer - http://www.question2answer.org/ --></html>

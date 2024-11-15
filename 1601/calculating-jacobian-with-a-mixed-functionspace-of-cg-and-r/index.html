@@ -1,0 +1,324 @@
+<html><!-- Powered by Question2Answer - http://www.question2answer.org/ --><head>
+		<meta http-equiv="content-type" content="text/html; charset=utf-8">
+		<title>Calculating Jacobian with a mixed FunctionSpace of CG and R - FEniCS Q&amp;A</title>
+		<meta name="description" content="My goal is to solve a nonlinear problem with one additional degree of freedom. In  ...  bc, exterior_facet_domains=boundaries) Thanks for your help">
+		<link rel="stylesheet" type="text/css" href="../../qa-theme/Snow/qa-styles.css">
+		<link rel="canonical" href="http://fenicsproject.org/qa/1601/calculating-jacobian-with-a-mixed-functionspace-of-cg-and-r">
+		<script type="text/x-mathjax-config">
+  MathJax.Hub.Config({
+    extensions: ["tex2jax.js"],
+    jax: ["input/TeX","output/HTML-CSS"],
+    tex2jax: {inlineMath: [["$","$"],["\\(","\\)"]]},
+    TeX: { extensions: ["AMSmath.js","AMSsymbols.js"]}
+  });
+</script>
+<script type="text/javascript" src="../../mathjax/MathJax.js"></script>
+		<script src="../../jquery-1.7.2.min.js" type="text/javascript"></script>
+		<script src="../../highlight.min.js"></script>
+<script type="text/javascript">
+$(function(){
+	$('.wmd-input').keypress(function(){
+		window.clearTimeout(hljs.Timeout);
+		hljs.Timeout = window.setTimeout(function() {
+			hljs.initHighlighting.called = false;
+			hljs.initHighlighting();
+		}, 500);
+	});
+	window.setTimeout(function() {
+		hljs.initHighlighting.called = false;
+		hljs.initHighlighting();
+	}, 500);
+});
+</script>
+
+
+	</head>
+	<body class="qa-template-question qa-body-js-off">
+		<div class="qa-body-wrapper">
+			
+			<div class="qa-header">
+				<div class="qa-logo">
+					<a href="../../" class="qa-logo-link" title="FEniCS Q&amp;A"><img src="../../qa-theme/fenics_qa.png" border="0" alt="FEniCS Q&amp;A"></a>
+				</div>
+				<div class="qa-header-clear">
+				</div>
+			</div> <!-- END qa-header -->
+			
+			<div class="qa-main-shadow">
+				
+				<div class="qa-main-wrapper">
+					
+					<div class="qa-sidepanel">
+						<div class="qa-sidebar">
+							This is a read only copy of the old FEniCS QA forum. Please visit the <a href="https://www.allanswered.com/community/s/fenics-project/">new QA forum</a> to ask questions
+						</div>
+						
+					</div>
+					
+					<div class="qa-main">
+						<h1>
+							<span class="entry-title">Calculating Jacobian with a mixed FunctionSpace of CG and R</span>
+						</h1>
+						<div class="qa-part-q-view">
+							<div class="qa-q-view  hentry question" id="q1601">
+								<form method="post" action="../../1601/calculating-jacobian-with-a-mixed-functionspace-of-cg-and-r">
+									<div class="qa-q-view-stats">
+										<div class="qa-voting qa-voting-net" id="voting_1601">
+											<div class="qa-vote-count qa-vote-count-net">
+												<span class="qa-netvote-count">
+													<span class="qa-netvote-count-data">+1<span class="votes-up"><span class="value-title" title="1"></span></span><span class="votes-down"><span class="value-title" title="0"></span></span></span><span class="qa-netvote-count-pad"> vote</span>
+												</span>
+											</div>
+											<div class="qa-vote-clear">
+											</div>
+										</div>
+									</div>
+									<input type="hidden" name="code" value="0-1516467893-7bd2a7c5930c3ae60c6920616abeeb5492630f18">
+								</form>
+								<div class="qa-q-view-main">
+									<form method="post" action="../../1601/calculating-jacobian-with-a-mixed-functionspace-of-cg-and-r">
+										<div class="qa-q-view-content">
+											<a name="1601"></a><div class="entry-content"><p>My goal is to solve a nonlinear problem with one additional degree of freedom. In order to demonstrate my problem I will use the Helmholtz equation in 1D</p>
+
+<p>$$ (\nabla^2 + n^2 k^2) u = 0 $$</p>
+
+<p>defined on the unit interval with Neumann bcs on the left and Dirichlet bcs on the right. Given an initial guess for both u and k, I want to use a Newton solver to find a solution of the Helmholtz equation, where k is my additional degree of freedom, i.e. in the weak form, </p>
+
+<p>$$ F = \int_\Omega \nabla u \nabla v dx -  n^2 k^2 \int_\Omega u v= 0 $$</p>
+
+<p>In order to make this problem well-posed an additional constraint is necessary to cope with the additional degree of freedom, for which I choose u(0) = 1.</p>
+
+<p>How can I include this constraint correctly in fenics such that the Jacobian of F can be calculated automatically, the code below fails with </p>
+
+<p>ufl.log.UFLException: All terms in form must have same rank.</p>
+
+<p>which is to be expected as F at the moment does not include the constraint as an additional equation.</p>
+
+<pre><code>#!/usr/bin/env python
+
+from dolfin import *
+
+ka = 10.0
+gammaT = 4.0
+
+mesh = IntervalMesh(50, 0.0, 1.0)
+
+V = FunctionSpace(mesh, "CG", 1)
+R = FunctionSpace(mesh, "R", 0)
+W = V * R
+
+k = 3.0*pi/2.0
+n = Constant(1.0)
+amplitude = Constant(1.0)
+
+u_mixed = interpolate(Expression((("cos(k*x[0])"),("k")), k=k), W)
+uw, kw = u_mixed.split()
+
+v = TestFunction(V)
+
+class LeftBoundary(SubDomain):
+    def inside(self, x, on_boundary):
+        return near(x[0],0.0)
+class RightBoundary(SubDomain):
+    def inside(self, x, on_boundary):
+        return near(x[0],1.0)
+
+boundaries = FacetFunction('size_t', mesh)
+LeftBoundary().mark(boundaries, 1)
+RightBoundary().mark(boundaries, 2)
+# plot(boundaries, interactive=True)
+
+bc = DirichletBC(V, Constant(0.0), boundaries, 2)
+F = (inner(nabla_grad(uw), nabla_grad(v)) - uw * v * n**2 * kw**2) * dx + (uw - amplitude) * v * ds(1)
+
+# Check if F is correctly defined and almost zero for the analytic solution
+Fv = assemble(F, bcs = bc, exterior_facet_domains=boundaries)
+print(Fv)
+print(Fv.max())
+
+J = derivative(F, u_mixed)
+assemble(J, bcs = bc, exterior_facet_domains=boundaries)
+</code></pre>
+
+<p>Thanks for your help</p>
+</div>
+										</div>
+										<span class="qa-q-view-avatar-meta">
+											<span class="qa-q-view-meta">
+												<a href="../../1601/calculating-jacobian-with-a-mixed-functionspace-of-cg-and-r" class="qa-q-view-what">asked</a>
+												<span class="qa-q-view-when">
+													<span class="qa-q-view-when-data"><span class="published"><span class="value-title" title="2013-11-06T11:40:38+0000"></span>Nov 6, 2013</span></span>
+												</span>
+												<span class="qa-q-view-who">
+													<span class="qa-q-view-who-pad">by </span>
+													<span class="qa-q-view-who-data"><span class="vcard author"><a href="../../user/cevito" class="qa-user-link url nickname">cevito</a></span></span>
+													<span class="qa-q-view-who-title">FEniCS User</span>
+													<span class="qa-q-view-who-points">
+														<span class="qa-q-view-who-points-pad">(</span><span class="qa-q-view-who-points-data">5,550</span><span class="qa-q-view-who-points-pad"> points)</span>
+													</span>
+												</span>
+												<br>
+												<span class="qa-q-view-what">edited</span>
+												<span class="qa-q-view-when">
+													<span class="qa-q-view-when-data"><span class="updated"><span class="value-title" title="2013-11-06T11:57:35+0000"></span>Nov 6, 2013</span></span>
+												</span>
+												<span class="qa-q-view-who">
+													<span class="qa-q-view-who-pad">by </span><span class="qa-q-view-who-data"><a href="../../user/cevito" class="qa-user-link url nickname">cevito</a></span>
+												</span>
+											</span>
+										</span>
+										<div class="qa-q-view-buttons">
+										</div>
+										
+										<div class="qa-q-view-c-list" style="display:none;" id="c1601_list">
+										</div> <!-- END qa-c-list -->
+										
+										<input type="hidden" name="code" value="0-1516467893-a45f85f1d4f2f01a8b607e7ae2a4b0ba16c4ca3c">
+										<input type="hidden" name="qa_click" value="">
+									</form>
+									<div class="qa-c-form">
+									</div> <!-- END qa-c-form -->
+									
+								</div> <!-- END qa-q-view-main -->
+								<div class="qa-q-view-clear">
+								</div>
+							</div> <!-- END qa-q-view -->
+							
+						</div>
+						<div class="qa-part-a-list">
+							<h2 id="a_list_title">1 Answer</h2>
+							<div class="qa-a-list" id="a_list">
+								
+								<div class="qa-a-list-item  hentry answer answer-selected qa-a-list-item-selected" id="a1623">
+									<form method="post" action="../../1601/calculating-jacobian-with-a-mixed-functionspace-of-cg-and-r">
+										<div class="qa-voting qa-voting-net" id="voting_1623">
+											<div class="qa-vote-count qa-vote-count-net">
+												<span class="qa-netvote-count">
+													<span class="qa-netvote-count-data">+1<span class="votes-up"><span class="value-title" title="1"></span></span><span class="votes-down"><span class="value-title" title="0"></span></span></span><span class="qa-netvote-count-pad"> vote</span>
+												</span>
+											</div>
+											<div class="qa-vote-clear">
+											</div>
+										</div>
+										<input type="hidden" name="code" value="0-1516467893-7bd2a7c5930c3ae60c6920616abeeb5492630f18">
+									</form>
+									<div class="qa-a-item-main">
+										<form method="post" action="../../1601/calculating-jacobian-with-a-mixed-functionspace-of-cg-and-r">
+											<div class="qa-a-item-selected">
+												<div class="qa-a-selection">
+													<div class="qa-a-selected">&#160;</div>
+													<div class="qa-a-selected-text">Best answer</div>
+												</div>
+												<div class="qa-a-item-content">
+													<a name="1623"></a><div class="entry-content"><p>Hi,</p>
+
+<p>I think you need to use </p>
+
+<pre><code>uw, kw = split(u_mixed)
+</code></pre>
+
+<p>and TestFunctions for the mixed space, like</p>
+
+<pre><code>v, c = TestFunctions(W)
+</code></pre>
+
+<p>Your additional constraint should then use c, and not v</p>
+
+<pre><code>(uw - amplitude) * c * ds(1)
+</code></pre>
+
+<p>I have not seen Dirichlet and Neuman mixed this way though, so I can't really tell whether it will work or not. Best of luck:-)</p>
+</div>
+												</div>
+												<span class="qa-a-item-avatar-meta">
+													<span class="qa-a-item-avatar">
+														<a href="../../user/mikael-mortensen" class="qa-avatar-link"><img src="https://www.gravatar.com/avatar/d5614112a2818f1800a461e49ac229df?s=40" width="40" height="40" class="qa-avatar-image" alt=""></a>
+													</span>
+													<span class="qa-a-item-meta">
+														<a href="../../1601/calculating-jacobian-with-a-mixed-functionspace-of-cg-and-r?show=1623#a1623" class="qa-a-item-what">answered</a>
+														<span class="qa-a-item-when">
+															<span class="qa-a-item-when-data"><span class="published"><span class="value-title" title="2013-11-08T07:50:24+0000"></span>Nov 8, 2013</span></span>
+														</span>
+														<span class="qa-a-item-who">
+															<span class="qa-a-item-who-pad">by </span>
+															<span class="qa-a-item-who-data"><span class="vcard author"><a href="../../user/mikael-mortensen" class="qa-user-link url nickname">mikael-mortensen</a></span></span>
+															<span class="qa-a-item-who-title">FEniCS Expert</span>
+															<span class="qa-a-item-who-points">
+																<span class="qa-a-item-who-points-pad">(</span><span class="qa-a-item-who-points-data">29,340</span><span class="qa-a-item-who-points-pad"> points)</span>
+															</span>
+														</span>
+														<br>
+														<span class="qa-a-item-what">selected</span>
+														<span class="qa-a-item-when">
+															<span class="qa-a-item-when-data"><span class="updated"><span class="value-title" title="2013-11-18T10:44:56+0000"></span>Nov 18, 2013</span></span>
+														</span>
+														<span class="qa-a-item-who">
+															<span class="qa-a-item-who-pad">by </span><span class="qa-a-item-who-data"><a href="../../user/cevito" class="qa-user-link url nickname">cevito</a></span>
+														</span>
+													</span>
+												</span>
+											</div>
+											<div class="qa-a-item-buttons">
+												</div>
+											
+											<div class="qa-a-item-c-list" id="c1623_list">
+												<div class="qa-c-list-item  hentry comment" id="c1712">
+													<div class="qa-c-item-content">
+														<a name="1712"></a><div class="entry-content"><p>Thanks, it finally works perfectly. The nonlinear problem wouldn't converge at first, but that was due to the fact, that I used assemble(F, bcs = bcs,...) instead of applying the boundary conditions myself, which is necessary here.</p>
+
+<p>I have one more question: Is there a way to generalize the additional constraint to two dimensions? Since ds defines a boundary integral, I can no longer use it in 2d for this specific case. Is there an equivalent for "integral over one vertex" in 2d, such that again the corresponding row for the constraint  in the Jacobian has only a single entry.</p>
+</div>
+													</div>
+													<div class="qa-c-item-footer">
+														<span class="qa-c-item-avatar-meta">
+															<span class="qa-c-item-meta">
+																<a href="../../1601/calculating-jacobian-with-a-mixed-functionspace-of-cg-and-r?show=1712#c1712" class="qa-c-item-what">commented</a>
+																<span class="qa-c-item-when">
+																	<span class="qa-c-item-when-data"><span class="published"><span class="value-title" title="2013-11-18T10:56:32+0000"></span>Nov 18, 2013</span></span>
+																</span>
+																<span class="qa-c-item-who">
+																	<span class="qa-c-item-who-pad">by </span>
+																	<span class="qa-c-item-who-data"><span class="vcard author"><a href="../../user/cevito" class="qa-user-link url nickname">cevito</a></span></span>
+																	<span class="qa-c-item-who-title">FEniCS User</span>
+																	<span class="qa-c-item-who-points">
+																		<span class="qa-c-item-who-points-pad">(</span><span class="qa-c-item-who-points-data">5,550</span><span class="qa-c-item-who-points-pad"> points)</span>
+																	</span>
+																</span>
+															</span>
+														</span>
+														<div class="qa-c-item-buttons">
+														</div>
+													</div>
+													<div class="qa-c-item-clear">
+													</div>
+												</div> <!-- END qa-c-item -->
+											</div> <!-- END qa-c-list -->
+											
+											<input type="hidden" name="code" value="0-1516467893-02ff831db0b9c553af4b3b3314d6ffc474940ca9">
+											<input type="hidden" name="qa_click" value="">
+										</form>
+										<div class="qa-c-form">
+										</div> <!-- END qa-c-form -->
+										
+									</div> <!-- END qa-a-item-main -->
+									<div class="qa-a-item-clear">
+									</div>
+								</div> <!-- END qa-a-list-item -->
+								
+							</div> <!-- END qa-a-list -->
+							
+						</div>
+					</div> <!-- END qa-main -->
+					
+				</div> <!-- END main-wrapper -->
+			</div> <!-- END main-shadow -->
+		</div> <!-- END body-wrapper -->
+		<!-- END footer-bottom-group -->
+		
+		<div style="position:absolute; left:-9999px; top:-9999px;">
+			<span id="qa-waiting-template" class="qa-waiting">...</span>
+		</div>
+	
+	
+
+</body><!-- Powered by Question2Answer - http://www.question2answer.org/ --></html>

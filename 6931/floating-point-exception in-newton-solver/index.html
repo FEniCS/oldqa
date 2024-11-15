@@ -1,0 +1,334 @@
+<html><!-- Powered by Question2Answer - http://www.question2answer.org/ --><head>
+		<meta http-equiv="content-type" content="text/html; charset=utf-8">
+		<title>Floating point exception&#160;in Newton solver - FEniCS Q&amp;A</title>
+		<meta name="description" content="Hi, I am writing script that solves set of 4 PDE's but i have plenty of  ... /qa/3312/floating-point-exception-solving-nonlinear-poisson-problem">
+		<meta name="keywords" content="newton-solver,convergence">
+		<link rel="stylesheet" type="text/css" href="../../qa-theme/Snow/qa-styles.css">
+		<link rel="canonical" href="http://fenicsproject.org/qa/6931/floating-point-exception%C2%A0in-newton-solver">
+		<script type="text/x-mathjax-config">
+  MathJax.Hub.Config({
+    extensions: ["tex2jax.js"],
+    jax: ["input/TeX","output/HTML-CSS"],
+    tex2jax: {inlineMath: [["$","$"],["\\(","\\)"]]},
+    TeX: { extensions: ["AMSmath.js","AMSsymbols.js"]}
+  });
+</script>
+<script type="text/javascript" src="../../mathjax/MathJax.js"></script>
+		<script src="../../jquery-1.7.2.min.js" type="text/javascript"></script>
+		<script src="../../highlight.min.js"></script>
+<script type="text/javascript">
+$(function(){
+	$('.wmd-input').keypress(function(){
+		window.clearTimeout(hljs.Timeout);
+		hljs.Timeout = window.setTimeout(function() {
+			hljs.initHighlighting.called = false;
+			hljs.initHighlighting();
+		}, 500);
+	});
+	window.setTimeout(function() {
+		hljs.initHighlighting.called = false;
+		hljs.initHighlighting();
+	}, 500);
+});
+</script>
+
+
+	</head>
+	<body class="qa-template-question qa-body-js-off">
+		<div class="qa-body-wrapper">
+			
+			<div class="qa-header">
+				<div class="qa-logo">
+					<a href="../../" class="qa-logo-link" title="FEniCS Q&amp;A"><img src="../../qa-theme/fenics_qa.png" border="0" alt="FEniCS Q&amp;A"></a>
+				</div>
+				<div class="qa-header-clear">
+				</div>
+			</div> <!-- END qa-header -->
+			
+			<div class="qa-main-shadow">
+				
+				<div class="qa-main-wrapper">
+					
+					<div class="qa-sidepanel">
+						<div class="qa-sidebar">
+							This is a read only copy of the old FEniCS QA forum. Please visit the <a href="https://www.allanswered.com/community/s/fenics-project/">new QA forum</a> to ask questions
+						</div>
+						
+					</div>
+					
+					<div class="qa-main">
+						<h1>
+							<span class="entry-title">Floating point exception&#160;in Newton solver</span>
+						</h1>
+						<div class="qa-part-q-view">
+							<div class="qa-q-view  hentry question" id="q6931">
+								<form method="post" action="../../6931/floating-point-exception%C2%A0in-newton-solver">
+									<div class="qa-q-view-stats">
+										<div class="qa-voting qa-voting-net" id="voting_6931">
+											<div class="qa-vote-count qa-vote-count-net">
+												<span class="qa-netvote-count">
+													<span class="qa-netvote-count-data">0<span class="votes-up"><span class="value-title" title="0"></span></span><span class="votes-down"><span class="value-title" title="0"></span></span></span><span class="qa-netvote-count-pad"> votes</span>
+												</span>
+											</div>
+											<div class="qa-vote-clear">
+											</div>
+										</div>
+									</div>
+									<input type="hidden" name="code" value="0-1516468094-dce308ca3ff77892a485c84d49f7fa61ec8bbdad">
+								</form>
+								<div class="qa-q-view-main">
+									<form method="post" action="../../6931/floating-point-exception%C2%A0in-newton-solver">
+										<div class="qa-q-view-content">
+											<a name="6931"></a><div class="entry-content"><p>Hi,</p>
+
+<p>I am writing script that solves set of 4 PDE's but i have plenty of problems with floating point exceptions. I tried  method from <a rel="nofollow" href="http://fenicsproject.org/qa/3312/floating-point-exception-solving-nonlinear-poisson-problem"></a><a rel="nofollow" href="http://fenicsproject.org/qa/3312/floating-point-exception-solving-nonlinear-poisson-problem">http://fenicsproject.org/qa/3312/floating-point-exception-solving-nonlinear-poisson-problem</a> but did not work.  Error occurs after few iterations of the solver. </p>
+
+<pre><code>from dolfin import *
+from math import log
+import scitools.easyviz as ev
+
+# Sub domain for Dirichlet boundary condition
+class DirichletBoundary(SubDomain):
+    def inside(self, x, on_boundary):
+        return (x[0]==0 or x[0]==1) and on_boundary
+################################### Spaces
+mesh = UnitIntervalMesh(400)
+File("mesh.pvd") &lt;&lt; mesh
+
+V = FunctionSpace(mesh, "CG", 3)
+W = FunctionSpace(mesh, "CG",3)
+# define functions
+
+c1 = Function(V)
+c1_old = interpolate(Constant(0),V)
+c2= Function(V)
+c2_old = interpolate(Constant(0),V)
+c3= Function(V)
+c3_old = interpolate(Constant(0),V)
+c4= Function(V)
+c4_old = interpolate(Constant(0),V)
+v1 = TestFunction(V)
+v2 = TestFunction(V)
+v3 = TestFunction(V)
+v4 = TestFunction(V)
+
+u1 = Function(V)
+u2= Function(V)
+u3 = Function(V)
+u4 = Function(V)
+Vi = Function(W)
+Vi_old = interpolate(Expression( "-0.5+0.5*x[0]"),W)
+s = TestFunction(W)
+
+################################### parameters
+# numerical
+tol = 1e-08
+eps =1
+maxiter = 600
+iter = 1
+tau=0.2
+
+# physical
+z1=1
+z2=2
+z3=-1
+z4=-0.5
+kB=1.3806504*pow(10,-23)#;%J/K
+T=300#;%K
+AvC=6.02214179*pow(10,23)#;%1/mol
+eps0=8.854187817*pow(10,-12)#;%F/m
+epsr=78.4#;
+e=1.602176*pow(10,-19)#;%C
+L=5*pow(10,-9)#;%m
+typconz=1/(27*pow(10,-27))#;%mol/l,
+typV=0.1#;%V
+lam=eps0*epsr*typV/(e*L*L*typconz*pow(10,3))#;%Parameter of Poisson equation
+c = e*typV/(kB*T)#%Parameter potential
+mol= typconz/AvC
+
+################################### BC
+###V
+V_bc1 = -0.5
+V_bc2 = 0
+hw = Expression(" V_bc1+(V_bc2-V_bc1)*x[0]",V_bc1=V_bc1,V_bc2=V_bc2)
+bcw = DirichletBC(W, hw, DirichletBoundary())
+
+##u1
+u1_1 = 0.1/mol
+u1_2= 0.1/mol
+c1_1 = log(u1_1)  + c*V_bc1*z1
+c1_2 = log(u1_2)  + c*V_bc2*z1
+hc1 = Expression(" c1_1 +x[0]*(c1_2-c1_1)", c1_1=c1_1,c1_2=c1_2 )
+bc1= DirichletBC(V, hc1,DirichletBoundary())
+
+##u2
+u2_1 = pow(10,-7)
+u2_2 = pow(10,-5)
+c2_1 = log(u2_1)  +c*V_bc1*z2
+c2_2 = log(u2_2)  +c*V_bc2*z2
+hc2 = Expression("c2_1 +x[0]*(c2_2-c2_1)",c2_1=c2_1,c2_2=c2_2 )
+bc2 = DirichletBC(V, hc2, DirichletBoundary())
+
+#u3
+u3_1 = u1_1+2*u2_1;
+u3_2 = u1_2+2*u2_2;
+c3_1 = log(u3_1)  +c*V_bc1*z3
+c3_2 = log(u3_2)  +c*V_bc2*z3
+hc3 = Expression("c3_1 +x[0]*(c3_2-c3_1)",c3_1=c3_1,c3_2=c3_2 )
+bc3 = DirichletBC(V, hc3, DirichletBoundary())
+
+################################# C (source ) and A (area ) functions
+##A area funct
+class Area(Expression):
+    def eval_cell(self, value, x, ufc_cell):
+        if x[0]&lt; 1:
+            value[0] =pi*pow(x[0]-0.52,2)
+        if x[0]&lt; 0.65:
+            value[0] =pi*pow(5*pow(x[0],2)-5.5*pow(x[0],1)+ 1.59,2)
+        if x[0]&lt; 0.55:
+            value[0] =pi*0.0064
+        if x[0]&lt; 0.45:
+            value[0] =pi*pow(-7.5*pow(x[0],3)+13.67*pow(x[0],2)-7.8*pow(x[0],1)+ 1.51,2)
+        if x[0]&lt; 0.35:
+            value[0] =pi*pow(-x[0]+0.48,2)
+
+a = Area()
+
+class C(Expression):
+    def eval_cell(self, value, x, ufc_cell):
+        if x[0] &gt; 0.65 :
+            value[0] =0
+        if x[0]&lt; 0.65 and x[0] &gt; 0.55:
+            value[0] =-4.3*x[0]+2.79
+        if x[0]&lt; 0.55 and x[0] &gt; 0.45:
+            value[0] =0.43
+        if x[0]&lt; 0.45 and x[0]&gt;0.35:
+            value[0] =4.3*x[0]-1.505
+        if x[0]&lt; 0.35:
+            value[0] =0
+
+cc = C()
+
+################################### solution
+
+
+#####LOOPS
+
+
+
+while eps &gt; tol and iter &lt; maxiter:
+
+   H = inner(lam*a*grad(Vi),grad(s))*dx- a*z1*exp(c1-Vi*z1*c)*s*dx -  a*z2*exp(c2-Vi*z2*c)*s*dx - a*z3*exp(c3-Vi*z3*c)*s*dx- z4*cc*s*dx
+
+   solve(H==0, Vi, bcw,solver_parameters={"newton_solver":{"relative_tolerance": tol, "maximum_iterations":maxiter,"absolute_tolerance":tol}})
+   print '====================EQ FOR V SOLVED'
+   F1 = inner(a*exp(c1-c*z1*Vi)*grad(c1), grad(v1))*dx
+   solve(F1 == 0, c1, bc1, solver_parameters={"newton_solver":{"relative_tolerance": tol, "maximum_iterations":maxiter,"absolute_tolerance":tol}})
+   print '====================EQ FOR C1 SOLVED'
+   F2 = inner(a*exp(c2-c*z2*Vi)*grad(c2), grad(v2))*dx
+   solve(F2 == 0, c2, bc2, solver_parameters={"newton_solver":{"relative_tolerance": tol, "maximum_iterations":maxiter,"absolute_tolerance":tol}})
+   print '====================EQ FOR C2 SOLVED'
+   F3 = inner(a*exp(c3-c*z3*Vi)*grad(c3), grad(v3))*dx
+   solve(F3 == 0, c3, bc3, solver_parameters={"newton_solver":{"relative_tolerance": tol, "maximum_iterations":maxiter,"absolute_tolerance":tol}})
+
+   print '====================EQ FOR C3 SOLVED'
+   epsc1 = norm( c1.vector()- c1_old.vector())
+   epsc2 = norm( c2.vector()- c2_old.vector())
+   epsc3 = norm( c3.vector()- c3_old.vector())
+   epsV = norm( Vi.vector()- Vi_old.vector())   # supp norm
+   eps= epsc1+epsc2+epsc3+epsV
+   print '========================================iteration : ' ,iter,'diff c1 :', epsc1  ,'diff c2:', epsc2 ,'diff c3:', epsc3 ,'diff V :', epsV
+   #print eps
+
+
+   Vi_old.assign(Vi)
+   c1_old.assign(c1)
+   c2_old.assign(c2)
+   c3_old.assign(c3)
+   iter = iter +1
+
+################################### PLotingu
+u1=exp(c1-c*z1*Vi)
+u2=exp(c2-c*z2*Vi)
+u3=mol*exp(c3-c*z3*Vi)
+Vi=100*Vi
+plot(Vi, title="V")
+interactive()
+</code></pre>
+
+<p>and the error report ( it happens after few iterations)</p>
+
+<pre><code>====================EQ FOR C1 SOLVED
+No Jacobian form specified for nonlinear variational problem.
+Differentiating residual form F to obtain Jacobian J = F'.
+Solving nonlinear variational problem.
+  Newton iteration 0: r (abs) = 2.307e+01 (tol = 1.000e-08) r (rel) = 1.000e+00 (tol = 1.000e-08)
+  Newton iteration 1: r (abs) = 2.793e-07 (tol = 1.000e-08) r (rel) = 1.211e-08 (tol = 1.000e-08)
+  Newton iteration 2: r (abs) = 1.592e+82 (tol = 1.000e-08) r (rel) = 6.901e+80 (tol = 1.000e-08)
+[0]PETSC ERROR: --------------------- Error Message ------------------------------------
+[0]PETSC ERROR: Floating point exception!
+[0]PETSC ERROR: Infinite or not-a-number generated in norm!
+</code></pre>
+</div>
+										</div>
+										<div class="qa-q-view-tags">
+											<ul class="qa-q-view-tag-list">
+												<li class="qa-q-view-tag-item"><a href="../../tag/newton-solver" rel="tag" class="qa-tag-link">newton-solver</a></li>
+												<li class="qa-q-view-tag-item"><a href="../../tag/convergence" rel="tag" class="qa-tag-link">convergence</a></li>
+											</ul>
+										</div>
+										<span class="qa-q-view-avatar-meta">
+											<span class="qa-q-view-meta">
+												<a href="../../6931/floating-point-exception%C2%A0in-newton-solver" class="qa-q-view-what">asked</a>
+												<span class="qa-q-view-when">
+													<span class="qa-q-view-when-data"><span class="published"><span class="value-title" title="2015-04-08T11:27:34+0000"></span>Apr 8, 2015</span></span>
+												</span>
+												<span class="qa-q-view-who">
+													<span class="qa-q-view-who-pad">by </span>
+													<span class="qa-q-view-who-data"><span class="vcard author"><a href="../../user/Bm" class="qa-user-link url nickname">Bm</a></span></span>
+													<span class="qa-q-view-who-title">FEniCS Novice</span>
+													<span class="qa-q-view-who-points">
+														<span class="qa-q-view-who-points-pad">(</span><span class="qa-q-view-who-points-data">190</span><span class="qa-q-view-who-points-pad"> points)</span>
+													</span>
+												</span>
+											</span>
+										</span>
+										<div class="qa-q-view-buttons">
+										</div>
+										
+										<div class="qa-q-view-c-list" style="display:none;" id="c6931_list">
+										</div> <!-- END qa-c-list -->
+										
+										<input type="hidden" name="code" value="0-1516468094-1812b16462c3a8ae64e64e34a87e266648da65d5">
+										<input type="hidden" name="qa_click" value="">
+									</form>
+									<div class="qa-c-form">
+									</div> <!-- END qa-c-form -->
+									
+								</div> <!-- END qa-q-view-main -->
+								<div class="qa-q-view-clear">
+								</div>
+							</div> <!-- END qa-q-view -->
+							
+						</div>
+						<div class="qa-part-a-list">
+							<h2 id="a_list_title" style="display:none;"></h2>
+							<div class="qa-a-list" id="a_list">
+								
+							</div> <!-- END qa-a-list -->
+							
+						</div>
+					</div> <!-- END qa-main -->
+					
+				</div> <!-- END main-wrapper -->
+			</div> <!-- END main-shadow -->
+		</div> <!-- END body-wrapper -->
+		<!-- END footer-bottom-group -->
+		
+		<div style="position:absolute; left:-9999px; top:-9999px;">
+			<span id="qa-waiting-template" class="qa-waiting">...</span>
+		</div>
+	
+	
+
+</body><!-- Powered by Question2Answer - http://www.question2answer.org/ --></html>

@@ -1,0 +1,436 @@
+<html><!-- Powered by Question2Answer - http://www.question2answer.org/ --><head>
+		<meta http-equiv="content-type" content="text/html; charset=utf-8">
+		<title>How to implement SUPG properly for advection dominated equation - FEniCS Q&amp;A</title>
+		<meta name="description" content="Hi All, I am trying to solve a transient advection problem, and would like to know how to properly implement the SUPG  ... ]-0.2,2)+pow(x[1]-0.2,2))">
+		<meta name="keywords" content="advection,time-dependent,supg-stabilization-convection-diffusion">
+		<link rel="stylesheet" type="text/css" href="../../qa-theme/Snow/qa-styles.css">
+		<link rel="canonical" href="http://fenicsproject.org/qa/13458/how-implement-supg-properly-advection-dominated-equation">
+		<script type="text/x-mathjax-config">
+  MathJax.Hub.Config({
+    extensions: ["tex2jax.js"],
+    jax: ["input/TeX","output/HTML-CSS"],
+    tex2jax: {inlineMath: [["$","$"],["\\(","\\)"]]},
+    TeX: { extensions: ["AMSmath.js","AMSsymbols.js"]}
+  });
+</script>
+<script type="text/javascript" src="../../mathjax/MathJax.js"></script>
+		<script src="../../jquery-1.7.2.min.js" type="text/javascript"></script>
+		<script src="../../highlight.min.js"></script>
+<script type="text/javascript">
+$(function(){
+	$('.wmd-input').keypress(function(){
+		window.clearTimeout(hljs.Timeout);
+		hljs.Timeout = window.setTimeout(function() {
+			hljs.initHighlighting.called = false;
+			hljs.initHighlighting();
+		}, 500);
+	});
+	window.setTimeout(function() {
+		hljs.initHighlighting.called = false;
+		hljs.initHighlighting();
+	}, 500);
+});
+</script>
+
+
+	</head>
+	<body class="qa-template-question qa-body-js-off">
+		<div class="qa-body-wrapper">
+			
+			<div class="qa-header">
+				<div class="qa-logo">
+					<a href="../../" class="qa-logo-link" title="FEniCS Q&amp;A"><img src="../../qa-theme/fenics_qa.png" border="0" alt="FEniCS Q&amp;A"></a>
+				</div>
+				<div class="qa-header-clear">
+				</div>
+			</div> <!-- END qa-header -->
+			
+			<div class="qa-main-shadow">
+				
+				<div class="qa-main-wrapper">
+					
+					<div class="qa-sidepanel">
+						<div class="qa-sidebar">
+							This is a read only copy of the old FEniCS QA forum. Please visit the <a href="https://www.allanswered.com/community/s/fenics-project/">new QA forum</a> to ask questions
+						</div>
+						
+					</div>
+					
+					<div class="qa-main">
+						<h1>
+							<span class="entry-title">How to implement SUPG properly for advection dominated equation</span>
+						</h1>
+						<div class="qa-part-q-view">
+							<div class="qa-q-view  hentry question" id="q13458">
+								<form method="post" action="../../13458/how-implement-supg-properly-advection-dominated-equation">
+									<div class="qa-q-view-stats">
+										<div class="qa-voting qa-voting-net" id="voting_13458">
+											<div class="qa-vote-count qa-vote-count-net">
+												<span class="qa-netvote-count">
+													<span class="qa-netvote-count-data">+2<span class="votes-up"><span class="value-title" title="2"></span></span><span class="votes-down"><span class="value-title" title="0"></span></span></span><span class="qa-netvote-count-pad"> votes</span>
+												</span>
+											</div>
+											<div class="qa-vote-clear">
+											</div>
+										</div>
+									</div>
+									<input type="hidden" name="code" value="0-1516467867-d26128dae98b457e3fcd954754a81cbc1763ef03">
+								</form>
+								<div class="qa-q-view-main">
+									<form method="post" action="../../13458/how-implement-supg-properly-advection-dominated-equation">
+										<div class="qa-q-view-content">
+											<a name="13458"></a><div class="entry-content"><p>Hi All,</p>
+
+<p>I am trying to solve a transient advection problem, and would like to know how to properly implement the SUPG method to stabilize my solution. Thus, I use the SUPG example from fenics as my starting point, and try to modify it.</p>
+
+<p>It is to my understanding that different people have proposed different formulations for $\tau$, which is a time scale scalar. In SUPG fenics example, tau =  h/(2.0<em>vnorm), and I have read a few other textbooks indicating more complicated terms in addition to the h/(2.0</em>vnorm). (equation added in the end)</p>
+
+<p>Here is my test case to see if I understand it correctly, I have two tests, </p>
+
+<ol>
+<li>Applied a Dirichlet sine function boundary, and let this sine function move with respect to the velocity field.  </li>
+<li>Initiate a concentration of 1 on a circle, and let it move with velocity field, and see how SUPG can keep the shape of the circle.</li>
+</ol>
+
+<p>For the test 1, both tau appears to behavior ok. However, it surprise me that the more complicated tau that from the textbook always have higher overshoot (highest goes to 1.15, and lowest goes down to -1.15), while the more simple one, is always within 1.1 and -1.1.</p>
+
+<p>For the test 2, SUPG based on these two tau behave pretty bad, and introduce further instability as the velocity moves the circle. </p>
+
+<p>My question is: First, did I implement SUPG properly ( I have attached my full code in below) ? Second, If I implement properly, then is this what should be expected from SUPG method ? From what I read,  SUPG  should perform much better than what I see. Third, did I miss any important stabilization criterion that could lead to the stabilization I see in test 2? </p>
+
+<p>Thanks</p>
+
+<pre><code>from dolfin import *
+
+# Create mesh and function space
+mesh = UnitSquareMesh(100, 100)
+Q = FunctionSpace(mesh, "CG", 1)
+
+# Define velocity as vector
+velocity = Expression(("1" , "1"), domain = mesh, degree=1)
+
+c = 1e-15
+dt = 0.01
+# Test and trial functions
+u, v = TrialFunction(Q), TestFunction(Q)
+u0 = Function(Q)
+
+#initial condition
+ic= Expression("((pow(x[0]-0.2,2)+pow(x[1]-0.2,2))&lt;0.1*0.1)?(1.0):(0.0)", domain=mesh, degree = 3)
+u0.interpolate(ic)
+
+# Crank Nicolson
+u_mid = 0.5*(u0 + u)
+
+# Residual
+r = u - u0 + dt*(dot(velocity, grad(u_mid)) - c*div(grad(u_mid)))
+
+# Galerkin variational problem
+F = v*(u - u0)*dx + dt*(v*dot(velocity, grad(u_mid))*dx + c*dot(grad(v), grad(u_mid))*dx)
+
+# Add SUPG stabilisation terms
+vnorm = sqrt(dot(velocity, velocity))
+h = CellSize(mesh)
+tau = h/(2.0*vnorm) # tau from SUPG fenics example
+#tau = pow(1/(0.5*dt) + 2.0*vnorm/h + 4*c/pow(h,2.0),-1) # tau from
+F += tau*dot(velocity, grad(v))*r*dx
+
+# Create bilinear and linear forms
+a = lhs(F)
+L = rhs(F)
+
+# Define boundary condition
+tol = 1e-14
+def u0_boundary(x, on_boundary):
+return on_boundary and near(x[1], 0, tol)
+U0_expression = Expression('sin(x[0]*60)', domain = mesh, degree=3)
+#bc = DirichletBC(Q, U0_expression, u0_boundary)
+vtkfile = File('results/concentration.pvd')
+
+t = 0;
+T = 1.0;
+while t &lt; T:
+# Solve
+    u = Function(Q)
+    #solve(a == L, u, bc)
+    solve(a == L, u)
+    u.rename("u", "concentration")
+    vtkfile &lt;&lt; u
+    u0.assign(u)
+    t = t + dt
+</code></pre>
+
+<p><img src="http://i64.tinypic.com/33wuw0l.png" alt="see here for the textbook snip"><img src="http://i64.tinypic.com/esoy92.png" alt="and here"></p>
+</div>
+										</div>
+										<div class="qa-q-view-tags">
+											<ul class="qa-q-view-tag-list">
+												<li class="qa-q-view-tag-item"><a href="../../tag/advection" rel="tag" class="qa-tag-link">advection</a></li>
+												<li class="qa-q-view-tag-item"><a href="../../tag/time-dependent" rel="tag" class="qa-tag-link">time-dependent</a></li>
+												<li class="qa-q-view-tag-item"><a href="../../tag/supg-stabilization-convection-diffusion" rel="tag" class="qa-tag-link">supg-stabilization-convection-diffusion</a></li>
+											</ul>
+										</div>
+										<span class="qa-q-view-avatar-meta">
+											<span class="qa-q-view-meta">
+												<a href="../../13458/how-implement-supg-properly-advection-dominated-equation" class="qa-q-view-what">asked</a>
+												<span class="qa-q-view-when">
+													<span class="qa-q-view-when-data"><span class="published"><span class="value-title" title="2017-05-13T15:02:24+0000"></span>May 13, 2017</span></span>
+												</span>
+												<span class="qa-q-view-who">
+													<span class="qa-q-view-who-pad">by </span>
+													<span class="qa-q-view-who-data"><span class="vcard author"><a href="../../user/dengzhekai" class="qa-user-link url nickname">dengzhekai</a></span></span>
+													<span class="qa-q-view-who-title">FEniCS Novice</span>
+													<span class="qa-q-view-who-points">
+														<span class="qa-q-view-who-points-pad">(</span><span class="qa-q-view-who-points-data">360</span><span class="qa-q-view-who-points-pad"> points)</span>
+													</span>
+												</span>
+												<br>
+												<span class="qa-q-view-what">edited</span>
+												<span class="qa-q-view-when">
+													<span class="qa-q-view-when-data"><span class="updated"><span class="value-title" title="2017-05-13T16:51:05+0000"></span>May 13, 2017</span></span>
+												</span>
+												<span class="qa-q-view-who">
+													<span class="qa-q-view-who-pad">by </span><span class="qa-q-view-who-data"><a href="../../user/dengzhekai" class="qa-user-link url nickname">dengzhekai</a></span>
+												</span>
+											</span>
+										</span>
+										<div class="qa-q-view-buttons">
+										</div>
+										
+										<div class="qa-q-view-c-list" id="c13458_list">
+											<div class="qa-c-list-item  hentry comment" id="c13525">
+												<div class="qa-c-item-content">
+													<a name="13525"></a><div class="entry-content"><p>How does the textbook define h? If I'm not mistaken FEniCS used the cell diameter, but that is one of many suitable definitions and the cell shape and orientation w.r.t. the flow may play a role here.</p>
+</div>
+												</div>
+												<div class="qa-c-item-footer">
+													<span class="qa-c-item-avatar-meta">
+														<span class="qa-c-item-meta">
+															<a href="../../13458/how-implement-supg-properly-advection-dominated-equation?show=13525#c13525" class="qa-c-item-what">commented</a>
+															<span class="qa-c-item-when">
+																<span class="qa-c-item-when-data"><span class="published"><span class="value-title" title="2017-05-17T17:35:03+0000"></span>May 17, 2017</span></span>
+															</span>
+															<span class="qa-c-item-who">
+																<span class="qa-c-item-who-pad">by </span>
+																<span class="qa-c-item-who-data"><span class="vcard author"><a href="../../user/Christian+Waluga" class="qa-user-link url nickname">Christian Waluga</a></span></span>
+																<span class="qa-c-item-who-title">FEniCS Expert</span>
+																<span class="qa-c-item-who-points">
+																	<span class="qa-c-item-who-points-pad">(</span><span class="qa-c-item-who-points-data">12,310</span><span class="qa-c-item-who-points-pad"> points)</span>
+																</span>
+															</span>
+														</span>
+													</span>
+													<div class="qa-c-item-buttons">
+													</div>
+												</div>
+												<div class="qa-c-item-clear">
+												</div>
+											</div> <!-- END qa-c-item -->
+											<div class="qa-c-list-item  hentry comment" id="c13529">
+												<div class="qa-c-item-content">
+													<a name="13529"></a><div class="entry-content"><p>Well, compared to the pure Galerkin formulation I guess SUPG performs not to badly in case 2? Did you take the problem setup from the literature, is there a reference solution? Otherwise I'd suggest to do a well studied and documented setup first and compare your results with the literature.</p>
+</div>
+												</div>
+												<div class="qa-c-item-footer">
+													<span class="qa-c-item-avatar-meta">
+														<span class="qa-c-item-meta">
+															<a href="../../13458/how-implement-supg-properly-advection-dominated-equation?show=13529#c13529" class="qa-c-item-what">commented</a>
+															<span class="qa-c-item-when">
+																<span class="qa-c-item-when-data"><span class="published"><span class="value-title" title="2017-05-17T20:16:24+0000"></span>May 17, 2017</span></span>
+															</span>
+															<span class="qa-c-item-who">
+																<span class="qa-c-item-who-pad">by </span>
+																<span class="qa-c-item-who-data"><span class="vcard author"><a href="../../user/dajuno" class="qa-user-link url nickname">dajuno</a></span></span>
+																<span class="qa-c-item-who-title">FEniCS User</span>
+																<span class="qa-c-item-who-points">
+																	<span class="qa-c-item-who-points-pad">(</span><span class="qa-c-item-who-points-data">4,140</span><span class="qa-c-item-who-points-pad"> points)</span>
+																</span>
+															</span>
+														</span>
+													</span>
+													<div class="qa-c-item-buttons">
+													</div>
+												</div>
+												<div class="qa-c-item-clear">
+												</div>
+											</div> <!-- END qa-c-item -->
+											<div class="qa-c-list-item  hentry comment" id="c13530">
+												<div class="qa-c-item-content">
+													<a name="13530"></a><div class="entry-content"><p>Hi, the textbood define h as meshSize, which is not very helpful on whether it is radius or diameter. However, in the introduction of SUPG, the textbook introduced a critical tau for 1D convection-diffusion as tau = h/2*a (coth(Pe) - 1/Pe), which is exactly the same as used in fenics 2011 book (Page 637). So I assume the h from the textbook is consistent  with what is implemented in fenics.</p>
+</div>
+												</div>
+												<div class="qa-c-item-footer">
+													<span class="qa-c-item-avatar-meta">
+														<span class="qa-c-item-meta">
+															<a href="../../13458/how-implement-supg-properly-advection-dominated-equation?show=13530#c13530" class="qa-c-item-what">commented</a>
+															<span class="qa-c-item-when">
+																<span class="qa-c-item-when-data"><span class="published"><span class="value-title" title="2017-05-18T01:12:30+0000"></span>May 18, 2017</span></span>
+															</span>
+															<span class="qa-c-item-who">
+																<span class="qa-c-item-who-pad">by </span>
+																<span class="qa-c-item-who-data"><span class="vcard author"><a href="../../user/dengzhekai" class="qa-user-link url nickname">dengzhekai</a></span></span>
+																<span class="qa-c-item-who-title">FEniCS Novice</span>
+																<span class="qa-c-item-who-points">
+																	<span class="qa-c-item-who-points-pad">(</span><span class="qa-c-item-who-points-data">360</span><span class="qa-c-item-who-points-pad"> points)</span>
+																</span>
+															</span>
+														</span>
+													</span>
+													<div class="qa-c-item-buttons">
+													</div>
+												</div>
+												<div class="qa-c-item-clear">
+												</div>
+											</div> <!-- END qa-c-item -->
+											<div class="qa-c-list-item  hentry comment" id="c13531">
+												<div class="qa-c-item-content">
+													<a name="13531"></a><div class="entry-content"><p>Hi dajuno, Yes. I agree that SUPG performs better than the pure Gakerkin. I probably should have done more detailed literature setup study. However, It just sometimes surprise me that a more completed terms which its self contains the simple version of the tau and several other many other terms perform "worse" than the simply tau = h/2a. My initial thought about this is that the the simple tau expression will basically be the base line of SUPG, and more complicated tau would do better. </p>
+
+<p>That is why I wonder whether myself implement this correctly or not....</p>
+</div>
+												</div>
+												<div class="qa-c-item-footer">
+													<span class="qa-c-item-avatar-meta">
+														<span class="qa-c-item-meta">
+															<a href="../../13458/how-implement-supg-properly-advection-dominated-equation?show=13531#c13531" class="qa-c-item-what">commented</a>
+															<span class="qa-c-item-when">
+																<span class="qa-c-item-when-data"><span class="published"><span class="value-title" title="2017-05-18T01:43:44+0000"></span>May 18, 2017</span></span>
+															</span>
+															<span class="qa-c-item-who">
+																<span class="qa-c-item-who-pad">by </span>
+																<span class="qa-c-item-who-data"><span class="vcard author"><a href="../../user/dengzhekai" class="qa-user-link url nickname">dengzhekai</a></span></span>
+																<span class="qa-c-item-who-title">FEniCS Novice</span>
+																<span class="qa-c-item-who-points">
+																	<span class="qa-c-item-who-points-pad">(</span><span class="qa-c-item-who-points-data">360</span><span class="qa-c-item-who-points-pad"> points)</span>
+																</span>
+															</span>
+														</span>
+													</span>
+													<div class="qa-c-item-buttons">
+													</div>
+												</div>
+												<div class="qa-c-item-clear">
+												</div>
+											</div> <!-- END qa-c-item -->
+											<div class="qa-c-list-item  hentry comment" id="c13540">
+												<div class="qa-c-item-content">
+													<a name="13540"></a><div class="entry-content"><p>Well, I guess it just depends. The implementation of SUPG looks ok, don't know if the test case is "good".<br>
+Did you compare the values of the $\tau$s? It seems that in your setup ($c\to 0$, $\Delta t$ "large") the formulas are pretty much identical.</p>
+</div>
+												</div>
+												<div class="qa-c-item-footer">
+													<span class="qa-c-item-avatar-meta">
+														<span class="qa-c-item-meta">
+															<a href="../../13458/how-implement-supg-properly-advection-dominated-equation?show=13540#c13540" class="qa-c-item-what">commented</a>
+															<span class="qa-c-item-when">
+																<span class="qa-c-item-when-data"><span class="published"><span class="value-title" title="2017-05-18T16:05:08+0000"></span>May 18, 2017</span></span>
+															</span>
+															<span class="qa-c-item-who">
+																<span class="qa-c-item-who-pad">by </span>
+																<span class="qa-c-item-who-data"><span class="vcard author"><a href="../../user/dajuno" class="qa-user-link url nickname">dajuno</a></span></span>
+																<span class="qa-c-item-who-title">FEniCS User</span>
+																<span class="qa-c-item-who-points">
+																	<span class="qa-c-item-who-points-pad">(</span><span class="qa-c-item-who-points-data">4,140</span><span class="qa-c-item-who-points-pad"> points)</span>
+																</span>
+															</span>
+														</span>
+													</span>
+													<div class="qa-c-item-buttons">
+													</div>
+												</div>
+												<div class="qa-c-item-clear">
+												</div>
+											</div> <!-- END qa-c-item -->
+											<div class="qa-c-list-item  hentry comment" id="c13660">
+												<div class="qa-c-item-content">
+													<a name="13660"></a><div class="entry-content"><p>For problems like case 2, with (nearly) discontinuous solutions, you might look into discontinuity capturing methods, e.g.</p>
+
+<p><a rel="nofollow" href="https://www.ices.utexas.edu/media/reports/2007/0702.pdf">https://www.ices.utexas.edu/media/reports/2007/0702.pdf</a></p>
+</div>
+												</div>
+												<div class="qa-c-item-footer">
+													<span class="qa-c-item-avatar-meta">
+														<span class="qa-c-item-meta">
+															<a href="../../13458/how-implement-supg-properly-advection-dominated-equation?show=13660#c13660" class="qa-c-item-what">commented</a>
+															<span class="qa-c-item-when">
+																<span class="qa-c-item-when-data"><span class="published"><span class="value-title" title="2017-05-26T22:47:31+0000"></span>May 27, 2017</span></span>
+															</span>
+															<span class="qa-c-item-who">
+																<span class="qa-c-item-who-pad">by </span>
+																<span class="qa-c-item-who-data"><span class="vcard author"><a href="../../user/kamensky" class="qa-user-link url nickname">kamensky</a></span></span>
+																<span class="qa-c-item-who-title">FEniCS Novice</span>
+																<span class="qa-c-item-who-points">
+																	<span class="qa-c-item-who-points-pad">(</span><span class="qa-c-item-who-points-data">150</span><span class="qa-c-item-who-points-pad"> points)</span>
+																</span>
+															</span>
+														</span>
+													</span>
+													<div class="qa-c-item-buttons">
+													</div>
+												</div>
+												<div class="qa-c-item-clear">
+												</div>
+											</div> <!-- END qa-c-item -->
+											<div class="qa-c-list-item  hentry comment" id="c13773">
+												<div class="qa-c-item-content">
+													<a name="13773"></a><div class="entry-content"><p>Hi Kamensky, sorry for the late reply. Thanks for pointing out additional literature resources. I enjoyed reading it. It is interesting to see the approach using artificial viscosity on top of SUPG. I will try to implement it. Just curious, do you have any working fenics example similar to the approach described in the paper that is available to share ? </p>
+</div>
+												</div>
+												<div class="qa-c-item-footer">
+													<span class="qa-c-item-avatar-meta">
+														<span class="qa-c-item-meta">
+															<a href="../../13458/how-implement-supg-properly-advection-dominated-equation?show=13773#c13773" class="qa-c-item-what">commented</a>
+															<span class="qa-c-item-when">
+																<span class="qa-c-item-when-data"><span class="published"><span class="value-title" title="2017-06-01T17:44:27+0000"></span>Jun 1, 2017</span></span>
+															</span>
+															<span class="qa-c-item-who">
+																<span class="qa-c-item-who-pad">by </span>
+																<span class="qa-c-item-who-data"><span class="vcard author"><a href="../../user/dengzhekai" class="qa-user-link url nickname">dengzhekai</a></span></span>
+																<span class="qa-c-item-who-title">FEniCS Novice</span>
+																<span class="qa-c-item-who-points">
+																	<span class="qa-c-item-who-points-pad">(</span><span class="qa-c-item-who-points-data">360</span><span class="qa-c-item-who-points-pad"> points)</span>
+																</span>
+															</span>
+														</span>
+													</span>
+													<div class="qa-c-item-buttons">
+													</div>
+												</div>
+												<div class="qa-c-item-clear">
+												</div>
+											</div> <!-- END qa-c-item -->
+										</div> <!-- END qa-c-list -->
+										
+										<input type="hidden" name="code" value="0-1516467867-d741908b41b24551cbcae06d127105feda96a874">
+										<input type="hidden" name="qa_click" value="">
+									</form>
+									<div class="qa-c-form">
+									</div> <!-- END qa-c-form -->
+									
+								</div> <!-- END qa-q-view-main -->
+								<div class="qa-q-view-clear">
+								</div>
+							</div> <!-- END qa-q-view -->
+							
+						</div>
+						<div class="qa-part-a-list">
+							<h2 id="a_list_title" style="display:none;"></h2>
+							<div class="qa-a-list" id="a_list">
+								
+							</div> <!-- END qa-a-list -->
+							
+						</div>
+					</div> <!-- END qa-main -->
+					
+				</div> <!-- END main-wrapper -->
+			</div> <!-- END main-shadow -->
+		</div> <!-- END body-wrapper -->
+		<!-- END footer-bottom-group -->
+		
+		<div style="position:absolute; left:-9999px; top:-9999px;">
+			<span id="qa-waiting-template" class="qa-waiting">...</span>
+		</div>
+	
+	
+
+</body><!-- Powered by Question2Answer - http://www.question2answer.org/ --></html>

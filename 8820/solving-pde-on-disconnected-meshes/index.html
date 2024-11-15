@@ -1,0 +1,365 @@
+<html><!-- Powered by Question2Answer - http://www.question2answer.org/ --><head>
+		<meta http-equiv="content-type" content="text/html; charset=utf-8">
+		<title>solving pde on disconnected meshes - FEniCS Q&amp;A</title>
+		<meta name="description" content="Hi! I would like to solve a diffusion pde over two disconnected domains that communicate through two  ... concSubMesh u_0.assign(u_n) t += float(dt)">
+		<meta name="keywords" content="submesh,subdomains">
+		<link rel="stylesheet" type="text/css" href="../../qa-theme/Snow/qa-styles.css">
+		<link rel="canonical" href="http://fenicsproject.org/qa/8820/solving-pde-on-disconnected-meshes">
+		<script type="text/x-mathjax-config">
+  MathJax.Hub.Config({
+    extensions: ["tex2jax.js"],
+    jax: ["input/TeX","output/HTML-CSS"],
+    tex2jax: {inlineMath: [["$","$"],["\\(","\\)"]]},
+    TeX: { extensions: ["AMSmath.js","AMSsymbols.js"]}
+  });
+</script>
+<script type="text/javascript" src="../../mathjax/MathJax.js"></script>
+		<script src="../../jquery-1.7.2.min.js" type="text/javascript"></script>
+		<script src="../../highlight.min.js"></script>
+<script type="text/javascript">
+$(function(){
+	$('.wmd-input').keypress(function(){
+		window.clearTimeout(hljs.Timeout);
+		hljs.Timeout = window.setTimeout(function() {
+			hljs.initHighlighting.called = false;
+			hljs.initHighlighting();
+		}, 500);
+	});
+	window.setTimeout(function() {
+		hljs.initHighlighting.called = false;
+		hljs.initHighlighting();
+	}, 500);
+});
+</script>
+
+
+	</head>
+	<body class="qa-template-question qa-body-js-off">
+		<div class="qa-body-wrapper">
+			
+			<div class="qa-header">
+				<div class="qa-logo">
+					<a href="../../" class="qa-logo-link" title="FEniCS Q&amp;A"><img src="../../qa-theme/fenics_qa.png" border="0" alt="FEniCS Q&amp;A"></a>
+				</div>
+				<div class="qa-header-clear">
+				</div>
+			</div> <!-- END qa-header -->
+			
+			<div class="qa-main-shadow">
+				
+				<div class="qa-main-wrapper">
+					
+					<div class="qa-sidepanel">
+						<div class="qa-sidebar">
+							This is a read only copy of the old FEniCS QA forum. Please visit the <a href="https://www.allanswered.com/community/s/fenics-project/">new QA forum</a> to ask questions
+						</div>
+						
+					</div>
+					
+					<div class="qa-main">
+						<h1>
+							<span class="entry-title">solving pde on disconnected meshes</span>
+						</h1>
+						<div class="qa-part-q-view">
+							<div class="qa-q-view  hentry question" id="q8820">
+								<form method="post" action="../../8820/solving-pde-on-disconnected-meshes">
+									<div class="qa-q-view-stats">
+										<div class="qa-voting qa-voting-net" id="voting_8820">
+											<div class="qa-vote-count qa-vote-count-net">
+												<span class="qa-netvote-count">
+													<span class="qa-netvote-count-data">+1<span class="votes-up"><span class="value-title" title="1"></span></span><span class="votes-down"><span class="value-title" title="0"></span></span></span><span class="qa-netvote-count-pad"> vote</span>
+												</span>
+											</div>
+											<div class="qa-vote-clear">
+											</div>
+										</div>
+									</div>
+									<input type="hidden" name="code" value="0-1516468193-2f9527a3996a78aab38d0aa44a594ca35bade84d">
+								</form>
+								<div class="qa-q-view-main">
+									<form method="post" action="../../8820/solving-pde-on-disconnected-meshes">
+										<div class="qa-q-view-content">
+											<a name="8820"></a><div class="entry-content"><p>Hi!<br>
+I would like to solve a diffusion pde over two disconnected domains that communicate through two surfaces (e.g. two cubes with a flux applied on one side of each cube).</p>
+
+<p>I created a geometry using gmsh, for which i marked the cells as 29 and 229, and two faces as 27 and 227 (available here: <a rel="nofollow" href="http://pkh.as.uky.edu/html/files/fenics.tgz">http://pkh.as.uky.edu/html/files/fenics.tgz</a> )</p>
+
+<p>I am attempting to define a weak form that is defined on domains dx(29) and dx(229) with fluxes applied to ds(27) and ds(227) [similar to <a rel="nofollow" href="http://fenicsproject.org/documentation/dolfin/1.2.0/python/demo/pde/subdomains-poisson/python/documentation.html%5D">http://fenicsproject.org/documentation/dolfin/1.2.0/python/demo/pde/subdomains-poisson/python/documentation.html]</a> , but I get a segmentation fault on the first solve. If I instead solve the same problem over dx() and ds(), the solver is fine, so I suspect I am missing something stupid.</p>
+
+<p>Question: is there a better way to define the weak form/solver so that I can solve the PDE over two disconnected domains?</p>
+
+<p>My code is below: </p>
+
+<pre><code>from dolfin import *
+
+name ="twocube"
+subdomainMarkers=[29,229] # from 'Physical Volume(29)' in .geo file
+boundaryMarkers = [27,227] # from 'Physical Surface(28)' in .geo file
+
+mesh = Mesh(name+".xml")
+
+## load subdomains, boundaries
+subdomains = MeshFunction("size_t", mesh, name+"_physical_region.xml")
+boundaries = MeshFunction("size_t", mesh, name+"_facet_region.xml")
+
+dx = Measure("dx",domain=mesh)
+ds = Measure("ds",domain=mesh,subdomain_data=boundaries)
+
+# Surfaces
+for i,marker in enumerate(boundaryMarkers):
+  print "area marker ", marker, " ", assemble(Constant(1.)*ds(marker))
+
+#print "vol", assemble(Constant(1.)*dx)
+for i,marker in enumerate(subdomainMarkers):
+  submesh = SubMesh(mesh, subdomains, marker)
+  print "vol marker ", marker, " ", assemble(Constant(1.)*dx(submesh))
+
+# Apply these markings to our surface/distance measures
+ds = ds(domain=mesh,subdomain_data=boundaries)
+dx = dx(domain=mesh)
+V = FunctionSpace(mesh,"CG",1)
+
+v = TestFunction(V)
+u_n = Function(V)
+u_0 = Function(V)
+
+Du = Constant(1)
+dt = 1.
+#
+bcs=[]
+#bcs = [
+# DirichletBC(V,Constant(2.),boundaries,boundaryMarkers[0]),
+# DirichletBC(V,Constant(0.),boundaries,boundaryMarkers[1])]
+
+# LHS
+# works
+#F = ((u_n-u_0)*v/dt + Du*inner(grad(u_n), grad(v)))*dx()
+#F+= -Constant(0.1)*v*ds()
+# doesn't work
+F = ((u_n-u_0)*v/dt + Du*inner(grad(u_n), grad(v)))*dx( subdomainMarkers[0] )
+F+= ((u_n-u_0)*v/dt + Du*inner(grad(u_n), grad(v)))*dx( subdomainMarkers[1] )
+F+= -Constant(0.1)*v*ds( boundaryMarkers[0])
+F+= Constant(0.1)*v*ds( boundaryMarkers[1])
+
+u_0.interpolate(Constant(2.))
+u_n.vector()[:] = u_0.vector()[:]
+
+t=0
+tstop=5
+while t &lt; tstop+DOLFIN_EPS:
+    solve(F==0, u_n,bcs)
+    print "############### ", t
+
+    submesh = SubMesh(mesh, subdomains, subdomainMarkers[0])
+    #print "vol", assemble(Constant(1.)*dx)
+    for i,marker in enumerate(subdomainMarkers):
+      submesh = SubMesh(mesh, subdomains, marker)
+      volSubMesh = assemble(Constant(1.)*dx(submesh))
+      concSubMesh = assemble(u_n*dx(submesh))/volSubMesh
+      print "conc marker ", marker, " ", concSubMesh
+
+    u_0.assign(u_n)
+    t += float(dt)
+</code></pre>
+</div>
+										</div>
+										<div class="qa-q-view-tags">
+											<ul class="qa-q-view-tag-list">
+												<li class="qa-q-view-tag-item"><a href="../../tag/submesh" rel="tag" class="qa-tag-link">submesh</a></li>
+												<li class="qa-q-view-tag-item"><a href="../../tag/subdomains" rel="tag" class="qa-tag-link">subdomains</a></li>
+											</ul>
+										</div>
+										<span class="qa-q-view-avatar-meta">
+											<span class="qa-q-view-meta">
+												<a href="../../8820/solving-pde-on-disconnected-meshes" class="qa-q-view-what">asked</a>
+												<span class="qa-q-view-when">
+													<span class="qa-q-view-when-data"><span class="published"><span class="value-title" title="2015-12-09T03:14:08+0000"></span>Dec 9, 2015</span></span>
+												</span>
+												<span class="qa-q-view-who">
+													<span class="qa-q-view-who-pad">by </span>
+													<span class="qa-q-view-who-data"><span class="vcard author"><a href="../../user/huskeypm" class="qa-user-link url nickname">huskeypm</a></span></span>
+													<span class="qa-q-view-who-title">FEniCS Novice</span>
+													<span class="qa-q-view-who-points">
+														<span class="qa-q-view-who-points-pad">(</span><span class="qa-q-view-who-points-data">330</span><span class="qa-q-view-who-points-pad"> points)</span>
+													</span>
+												</span>
+												<br>
+												<span class="qa-q-view-what">edited</span>
+												<span class="qa-q-view-when">
+													<span class="qa-q-view-when-data"><span class="updated"><span class="value-title" title="2015-12-09T14:01:59+0000"></span>Dec 9, 2015</span></span>
+												</span>
+												<span class="qa-q-view-who">
+													<span class="qa-q-view-who-pad">by </span><span class="qa-q-view-who-data"><a href="../../user/huskeypm" class="qa-user-link url nickname">huskeypm</a></span>
+												</span>
+											</span>
+										</span>
+										<div class="qa-q-view-buttons">
+										</div>
+										
+										<div class="qa-q-view-c-list" style="display:none;" id="c8820_list">
+										</div> <!-- END qa-c-list -->
+										
+										<input type="hidden" name="code" value="0-1516468193-3269ff50918faa3be6dae7b21de9c3b38f83980c">
+										<input type="hidden" name="qa_click" value="">
+									</form>
+									<div class="qa-c-form">
+									</div> <!-- END qa-c-form -->
+									
+								</div> <!-- END qa-q-view-main -->
+								<div class="qa-q-view-clear">
+								</div>
+							</div> <!-- END qa-q-view -->
+							
+						</div>
+						<div class="qa-part-a-list">
+							<h2 id="a_list_title">1 Answer</h2>
+							<div class="qa-a-list" id="a_list">
+								
+								<div class="qa-a-list-item  hentry answer answer-selected qa-a-list-item-selected" id="a8834">
+									<form method="post" action="../../8820/solving-pde-on-disconnected-meshes">
+										<div class="qa-voting qa-voting-net" id="voting_8834">
+											<div class="qa-vote-count qa-vote-count-net">
+												<span class="qa-netvote-count">
+													<span class="qa-netvote-count-data">+1<span class="votes-up"><span class="value-title" title="1"></span></span><span class="votes-down"><span class="value-title" title="0"></span></span></span><span class="qa-netvote-count-pad"> vote</span>
+												</span>
+											</div>
+											<div class="qa-vote-clear">
+											</div>
+										</div>
+										<input type="hidden" name="code" value="0-1516468193-2f9527a3996a78aab38d0aa44a594ca35bade84d">
+									</form>
+									<div class="qa-a-item-main">
+										<form method="post" action="../../8820/solving-pde-on-disconnected-meshes">
+											<div class="qa-a-item-selected">
+												<div class="qa-a-selection">
+													<div class="qa-a-selected">&#160;</div>
+													<div class="qa-a-selected-text">Best answer</div>
+												</div>
+												<div class="qa-a-item-content">
+													<a name="8834"></a><div class="entry-content"><p>From a Fenics enthusiast:</p>
+
+<blockquote>
+  <p>The problem generating the errors in your script was that you tried to<br>
+  extract a submesh. Since you already have MeshFunction with<br>
+  appropriate markers, you may use them to compute measures on each<br>
+  subdomain (each box). Unless for some reasons you really want/need to<br>
+  extract submeshes but usually it is not a good idea.</p>
+</blockquote>
+
+<pre><code>from dolfin import *
+
+name ="twocube"
+subdomainMarkers=[29,229]  # from 'Physical Volume(29)' in .geo file  
+boundaryMarkers = [27,227] # from 'Physical Surface(28)' in .geo file 
+
+mesh = Mesh(name+".xml")
+
+## load subdomains, boundaries 
+subdomains = MeshFunction("size_t", mesh, name+"_physical_region.xml")
+boundaries = MeshFunction("size_t", mesh, name+"_facet_region.xml")
+
+# COMMENT: Provide mesh function to the spatial measure
+dx = Measure("dx",domain=mesh, subdomain_data=subdomains)
+ds = Measure("ds",domain=mesh,subdomain_data=boundaries)
+
+# Surfaces 
+for i,marker in enumerate(boundaryMarkers):
+  print "area marker ", marker, " ", assemble(Constant(1.)*ds(marker))
+
+#print "vol", assemble(Constant(1.)*dx)
+for i,marker in enumerate(subdomainMarkers):
+    # COMMENT: No need to extract a submesh. Use the markers.
+#  submesh = SubMesh(mesh, subdomains, marker)
+  print "vol marker ", marker, " ", assemble(Constant(1.)*dx(marker))
+
+
+V = FunctionSpace(mesh,"CG",1)
+v = TestFunction(V)
+u_n = Function(V)
+u_0 = Function(V)
+
+Du = Constant(1)
+Dub = Constant(0.1)
+dt = 1.
+#
+bcs=[]
+# LHS 
+F = ((u_n-u_0)*v/dt + Du*inner(grad(u_n), grad(v)))*dx( subdomainMarkers[0] )
+F += ((u_n-u_0)*v/dt + Dub*inner(grad(u_n), grad(v)))*dx( subdomainMarkers[1] )
+F -= Constant(0.1)*v*ds( boundaryMarkers[0])
+F += Constant(0.1)*v*ds( boundaryMarkers[1])
+#
+u_0.interpolate(Constant(2.))
+u_n.vector()[:] = u_0.vector()[:]
+
+t=0
+tstop=5
+while t &lt; tstop+DOLFIN_EPS:
+    solve(F==0, u_n,bcs)
+    print "############### ", t
+
+    submesh = SubMesh(mesh, subdomains, subdomainMarkers[0])
+    #print "vol", assemble(Constant(1.)*dx)
+    for i,marker in enumerate(subdomainMarkers):
+        # COMMENT: Again use markers instead of extracting submeshes.
+#      submesh = SubMesh(mesh, subdomains, marker)
+      volSubMesh = assemble(Constant(1.)*dx(marker))
+      concSubMesh = assemble(u_n*dx(marker))/volSubMesh
+      print "conc marker ", marker, " ", concSubMesh
+
+    u_0.assign(u_n)
+    t += float(dt)
+</code></pre>
+</div>
+												</div>
+												<span class="qa-a-item-avatar-meta">
+													<span class="qa-a-item-meta">
+														<a href="../../8820/solving-pde-on-disconnected-meshes?show=8834#a8834" class="qa-a-item-what">answered</a>
+														<span class="qa-a-item-when">
+															<span class="qa-a-item-when-data"><span class="published"><span class="value-title" title="2015-12-10T11:12:58+0000"></span>Dec 10, 2015</span></span>
+														</span>
+														<span class="qa-a-item-who">
+															<span class="qa-a-item-who-pad">by </span>
+															<span class="qa-a-item-who-data"><span class="vcard author"><a href="../../user/huskeypm" class="qa-user-link url nickname">huskeypm</a></span></span>
+															<span class="qa-a-item-who-title">FEniCS Novice</span>
+															<span class="qa-a-item-who-points">
+																<span class="qa-a-item-who-points-pad">(</span><span class="qa-a-item-who-points-data">330</span><span class="qa-a-item-who-points-pad"> points)</span>
+															</span>
+														</span>
+													</span>
+												</span>
+											</div>
+											<div class="qa-a-item-buttons">
+												</div>
+											
+											<div class="qa-a-item-c-list" style="display:none;" id="c8834_list">
+											</div> <!-- END qa-c-list -->
+											
+											<input type="hidden" name="code" value="0-1516468193-330f598276b559fd62ce4aa2dfaa806956c87b38">
+											<input type="hidden" name="qa_click" value="">
+										</form>
+										<div class="qa-c-form">
+										</div> <!-- END qa-c-form -->
+										
+									</div> <!-- END qa-a-item-main -->
+									<div class="qa-a-item-clear">
+									</div>
+								</div> <!-- END qa-a-list-item -->
+								
+							</div> <!-- END qa-a-list -->
+							
+						</div>
+					</div> <!-- END qa-main -->
+					
+				</div> <!-- END main-wrapper -->
+			</div> <!-- END main-shadow -->
+		</div> <!-- END body-wrapper -->
+		<!-- END footer-bottom-group -->
+		
+		<div style="position:absolute; left:-9999px; top:-9999px;">
+			<span id="qa-waiting-template" class="qa-waiting">...</span>
+		</div>
+	
+	
+
+</body><!-- Powered by Question2Answer - http://www.question2answer.org/ --></html>

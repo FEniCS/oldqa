@@ -1,0 +1,267 @@
+<html><!-- Powered by Question2Answer - http://www.question2answer.org/ --><head>
+		<meta http-equiv="content-type" content="text/html; charset=utf-8">
+		<title>Convection in Stokes flow (SUPG) - FEniCS Q&amp;A</title>
+		<meta name="description" content='I can solve coupled advection problems in Stokes flow, if I use fixed point iterations, but I would like to use  ... 0.5"),left) solve(F==0, c, bcs)'>
+		<meta name="keywords" content="stokes,supg,non-linear,coupled-equations,mixed-function-space">
+		<link rel="stylesheet" type="text/css" href="../../qa-theme/Snow/qa-styles.css">
+		<link rel="canonical" href="http://fenicsproject.org/qa/11596/convection-in-stokes-flow-supg">
+		<script type="text/x-mathjax-config">
+  MathJax.Hub.Config({
+    extensions: ["tex2jax.js"],
+    jax: ["input/TeX","output/HTML-CSS"],
+    tex2jax: {inlineMath: [["$","$"],["\\(","\\)"]]},
+    TeX: { extensions: ["AMSmath.js","AMSsymbols.js"]}
+  });
+</script>
+<script type="text/javascript" src="../../mathjax/MathJax.js"></script>
+		<script src="../../jquery-1.7.2.min.js" type="text/javascript"></script>
+		<script src="../../highlight.min.js"></script>
+<script type="text/javascript">
+$(function(){
+	$('.wmd-input').keypress(function(){
+		window.clearTimeout(hljs.Timeout);
+		hljs.Timeout = window.setTimeout(function() {
+			hljs.initHighlighting.called = false;
+			hljs.initHighlighting();
+		}, 500);
+	});
+	window.setTimeout(function() {
+		hljs.initHighlighting.called = false;
+		hljs.initHighlighting();
+	}, 500);
+});
+</script>
+
+
+	</head>
+	<body class="qa-template-question qa-body-js-off">
+		<div class="qa-body-wrapper">
+			
+			<div class="qa-header">
+				<div class="qa-logo">
+					<a href="../../" class="qa-logo-link" title="FEniCS Q&amp;A"><img src="../../qa-theme/fenics_qa.png" border="0" alt="FEniCS Q&amp;A"></a>
+				</div>
+				<div class="qa-header-clear">
+				</div>
+			</div> <!-- END qa-header -->
+			
+			<div class="qa-main-shadow">
+				
+				<div class="qa-main-wrapper">
+					
+					<div class="qa-sidepanel">
+						<div class="qa-sidebar">
+							This is a read only copy of the old FEniCS QA forum. Please visit the <a href="https://www.allanswered.com/community/s/fenics-project/">new QA forum</a> to ask questions
+						</div>
+						
+					</div>
+					
+					<div class="qa-main">
+						<h1>
+							<span class="entry-title">Convection in Stokes flow (SUPG)</span>
+						</h1>
+						<div class="qa-part-q-view">
+							<div class="qa-q-view  hentry question" id="q11596">
+								<form method="post" action="../../11596/convection-in-stokes-flow-supg">
+									<div class="qa-q-view-stats">
+										<div class="qa-voting qa-voting-net" id="voting_11596">
+											<div class="qa-vote-count qa-vote-count-net">
+												<span class="qa-netvote-count">
+													<span class="qa-netvote-count-data">0<span class="votes-up"><span class="value-title" title="0"></span></span><span class="votes-down"><span class="value-title" title="0"></span></span></span><span class="qa-netvote-count-pad"> votes</span>
+												</span>
+											</div>
+											<div class="qa-vote-clear">
+											</div>
+										</div>
+									</div>
+									<input type="hidden" name="code" value="0-1516467775-86ad893cb3d2aa6857ea5af1171fac006a7ee3aa">
+								</form>
+								<div class="qa-q-view-main">
+									<form method="post" action="../../11596/convection-in-stokes-flow-supg">
+										<div class="qa-q-view-content">
+											<a name="11596"></a><div class="entry-content"><p>I can solve coupled advection problems in Stokes flow, if I use fixed point iterations, but I would like to use the builtin non-linear solver of FEniCS.</p>
+
+<p>Why do I get a NaN residual in the first Newton iteration? This happens even, if I use a Constant characteristic velocity and a one-way coupling:</p>
+
+<pre><code>from dolfin import *
+mesh = RectangleMesh(Point(0.,0.),Point(2.,1.),100,20)
+def left(x, on_boundary):
+    return x[0] &lt; 1e3*DOLFIN_EPS
+
+def right(x, on_boundary):
+    return 2.-1e3*DOLFIN_EPS &lt; x[0]
+
+def top_bottom(x, on_boundary):
+    return 1.-1e3*DOLFIN_EPS &lt; x[1] or x[1] &lt; 1e3*DOLFIN_EPS
+
+V = FunctionSpace(mesh,'CG',1)
+W = VectorFunctionSpace(mesh,'CG',2)
+Q = MixedFunctionSpace([V,W,V])
+U = Function(Q)
+p,v,c = split(U)
+q,w,c_tst = TestFunctions(Q)
+h = CellSize(mesh)
+vchar = Constant(1.)
+F = dot(v,grad(c))*(c_tst+dot(grad(c_tst),v)*h/vchar)*dx
+F += (inner(sym(grad(v)),sym(grad(w))) + p*div(w) + q*div(v))*dx
+bc1 = DirichletBC(Q.sub(1),Expression(("x[1]*(1.-x[1])","0.")),left)
+bc2 = DirichletBC(Q.sub(0),Constant(0.),right)
+bc3 = DirichletBC(Q.sub(1).sub(1),Constant(0.),right)
+bc4 = DirichletBC(Q.sub(1),Constant((0.,0.)),top_bottom)
+bc5 = DirichletBC(Q.sub(2),Expression("x[1] &lt; 0.5"),left)
+bcs = [bc1,bc2,bc3,bc4,bc5]
+solve(F==0, U, bcs)
+</code></pre>
+
+<p>It works just fine, if I solve it decoupled !?</p>
+
+<pre><code>Q = MixedFunctionSpace([V,W])
+U = Function(Q)
+p,v = split(U)
+q,w = TestFunctions(Q)
+vchar = Constant(1.)
+F = (inner(sym(grad(v)),sym(grad(w))) + p*div(w) + q*div(v))*dx
+bc1 = DirichletBC(Q.sub(1),Expression(("x[1]*(1.-x[1])","0.")),left)
+bc2 = DirichletBC(Q.sub(0),Constant(0.),right)
+bc3 = DirichletBC(Q.sub(1).sub(1),Constant(0.),right)
+bc4 = DirichletBC(Q.sub(1),Constant((0.,0.)),top_bottom)
+bcs = [bc1,bc2,bc3,bc4]
+solve(F==0, U, bcs)
+
+c = Function(V)
+c_tst = TestFunction(V)
+F = dot(v,grad(c))*(c_tst+dot(grad(c_tst),v)*h/vchar)*dx
+bcs = DirichletBC(V,Expression("x[1] &lt; 0.5"),left)
+solve(F==0, c, bcs)
+</code></pre>
+</div>
+										</div>
+										<div class="qa-q-view-tags">
+											<ul class="qa-q-view-tag-list">
+												<li class="qa-q-view-tag-item"><a href="../../tag/stokes" rel="tag" class="qa-tag-link">stokes</a></li>
+												<li class="qa-q-view-tag-item"><a href="../../tag/supg" rel="tag" class="qa-tag-link">supg</a></li>
+												<li class="qa-q-view-tag-item"><a href="../../tag/non-linear" rel="tag" class="qa-tag-link">non-linear</a></li>
+												<li class="qa-q-view-tag-item"><a href="../../tag/coupled-equations" rel="tag" class="qa-tag-link">coupled-equations</a></li>
+												<li class="qa-q-view-tag-item"><a href="../../tag/mixed-function-space" rel="tag" class="qa-tag-link">mixed-function-space</a></li>
+											</ul>
+										</div>
+										<span class="qa-q-view-avatar-meta">
+											<span class="qa-q-view-avatar">
+												<a href="../../user/KristianE" class="qa-avatar-link"><img src="https://www.gravatar.com/avatar/8e8c30d82e263e44bd8fe50055a60421?s=50" width="50" height="50" class="qa-avatar-image" alt=""></a>
+											</span>
+											<span class="qa-q-view-meta">
+												<a href="../../11596/convection-in-stokes-flow-supg" class="qa-q-view-what">asked</a>
+												<span class="qa-q-view-when">
+													<span class="qa-q-view-when-data"><span class="published"><span class="value-title" title="2016-11-11T11:36:43+0000"></span>Nov 11, 2016</span></span>
+												</span>
+												<span class="qa-q-view-who">
+													<span class="qa-q-view-who-pad">by </span>
+													<span class="qa-q-view-who-data"><span class="vcard author"><a href="../../user/KristianE" class="qa-user-link url nickname">KristianE</a></span></span>
+													<span class="qa-q-view-who-title">FEniCS Expert</span>
+													<span class="qa-q-view-who-points">
+														<span class="qa-q-view-who-points-pad">(</span><span class="qa-q-view-who-points-data">12,900</span><span class="qa-q-view-who-points-pad"> points)</span>
+													</span>
+												</span>
+											</span>
+										</span>
+										<div class="qa-q-view-buttons">
+										</div>
+										
+										<div class="qa-q-view-c-list" style="display:none;" id="c11596_list">
+										</div> <!-- END qa-c-list -->
+										
+										<input type="hidden" name="code" value="0-1516467775-c29c3b7713415d41d8019ffd7235520d108d2de3">
+										<input type="hidden" name="qa_click" value="">
+									</form>
+									<div class="qa-c-form">
+									</div> <!-- END qa-c-form -->
+									
+								</div> <!-- END qa-q-view-main -->
+								<div class="qa-q-view-clear">
+								</div>
+							</div> <!-- END qa-q-view -->
+							
+						</div>
+						<div class="qa-part-a-list">
+							<h2 id="a_list_title">1 Answer</h2>
+							<div class="qa-a-list" id="a_list">
+								
+								<div class="qa-a-list-item  hentry answer" id="a11621">
+									<form method="post" action="../../11596/convection-in-stokes-flow-supg">
+										<div class="qa-voting qa-voting-net" id="voting_11621">
+											<div class="qa-vote-count qa-vote-count-net">
+												<span class="qa-netvote-count">
+													<span class="qa-netvote-count-data">0<span class="votes-up"><span class="value-title" title="0"></span></span><span class="votes-down"><span class="value-title" title="0"></span></span></span><span class="qa-netvote-count-pad"> votes</span>
+												</span>
+											</div>
+											<div class="qa-vote-clear">
+											</div>
+										</div>
+										<input type="hidden" name="code" value="0-1516467775-86ad893cb3d2aa6857ea5af1171fac006a7ee3aa">
+									</form>
+									<div class="qa-a-item-main">
+										<form method="post" action="../../11596/convection-in-stokes-flow-supg">
+											<div class="qa-a-selection">
+											</div>
+											<div class="qa-a-item-content">
+												<a name="11621"></a><div class="entry-content"><p>I solved the issue by specifying a random initial guess</p>
+
+<pre><code>from numpy.random import rand
+U.vector().set_local(rand(U.vector().size()))
+U.vector().apply("")
+</code></pre>
+</div>
+											</div>
+											<span class="qa-a-item-avatar-meta">
+												<span class="qa-a-item-avatar">
+													<a href="../../user/KristianE" class="qa-avatar-link"><img src="https://www.gravatar.com/avatar/8e8c30d82e263e44bd8fe50055a60421?s=40" width="40" height="40" class="qa-avatar-image" alt=""></a>
+												</span>
+												<span class="qa-a-item-meta">
+													<a href="../../11596/convection-in-stokes-flow-supg?show=11621#a11621" class="qa-a-item-what">answered</a>
+													<span class="qa-a-item-when">
+														<span class="qa-a-item-when-data"><span class="published"><span class="value-title" title="2016-11-14T15:33:15+0000"></span>Nov 14, 2016</span></span>
+													</span>
+													<span class="qa-a-item-who">
+														<span class="qa-a-item-who-pad">by </span>
+														<span class="qa-a-item-who-data"><span class="vcard author"><a href="../../user/KristianE" class="qa-user-link url nickname">KristianE</a></span></span>
+														<span class="qa-a-item-who-title">FEniCS Expert</span>
+														<span class="qa-a-item-who-points">
+															<span class="qa-a-item-who-points-pad">(</span><span class="qa-a-item-who-points-data">12,900</span><span class="qa-a-item-who-points-pad"> points)</span>
+														</span>
+													</span>
+												</span>
+											</span>
+											<div class="qa-a-item-buttons">
+												</div>
+											
+											<div class="qa-a-item-c-list" style="display:none;" id="c11621_list">
+											</div> <!-- END qa-c-list -->
+											
+											<input type="hidden" name="code" value="0-1516467775-7737ca848e5cc2087116eee7ca50ff2847f90d4f">
+											<input type="hidden" name="qa_click" value="">
+										</form>
+										<div class="qa-c-form">
+										</div> <!-- END qa-c-form -->
+										
+									</div> <!-- END qa-a-item-main -->
+									<div class="qa-a-item-clear">
+									</div>
+								</div> <!-- END qa-a-list-item -->
+								
+							</div> <!-- END qa-a-list -->
+							
+						</div>
+					</div> <!-- END qa-main -->
+					
+				</div> <!-- END main-wrapper -->
+			</div> <!-- END main-shadow -->
+		</div> <!-- END body-wrapper -->
+		<!-- END footer-bottom-group -->
+		
+		<div style="position:absolute; left:-9999px; top:-9999px;">
+			<span id="qa-waiting-template" class="qa-waiting">...</span>
+		</div>
+	
+	
+
+</body><!-- Powered by Question2Answer - http://www.question2answer.org/ --></html>

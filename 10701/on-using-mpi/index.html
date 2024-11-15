@@ -1,0 +1,584 @@
+<html><!-- Powered by Question2Answer - http://www.question2answer.org/ --><head>
+		<meta http-equiv="content-type" content="text/html; charset=utf-8">
+		<title>On using MPI - FEniCS Q&amp;A</title>
+		<meta name="description" content="(I don't have much experience in parallel programming, so apologies if the following does not make a ... return self.sol main = Main() main.do_stuff()">
+		<meta name="keywords" content="parallel,mpi">
+		<link rel="stylesheet" type="text/css" href="../../qa-theme/Snow/qa-styles.css">
+		<link rel="canonical" href="http://fenicsproject.org/qa/10701/on-using-mpi">
+		<script type="text/x-mathjax-config">
+  MathJax.Hub.Config({
+    extensions: ["tex2jax.js"],
+    jax: ["input/TeX","output/HTML-CSS"],
+    tex2jax: {inlineMath: [["$","$"],["\\(","\\)"]]},
+    TeX: { extensions: ["AMSmath.js","AMSsymbols.js"]}
+  });
+</script>
+<script type="text/javascript" src="../../mathjax/MathJax.js"></script>
+		<script src="../../jquery-1.7.2.min.js" type="text/javascript"></script>
+		<script src="../../highlight.min.js"></script>
+<script type="text/javascript">
+$(function(){
+	$('.wmd-input').keypress(function(){
+		window.clearTimeout(hljs.Timeout);
+		hljs.Timeout = window.setTimeout(function() {
+			hljs.initHighlighting.called = false;
+			hljs.initHighlighting();
+		}, 500);
+	});
+	window.setTimeout(function() {
+		hljs.initHighlighting.called = false;
+		hljs.initHighlighting();
+	}, 500);
+});
+</script>
+
+
+	</head>
+	<body class="qa-template-question qa-body-js-off">
+		<div class="qa-body-wrapper">
+			
+			<div class="qa-header">
+				<div class="qa-logo">
+					<a href="../../" class="qa-logo-link" title="FEniCS Q&amp;A"><img src="../../qa-theme/fenics_qa.png" border="0" alt="FEniCS Q&amp;A"></a>
+				</div>
+				<div class="qa-header-clear">
+				</div>
+			</div> <!-- END qa-header -->
+			
+			<div class="qa-main-shadow">
+				
+				<div class="qa-main-wrapper">
+					
+					<div class="qa-sidepanel">
+						<div class="qa-sidebar">
+							This is a read only copy of the old FEniCS QA forum. Please visit the <a href="https://www.allanswered.com/community/s/fenics-project/">new QA forum</a> to ask questions
+						</div>
+						
+					</div>
+					
+					<div class="qa-main">
+						<h1>
+							<span class="entry-title">On using MPI</span>
+						</h1>
+						<div class="qa-part-q-view">
+							<div class="qa-q-view  hentry question" id="q10701">
+								<form method="post" action="../../10701/on-using-mpi">
+									<div class="qa-q-view-stats">
+										<div class="qa-voting qa-voting-net" id="voting_10701">
+											<div class="qa-vote-count qa-vote-count-net">
+												<span class="qa-netvote-count">
+													<span class="qa-netvote-count-data">+1<span class="votes-up"><span class="value-title" title="1"></span></span><span class="votes-down"><span class="value-title" title="0"></span></span></span><span class="qa-netvote-count-pad"> vote</span>
+												</span>
+											</div>
+											<div class="qa-vote-clear">
+											</div>
+										</div>
+									</div>
+									<input type="hidden" name="code" value="0-1516467074-dd6c5b9ca951b3bf779a99f89b09694f00aace7d">
+								</form>
+								<div class="qa-q-view-main">
+									<form method="post" action="../../10701/on-using-mpi">
+										<div class="qa-q-view-content">
+											<a name="10701"></a><div class="entry-content"><p>(I don't have much experience in parallel programming, so apologies if the following does not make a lot of sense or is trivial.)</p>
+
+<p>I wrote a object-oriented Python program, where each PDE that I encounter is a class on its own. In a very simplified way it looks like this:</p>
+
+<p><strong>program.py</strong></p>
+
+<pre><code>import subprocess
+from dolfin import *
+
+class Main(object):
+    def __init__(self):
+        self.geometry = Geometry()
+        self.poissonpde = Poisson(self.geometry)
+
+    def do_stuff(self):
+        fct_list = [Expression("x[0]*x[0] + x[1]"), Expression("x[0] + 7 * x[1]")]
+        for fct in fct_list:
+            solution = self.poissonpde.solve(fct)
+            # plot(solution, interactive=True)
+            print solution.vector().array()[:10]
+
+
+class Geometry(object):
+    def __init__(self):
+        subprocess.call(["gmsh", "-2", "square.geo"])
+        subprocess.call(["dolfin-convert", "square.msh", "square.xml"])
+        self.mesh = Mesh("square.xml")
+        self.regions = MeshFunction('size_t', self.mesh, "square_physical_region.xml")
+        self.boundaries = MeshFunction('size_t', self.mesh, "square_facet_region.xml")
+        self.dx = Measure('dx')[self.regions]
+        self.ds = Measure('ds')[self.boundaries]
+
+
+class Poisson(object):
+    def __init__(self, geometry):
+        self.geometry = geometry
+        self.V = FunctionSpace(self.geometry.mesh, 'CG', 1)
+        self.u = TrialFunction(self.V)
+        self.v = TestFunction(self.V)
+        self.sol = Function(self.V)
+        self.bcs = [DirichletBC(self.V, Constant(0.0), self.geometry.boundaries, 2),
+                    DirichletBC(self.V, Constant(0.0), self.geometry.boundaries, 3)]
+        self.solver = LUSolver()
+
+    def solve(self, sourcefct):
+        a = inner(grad(self.u), grad(self.v)) * self.geometry.dx
+        L = sourcefct * self.v * self.geometry.dx
+        A, L = assemble_system(a, L, self.bcs)
+        self.solver.set_operator(A)
+        self.solver.solve(self.sol.vector(), L)
+        return self.sol
+
+
+main = Main()
+main.do_stuff()
+</code></pre>
+
+<p><strong>square.geo</strong></p>
+
+<pre><code>cl = 1.0;
+Point(1) = {0, 0, 0, cl};
+Point(2) = {0, 20, 0, cl};
+Point(3) = {20, 20, 0, cl};
+Point(4) = {20, 0, 0, cl};
+Line(1) = {1, 2};
+Line(2) = {2, 3};
+Line(3) = {3, 4};
+Line(4) = {4, 1};
+Line(5) = {1, 3};
+Line Loop(6) = {1, 2, -5};
+Plane Surface(7) = {6};
+Line Loop(8) = {5, 3, 4};
+Plane Surface(9) = {8};
+Physical Line(1) = {1, 3};
+Physical Line(2) = {2};
+Physical Line(3) = {4};
+Physical Surface(0) = {7};
+Physical Surface(1) = {9};
+</code></pre>
+
+<p>... where in practice, this code consists of multiple modules. Now I would like to speed things up using MPI, but the examples all assume one python script.</p>
+
+<p>Hence my question what is the recommended way to solve the PDE's using MPI, with as few modifications as possible?</p>
+
+<hr>
+
+<p><strong>EDIT</strong> Based on the discussion below, splitting program.py into the following two files works (running serial.py first, then parallel.py):</p>
+
+<p><strong>serial.py</strong></p>
+
+<pre><code>import subprocess
+from dolfin import *
+
+subprocess.call(["gmsh", "-2", "square.geo"])
+subprocess.call(["dolfin-convert", "square.msh", "square.xml"])
+mesh = Mesh("square.xml")
+regions = MeshFunction('size_t', mesh, "square_physical_region.xml")
+boundaries = MeshFunction('size_t', mesh, "square_facet_region.xml")
+hdf = HDF5File(mesh.mpi_comm(), "file.h5", "w")
+hdf.write(mesh, "/mesh")
+hdf.write(regions, "/regions")
+hdf.write(boundaries, "/boundaries")
+</code></pre>
+
+<p><strong>parallel.py</strong></p>
+
+<pre><code>from dolfin import *
+
+class Main(object):
+    def __init__(self):
+        self.geometry = Geometry()
+        self.poissonpde = Poisson(self.geometry)
+
+    def do_stuff(self):
+        fct_list = [Expression("x[0]*x[0] + x[1]"), Expression("x[0] + 7 * x[1]")]
+        for fct in fct_list:
+            solution = self.poissonpde.solve(fct)
+            # plot(solution, interactive=True)
+            print solution.vector().array()[:10]
+
+
+class Geometry(object):
+    def __init__(self):
+        self.mesh = Mesh()
+        hdf = HDF5File(self.mesh.mpi_comm(), "file.h5", "r")
+        hdf.read(self.mesh, "/mesh", False)
+        self.regions = CellFunction("size_t", self.mesh)
+        hdf.read(self.regions, "/regions")
+        self.boundaries = FacetFunction("size_t", self.mesh)
+        hdf.read(self.boundaries, "/boundaries")
+        self.dx = Measure('dx')[self.regions]
+        self.ds = Measure('ds')[self.boundaries]
+
+class Poisson(object):
+    def __init__(self, geometry):
+        self.geometry = geometry
+        self.V = FunctionSpace(self.geometry.mesh, 'CG', 1)
+        self.u = TrialFunction(self.V)
+        self.v = TestFunction(self.V)
+        self.sol = Function(self.V)
+        self.bcs = [DirichletBC(self.V, Constant(0.0), self.geometry.boundaries, 2),
+                    DirichletBC(self.V, Constant(0.0), self.geometry.boundaries, 3)]
+        self.solver = LUSolver()
+
+    def solve(self, sourcefct):
+        a = inner(grad(self.u), grad(self.v)) * self.geometry.dx
+        L = sourcefct * self.v * self.geometry.dx
+        A, L = assemble_system(a, L, self.bcs)
+        self.solver.set_operator(A)
+        self.solver.solve(self.sol.vector(), L)
+        return self.sol
+
+
+main = Main()
+main.do_stuff()
+</code></pre>
+</div>
+										</div>
+										<div class="qa-q-view-tags">
+											<ul class="qa-q-view-tag-list">
+												<li class="qa-q-view-tag-item"><a href="../../tag/parallel" rel="tag" class="qa-tag-link">parallel</a></li>
+												<li class="qa-q-view-tag-item"><a href="../../tag/mpi" rel="tag" class="qa-tag-link">mpi</a></li>
+											</ul>
+										</div>
+										<span class="qa-q-view-avatar-meta">
+											<span class="qa-q-view-meta">
+												<a href="../../10701/on-using-mpi" class="qa-q-view-what">asked</a>
+												<span class="qa-q-view-when">
+													<span class="qa-q-view-when-data"><span class="published"><span class="value-title" title="2016-07-19T13:54:15+0000"></span>Jul 19, 2016</span></span>
+												</span>
+												<span class="qa-q-view-who">
+													<span class="qa-q-view-who-pad">by </span>
+													<span class="qa-q-view-who-data"><span class="vcard author"><a href="../../user/maartent" class="qa-user-link url nickname">maartent</a></span></span>
+													<span class="qa-q-view-who-title">FEniCS User</span>
+													<span class="qa-q-view-who-points">
+														<span class="qa-q-view-who-points-pad">(</span><span class="qa-q-view-who-points-data">3,910</span><span class="qa-q-view-who-points-pad"> points)</span>
+													</span>
+												</span>
+												<br>
+												<span class="qa-q-view-what">edited</span>
+												<span class="qa-q-view-when">
+													<span class="qa-q-view-when-data"><span class="updated"><span class="value-title" title="2016-07-20T14:40:18+0000"></span>Jul 20, 2016</span></span>
+												</span>
+												<span class="qa-q-view-who">
+													<span class="qa-q-view-who-pad">by </span><span class="qa-q-view-who-data"><a href="../../user/maartent" class="qa-user-link url nickname">maartent</a></span>
+												</span>
+											</span>
+										</span>
+										<div class="qa-q-view-buttons">
+										</div>
+										
+										<div class="qa-q-view-c-list" style="display:none;" id="c10701_list">
+										</div> <!-- END qa-c-list -->
+										
+										<input type="hidden" name="code" value="0-1516467074-13d75b6d48977a546b6818b0d687de431eaacf49">
+										<input type="hidden" name="qa_click" value="">
+									</form>
+									<div class="qa-c-form">
+									</div> <!-- END qa-c-form -->
+									
+								</div> <!-- END qa-q-view-main -->
+								<div class="qa-q-view-clear">
+								</div>
+							</div> <!-- END qa-q-view -->
+							
+						</div>
+						<div class="qa-part-a-list">
+							<h2 id="a_list_title">1 Answer</h2>
+							<div class="qa-a-list" id="a_list">
+								
+								<div class="qa-a-list-item  hentry answer answer-selected qa-a-list-item-selected" id="a10703">
+									<form method="post" action="../../10701/on-using-mpi">
+										<div class="qa-voting qa-voting-net" id="voting_10703">
+											<div class="qa-vote-count qa-vote-count-net">
+												<span class="qa-netvote-count">
+													<span class="qa-netvote-count-data">+1<span class="votes-up"><span class="value-title" title="1"></span></span><span class="votes-down"><span class="value-title" title="0"></span></span></span><span class="qa-netvote-count-pad"> vote</span>
+												</span>
+											</div>
+											<div class="qa-vote-clear">
+											</div>
+										</div>
+										<input type="hidden" name="code" value="0-1516467074-dd6c5b9ca951b3bf779a99f89b09694f00aace7d">
+									</form>
+									<div class="qa-a-item-main">
+										<form method="post" action="../../10701/on-using-mpi">
+											<div class="qa-a-item-selected">
+												<div class="qa-a-selection">
+													<div class="qa-a-selected">&#160;</div>
+													<div class="qa-a-selected-text">Best answer</div>
+												</div>
+												<div class="qa-a-item-content">
+													<a name="10703"></a><div class="entry-content"><p>If your real code is close enough to the simplified version you showed (mesh import, PDE solution, solution export) mpi should work without any modification, just running mpirun -n 2 python script.py. </p>
+</div>
+												</div>
+												<span class="qa-a-item-avatar-meta">
+													<span class="qa-a-item-meta">
+														<a href="../../10701/on-using-mpi?show=10703#a10703" class="qa-a-item-what">answered</a>
+														<span class="qa-a-item-when">
+															<span class="qa-a-item-when-data"><span class="published"><span class="value-title" title="2016-07-19T17:43:08+0000"></span>Jul 19, 2016</span></span>
+														</span>
+														<span class="qa-a-item-who">
+															<span class="qa-a-item-who-pad">by </span>
+															<span class="qa-a-item-who-data"><span class="vcard author"><a href="../../user/francesco.ballarin" class="qa-user-link url nickname">francesco.ballarin</a></span></span>
+															<span class="qa-a-item-who-title">FEniCS User</span>
+															<span class="qa-a-item-who-points">
+																<span class="qa-a-item-who-points-pad">(</span><span class="qa-a-item-who-points-data">4,070</span><span class="qa-a-item-who-points-pad"> points)</span>
+															</span>
+														</span>
+														<br>
+														<span class="qa-a-item-what">selected</span>
+														<span class="qa-a-item-when">
+															<span class="qa-a-item-when-data"><span class="updated"><span class="value-title" title="2016-07-20T12:48:30+0000"></span>Jul 20, 2016</span></span>
+														</span>
+														<span class="qa-a-item-who">
+															<span class="qa-a-item-who-pad">by </span><span class="qa-a-item-who-data"><a href="../../user/maartent" class="qa-user-link url nickname">maartent</a></span>
+														</span>
+													</span>
+												</span>
+											</div>
+											<div class="qa-a-item-buttons">
+												</div>
+											
+											<div class="qa-a-item-c-list" id="c10703_list">
+												<div class="qa-c-list-item  hentry comment" id="c10705">
+													<div class="qa-c-item-content">
+														<a name="10705"></a><div class="entry-content"><p>In that case it will just run everything twice, no? I simplified the code here quite a bit; a lot of code should only be executed once (e.g. creating and writing to files). Ideally only solving the PDE's happens in parallel.</p>
+</div>
+													</div>
+													<div class="qa-c-item-footer">
+														<span class="qa-c-item-avatar-meta">
+															<span class="qa-c-item-meta">
+																<a href="../../10701/on-using-mpi?show=10705#c10705" class="qa-c-item-what">commented</a>
+																<span class="qa-c-item-when">
+																	<span class="qa-c-item-when-data"><span class="published"><span class="value-title" title="2016-07-19T22:43:56+0000"></span>Jul 20, 2016</span></span>
+																</span>
+																<span class="qa-c-item-who">
+																	<span class="qa-c-item-who-pad">by </span>
+																	<span class="qa-c-item-who-data"><span class="vcard author"><a href="../../user/maartent" class="qa-user-link url nickname">maartent</a></span></span>
+																	<span class="qa-c-item-who-title">FEniCS User</span>
+																	<span class="qa-c-item-who-points">
+																		<span class="qa-c-item-who-points-pad">(</span><span class="qa-c-item-who-points-data">3,910</span><span class="qa-c-item-who-points-pad"> points)</span>
+																	</span>
+																</span>
+															</span>
+														</span>
+														<div class="qa-c-item-buttons">
+														</div>
+													</div>
+													<div class="qa-c-item-clear">
+													</div>
+												</div> <!-- END qa-c-item -->
+												<div class="qa-c-list-item  hentry comment" id="c10706">
+													<div class="qa-c-item-content">
+														<a name="10706"></a><div class="entry-content"><p>I changed the example above to a minimal working example: just put both files in the same directory and it will work (but not in parallel).</p>
+</div>
+													</div>
+													<div class="qa-c-item-footer">
+														<span class="qa-c-item-avatar-meta">
+															<span class="qa-c-item-meta">
+																<a href="../../10701/on-using-mpi?show=10706#c10706" class="qa-c-item-what">commented</a>
+																<span class="qa-c-item-when">
+																	<span class="qa-c-item-when-data"><span class="published"><span class="value-title" title="2016-07-19T23:18:44+0000"></span>Jul 20, 2016</span></span>
+																</span>
+																<span class="qa-c-item-who">
+																	<span class="qa-c-item-who-pad">by </span>
+																	<span class="qa-c-item-who-data"><span class="vcard author"><a href="../../user/maartent" class="qa-user-link url nickname">maartent</a></span></span>
+																	<span class="qa-c-item-who-title">FEniCS User</span>
+																	<span class="qa-c-item-who-points">
+																		<span class="qa-c-item-who-points-pad">(</span><span class="qa-c-item-who-points-data">3,910</span><span class="qa-c-item-who-points-pad"> points)</span>
+																	</span>
+																</span>
+															</span>
+														</span>
+														<div class="qa-c-item-buttons">
+														</div>
+													</div>
+													<div class="qa-c-item-clear">
+													</div>
+												</div> <!-- END qa-c-item -->
+												<div class="qa-c-list-item  hentry comment" id="c10707">
+													<div class="qa-c-item-content">
+														<a name="10707"></a><div class="entry-content"><p>Your code works fine in parallel if you omit the system calls (you may need to switch loading your mesh as dolfin XML to HDF in newer versions of FEniCS though to read the regions/boundaries properly in parallel though). </p>
+
+<p>You might be confused by the fact that the output is different from running on a single core. This is because parallelization is performed by distributing nodes across separate cores, and so each process will only have access to a piece of the solution vector (so when you print <code>solution.vector().array()[:10]</code>, you will get several different results). Try plotting the solution using <code>plot(solution)</code>, it should make this behaviour more clear.</p>
+
+<p>If you want to analyze the solution as a whole, you can output to a file (such as a .pvd) and visualize/postprocess in Paraview, or use the various MPI-related functions in FEniCS to shuttle/interact with data across multiple cores (although this is not as trivial as the first option).</p>
+</div>
+													</div>
+													<div class="qa-c-item-footer">
+														<span class="qa-c-item-avatar-meta">
+															<span class="qa-c-item-meta">
+																<a href="../../10701/on-using-mpi?show=10707#c10707" class="qa-c-item-what">commented</a>
+																<span class="qa-c-item-when">
+																	<span class="qa-c-item-when-data"><span class="published"><span class="value-title" title="2016-07-20T05:39:46+0000"></span>Jul 20, 2016</span></span>
+																</span>
+																<span class="qa-c-item-who">
+																	<span class="qa-c-item-who-pad">by </span>
+																	<span class="qa-c-item-who-data"><span class="vcard author"><a href="../../user/FF" class="qa-user-link url nickname">FF</a></span></span>
+																	<span class="qa-c-item-who-title">FEniCS User</span>
+																	<span class="qa-c-item-who-points">
+																		<span class="qa-c-item-who-points-pad">(</span><span class="qa-c-item-who-points-data">4,630</span><span class="qa-c-item-who-points-pad"> points)</span>
+																	</span>
+																</span>
+															</span>
+														</span>
+														<div class="qa-c-item-buttons">
+														</div>
+													</div>
+													<div class="qa-c-item-clear">
+													</div>
+												</div> <!-- END qa-c-item -->
+												<div class="qa-c-list-item  hentry comment" id="c10711">
+													<div class="qa-c-item-content">
+														<a name="10711"></a><div class="entry-content"><p>Thanks, I updated the code above and it works now. Some questions remain, though:</p>
+
+<ul>
+<li><p>In the part that is not executed in parallel, what it the role of the communicator in <code>hdf = HDF5File(mesh.mpi_comm(), "file.h5", "w")</code> ?</p></li>
+<li><p>To make things complicated, the boundary conditions in my problem are solutions of an eigenvalue problem on (part of) the boundarymesh. It is probably easier if I can keep this part as it is now, i.e. let every node solve this eigenvalue problem again on the entire mesh. Can I ask dolfin to work with a distributed mesh and a complete one at the same time, for different PDE's?</p></li>
+<li><p>I need access to the entire solution for post-processing in my code (e.g. taking the integral of the solution over a domain). What methods are there to do so?</p></li>
+<li><p>Given all the problems that I anticipate in doing so, is there an easier way that runs the code in serie and spawns a new process every time when PETSc is called?</p></li>
+</ul>
+</div>
+													</div>
+													<div class="qa-c-item-footer">
+														<span class="qa-c-item-avatar-meta">
+															<span class="qa-c-item-meta">
+																<a href="../../10701/on-using-mpi?show=10711#c10711" class="qa-c-item-what">commented</a>
+																<span class="qa-c-item-when">
+																	<span class="qa-c-item-when-data"><span class="published"><span class="value-title" title="2016-07-20T13:14:12+0000"></span>Jul 20, 2016</span></span>
+																</span>
+																<span class="qa-c-item-who">
+																	<span class="qa-c-item-who-pad">by </span>
+																	<span class="qa-c-item-who-data"><span class="vcard author"><a href="../../user/maartent" class="qa-user-link url nickname">maartent</a></span></span>
+																	<span class="qa-c-item-who-title">FEniCS User</span>
+																	<span class="qa-c-item-who-points">
+																		<span class="qa-c-item-who-points-pad">(</span><span class="qa-c-item-who-points-data">3,910</span><span class="qa-c-item-who-points-pad"> points)</span>
+																	</span>
+																</span>
+															</span>
+														</span>
+														<div class="qa-c-item-buttons">
+														</div>
+													</div>
+													<div class="qa-c-item-clear">
+													</div>
+												</div> <!-- END qa-c-item -->
+												<div class="qa-c-list-item  hentry comment" id="c10712">
+													<div class="qa-c-item-content">
+														<a name="10712"></a><div class="entry-content"><p>For the first bullet, in serial.py mpi_comm() will be only one processor.<br>
+For the third bullet, I think integration of the entire domain should work.<br>
+For the second bullet, can you open a new question for this with a very minimal example? Thanks</p>
+</div>
+													</div>
+													<div class="qa-c-item-footer">
+														<span class="qa-c-item-avatar-meta">
+															<span class="qa-c-item-meta">
+																<a href="../../10701/on-using-mpi?show=10712#c10712" class="qa-c-item-what">commented</a>
+																<span class="qa-c-item-when">
+																	<span class="qa-c-item-when-data"><span class="published"><span class="value-title" title="2016-07-20T14:10:29+0000"></span>Jul 20, 2016</span></span>
+																</span>
+																<span class="qa-c-item-who">
+																	<span class="qa-c-item-who-pad">by </span>
+																	<span class="qa-c-item-who-data"><span class="vcard author"><a href="../../user/francesco.ballarin" class="qa-user-link url nickname">francesco.ballarin</a></span></span>
+																	<span class="qa-c-item-who-title">FEniCS User</span>
+																	<span class="qa-c-item-who-points">
+																		<span class="qa-c-item-who-points-pad">(</span><span class="qa-c-item-who-points-data">4,070</span><span class="qa-c-item-who-points-pad"> points)</span>
+																	</span>
+																</span>
+															</span>
+														</span>
+														<div class="qa-c-item-buttons">
+														</div>
+													</div>
+													<div class="qa-c-item-clear">
+													</div>
+												</div> <!-- END qa-c-item -->
+												<div class="qa-c-list-item  hentry comment" id="c10713">
+													<div class="qa-c-item-content">
+														<a name="10713"></a><div class="entry-content"><p>Regarding the second bullet point: it was quite a challenge to use functions defined on a boundary (i.e. on a submesh of a boundarymesh) in the boundary conditions of the problem. It involved manually mapping the degrees of freedom between meshes. I doubt a minimal example is possible.</p>
+
+<p>To make it a bit more clear what I am after, assume there would be another class in the example above:</p>
+
+<pre><code>class EigenvalueProblem(object):
+    def __init__(self, geometry):
+        self.geometry = geometry
+        self.V = FunctionSpace(self.geometry.serial_mesh, 'CG', 1)
+        self.u = TrialFunction(self.V)
+        self.v = TestFunction(self.V)
+        self.bcs = [DirichletBC(self.V, Constant(0.0), self.geometry.boundaries, 2),
+                    DirichletBC(self.V, Constant(0.0), self.geometry.boundaries, 3)]
+        self.A = df.PETScMatrix()
+        self.B = df.PETScMatrix()
+        self.eigensolver = df.SLEPcEigenSolver(self.A, self.B)
+
+    def solve(self, sourcefct):
+        a = inner(grad(self.u), grad(self.v)) * self.geometry.dx
+        B = sourcefct * self.u * self.v * self.geometry.dx
+        A = assemble(a, tensor=self.A)
+        B = assemble(a, tensor=self.B)
+        for bc in bcs:
+            bc.apply(A)
+        self.eigensolver.solve(1)
+        val, ival, vect, ivect = self.eigensolver.get_eigenpair(0)
+        return val, vect
+</code></pre>
+
+<p>Note that here I use <code>self.geometry.serial_mesh</code> to define a functionspace; in <code>Poisson</code> I would use <code>self.geometry.distributed_mesh</code> instead.<br>
+I am not sure if this is possible, but the aim is that each node computes the same eigenvalue problem again entirely, whereas the Poisson problem will be divided among nodes.</p>
+</div>
+													</div>
+													<div class="qa-c-item-footer">
+														<span class="qa-c-item-avatar-meta">
+															<span class="qa-c-item-meta">
+																<a href="../../10701/on-using-mpi?show=10713#c10713" class="qa-c-item-what">commented</a>
+																<span class="qa-c-item-when">
+																	<span class="qa-c-item-when-data"><span class="published"><span class="value-title" title="2016-07-20T14:39:47+0000"></span>Jul 20, 2016</span></span>
+																</span>
+																<span class="qa-c-item-who">
+																	<span class="qa-c-item-who-pad">by </span>
+																	<span class="qa-c-item-who-data"><span class="vcard author"><a href="../../user/maartent" class="qa-user-link url nickname">maartent</a></span></span>
+																	<span class="qa-c-item-who-title">FEniCS User</span>
+																	<span class="qa-c-item-who-points">
+																		<span class="qa-c-item-who-points-pad">(</span><span class="qa-c-item-who-points-data">3,910</span><span class="qa-c-item-who-points-pad"> points)</span>
+																	</span>
+																</span>
+															</span>
+														</span>
+														<div class="qa-c-item-buttons">
+														</div>
+													</div>
+													<div class="qa-c-item-clear">
+													</div>
+												</div> <!-- END qa-c-item -->
+											</div> <!-- END qa-c-list -->
+											
+											<input type="hidden" name="code" value="0-1516467074-92b844c01ef8728753965ebea79c2123b919f3c2">
+											<input type="hidden" name="qa_click" value="">
+										</form>
+										<div class="qa-c-form">
+										</div> <!-- END qa-c-form -->
+										
+									</div> <!-- END qa-a-item-main -->
+									<div class="qa-a-item-clear">
+									</div>
+								</div> <!-- END qa-a-list-item -->
+								
+							</div> <!-- END qa-a-list -->
+							
+						</div>
+					</div> <!-- END qa-main -->
+					
+				</div> <!-- END main-wrapper -->
+			</div> <!-- END main-shadow -->
+		</div> <!-- END body-wrapper -->
+		<!-- END footer-bottom-group -->
+		
+		<div style="position:absolute; left:-9999px; top:-9999px;">
+			<span id="qa-waiting-template" class="qa-waiting">...</span>
+		</div>
+	
+	
+
+</body><!-- Powered by Question2Answer - http://www.question2answer.org/ --></html>

@@ -1,0 +1,298 @@
+<html><!-- Powered by Question2Answer - http://www.question2answer.org/ --><head>
+		<meta http-equiv="content-type" content="text/html; charset=utf-8">
+		<title>overhead of AdaptiveLinearVariationalSolver seems way to high - FEniCS Q&amp;A</title>
+		<meta name="description" content='The code below is a small modification of the FEniCS demo probgram demo_auto-adaptive-poisson.py, with the  ... 5f}".format(assemble(u*dx), 1.22692))'>
+		<meta name="keywords" content="adaptivity,adaptivelinearvariationalsolver">
+		<link rel="stylesheet" type="text/css" href="../../qa-theme/Snow/qa-styles.css">
+		<link rel="canonical" href="http://fenicsproject.org/qa/10609/overhead-adaptivelinearvariationalsolver-seems-way-high">
+		<script type="text/x-mathjax-config">
+  MathJax.Hub.Config({
+    extensions: ["tex2jax.js"],
+    jax: ["input/TeX","output/HTML-CSS"],
+    tex2jax: {inlineMath: [["$","$"],["\\(","\\)"]]},
+    TeX: { extensions: ["AMSmath.js","AMSsymbols.js"]}
+  });
+</script>
+<script type="text/javascript" src="../../mathjax/MathJax.js"></script>
+		<script src="../../jquery-1.7.2.min.js" type="text/javascript"></script>
+		<script src="../../highlight.min.js"></script>
+<script type="text/javascript">
+$(function(){
+	$('.wmd-input').keypress(function(){
+		window.clearTimeout(hljs.Timeout);
+		hljs.Timeout = window.setTimeout(function() {
+			hljs.initHighlighting.called = false;
+			hljs.initHighlighting();
+		}, 500);
+	});
+	window.setTimeout(function() {
+		hljs.initHighlighting.called = false;
+		hljs.initHighlighting();
+	}, 500);
+});
+</script>
+
+
+	</head>
+	<body class="qa-template-question qa-body-js-off">
+		<div class="qa-body-wrapper">
+			
+			<div class="qa-header">
+				<div class="qa-logo">
+					<a href="../../" class="qa-logo-link" title="FEniCS Q&amp;A"><img src="../../qa-theme/fenics_qa.png" border="0" alt="FEniCS Q&amp;A"></a>
+				</div>
+				<div class="qa-header-clear">
+				</div>
+			</div> <!-- END qa-header -->
+			
+			<div class="qa-main-shadow">
+				
+				<div class="qa-main-wrapper">
+					
+					<div class="qa-sidepanel">
+						<div class="qa-sidebar">
+							This is a read only copy of the old FEniCS QA forum. Please visit the <a href="https://www.allanswered.com/community/s/fenics-project/">new QA forum</a> to ask questions
+						</div>
+						
+					</div>
+					
+					<div class="qa-main">
+						<h1>
+							<span class="entry-title">overhead of AdaptiveLinearVariationalSolver seems way to high</span>
+						</h1>
+						<div class="qa-part-q-view">
+							<div class="qa-q-view  hentry question" id="q10609">
+								<form method="post" action="../../10609/overhead-adaptivelinearvariationalsolver-seems-way-high">
+									<div class="qa-q-view-stats">
+										<div class="qa-voting qa-voting-net" id="voting_10609">
+											<div class="qa-vote-count qa-vote-count-net">
+												<span class="qa-netvote-count">
+													<span class="qa-netvote-count-data">+1<span class="votes-up"><span class="value-title" title="1"></span></span><span class="votes-down"><span class="value-title" title="0"></span></span></span><span class="qa-netvote-count-pad"> vote</span>
+												</span>
+											</div>
+											<div class="qa-vote-clear">
+											</div>
+										</div>
+									</div>
+									<input type="hidden" name="code" value="0-1516467066-319efeed7d82059ec81a5bea738bbef8f59b6d96">
+								</form>
+								<div class="qa-q-view-main">
+									<form method="post" action="../../10609/overhead-adaptivelinearvariationalsolver-seems-way-high">
+										<div class="qa-q-view-content">
+											<a name="10609"></a><div class="entry-content"><p>The code below is a small modification of the FEniCS demo probgram demo_auto-adaptive-poisson.py, with the major difference being that it solves the Dirichlet problem for Laplace's equation on the unit ball in 3D. Here are the timings from its output:</p>
+
+<blockquote>
+<pre><code>Time spent for adaptive solve (in seconds):
+
+  Level  |  solve_primal  estimate_error  compute_indicators    mark_mesh  adapt_mesh    update
+  ---------------------------------------------------------------------------------------------
+  0      |    0.00477398        0.240659           0.0669882  0.000335102   0.0395709  0.272424
+  1      |     0.0317322         1.88749            0.451885   0.00264225    0.241248   1.55086
+  2      |      0.220263         11.1167             2.48592     0.020308     1.34969   8.18865
+  3      |       1.35856         58.3366               12.65     0.177529     6.81677   37.6127
+</code></pre>
+</blockquote>
+
+<p>I find the overhead for the adaptively astonishingly large.  On the finest mesh, with 75,449 DOFs, the solve takes 1.4 seconds, but the adaptivity takes nearly two minutes, so the cost of adaptivity is about 80 times the cost of the solve.  The error estimation alone on the final mesh takes 58 seconds.</p>
+
+<p>Am I doing something wrong?  Is there a way to substantially reduce the time for the adaptivity?  Otherwise, I think one would almost always be better off just refining the mesh non-adaptively and solving on the finer mesh.</p>
+
+<pre><code>from dolfin import *
+from mshr import *
+# Dirichlet problems for Laplace equation on unit ball
+Omega = Sphere(Point(0., 0., 0.), 1.)
+mesh = generate_mesh(Omega, 10)
+V = FunctionSpace(mesh, 'Lagrange', 1)  
+u = TrialFunction(V)
+v = TestFunction(V)
+a = (inner(grad(u), grad(v)) + u*v)*dx
+L = Constant(0.)*v*dx
+g = Expression('pow(x[0], 2)', element=V.ufl_element())    
+bc = DirichletBC(V, g, DomainBoundary())
+u = Function(V)
+problem = LinearVariationalProblem(a, L, u, bc)
+# define a goal functional and solve adaptively
+M = u*dx
+solver = AdaptiveLinearVariationalSolver(problem, M)
+solver.parameters["max_iterations"] = 4
+solver.parameters["linear_variational_solver"]["linear_solver"] = "cg"
+solver.parameters["linear_variational_solver"]["preconditioner"] = "amg"
+solver.parameters["linear_variational_solver"]["symmetric"] = True
+solver.parameters["error_control"]["dual_variational_solver"]["linear_solver"] = "cg"
+solver.parameters["error_control"]["dual_variational_solver"]["preconditioner"] = "amg"
+solver.parameters["error_control"]["dual_variational_solver"]["symmetric"] = True
+tol= 1.E-5
+solver.solve(tol)
+# output
+solver.summary()
+print("computed integral: {:7.5f}  true: {:7.5f}".format(assemble(u*dx), 1.22692))
+</code></pre>
+</div>
+										</div>
+										<div class="qa-q-view-tags">
+											<ul class="qa-q-view-tag-list">
+												<li class="qa-q-view-tag-item"><a href="../../tag/adaptivity" rel="tag" class="qa-tag-link">adaptivity</a></li>
+												<li class="qa-q-view-tag-item"><a href="../../tag/adaptivelinearvariationalsolver" rel="tag" class="qa-tag-link">adaptivelinearvariationalsolver</a></li>
+											</ul>
+										</div>
+										<span class="qa-q-view-avatar-meta">
+											<span class="qa-q-view-avatar">
+												<a href="../../user/dnarnold" class="qa-avatar-link"><img src="https://www.gravatar.com/avatar/95fa33c4f1fa2e34eb3498eaa8b0a091?s=50" width="50" height="50" class="qa-avatar-image" alt=""></a>
+											</span>
+											<span class="qa-q-view-meta">
+												<a href="../../10609/overhead-adaptivelinearvariationalsolver-seems-way-high" class="qa-q-view-what">asked</a>
+												<span class="qa-q-view-when">
+													<span class="qa-q-view-when-data"><span class="published"><span class="value-title" title="2016-07-06T22:29:59+0000"></span>Jul 7, 2016</span></span>
+												</span>
+												<span class="qa-q-view-who">
+													<span class="qa-q-view-who-pad">by </span>
+													<span class="qa-q-view-who-data"><span class="vcard author"><a href="../../user/dnarnold" class="qa-user-link url nickname">dnarnold</a></span></span>
+													<span class="qa-q-view-who-title">FEniCS User</span>
+													<span class="qa-q-view-who-points">
+														<span class="qa-q-view-who-points-pad">(</span><span class="qa-q-view-who-points-data">2,360</span><span class="qa-q-view-who-points-pad"> points)</span>
+													</span>
+												</span>
+											</span>
+										</span>
+										<div class="qa-q-view-buttons">
+										</div>
+										
+										<div class="qa-q-view-c-list" style="display:none;" id="c10609_list">
+										</div> <!-- END qa-c-list -->
+										
+										<input type="hidden" name="code" value="0-1516467066-cec48c51b434412d2505d7127b10236c4e2a24b4">
+										<input type="hidden" name="qa_click" value="">
+									</form>
+									<div class="qa-c-form">
+									</div> <!-- END qa-c-form -->
+									
+								</div> <!-- END qa-q-view-main -->
+								<div class="qa-q-view-clear">
+								</div>
+							</div> <!-- END qa-q-view -->
+							
+						</div>
+						<div class="qa-part-a-list">
+							<h2 id="a_list_title">1 Answer</h2>
+							<div class="qa-a-list" id="a_list">
+								
+								<div class="qa-a-list-item  hentry answer" id="a10804">
+									<form method="post" action="../../10609/overhead-adaptivelinearvariationalsolver-seems-way-high">
+										<div class="qa-voting qa-voting-net" id="voting_10804">
+											<div class="qa-vote-count qa-vote-count-net">
+												<span class="qa-netvote-count">
+													<span class="qa-netvote-count-data">0<span class="votes-up"><span class="value-title" title="0"></span></span><span class="votes-down"><span class="value-title" title="0"></span></span></span><span class="qa-netvote-count-pad"> votes</span>
+												</span>
+											</div>
+											<div class="qa-vote-clear">
+											</div>
+										</div>
+										<input type="hidden" name="code" value="0-1516467066-319efeed7d82059ec81a5bea738bbef8f59b6d96">
+									</form>
+									<div class="qa-a-item-main">
+										<form method="post" action="../../10609/overhead-adaptivelinearvariationalsolver-seems-way-high">
+											<div class="qa-a-selection">
+											</div>
+											<div class="qa-a-item-content">
+												<a name="10804"></a><div class="entry-content"><p>I don't think you are doing anything wrong. This is simply an<br>
+illustration of the fact that some of the adaptivity algorithms do not<br>
+scale very well, and this is particularly noticeable in 3D.</p>
+
+<p>I can say a little more about what takes time with the error<br>
+estimation. The error estimate is based on computing an dual/adjoint<br>
+solution of the same order as the original solution and then<br>
+extrapolating that solution into a higher order space and then some<br>
+assembly. This extrapolation algorithm is the main culprit in your<br>
+example, its run-time really dominates everything else. Sample timings:</p>
+
+<h3>Level | A                   | B               | C &gt;= A + B</h3>
+
+<p>0        | 0.00595564  | 0.272692   | 0.279996<br>
+1        | 0.0383623    | 2.17221     | 2.21893<br>
+2        | 0.259767      | 12.2055     | 12.5085<br>
+3        | 1.98911        | 62.2913     | 64.4823</p>
+
+<p>where</p>
+
+<p>A = Time to compute dual solution of same order (s)<br>
+B = Time to extrapolate dual solution<br>
+C = Time to estimate error (involves A, then B, then a minor things)</p>
+
+<p>Please feel free to file an issue regarding scalability of adaptivity<br>
+algorithms in general.</p>
+
+<p>But in any case, if you have rather smooth solution and a rather<br>
+global goal functional (which seems to be the case in this example), I<br>
+would not recommend an adaptive approach.</p>
+
+<p>Some further comments:</p>
+
+<ul>
+<li><p>I would use</p>
+
+<p>g = Expression('pow(x[0], 2)', degree=2)</p>
+
+<p>rather than</p>
+
+<p>g = Expression('pow(x[0], 2)', element=V.ufl_element())</p></li>
+<li><p>You probably want to evaluate the functional at the final node in<br>
+the adaptive hierarchy. You can access the final solution via<br>
+<code>u.leaf_node()</code>, and so</p>
+
+<p>print("computed integral: {:7.5f}  true: {:7.5f}".format(assemble(u.leaf_node()*dx), 1.22692))</p></li>
+</ul>
+</div>
+											</div>
+											<span class="qa-a-item-avatar-meta">
+												<span class="qa-a-item-avatar">
+													<a href="../../user/Marie+E.+Rognes" class="qa-avatar-link"><img src="https://www.gravatar.com/avatar/3fe6d56fa31612bacc6320b6a19b0ba5?s=40" width="40" height="40" class="qa-avatar-image" alt=""></a>
+												</span>
+												<span class="qa-a-item-meta">
+													<a href="../../10609/overhead-adaptivelinearvariationalsolver-seems-way-high?show=10804#a10804" class="qa-a-item-what">answered</a>
+													<span class="qa-a-item-when">
+														<span class="qa-a-item-when-data"><span class="published"><span class="value-title" title="2016-08-02T20:06:03+0000"></span>Aug 2, 2016</span></span>
+													</span>
+													<span class="qa-a-item-who">
+														<span class="qa-a-item-who-pad">by </span>
+														<span class="qa-a-item-who-data"><span class="vcard author"><a href="../../user/Marie+E.+Rognes" class="qa-user-link url nickname">Marie E. Rognes</a></span></span>
+														<span class="qa-a-item-who-title">FEniCS User</span>
+														<span class="qa-a-item-who-points">
+															<span class="qa-a-item-who-points-pad">(</span><span class="qa-a-item-who-points-data">5,380</span><span class="qa-a-item-who-points-pad"> points)</span>
+														</span>
+													</span>
+												</span>
+											</span>
+											<div class="qa-a-item-buttons">
+												</div>
+											
+											<div class="qa-a-item-c-list" style="display:none;" id="c10804_list">
+											</div> <!-- END qa-c-list -->
+											
+											<input type="hidden" name="code" value="0-1516467066-e2274ef94e392db88a73ece471539603070e2e58">
+											<input type="hidden" name="qa_click" value="">
+										</form>
+										<div class="qa-c-form">
+										</div> <!-- END qa-c-form -->
+										
+									</div> <!-- END qa-a-item-main -->
+									<div class="qa-a-item-clear">
+									</div>
+								</div> <!-- END qa-a-list-item -->
+								
+							</div> <!-- END qa-a-list -->
+							
+						</div>
+					</div> <!-- END qa-main -->
+					
+				</div> <!-- END main-wrapper -->
+			</div> <!-- END main-shadow -->
+		</div> <!-- END body-wrapper -->
+		<!-- END footer-bottom-group -->
+		
+		<div style="position:absolute; left:-9999px; top:-9999px;">
+			<span id="qa-waiting-template" class="qa-waiting">...</span>
+		</div>
+	
+	
+
+</body><!-- Powered by Question2Answer - http://www.question2answer.org/ --></html>

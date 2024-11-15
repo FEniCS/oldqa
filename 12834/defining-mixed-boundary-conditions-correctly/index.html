@@ -1,0 +1,251 @@
+<html><!-- Powered by Question2Answer - http://www.question2answer.org/ --><head>
+		<meta http-equiv="content-type" content="text/html; charset=utf-8">
+		<title>Defining mixed boundary conditions correctly - FEniCS Q&amp;A</title>
+		<meta name="description" content="Hi everyone I'm working a spectral problem with the elasticity equations, with a  ... /11117/neumann-boundary-conditions-mixed-formulation-elasticity">
+		<meta name="keywords" content="mixed-boundary-conditions,normal-component,eigenvalue-problem">
+		<link rel="stylesheet" type="text/css" href="../../qa-theme/Snow/qa-styles.css">
+		<link rel="canonical" href="http://fenicsproject.org/qa/12834/defining-mixed-boundary-conditions-correctly">
+		<script type="text/x-mathjax-config">
+  MathJax.Hub.Config({
+    extensions: ["tex2jax.js"],
+    jax: ["input/TeX","output/HTML-CSS"],
+    tex2jax: {inlineMath: [["$","$"],["\\(","\\)"]]},
+    TeX: { extensions: ["AMSmath.js","AMSsymbols.js"]}
+  });
+</script>
+<script type="text/javascript" src="../../mathjax/MathJax.js"></script>
+		<script src="../../jquery-1.7.2.min.js" type="text/javascript"></script>
+		<script src="../../highlight.min.js"></script>
+<script type="text/javascript">
+$(function(){
+	$('.wmd-input').keypress(function(){
+		window.clearTimeout(hljs.Timeout);
+		hljs.Timeout = window.setTimeout(function() {
+			hljs.initHighlighting.called = false;
+			hljs.initHighlighting();
+		}, 500);
+	});
+	window.setTimeout(function() {
+		hljs.initHighlighting.called = false;
+		hljs.initHighlighting();
+	}, 500);
+});
+</script>
+
+
+	</head>
+	<body class="qa-template-question qa-body-js-off">
+		<div class="qa-body-wrapper">
+			
+			<div class="qa-header">
+				<div class="qa-logo">
+					<a href="../../" class="qa-logo-link" title="FEniCS Q&amp;A"><img src="../../qa-theme/fenics_qa.png" border="0" alt="FEniCS Q&amp;A"></a>
+				</div>
+				<div class="qa-header-clear">
+				</div>
+			</div> <!-- END qa-header -->
+			
+			<div class="qa-main-shadow">
+				
+				<div class="qa-main-wrapper">
+					
+					<div class="qa-sidepanel">
+						<div class="qa-sidebar">
+							This is a read only copy of the old FEniCS QA forum. Please visit the <a href="https://www.allanswered.com/community/s/fenics-project/">new QA forum</a> to ask questions
+						</div>
+						
+					</div>
+					
+					<div class="qa-main">
+						<h1>
+							<span class="entry-title">Defining mixed boundary conditions correctly</span>
+						</h1>
+						<div class="qa-part-q-view">
+							<div class="qa-q-view  hentry question" id="q12834">
+								<form method="post" action="../../12834/defining-mixed-boundary-conditions-correctly">
+									<div class="qa-q-view-stats">
+										<div class="qa-voting qa-voting-net" id="voting_12834">
+											<div class="qa-vote-count qa-vote-count-net">
+												<span class="qa-netvote-count">
+													<span class="qa-netvote-count-data">0<span class="votes-up"><span class="value-title" title="0"></span></span><span class="votes-down"><span class="value-title" title="0"></span></span></span><span class="qa-netvote-count-pad"> votes</span>
+												</span>
+											</div>
+											<div class="qa-vote-clear">
+											</div>
+										</div>
+									</div>
+									<input type="hidden" name="code" value="0-1516467841-6c53119ea5a42b53b5057a0e8af1328f1da4fcad">
+								</form>
+								<div class="qa-q-view-main">
+									<form method="post" action="../../12834/defining-mixed-boundary-conditions-correctly">
+										<div class="qa-q-view-content">
+											<a name="12834"></a><div class="entry-content"><p>Hi everyone</p>
+
+<p>I'm working a spectral problem with the elasticity equations, with a DG method in a mixed formulation, where the stress tensor sigma is an unknown. My domain is the unit square. I need to impose a zero Dirichlet condition in the bottom of the square, and the normal component of sigma equal to zero on the other three sides of the square. My idea is to use the ideas in <a rel="nofollow" href="https://fenicsproject.org/qa/11117/neumann-boundary-conditions-mixed-formulation-elasticity">here</a>.<br>
+ The following parts of my code shows what i'm doing </p>
+
+<pre><code> degree =2
+ nn = 32
+ mesh = UnitSquareMesh(nn, nn)
+ bdr=MeshFunction("size_t",mesh,1)
+ bdr.set_all(0) 
+ # ********* Boundary conditions ******* #
+ class botton(SubDomain):
+ def inside(self, x, on_boundary):
+ return near(x[1],0) 
+ botton().mark(bdr, 30)
+ # discrete spaces for the DG method
+V = TensorFunctionSpace(mesh, "DG", degree)
+Q = FunctionSpace(mesh, "DG", degree-1)
+W = MixedFunctionSpace([V, Q])
+  # defining the mixed boundary conditiosn on the square
+ class BoundarySource(Expression):
+def __init__(self, mesh):
+    self.mesh = mesh
+def eval_cell(self, values, x, ufc_cell):
+    cell = Cell(self.mesh, ufc_cell.index)
+    n = cell.normal(ufc_cell.local_facet)
+    g = 0.0
+    values[0] = g*n[0]
+    values[1] = g*n[1]
+    values[2] = g*n[0]
+    values[3] = g*n[1]
+    def value_shape(self):
+    return (2, 2)
+    G = BoundarySource(mesh)
+    # Define essential boundary
+   def boundary(x):
+   return x[0] &lt; DOLFIN_EPS or x[1] &gt; 1.0 - DOLFIN_EPS or x[0] &gt; 1.0 - DOLFIN_EPS 
+    bcsrest = DirichletBC(W.sub(0), G, boundary)
+</code></pre>
+
+<p>When i compile my code, my eigenvalues are complex and must be real. So, i think that i'm not impossign correctly the condition $\sigma\cdot n=0$. Any suggestion?</p>
+</div>
+										</div>
+										<div class="qa-q-view-tags">
+											<ul class="qa-q-view-tag-list">
+												<li class="qa-q-view-tag-item"><a href="../../tag/mixed-boundary-conditions" rel="tag" class="qa-tag-link">mixed-boundary-conditions</a></li>
+												<li class="qa-q-view-tag-item"><a href="../../tag/normal-component" rel="tag" class="qa-tag-link">normal-component</a></li>
+												<li class="qa-q-view-tag-item"><a href="../../tag/eigenvalue-problem" rel="tag" class="qa-tag-link">eigenvalue-problem</a></li>
+											</ul>
+										</div>
+										<span class="qa-q-view-avatar-meta">
+											<span class="qa-q-view-meta">
+												<a href="../../12834/defining-mixed-boundary-conditions-correctly" class="qa-q-view-what">asked</a>
+												<span class="qa-q-view-when">
+													<span class="qa-q-view-when-data"><span class="published"><span class="value-title" title="2017-03-28T19:24:52+0000"></span>Mar 28, 2017</span></span>
+												</span>
+												<span class="qa-q-view-who">
+													<span class="qa-q-view-who-pad">by </span>
+													<span class="qa-q-view-who-data"><span class="vcard author"><a href="../../user/alberin" class="qa-user-link url nickname">alberin</a></span></span>
+													<span class="qa-q-view-who-title">FEniCS Novice</span>
+													<span class="qa-q-view-who-points">
+														<span class="qa-q-view-who-points-pad">(</span><span class="qa-q-view-who-points-data">150</span><span class="qa-q-view-who-points-pad"> points)</span>
+													</span>
+												</span>
+												<br>
+												<span class="qa-q-view-what">edited</span>
+												<span class="qa-q-view-when">
+													<span class="qa-q-view-when-data"><span class="updated"><span class="value-title" title="2017-03-28T19:32:28+0000"></span>Mar 28, 2017</span></span>
+												</span>
+												<span class="qa-q-view-who">
+													<span class="qa-q-view-who-pad">by </span><span class="qa-q-view-who-data"><a href="../../user/alberin" class="qa-user-link url nickname">alberin</a></span>
+												</span>
+											</span>
+										</span>
+										<div class="qa-q-view-buttons">
+										</div>
+										
+										<div class="qa-q-view-c-list" style="display:none;" id="c12834_list">
+										</div> <!-- END qa-c-list -->
+										
+										<input type="hidden" name="code" value="0-1516467841-5180cd72da7293f7e6b338229f46d97810dff378">
+										<input type="hidden" name="qa_click" value="">
+									</form>
+									<div class="qa-c-form">
+									</div> <!-- END qa-c-form -->
+									
+								</div> <!-- END qa-q-view-main -->
+								<div class="qa-q-view-clear">
+								</div>
+							</div> <!-- END qa-q-view -->
+							
+						</div>
+						<div class="qa-part-a-list">
+							<h2 id="a_list_title">1 Answer</h2>
+							<div class="qa-a-list" id="a_list">
+								
+								<div class="qa-a-list-item  hentry answer" id="a12843">
+									<form method="post" action="../../12834/defining-mixed-boundary-conditions-correctly">
+										<div class="qa-voting qa-voting-net" id="voting_12843">
+											<div class="qa-vote-count qa-vote-count-net">
+												<span class="qa-netvote-count">
+													<span class="qa-netvote-count-data">0<span class="votes-up"><span class="value-title" title="0"></span></span><span class="votes-down"><span class="value-title" title="0"></span></span></span><span class="qa-netvote-count-pad"> votes</span>
+												</span>
+											</div>
+											<div class="qa-vote-clear">
+											</div>
+										</div>
+										<input type="hidden" name="code" value="0-1516467841-6c53119ea5a42b53b5057a0e8af1328f1da4fcad">
+									</form>
+									<div class="qa-a-item-main">
+										<form method="post" action="../../12834/defining-mixed-boundary-conditions-correctly">
+											<div class="qa-a-selection">
+											</div>
+											<div class="qa-a-item-content">
+												<a name="12843"></a><div class="entry-content"><p>If your normal vector is in the x-direction, you should not impose zero on sigma_yy, but the posted code seems to do that.</p>
+</div>
+											</div>
+											<span class="qa-a-item-avatar-meta">
+												<span class="qa-a-item-avatar">
+													<a href="../../user/KristianE" class="qa-avatar-link"><img src="https://www.gravatar.com/avatar/8e8c30d82e263e44bd8fe50055a60421?s=40" width="40" height="40" class="qa-avatar-image" alt=""></a>
+												</span>
+												<span class="qa-a-item-meta">
+													<a href="../../12834/defining-mixed-boundary-conditions-correctly?show=12843#a12843" class="qa-a-item-what">answered</a>
+													<span class="qa-a-item-when">
+														<span class="qa-a-item-when-data"><span class="published"><span class="value-title" title="2017-03-29T12:49:25+0000"></span>Mar 29, 2017</span></span>
+													</span>
+													<span class="qa-a-item-who">
+														<span class="qa-a-item-who-pad">by </span>
+														<span class="qa-a-item-who-data"><span class="vcard author"><a href="../../user/KristianE" class="qa-user-link url nickname">KristianE</a></span></span>
+														<span class="qa-a-item-who-title">FEniCS Expert</span>
+														<span class="qa-a-item-who-points">
+															<span class="qa-a-item-who-points-pad">(</span><span class="qa-a-item-who-points-data">12,900</span><span class="qa-a-item-who-points-pad"> points)</span>
+														</span>
+													</span>
+												</span>
+											</span>
+											<div class="qa-a-item-buttons">
+												</div>
+											
+											<div class="qa-a-item-c-list" style="display:none;" id="c12843_list">
+											</div> <!-- END qa-c-list -->
+											
+											<input type="hidden" name="code" value="0-1516467841-01213e745ddfb4fe93b2499bed16c14739103d59">
+											<input type="hidden" name="qa_click" value="">
+										</form>
+										<div class="qa-c-form">
+										</div> <!-- END qa-c-form -->
+										
+									</div> <!-- END qa-a-item-main -->
+									<div class="qa-a-item-clear">
+									</div>
+								</div> <!-- END qa-a-list-item -->
+								
+							</div> <!-- END qa-a-list -->
+							
+						</div>
+					</div> <!-- END qa-main -->
+					
+				</div> <!-- END main-wrapper -->
+			</div> <!-- END main-shadow -->
+		</div> <!-- END body-wrapper -->
+		<!-- END footer-bottom-group -->
+		
+		<div style="position:absolute; left:-9999px; top:-9999px;">
+			<span id="qa-waiting-template" class="qa-waiting">...</span>
+		</div>
+	
+	
+
+</body><!-- Powered by Question2Answer - http://www.question2answer.org/ --></html>

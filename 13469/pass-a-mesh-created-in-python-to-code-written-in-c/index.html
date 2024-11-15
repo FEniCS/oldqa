@@ -1,0 +1,265 @@
+<html><!-- Powered by Question2Answer - http://www.question2answer.org/ --><head>
+		<meta http-equiv="content-type" content="text/html; charset=utf-8">
+		<title>Pass a Mesh created in Python to code written in C++ - FEniCS Q&amp;A</title>
+		<meta name="description" content="I would like to use the Python interface to select a mesh and element type, but once created I ...  and I need the simplicity of the Python interface.">
+		<meta name="keywords" content="c,ufl,mesh,ffc,ctypes">
+		<link rel="stylesheet" type="text/css" href="../../qa-theme/Snow/qa-styles.css">
+		<link rel="canonical" href="http://fenicsproject.org/qa/13469/pass-a-mesh-created-in-python-to-code-written-in-c">
+		<script type="text/x-mathjax-config">
+  MathJax.Hub.Config({
+    extensions: ["tex2jax.js"],
+    jax: ["input/TeX","output/HTML-CSS"],
+    tex2jax: {inlineMath: [["$","$"],["\\(","\\)"]]},
+    TeX: { extensions: ["AMSmath.js","AMSsymbols.js"]}
+  });
+</script>
+<script type="text/javascript" src="../../mathjax/MathJax.js"></script>
+		<script src="../../jquery-1.7.2.min.js" type="text/javascript"></script>
+		<script src="../../highlight.min.js"></script>
+<script type="text/javascript">
+$(function(){
+	$('.wmd-input').keypress(function(){
+		window.clearTimeout(hljs.Timeout);
+		hljs.Timeout = window.setTimeout(function() {
+			hljs.initHighlighting.called = false;
+			hljs.initHighlighting();
+		}, 500);
+	});
+	window.setTimeout(function() {
+		hljs.initHighlighting.called = false;
+		hljs.initHighlighting();
+	}, 500);
+});
+</script>
+
+
+	</head>
+	<body class="qa-template-question qa-body-js-off">
+		<div class="qa-body-wrapper">
+			
+			<div class="qa-header">
+				<div class="qa-logo">
+					<a href="../../" class="qa-logo-link" title="FEniCS Q&amp;A"><img src="../../qa-theme/fenics_qa.png" border="0" alt="FEniCS Q&amp;A"></a>
+				</div>
+				<div class="qa-header-clear">
+				</div>
+			</div> <!-- END qa-header -->
+			
+			<div class="qa-main-shadow">
+				
+				<div class="qa-main-wrapper">
+					
+					<div class="qa-sidepanel">
+						<div class="qa-sidebar">
+							This is a read only copy of the old FEniCS QA forum. Please visit the <a href="https://www.allanswered.com/community/s/fenics-project/">new QA forum</a> to ask questions
+						</div>
+						
+					</div>
+					
+					<div class="qa-main">
+						<h1>
+							<span class="entry-title">Pass a Mesh created in Python to code written in C++</span>
+						</h1>
+						<div class="qa-part-q-view">
+							<div class="qa-q-view  hentry question" id="q13469">
+								<form method="post" action="../../13469/pass-a-mesh-created-in-python-to-code-written-in-c">
+									<div class="qa-q-view-stats">
+										<div class="qa-voting qa-voting-net" id="voting_13469">
+											<div class="qa-vote-count qa-vote-count-net">
+												<span class="qa-netvote-count">
+													<span class="qa-netvote-count-data">0<span class="votes-up"><span class="value-title" title="0"></span></span><span class="votes-down"><span class="value-title" title="0"></span></span></span><span class="qa-netvote-count-pad"> votes</span>
+												</span>
+											</div>
+											<div class="qa-vote-clear">
+											</div>
+										</div>
+									</div>
+									<input type="hidden" name="code" value="0-1516467868-725c0cc9a88a3ab5b0792bfe816baf376b73b86c">
+								</form>
+								<div class="qa-q-view-main">
+									<form method="post" action="../../13469/pass-a-mesh-created-in-python-to-code-written-in-c">
+										<div class="qa-q-view-content">
+											<a name="13469"></a><div class="entry-content"><p>I would like to use the Python interface to select a mesh and element type, but once created I would like to access the mesh functions in C++.  That is, I would like to send a FEniCS Python <code>Mesh</code> object to a shared C library defined with <code>ctypes</code> to perform the following operations in C++ (implemented in Python for reference) :</p>
+
+<pre><code>mesh    = UnitSquareMesh(2, 2)
+Q       = FunctionSpace(mesh, "CG", 1)
+element = Q.element()
+dofmap  = Q.dofmap()
+
+# find the cell with point :
+x_pt       = Point([0.1, 0.2])
+cell_id    = mesh.bounding_box_tree().compute_first_entity_collision(x_pt)
+cell       = Cell(mesh, cell_id)
+coord_dofs = cell.get_vertex_coordinates()       # local coordinates
+
+# array for all basis functions of the cell :
+phi = np.zeros(element.space_dimension(), dtype=float)
+
+# array for values with derivatives of all 
+# basis functions, 2 * element dim :
+grad_phi = np.zeros(2*element.space_dimension(), dtype=float)
+
+# compute basis function values :
+element.evaluate_basis_all(phi, x, coord_dofs, cell.orientation())
+
+# compute 1st order derivatives :
+element.evaluate_basis_derivatives_all(1, grad_phi, x,  
+                                       coord_dofs, cell.orientation())
+
+# reshape such that rows are [d/dx, d/dy] :
+grad_phi = grad_phi.reshape((-1, 2)) 
+
+# get corresponding vertex indices, in dof indicies : 
+vrt = dofmap.cell_dofs(cell.index())
+
+return vrt, phi, grad_phi
+</code></pre>
+
+<p>I would like to use these basis values to compute some stuff on the nodes in C++, then return them back to the python implementation.</p>
+
+<p>In particular, the <code>Mesh</code> I create in Python and send to the C++ implementation of the above operations will be <em>not</em> be distributed, and once the C++ code is finished, the resulting nodal values will go back to the Python code where several FEniCS <code>Function</code>s defined on a distributed <code>Mesh</code> will be updated.</p>
+
+<p>I only need the above mesh and element functions, no form is defined or compiled together with <code>UFL</code>.</p>
+
+<p>Does anyone have any suggestions for doing this?</p>
+
+<p>My first thought is to copy the C++ code generated from compiling a <code>.ufl</code> file with <code>ffc</code>, but I am unsure how the relationship will work with a mesh created with Python!  I need the user to be able to choose any mesh they want, and I need the simplicity of the Python interface.</p>
+</div>
+										</div>
+										<div class="qa-q-view-tags">
+											<ul class="qa-q-view-tag-list">
+												<li class="qa-q-view-tag-item"><a href="../../tag/c" rel="tag" class="qa-tag-link">c</a></li>
+												<li class="qa-q-view-tag-item"><a href="../../tag/ufl" rel="tag" class="qa-tag-link">ufl</a></li>
+												<li class="qa-q-view-tag-item"><a href="../../tag/mesh" rel="tag" class="qa-tag-link">mesh</a></li>
+												<li class="qa-q-view-tag-item"><a href="../../tag/ffc" rel="tag" class="qa-tag-link">ffc</a></li>
+												<li class="qa-q-view-tag-item"><a href="../../tag/ctypes" rel="tag" class="qa-tag-link">ctypes</a></li>
+											</ul>
+										</div>
+										<span class="qa-q-view-avatar-meta">
+											<span class="qa-q-view-avatar">
+												<a href="../../user/pf4d" class="qa-avatar-link"><img src="https://www.gravatar.com/avatar/102105360e5a49a3d555fb320b328a11?s=50" width="50" height="50" class="qa-avatar-image" alt=""></a>
+											</span>
+											<span class="qa-q-view-meta">
+												<a href="../../13469/pass-a-mesh-created-in-python-to-code-written-in-c" class="qa-q-view-what">asked</a>
+												<span class="qa-q-view-when">
+													<span class="qa-q-view-when-data"><span class="published"><span class="value-title" title="2017-05-15T11:02:30+0000"></span>May 15, 2017</span></span>
+												</span>
+												<span class="qa-q-view-who">
+													<span class="qa-q-view-who-pad">by </span>
+													<span class="qa-q-view-who-data"><span class="vcard author"><a href="../../user/pf4d" class="qa-user-link url nickname">pf4d</a></span></span>
+													<span class="qa-q-view-who-title">FEniCS User</span>
+													<span class="qa-q-view-who-points">
+														<span class="qa-q-view-who-points-pad">(</span><span class="qa-q-view-who-points-data">2,970</span><span class="qa-q-view-who-points-pad"> points)</span>
+													</span>
+												</span>
+												<br>
+												<span class="qa-q-view-what">edited</span>
+												<span class="qa-q-view-when">
+													<span class="qa-q-view-when-data"><span class="updated"><span class="value-title" title="2017-05-15T12:17:58+0000"></span>May 15, 2017</span></span>
+												</span>
+												<span class="qa-q-view-who">
+													<span class="qa-q-view-who-pad">by </span><span class="qa-q-view-who-data"><a href="../../user/pf4d" class="qa-user-link url nickname">pf4d</a></span>
+												</span>
+											</span>
+										</span>
+										<div class="qa-q-view-buttons">
+										</div>
+										
+										<div class="qa-q-view-c-list" id="c13469_list">
+											<div class="qa-c-list-item  hentry comment" id="c13483">
+												<div class="qa-c-item-content">
+													<a name="13483"></a><div class="entry-content"><p><a rel="nofollow" href="http://hplgit.github.io/fenics-mixed/doc/pub/sphinx-cbc/._part0003_fenics-mixed.html">This might be helpful</a></p>
+</div>
+												</div>
+												<div class="qa-c-item-footer">
+													<span class="qa-c-item-avatar-meta">
+														<span class="qa-c-item-avatar">
+															<a href="../../user/mdbenito" class="qa-avatar-link"><img src="https://www.gravatar.com/avatar/6545a7c3ba26a36c62facacf39cb4b51?s=20" width="20" height="20" class="qa-avatar-image" alt=""></a>
+														</span>
+														<span class="qa-c-item-meta">
+															<a href="../../13469/pass-a-mesh-created-in-python-to-code-written-in-c?show=13483#c13483" class="qa-c-item-what">commented</a>
+															<span class="qa-c-item-when">
+																<span class="qa-c-item-when-data"><span class="published"><span class="value-title" title="2017-05-15T15:08:41+0000"></span>May 15, 2017</span></span>
+															</span>
+															<span class="qa-c-item-who">
+																<span class="qa-c-item-who-pad">by </span>
+																<span class="qa-c-item-who-data"><span class="vcard author"><a href="../../user/mdbenito" class="qa-user-link url nickname">mdbenito</a></span></span>
+																<span class="qa-c-item-who-title">FEniCS User</span>
+																<span class="qa-c-item-who-points">
+																	<span class="qa-c-item-who-points-pad">(</span><span class="qa-c-item-who-points-data">4,530</span><span class="qa-c-item-who-points-pad"> points)</span>
+																</span>
+															</span>
+														</span>
+													</span>
+													<div class="qa-c-item-buttons">
+													</div>
+												</div>
+												<div class="qa-c-item-clear">
+												</div>
+											</div> <!-- END qa-c-item -->
+											<div class="qa-c-list-item  hentry comment" id="c13502">
+												<div class="qa-c-item-content">
+													<a name="13502"></a><div class="entry-content"><p>Yes, this is useful, thanks.</p>
+</div>
+												</div>
+												<div class="qa-c-item-footer">
+													<span class="qa-c-item-avatar-meta">
+														<span class="qa-c-item-avatar">
+															<a href="../../user/pf4d" class="qa-avatar-link"><img src="https://www.gravatar.com/avatar/102105360e5a49a3d555fb320b328a11?s=20" width="20" height="20" class="qa-avatar-image" alt=""></a>
+														</span>
+														<span class="qa-c-item-meta">
+															<a href="../../13469/pass-a-mesh-created-in-python-to-code-written-in-c?show=13502#c13502" class="qa-c-item-what">commented</a>
+															<span class="qa-c-item-when">
+																<span class="qa-c-item-when-data"><span class="published"><span class="value-title" title="2017-05-16T09:45:35+0000"></span>May 16, 2017</span></span>
+															</span>
+															<span class="qa-c-item-who">
+																<span class="qa-c-item-who-pad">by </span>
+																<span class="qa-c-item-who-data"><span class="vcard author"><a href="../../user/pf4d" class="qa-user-link url nickname">pf4d</a></span></span>
+																<span class="qa-c-item-who-title">FEniCS User</span>
+																<span class="qa-c-item-who-points">
+																	<span class="qa-c-item-who-points-pad">(</span><span class="qa-c-item-who-points-data">2,970</span><span class="qa-c-item-who-points-pad"> points)</span>
+																</span>
+															</span>
+														</span>
+													</span>
+													<div class="qa-c-item-buttons">
+													</div>
+												</div>
+												<div class="qa-c-item-clear">
+												</div>
+											</div> <!-- END qa-c-item -->
+										</div> <!-- END qa-c-list -->
+										
+										<input type="hidden" name="code" value="0-1516467868-eefd74493af747cbf7ad0af06408dd4dca723981">
+										<input type="hidden" name="qa_click" value="">
+									</form>
+									<div class="qa-c-form">
+									</div> <!-- END qa-c-form -->
+									
+								</div> <!-- END qa-q-view-main -->
+								<div class="qa-q-view-clear">
+								</div>
+							</div> <!-- END qa-q-view -->
+							
+						</div>
+						<div class="qa-part-a-list">
+							<h2 id="a_list_title" style="display:none;"></h2>
+							<div class="qa-a-list" id="a_list">
+								
+							</div> <!-- END qa-a-list -->
+							
+						</div>
+					</div> <!-- END qa-main -->
+					
+				</div> <!-- END main-wrapper -->
+			</div> <!-- END main-shadow -->
+		</div> <!-- END body-wrapper -->
+		<!-- END footer-bottom-group -->
+		
+		<div style="position:absolute; left:-9999px; top:-9999px;">
+			<span id="qa-waiting-template" class="qa-waiting">...</span>
+		</div>
+	
+	
+
+</body><!-- Powered by Question2Answer - http://www.question2answer.org/ --></html>

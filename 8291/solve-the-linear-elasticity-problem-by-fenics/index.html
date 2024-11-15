@@ -1,0 +1,564 @@
+<html><!-- Powered by Question2Answer - http://www.question2answer.org/ --><head>
+		<meta http-equiv="content-type" content="text/html; charset=utf-8">
+		<title>Solve the linear elasticity problem by Fenics - FEniCS Q&amp;A</title>
+		<meta name="description" content="To better understand fenics, I try to solve the linear elasticity problem: a sphere with a spherical  ...  please show me where I'm wrong? Thanks!">
+		<meta name="keywords" content="singular,elasticity,traction,boundarymesh">
+		<link rel="stylesheet" type="text/css" href="../../qa-theme/Snow/qa-styles.css">
+		<link rel="canonical" href="http://fenicsproject.org/qa/8291/solve-the-linear-elasticity-problem-by-fenics">
+		<script type="text/x-mathjax-config">
+  MathJax.Hub.Config({
+    extensions: ["tex2jax.js"],
+    jax: ["input/TeX","output/HTML-CSS"],
+    tex2jax: {inlineMath: [["$","$"],["\\(","\\)"]]},
+    TeX: { extensions: ["AMSmath.js","AMSsymbols.js"]}
+  });
+</script>
+<script type="text/javascript" src="../../mathjax/MathJax.js"></script>
+		<script src="../../jquery-1.7.2.min.js" type="text/javascript"></script>
+		<script src="../../highlight.min.js"></script>
+<script type="text/javascript">
+$(function(){
+	$('.wmd-input').keypress(function(){
+		window.clearTimeout(hljs.Timeout);
+		hljs.Timeout = window.setTimeout(function() {
+			hljs.initHighlighting.called = false;
+			hljs.initHighlighting();
+		}, 500);
+	});
+	window.setTimeout(function() {
+		hljs.initHighlighting.called = false;
+		hljs.initHighlighting();
+	}, 500);
+});
+</script>
+
+
+	</head>
+	<body class="qa-template-question qa-body-js-off">
+		<div class="qa-body-wrapper">
+			
+			<div class="qa-header">
+				<div class="qa-logo">
+					<a href="../../" class="qa-logo-link" title="FEniCS Q&amp;A"><img src="../../qa-theme/fenics_qa.png" border="0" alt="FEniCS Q&amp;A"></a>
+				</div>
+				<div class="qa-header-clear">
+				</div>
+			</div> <!-- END qa-header -->
+			
+			<div class="qa-main-shadow">
+				
+				<div class="qa-main-wrapper">
+					
+					<div class="qa-sidepanel">
+						<div class="qa-sidebar">
+							This is a read only copy of the old FEniCS QA forum. Please visit the <a href="https://www.allanswered.com/community/s/fenics-project/">new QA forum</a> to ask questions
+						</div>
+						
+					</div>
+					
+					<div class="qa-main">
+						<h1>
+							<span class="entry-title">Solve the linear elasticity problem by Fenics</span>
+						</h1>
+						<div class="qa-part-q-view">
+							<div class="qa-q-view  hentry question" id="q8291">
+								<form method="post" action="../../8291/solve-the-linear-elasticity-problem-by-fenics">
+									<div class="qa-q-view-stats">
+										<div class="qa-voting qa-voting-net" id="voting_8291">
+											<div class="qa-vote-count qa-vote-count-net">
+												<span class="qa-netvote-count">
+													<span class="qa-netvote-count-data">+2<span class="votes-up"><span class="value-title" title="2"></span></span><span class="votes-down"><span class="value-title" title="0"></span></span></span><span class="qa-netvote-count-pad"> votes</span>
+												</span>
+											</div>
+											<div class="qa-vote-clear">
+											</div>
+										</div>
+									</div>
+									<input type="hidden" name="code" value="0-1516468165-ef138ce8c8ae3b94e3bbb0a82a5fdd372e1114c6">
+								</form>
+								<div class="qa-q-view-main">
+									<form method="post" action="../../8291/solve-the-linear-elasticity-problem-by-fenics">
+										<div class="qa-q-view-content">
+											<a name="8291"></a><div class="entry-content"><p>To better understand fenics, I try to solve the linear elasticity problem: a sphere with a spherical cavity inside, subjected to uniform pressure on the outer boundary of the sphere. The variational formulation of this problem is:</p>
+
+<p>$$\int_V \boldsymbol{\sigma(u)} : \boldsymbol{\varepsilon(v)} \mathrm{d}V = \int_{\partial V} \mathbf{t}\cdot\boldsymbol{v} \mathrm{d}S$$</p>
+
+<p>The minimal working sample code:</p>
+
+<pre><code>from mshr import Sphere, generate_mesh
+from dolfin import *
+
+# Radius of outer and inner sphere
+oradius, iradius = 5., 1.
+tol = 1e-3
+
+#Material parameters
+nu = 0.3
+mu = 1.0
+Young = 2.*mu*(1.+nu)
+lmbda = 2.*mu*nu/(1.-2.*nu)
+
+# Geometry
+outer_sphere = Sphere(Point(0., 0., 0.), oradius)
+inner_sphere = Sphere(Point(0., 0., 0.), iradius)
+g3d = outer_sphere - inner_sphere
+mesh = generate_mesh(g3d, 8)
+
+#Define the outer sphere boundary
+class OuterBoundary(SubDomain):
+    def inside(self, x, on_boundary):
+        r2 = sqrt(x[0]**2 + x[1]**2 + x[2]**2)
+        return on_boundary and abs(r2-oradius) &lt; tol
+
+#Define the inner sphere boundary
+class InnerBoundary(SubDomain):
+    def inside(self, x, on_boundary):
+        r2 = sqrt(x[0]**2 + x[1]**2 + x[2]**2)
+        return on_boundary and abs(r2-iradius) &lt; tol
+
+boundary_parts = MeshFunction("size_t", mesh, mesh.topology().dim() - 1)
+boundary_parts.set_all(0)
+outer_boundary = OuterBoundary()
+inner_boundary = InnerBoundary()
+
+outer_boundary.mark(boundary_parts, 1)
+outer_boundary.mark(boundary_parts, 2)
+ds = Measure("ds")[boundary_parts]
+
+#Function Space
+VV = VectorFunctionSpace(mesh, "Lagrange", 2, 3) # displacement space
+
+u = TrialFunction(VV)
+v = TestFunction(VV)
+
+eps_u = sym(grad(u))
+eps_v = sym(grad(v))
+sig_u = lmbda*tr(eps_u)*delta + 2.*mu*eps_u
+
+# Traction vector [1., 1., 1.] applied on the outer boundary
+t = Constant((1., 1., 1.))
+
+F = inner(sig_u, eps_v)*dx - inner(t, v)*ds(1) 
+a, L = lhs(F), rhs(F)
+
+u_h = Function(VV)
+
+A, b = assemble_system(a, L)
+
+solve(A, u_h.vector(), b, 'lu')
+
+ux, uy, uz = u_h.split()
+
+plot(ux, mode = "displacement", interactive=True, wire_frame=True, axes=True,rescale=False,scalarbar=True)
+</code></pre>
+
+<p>However, the above code show a null displacement field ($u_x$). Everything seems ok to me. Could you please show me where I'm wrong?</p>
+
+<p>Thanks!</p>
+</div>
+										</div>
+										<div class="qa-q-view-tags">
+											<ul class="qa-q-view-tag-list">
+												<li class="qa-q-view-tag-item"><a href="../../tag/singular" rel="tag" class="qa-tag-link">singular</a></li>
+												<li class="qa-q-view-tag-item"><a href="../../tag/elasticity" rel="tag" class="qa-tag-link">elasticity</a></li>
+												<li class="qa-q-view-tag-item"><a href="../../tag/traction" rel="tag" class="qa-tag-link">traction</a></li>
+												<li class="qa-q-view-tag-item"><a href="../../tag/boundarymesh" rel="tag" class="qa-tag-link">boundarymesh</a></li>
+											</ul>
+										</div>
+										<span class="qa-q-view-avatar-meta">
+											<span class="qa-q-view-meta">
+												<a href="../../8291/solve-the-linear-elasticity-problem-by-fenics" class="qa-q-view-what">asked</a>
+												<span class="qa-q-view-when">
+													<span class="qa-q-view-when-data"><span class="published"><span class="value-title" title="2015-10-06T14:08:18+0000"></span>Oct 6, 2015</span></span>
+												</span>
+												<span class="qa-q-view-who">
+													<span class="qa-q-view-who-pad">by </span>
+													<span class="qa-q-view-who-data"><span class="vcard author"><a href="../../user/newuser" class="qa-user-link url nickname">newuser</a></span></span>
+													<span class="qa-q-view-who-title">FEniCS Novice</span>
+													<span class="qa-q-view-who-points">
+														<span class="qa-q-view-who-points-pad">(</span><span class="qa-q-view-who-points-data">650</span><span class="qa-q-view-who-points-pad"> points)</span>
+													</span>
+												</span>
+												<br>
+												<span class="qa-q-view-what">retagged</span>
+												<span class="qa-q-view-when">
+													<span class="qa-q-view-when-data"><span class="updated"><span class="value-title" title="2015-10-06T19:30:13+0000"></span>Oct 6, 2015</span></span>
+												</span>
+												<span class="qa-q-view-who">
+													<span class="qa-q-view-who-pad">by </span><span class="qa-q-view-who-data"><a href="../../user/newuser" class="qa-user-link url nickname">newuser</a></span>
+												</span>
+											</span>
+										</span>
+										<div class="qa-q-view-buttons">
+										</div>
+										
+										<div class="qa-q-view-c-list" style="display:none;" id="c8291_list">
+										</div> <!-- END qa-c-list -->
+										
+										<input type="hidden" name="code" value="0-1516468165-553513caf1745c86678f6ecf6ee94e5b5be386ba">
+										<input type="hidden" name="qa_click" value="">
+									</form>
+									<div class="qa-c-form">
+									</div> <!-- END qa-c-form -->
+									
+								</div> <!-- END qa-q-view-main -->
+								<div class="qa-q-view-clear">
+								</div>
+							</div> <!-- END qa-q-view -->
+							
+						</div>
+						<div class="qa-part-a-list">
+							<h2 id="a_list_title">2 Answers</h2>
+							<div class="qa-a-list" id="a_list">
+								
+								<div class="qa-a-list-item  hentry answer" id="a8292">
+									<form method="post" action="../../8291/solve-the-linear-elasticity-problem-by-fenics">
+										<div class="qa-voting qa-voting-net" id="voting_8292">
+											<div class="qa-vote-count qa-vote-count-net">
+												<span class="qa-netvote-count">
+													<span class="qa-netvote-count-data">+1<span class="votes-up"><span class="value-title" title="1"></span></span><span class="votes-down"><span class="value-title" title="0"></span></span></span><span class="qa-netvote-count-pad"> vote</span>
+												</span>
+											</div>
+											<div class="qa-vote-clear">
+											</div>
+										</div>
+										<input type="hidden" name="code" value="0-1516468165-ef138ce8c8ae3b94e3bbb0a82a5fdd372e1114c6">
+									</form>
+									<div class="qa-a-item-main">
+										<form method="post" action="../../8291/solve-the-linear-elasticity-problem-by-fenics">
+											<div class="qa-a-selection">
+											</div>
+											<div class="qa-a-item-content">
+												<a name="8292"></a><div class="entry-content"><p>Hi, the problem is that you are marking outer boundary on boundary_parts twice, overwriting the previous step. </p>
+
+<p>Modify:</p>
+
+<pre><code>outer_boundary.mark(boundary_parts, 1)
+outer_boundary.mark(boundary_parts, 2)
+</code></pre>
+
+<p>by this:</p>
+
+<pre><code>outer_boundary.mark(boundary_parts, 1)
+inner_boundary.mark(boundary_parts, 2)
+</code></pre>
+</div>
+											</div>
+											<span class="qa-a-item-avatar-meta">
+												<span class="qa-a-item-avatar">
+													<a href="../../user/hernan_mella" class="qa-avatar-link"><img src="../../?qa=image&amp;qa_blobid=14920815903966845416&amp;qa_size=40" width="40" height="22" class="qa-avatar-image" alt=""></a>
+												</span>
+												<span class="qa-a-item-meta">
+													<a href="../../8291/solve-the-linear-elasticity-problem-by-fenics?show=8292#a8292" class="qa-a-item-what">answered</a>
+													<span class="qa-a-item-when">
+														<span class="qa-a-item-when-data"><span class="published"><span class="value-title" title="2015-10-06T16:03:50+0000"></span>Oct 6, 2015</span></span>
+													</span>
+													<span class="qa-a-item-who">
+														<span class="qa-a-item-who-pad">by </span>
+														<span class="qa-a-item-who-data"><span class="vcard author"><a href="../../user/hernan_mella" class="qa-user-link url nickname">hernan_mella</a></span></span>
+														<span class="qa-a-item-who-title">FEniCS Expert</span>
+														<span class="qa-a-item-who-points">
+															<span class="qa-a-item-who-points-pad">(</span><span class="qa-a-item-who-points-data">19,460</span><span class="qa-a-item-who-points-pad"> points)</span>
+														</span>
+													</span>
+												</span>
+											</span>
+											<div class="qa-a-item-buttons">
+												</div>
+											
+											<div class="qa-a-item-c-list" id="c8292_list">
+												<div class="qa-c-list-item  hentry comment" id="c8295">
+													<div class="qa-c-item-content">
+														<a name="8295"></a><div class="entry-content"><p>Thanks for pointing out this typo. But it's not the problem.</p>
+</div>
+													</div>
+													<div class="qa-c-item-footer">
+														<span class="qa-c-item-avatar-meta">
+															<span class="qa-c-item-meta">
+																<a href="../../8291/solve-the-linear-elasticity-problem-by-fenics?show=8295#c8295" class="qa-c-item-what">commented</a>
+																<span class="qa-c-item-when">
+																	<span class="qa-c-item-when-data"><span class="published"><span class="value-title" title="2015-10-06T19:23:39+0000"></span>Oct 6, 2015</span></span>
+																</span>
+																<span class="qa-c-item-who">
+																	<span class="qa-c-item-who-pad">by </span>
+																	<span class="qa-c-item-who-data"><span class="vcard author"><a href="../../user/newuser" class="qa-user-link url nickname">newuser</a></span></span>
+																	<span class="qa-c-item-who-title">FEniCS Novice</span>
+																	<span class="qa-c-item-who-points">
+																		<span class="qa-c-item-who-points-pad">(</span><span class="qa-c-item-who-points-data">650</span><span class="qa-c-item-who-points-pad"> points)</span>
+																	</span>
+																</span>
+															</span>
+														</span>
+														<div class="qa-c-item-buttons">
+														</div>
+													</div>
+													<div class="qa-c-item-clear">
+													</div>
+												</div> <!-- END qa-c-item -->
+											</div> <!-- END qa-c-list -->
+											
+											<input type="hidden" name="code" value="0-1516468165-c6d0dc12690086145cc08c0e575cba67a7625ff9">
+											<input type="hidden" name="qa_click" value="">
+										</form>
+										<div class="qa-c-form">
+										</div> <!-- END qa-c-form -->
+										
+									</div> <!-- END qa-a-item-main -->
+									<div class="qa-a-item-clear">
+									</div>
+								</div> <!-- END qa-a-list-item -->
+								
+								<div class="qa-a-list-item  hentry answer" id="a8293">
+									<form method="post" action="../../8291/solve-the-linear-elasticity-problem-by-fenics">
+										<div class="qa-voting qa-voting-net" id="voting_8293">
+											<div class="qa-vote-count qa-vote-count-net">
+												<span class="qa-netvote-count">
+													<span class="qa-netvote-count-data">+3<span class="votes-up"><span class="value-title" title="3"></span></span><span class="votes-down"><span class="value-title" title="0"></span></span></span><span class="qa-netvote-count-pad"> votes</span>
+												</span>
+											</div>
+											<div class="qa-vote-clear">
+											</div>
+										</div>
+										<input type="hidden" name="code" value="0-1516468165-ef138ce8c8ae3b94e3bbb0a82a5fdd372e1114c6">
+									</form>
+									<div class="qa-a-item-main">
+										<form method="post" action="../../8291/solve-the-linear-elasticity-problem-by-fenics">
+											<div class="qa-a-selection">
+											</div>
+											<div class="qa-a-item-content">
+												<a name="8293"></a><div class="entry-content"><p>Hi, the first problem with your code is that the vector <code>b</code> is zero (check <code>print b.norm("l2")</code> once the vector is assembled). This is probably because the conditions for facets to be marked as one or two are never met. You can see that even after you have marked the <code>boundary_parts</code>, all the facet values are still zero. I will let you figure this out and move to the more serious problem of your code. The system as you assemble it is singular. The matrix has 6 zero eigenvalues and any solution is only determined up to the 3 translations and 3 rotations that are the eigenvectors of the zero eigenvalues. To fix this lack of<br>
+uniqueness consider</p>
+
+<pre><code>from mshr import Sphere, generate_mesh
+from dolfin import *
+
+# Radius of outer and inner sphere
+oradius, iradius = 5., 1.
+tol = 1e-3
+
+#Material parameters
+nu = 0.3
+mu = 1.0
+Young = 2.*mu*(1.+nu)
+lmbda = 2.*mu*nu/(1.-2.*nu)
+
+# Geometry
+outer_sphere = Sphere(Point(0., 0., 0.), oradius)
+inner_sphere = Sphere(Point(0., 0., 0.), iradius)
+g3d = outer_sphere - inner_sphere
+mesh = generate_mesh(g3d, 8)
+
+#Function Space
+VV = VectorFunctionSpace(mesh, "Lagrange", 1, 3) # displacement space
+Q = VectorFunctionSpace(mesh, 'R', 0, 6)
+W = MixedFunctionSpace([VV, Q])
+
+u, p = TrialFunctions(W)
+v, q = TestFunctions(W)
+
+eps_u = sym(grad(u))
+eps_v = sym(grad(v))
+sig_u = lmbda*tr(eps_u)*Identity(3) + 2.*mu*eps_u
+
+t = Constant((1, 1, 1))
+
+# Nullspace of rigid motions
+# Translation
+Z_transl = [Constant((1, 0, 0)), Constant((0, 1, 0)), Constant((0, 0, 1))]
+# Rotations
+Z_rot = [Expression(('0', 'x[2]', '-x[1]')),
+         Expression(('-x[2]', '0', 'x[0]')),
+         Expression(('x[1]', '-x[0]', '0'))]
+# All
+Z = Z_transl + Z_rot
+
+a = inner(sig_u, eps_v)*dx\
+   -sum(p[i]*inner(v, Z[i])*dx for i in range(len(Z)))\
+   -sum(q[i]*inner(u, Z[i])*dx for i in range(len(Z))) 
+
+L = inner(t, v)*ds
+
+w_h = Function(W)
+
+A, b = assemble_system(a, L)
+print b.norm('l2')
+
+solve(A, w_h.vector(), b, 'lu')
+
+uh, ph = w_h.split(deepcopy=True) 
+
+plot(uh, mode = "displacement", interactive=True, wire_frame=True, axes=True,rescale=False,scalarbar=True)
+</code></pre>
+
+<p>Here 6 Lagrange multipliers are introduced to enforce orthogonality of the unique solution with respect to the given nullspace (<code>Z</code>) formed by the rigid motions. If you do not like the multiplier approach you can pass the nullspace as 6 $l^2$-orthogonal vectors to the Krylov method, see <a rel="nofollow" href="http://fenicsproject.org/documentation/dolfin/1.5.0/python/demo/documented/singular-poisson/python/documentation.html">here</a> for how this is done for singular Poisson problem. Let me know if you have troubles making it work. Also, please tag the question with singular elasticity tag.</p>
+</div>
+											</div>
+											<span class="qa-a-item-avatar-meta">
+												<span class="qa-a-item-avatar">
+													<a href="../../user/MiroK" class="qa-avatar-link"><img src="https://www.gravatar.com/avatar/f566be3274ec73e3a6dda27bca11631c?s=40" width="40" height="40" class="qa-avatar-image" alt=""></a>
+												</span>
+												<span class="qa-a-item-meta">
+													<a href="../../8291/solve-the-linear-elasticity-problem-by-fenics?show=8293#a8293" class="qa-a-item-what">answered</a>
+													<span class="qa-a-item-when">
+														<span class="qa-a-item-when-data"><span class="published"><span class="value-title" title="2015-10-06T16:13:04+0000"></span>Oct 6, 2015</span></span>
+													</span>
+													<span class="qa-a-item-who">
+														<span class="qa-a-item-who-pad">by </span>
+														<span class="qa-a-item-who-data"><span class="vcard author"><a href="../../user/MiroK" class="qa-user-link url nickname">MiroK</a></span></span>
+														<span class="qa-a-item-who-title">FEniCS Expert</span>
+														<span class="qa-a-item-who-points">
+															<span class="qa-a-item-who-points-pad">(</span><span class="qa-a-item-who-points-data">80,920</span><span class="qa-a-item-who-points-pad"> points)</span>
+														</span>
+													</span>
+												</span>
+											</span>
+											<div class="qa-a-item-buttons">
+												</div>
+											
+											<div class="qa-a-item-c-list" id="c8293_list">
+												<div class="qa-c-list-item  hentry comment" id="c8296">
+													<div class="qa-c-item-content">
+														<a name="8296"></a><div class="entry-content"><p>Thank you for the detailed response! I will let you know if it works.</p>
+</div>
+													</div>
+													<div class="qa-c-item-footer">
+														<span class="qa-c-item-avatar-meta">
+															<span class="qa-c-item-meta">
+																<a href="../../8291/solve-the-linear-elasticity-problem-by-fenics?show=8296#c8296" class="qa-c-item-what">commented</a>
+																<span class="qa-c-item-when">
+																	<span class="qa-c-item-when-data"><span class="published"><span class="value-title" title="2015-10-06T19:29:42+0000"></span>Oct 6, 2015</span></span>
+																</span>
+																<span class="qa-c-item-who">
+																	<span class="qa-c-item-who-pad">by </span>
+																	<span class="qa-c-item-who-data"><span class="vcard author"><a href="../../user/newuser" class="qa-user-link url nickname">newuser</a></span></span>
+																	<span class="qa-c-item-who-title">FEniCS Novice</span>
+																	<span class="qa-c-item-who-points">
+																		<span class="qa-c-item-who-points-pad">(</span><span class="qa-c-item-who-points-data">650</span><span class="qa-c-item-who-points-pad"> points)</span>
+																	</span>
+																</span>
+															</span>
+														</span>
+														<div class="qa-c-item-buttons">
+														</div>
+													</div>
+													<div class="qa-c-item-clear">
+													</div>
+												</div> <!-- END qa-c-item -->
+												<div class="qa-c-list-item  hentry comment" id="c8301">
+													<div class="qa-c-item-content">
+														<a name="8301"></a><div class="entry-content"><p>It worked like a charm! So I have to block the rotation to make the problem well-posed. But still not find the issue of <code>boundary.mark()</code>.</p>
+</div>
+													</div>
+													<div class="qa-c-item-footer">
+														<span class="qa-c-item-avatar-meta">
+															<span class="qa-c-item-meta">
+																<a href="../../8291/solve-the-linear-elasticity-problem-by-fenics?show=8301#c8301" class="qa-c-item-what">commented</a>
+																<span class="qa-c-item-when">
+																	<span class="qa-c-item-when-data"><span class="published"><span class="value-title" title="2015-10-07T13:28:06+0000"></span>Oct 7, 2015</span></span>
+																</span>
+																<span class="qa-c-item-who">
+																	<span class="qa-c-item-who-pad">by </span>
+																	<span class="qa-c-item-who-data"><span class="vcard author"><a href="../../user/newuser" class="qa-user-link url nickname">newuser</a></span></span>
+																	<span class="qa-c-item-who-title">FEniCS Novice</span>
+																	<span class="qa-c-item-who-points">
+																		<span class="qa-c-item-who-points-pad">(</span><span class="qa-c-item-who-points-data">650</span><span class="qa-c-item-who-points-pad"> points)</span>
+																	</span>
+																</span>
+															</span>
+														</span>
+														<div class="qa-c-item-buttons">
+														</div>
+													</div>
+													<div class="qa-c-item-clear">
+													</div>
+												</div> <!-- END qa-c-item -->
+												<div class="qa-c-list-item  hentry comment" id="c8308">
+													<div class="qa-c-item-content">
+														<a name="8308"></a><div class="entry-content"><p>Both translations and rotations must be removed. As far as marking goes, consider the following</p>
+
+<pre><code>from mshr import Sphere, generate_mesh
+from dolfin import *
+import numpy as np
+
+# Radius of outer and inner sphere
+oradius, iradius = 5., 1.
+
+# Geometry
+outer_sphere = Sphere(Point(0., 0., 0.), oradius)
+inner_sphere = Sphere(Point(0., 0., 0.), iradius)
+g3d = outer_sphere - inner_sphere
+mesh = generate_mesh(g3d, 8)
+
+facet_f = FacetFunction('size_t', mesh, 0)
+# Mark all external facets
+DomainBoundary().mark(facet_f, 1)
+# Now mark the inner boundary by checking that radius is smaller than radius
+# of mid sphere
+center = Point(0., 0., 0.)
+mid = 0.5*(oradius - iradius)
+for facet in SubsetIterator(facet_f, 1):
+    if facet.midpoint().distance(center) &lt; mid:
+        facet_f[facet] = 2
+
+# See that both values are now present
+print len(np.where(facet_f.array() == 1)[0])
+print len(np.where(facet_f.array() == 2)[0]) 
+</code></pre>
+</div>
+													</div>
+													<div class="qa-c-item-footer">
+														<span class="qa-c-item-avatar-meta">
+															<span class="qa-c-item-avatar">
+																<a href="../../user/MiroK" class="qa-avatar-link"><img src="https://www.gravatar.com/avatar/f566be3274ec73e3a6dda27bca11631c?s=20" width="20" height="20" class="qa-avatar-image" alt=""></a>
+															</span>
+															<span class="qa-c-item-meta">
+																<a href="../../8291/solve-the-linear-elasticity-problem-by-fenics?show=8308#c8308" class="qa-c-item-what">commented</a>
+																<span class="qa-c-item-when">
+																	<span class="qa-c-item-when-data"><span class="published"><span class="value-title" title="2015-10-07T17:51:27+0000"></span>Oct 7, 2015</span></span>
+																</span>
+																<span class="qa-c-item-who">
+																	<span class="qa-c-item-who-pad">by </span>
+																	<span class="qa-c-item-who-data"><span class="vcard author"><a href="../../user/MiroK" class="qa-user-link url nickname">MiroK</a></span></span>
+																	<span class="qa-c-item-who-title">FEniCS Expert</span>
+																	<span class="qa-c-item-who-points">
+																		<span class="qa-c-item-who-points-pad">(</span><span class="qa-c-item-who-points-data">80,920</span><span class="qa-c-item-who-points-pad"> points)</span>
+																	</span>
+																</span>
+															</span>
+														</span>
+														<div class="qa-c-item-buttons">
+														</div>
+													</div>
+													<div class="qa-c-item-clear">
+													</div>
+												</div> <!-- END qa-c-item -->
+											</div> <!-- END qa-c-list -->
+											
+											<input type="hidden" name="code" value="0-1516468165-67ee71798500aa6458faef5744da5c593ee5b6ba">
+											<input type="hidden" name="qa_click" value="">
+										</form>
+										<div class="qa-c-form">
+										</div> <!-- END qa-c-form -->
+										
+									</div> <!-- END qa-a-item-main -->
+									<div class="qa-a-item-clear">
+									</div>
+								</div> <!-- END qa-a-list-item -->
+								
+							</div> <!-- END qa-a-list -->
+							
+						</div>
+					</div> <!-- END qa-main -->
+					
+				</div> <!-- END main-wrapper -->
+			</div> <!-- END main-shadow -->
+		</div> <!-- END body-wrapper -->
+		<!-- END footer-bottom-group -->
+		
+		<div style="position:absolute; left:-9999px; top:-9999px;">
+			<span id="qa-waiting-template" class="qa-waiting">...</span>
+		</div>
+	
+	
+
+</body><!-- Powered by Question2Answer - http://www.question2answer.org/ --></html>

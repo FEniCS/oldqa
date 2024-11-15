@@ -1,0 +1,316 @@
+<html><!-- Powered by Question2Answer - http://www.question2answer.org/ --><head>
+		<meta http-equiv="content-type" content="text/html; charset=utf-8">
+		<title>Navier-Stokes-Acceleration-Term: 'Unable to extract all indices'. - FEniCS Q&amp;A</title>
+		<meta name="description" content="Hi everyone, i&#180;m trying to solve the Navier-Stokes-Equation and struggling with the Acceleration-Term  ...  on_boundary): return on_boundary and (x[0]">
+		<meta name="keywords" content="navier-stokes,nonlinear-term">
+		<link rel="stylesheet" type="text/css" href="../../qa-theme/Snow/qa-styles.css">
+		<link rel="canonical" href="http://fenicsproject.org/qa/5599/navier-stokes-acceleration-term-unable-extract-all-indices">
+		<script type="text/x-mathjax-config">
+  MathJax.Hub.Config({
+    extensions: ["tex2jax.js"],
+    jax: ["input/TeX","output/HTML-CSS"],
+    tex2jax: {inlineMath: [["$","$"],["\\(","\\)"]]},
+    TeX: { extensions: ["AMSmath.js","AMSsymbols.js"]}
+  });
+</script>
+<script type="text/javascript" src="../../mathjax/MathJax.js"></script>
+		<script src="../../jquery-1.7.2.min.js" type="text/javascript"></script>
+		<script src="../../highlight.min.js"></script>
+<script type="text/javascript">
+$(function(){
+	$('.wmd-input').keypress(function(){
+		window.clearTimeout(hljs.Timeout);
+		hljs.Timeout = window.setTimeout(function() {
+			hljs.initHighlighting.called = false;
+			hljs.initHighlighting();
+		}, 500);
+	});
+	window.setTimeout(function() {
+		hljs.initHighlighting.called = false;
+		hljs.initHighlighting();
+	}, 500);
+});
+</script>
+
+
+	</head>
+	<body class="qa-template-question qa-body-js-off">
+		<div class="qa-body-wrapper">
+			
+			<div class="qa-header">
+				<div class="qa-logo">
+					<a href="../../" class="qa-logo-link" title="FEniCS Q&amp;A"><img src="../../qa-theme/fenics_qa.png" border="0" alt="FEniCS Q&amp;A"></a>
+				</div>
+				<div class="qa-header-clear">
+				</div>
+			</div> <!-- END qa-header -->
+			
+			<div class="qa-main-shadow">
+				
+				<div class="qa-main-wrapper">
+					
+					<div class="qa-sidepanel">
+						<div class="qa-sidebar">
+							This is a read only copy of the old FEniCS QA forum. Please visit the <a href="https://www.allanswered.com/community/s/fenics-project/">new QA forum</a> to ask questions
+						</div>
+						
+					</div>
+					
+					<div class="qa-main">
+						<h1>
+							<span class="entry-title">Navier-Stokes-Acceleration-Term: 'Unable to extract all indices'.</span>
+						</h1>
+						<div class="qa-part-q-view">
+							<div class="qa-q-view  hentry question" id="q5599">
+								<form method="post" action="../../5599/navier-stokes-acceleration-term-unable-extract-all-indices">
+									<div class="qa-q-view-stats">
+										<div class="qa-voting qa-voting-net" id="voting_5599">
+											<div class="qa-vote-count qa-vote-count-net">
+												<span class="qa-netvote-count">
+													<span class="qa-netvote-count-data">0<span class="votes-up"><span class="value-title" title="0"></span></span><span class="votes-down"><span class="value-title" title="0"></span></span></span><span class="qa-netvote-count-pad"> votes</span>
+												</span>
+											</div>
+											<div class="qa-vote-clear">
+											</div>
+										</div>
+									</div>
+									<input type="hidden" name="code" value="0-1516468034-3af1f26eb7b92a2b643326acdc465e32a9f2f0e3">
+								</form>
+								<div class="qa-q-view-main">
+									<form method="post" action="../../5599/navier-stokes-acceleration-term-unable-extract-all-indices">
+										<div class="qa-q-view-content">
+											<a name="5599"></a><div class="entry-content"><p>Hi everyone,</p>
+
+<p>i&#180;m trying to solve the Navier-Stokes-Equation and struggling with the Acceleration-Term in Fenics 1.4.</p>
+
+<pre><code>from dolfin import *
+
+A = 0.2     # High Inlet/Outlet
+Cellnumber = 10
+radius = 1.0
+
+### Create Initial Mesh/Boundary:
+mesh = Mesh(Circle(0.0, 0.0, radius),Cellnumber)
+
+V = VectorFunctionSpace(mesh, "CG", 2)
+Q = FunctionSpace(mesh, "CG", 1)
+W = V * Q
+
+class Inlet(SubDomain):
+    def inside(self, x, on_boundary):
+        return on_boundary and (x[0]&lt;0) and (abs(x[1])&lt;A) \
+        and ((sqrt(x[0]**2 + x[1]**2)-radius)&lt;DOLFIN_EPS)
+
+class Outlet(SubDomain):
+    def inside(self, x, on_boundary):
+        return on_boundary and x[0]&gt;0 and abs(x[1])&lt;A \
+        and ((sqrt(x[0]**2 + x[1]**2)-radius)&lt;DOLFIN_EPS)
+
+class Shape(SubDomain):
+    def inside(self, x, on_boundary):
+        return on_boundary \
+        and not(x[0]&lt;0 and abs(x[1])&lt;A and ((sqrt(x[0]**2 + x[1]**2)-radius)&lt;DOLFIN_EPS)) \
+        and not(x[0]&gt;0 and abs(x[1])&lt;A and ((sqrt(x[0]**2 + x[1]**2)-radius)&lt;DOLFIN_EPS))
+
+boundaries = FacetFunction("size_t", mesh)
+boundaries.set_all(0)
+Inlet().mark(boundaries, 1)
+Outlet().mark(boundaries, 2)
+Shape().mark(boundaries, 3)
+
+inflow = Expression(('-x[0]-0.9', '0.0'))
+bc0 = DirichletBC(W.sub(0), inflow, boundaries, 1)
+bc1 = DirichletBC(W.sub(0), (0.0,0.0), boundaries, 3)
+bc2 = DirichletBC(W.sub(1), 0.0, boundaries, 2)
+bcs = [bc0, bc1, bc2]
+
+(u, p) = TrialFunctions(W)
+(v, q) = TestFunctions(W)
+f = Constant((0.0, 0.0))
+g = Constant(0.0)
+n = FacetNormal(mesh)
+ds = Measure("ds")[boundaries]
+
+#a = (inner(nabla_grad(u),nabla_grad(v)) - p*div(v) + div(u)*q)*dx + (inner(p*n,v) \
+#   - inner(nabla_grad(u)*n,v))*ds(1)
+#       + inner(u[0]*u.dx(0),v)*dx
+#       + inner(dot(nabla_grad(u),u),v)*dx
+#L = (inner(f, v) + g*q)*dx
+
+F = (inner(nabla_grad(u),nabla_grad(v)) - p*div(v) + div(u)*q)*dx + (inner(p*n,v) \
+    - inner(nabla_grad(u)*n,v))*ds(1) - (inner(f, v) + g*q)*dx
+
+U = Function(W)
+#solve(a == L, U, bcs)
+solve(F==0,U,bcs)
+
+u, p = U.split()
+
+plot(u)
+interactive()
+</code></pre>
+
+<p>When i use <code>solve(a == L, U, bcs)</code> with the terms <code>inner(u[0]*u.dx(0),v)*dx</code> or <code>inner(dot(nabla_grad(u),u),v)*dx</code> i&#180;m getting the error : <br>
+<code>Exception: Unable to extract all indices.</code><br>
+When i use <code>solve(F==0,U,bcs)</code> i&#180;m getting the error: <br>
+<code>All terms in form must have same rank.</code></p>
+
+<p>In this <a rel="nofollow" href="http://fenicsproject.org/documentation/dolfin/1.3.0/python/demo/documented/navier-stokes/python/documentation.html">example</a>, it works with <code>inner(grad(u)*u, v)*dx</code>, but it gives also the 'indices'-error.<br>
+Could you please help to find my error? What i&#180;m missing?</p>
+</div>
+										</div>
+										<div class="qa-q-view-tags">
+											<ul class="qa-q-view-tag-list">
+												<li class="qa-q-view-tag-item"><a href="../../tag/navier-stokes" rel="tag" class="qa-tag-link">navier-stokes</a></li>
+												<li class="qa-q-view-tag-item"><a href="../../tag/nonlinear-term" rel="tag" class="qa-tag-link">nonlinear-term</a></li>
+											</ul>
+										</div>
+										<span class="qa-q-view-avatar-meta">
+											<span class="qa-q-view-meta">
+												<a href="../../5599/navier-stokes-acceleration-term-unable-extract-all-indices" class="qa-q-view-what">asked</a>
+												<span class="qa-q-view-when">
+													<span class="qa-q-view-when-data"><span class="published"><span class="value-title" title="2014-09-23T09:20:31+0000"></span>Sep 23, 2014</span></span>
+												</span>
+												<span class="qa-q-view-who">
+													<span class="qa-q-view-who-pad">by </span>
+													<span class="qa-q-view-who-data"><span class="vcard author"><a href="../../user/MrCoffeee" class="qa-user-link url nickname">MrCoffeee</a></span></span>
+													<span class="qa-q-view-who-title">FEniCS Novice</span>
+													<span class="qa-q-view-who-points">
+														<span class="qa-q-view-who-points-pad">(</span><span class="qa-q-view-who-points-data">230</span><span class="qa-q-view-who-points-pad"> points)</span>
+													</span>
+												</span>
+											</span>
+										</span>
+										<div class="qa-q-view-buttons">
+										</div>
+										
+										<div class="qa-q-view-c-list" style="display:none;" id="c5599_list">
+										</div> <!-- END qa-c-list -->
+										
+										<input type="hidden" name="code" value="0-1516468034-861ac8a4ebc1d1d0058e7ccc79fb4e85ca2468f9">
+										<input type="hidden" name="qa_click" value="">
+									</form>
+									<div class="qa-c-form">
+									</div> <!-- END qa-c-form -->
+									
+								</div> <!-- END qa-q-view-main -->
+								<div class="qa-q-view-clear">
+								</div>
+							</div> <!-- END qa-q-view -->
+							
+						</div>
+						<div class="qa-part-a-list">
+							<h2 id="a_list_title">1 Answer</h2>
+							<div class="qa-a-list" id="a_list">
+								
+								<div class="qa-a-list-item  hentry answer" id="a5627">
+									<form method="post" action="../../5599/navier-stokes-acceleration-term-unable-extract-all-indices">
+										<div class="qa-voting qa-voting-net" id="voting_5627">
+											<div class="qa-vote-count qa-vote-count-net">
+												<span class="qa-netvote-count">
+													<span class="qa-netvote-count-data">0<span class="votes-up"><span class="value-title" title="0"></span></span><span class="votes-down"><span class="value-title" title="0"></span></span></span><span class="qa-netvote-count-pad"> votes</span>
+												</span>
+											</div>
+											<div class="qa-vote-clear">
+											</div>
+										</div>
+										<input type="hidden" name="code" value="0-1516468034-3af1f26eb7b92a2b643326acdc465e32a9f2f0e3">
+									</form>
+									<div class="qa-a-item-main">
+										<form method="post" action="../../5599/navier-stokes-acceleration-term-unable-extract-all-indices">
+											<div class="qa-a-selection">
+											</div>
+											<div class="qa-a-item-content">
+												<a name="5627"></a><div class="entry-content"><p>Some mistakes are</p>
+
+<ol>
+<li>In bilinear form <code>a</code> you cannot use the <code>TrialFunction</code> <code>u</code> more than once in the same expression.</li>
+<li>You want <code>dot(grad(u), u)</code> and not <code>dot(nabla_grad(u), u)</code>. <code>nabla_grad(u)</code> is the gradient of <code>u</code> transposed, i.e., $\nabla u^T$.</li>
+<li>F == 0 expects a linear form F containing only <code>TestFunctions</code> and no <code>TrialFunction</code>. For nonlinear equations use <code>Function</code> instead of <code>TrialFunction</code>. The expressions may then be nonlinear in the <code>Function</code>.</li>
+<li>u[0]*u.dx(0) is not convection. It is component <code>u[0]</code> times the partial derivative of <code>u</code> in the <code>x</code>-direction.</li>
+</ol>
+</div>
+											</div>
+											<span class="qa-a-item-avatar-meta">
+												<span class="qa-a-item-avatar">
+													<a href="../../user/mikael-mortensen" class="qa-avatar-link"><img src="https://www.gravatar.com/avatar/d5614112a2818f1800a461e49ac229df?s=40" width="40" height="40" class="qa-avatar-image" alt=""></a>
+												</span>
+												<span class="qa-a-item-meta">
+													<a href="../../5599/navier-stokes-acceleration-term-unable-extract-all-indices?show=5627#a5627" class="qa-a-item-what">answered</a>
+													<span class="qa-a-item-when">
+														<span class="qa-a-item-when-data"><span class="published"><span class="value-title" title="2014-09-25T07:13:42+0000"></span>Sep 25, 2014</span></span>
+													</span>
+													<span class="qa-a-item-who">
+														<span class="qa-a-item-who-pad">by </span>
+														<span class="qa-a-item-who-data"><span class="vcard author"><a href="../../user/mikael-mortensen" class="qa-user-link url nickname">mikael-mortensen</a></span></span>
+														<span class="qa-a-item-who-title">FEniCS Expert</span>
+														<span class="qa-a-item-who-points">
+															<span class="qa-a-item-who-points-pad">(</span><span class="qa-a-item-who-points-data">29,340</span><span class="qa-a-item-who-points-pad"> points)</span>
+														</span>
+													</span>
+												</span>
+											</span>
+											<div class="qa-a-item-buttons">
+												</div>
+											
+											<div class="qa-a-item-c-list" id="c5627_list">
+												<div class="qa-c-list-item  hentry comment" id="c5714">
+													<div class="qa-c-item-content">
+														<a name="5714"></a><div class="entry-content"><p>Hello and thx for your answer!<br>
+Also sorry for my late response, i was out of town.<br>
+I fixed the problem using this <a rel="nofollow" href="http://fenicsproject.org/documentation/dolfin/1.4.0/python/demo/documented/navier-stokes/python/documentation.html">Incompressible Navier-Stokes-Demo</a> and just ignore the time-dependancies.</p>
+</div>
+													</div>
+													<div class="qa-c-item-footer">
+														<span class="qa-c-item-avatar-meta">
+															<span class="qa-c-item-meta">
+																<a href="../../5599/navier-stokes-acceleration-term-unable-extract-all-indices?show=5714#c5714" class="qa-c-item-what">commented</a>
+																<span class="qa-c-item-when">
+																	<span class="qa-c-item-when-data"><span class="published"><span class="value-title" title="2014-10-06T08:55:25+0000"></span>Oct 6, 2014</span></span>
+																</span>
+																<span class="qa-c-item-who">
+																	<span class="qa-c-item-who-pad">by </span>
+																	<span class="qa-c-item-who-data"><span class="vcard author"><a href="../../user/MrCoffeee" class="qa-user-link url nickname">MrCoffeee</a></span></span>
+																	<span class="qa-c-item-who-title">FEniCS Novice</span>
+																	<span class="qa-c-item-who-points">
+																		<span class="qa-c-item-who-points-pad">(</span><span class="qa-c-item-who-points-data">230</span><span class="qa-c-item-who-points-pad"> points)</span>
+																	</span>
+																</span>
+															</span>
+														</span>
+														<div class="qa-c-item-buttons">
+														</div>
+													</div>
+													<div class="qa-c-item-clear">
+													</div>
+												</div> <!-- END qa-c-item -->
+											</div> <!-- END qa-c-list -->
+											
+											<input type="hidden" name="code" value="0-1516468034-3a10af1fc94c3496292c6bb4816ee304e7c4fdda">
+											<input type="hidden" name="qa_click" value="">
+										</form>
+										<div class="qa-c-form">
+										</div> <!-- END qa-c-form -->
+										
+									</div> <!-- END qa-a-item-main -->
+									<div class="qa-a-item-clear">
+									</div>
+								</div> <!-- END qa-a-list-item -->
+								
+							</div> <!-- END qa-a-list -->
+							
+						</div>
+					</div> <!-- END qa-main -->
+					
+				</div> <!-- END main-wrapper -->
+			</div> <!-- END main-shadow -->
+		</div> <!-- END body-wrapper -->
+		<!-- END footer-bottom-group -->
+		
+		<div style="position:absolute; left:-9999px; top:-9999px;">
+			<span id="qa-waiting-template" class="qa-waiting">...</span>
+		</div>
+	
+	
+
+</body><!-- Powered by Question2Answer - http://www.question2answer.org/ --></html>

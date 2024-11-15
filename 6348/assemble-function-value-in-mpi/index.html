@@ -1,0 +1,203 @@
+<html><!-- Powered by Question2Answer - http://www.question2answer.org/ --><head>
+		<meta http-equiv="content-type" content="text/html; charset=utf-8">
+		<title>assemble function value in MPI - FEniCS Q&amp;A</title>
+		<meta name="description" content="Hello, I would lito to solve indeipendently same mesh but different condition on diferent cores, and sum up ... . How can I get sum at 1 process?">
+		<meta name="keywords" content="parallel,assemble,mpi">
+		<link rel="stylesheet" type="text/css" href="../../qa-theme/Snow/qa-styles.css">
+		<link rel="canonical" href="http://fenicsproject.org/qa/6348/assemble-function-value-in-mpi">
+		<script type="text/x-mathjax-config">
+  MathJax.Hub.Config({
+    extensions: ["tex2jax.js"],
+    jax: ["input/TeX","output/HTML-CSS"],
+    tex2jax: {inlineMath: [["$","$"],["\\(","\\)"]]},
+    TeX: { extensions: ["AMSmath.js","AMSsymbols.js"]}
+  });
+</script>
+<script type="text/javascript" src="../../mathjax/MathJax.js"></script>
+		<script src="../../jquery-1.7.2.min.js" type="text/javascript"></script>
+		<script src="../../highlight.min.js"></script>
+<script type="text/javascript">
+$(function(){
+	$('.wmd-input').keypress(function(){
+		window.clearTimeout(hljs.Timeout);
+		hljs.Timeout = window.setTimeout(function() {
+			hljs.initHighlighting.called = false;
+			hljs.initHighlighting();
+		}, 500);
+	});
+	window.setTimeout(function() {
+		hljs.initHighlighting.called = false;
+		hljs.initHighlighting();
+	}, 500);
+});
+</script>
+
+
+	</head>
+	<body class="qa-template-question qa-body-js-off">
+		<div class="qa-body-wrapper">
+			
+			<div class="qa-header">
+				<div class="qa-logo">
+					<a href="../../" class="qa-logo-link" title="FEniCS Q&amp;A"><img src="../../qa-theme/fenics_qa.png" border="0" alt="FEniCS Q&amp;A"></a>
+				</div>
+				<div class="qa-header-clear">
+				</div>
+			</div> <!-- END qa-header -->
+			
+			<div class="qa-main-shadow">
+				
+				<div class="qa-main-wrapper">
+					
+					<div class="qa-sidepanel">
+						<div class="qa-sidebar">
+							This is a read only copy of the old FEniCS QA forum. Please visit the <a href="https://www.allanswered.com/community/s/fenics-project/">new QA forum</a> to ask questions
+						</div>
+						
+					</div>
+					
+					<div class="qa-main">
+						<h1>
+							<span class="entry-title">assemble function value in MPI</span>
+						</h1>
+						<div class="qa-part-q-view">
+							<div class="qa-q-view  hentry question" id="q6348">
+								<form method="post" action="../../6348/assemble-function-value-in-mpi">
+									<div class="qa-q-view-stats">
+										<div class="qa-voting qa-voting-net" id="voting_6348">
+											<div class="qa-vote-count qa-vote-count-net">
+												<span class="qa-netvote-count">
+													<span class="qa-netvote-count-data">0<span class="votes-up"><span class="value-title" title="0"></span></span><span class="votes-down"><span class="value-title" title="0"></span></span></span><span class="qa-netvote-count-pad"> votes</span>
+												</span>
+											</div>
+											<div class="qa-vote-clear">
+											</div>
+										</div>
+									</div>
+									<input type="hidden" name="code" value="0-1516468068-5e623796a35499b09b59ab84133e345e2612dd46">
+								</form>
+								<div class="qa-q-view-main">
+									<form method="post" action="../../6348/assemble-function-value-in-mpi">
+										<div class="qa-q-view-content">
+											<a name="6348"></a><div class="entry-content"><p>Hello,</p>
+
+<p>I would lito to solve indeipendently same mesh but different condition on diferent cores, and sum up a funtion value at each core. But it does not work as expected.<br>
+ In the case of the following demo program 'lift-darg',</p>
+
+<pre><code>#include &lt;dolfin.h&gt;
+#include &lt;mpi.h&gt;
+#include "Functionals.h"
+
+using namespace dolfin;
+
+// Define sub domain for the dolphin
+class Fish : public SubDomain
+{
+  bool inside(const Array&lt;double&gt;&amp; x, bool on_boundary) const
+  {
+    return (x[0] &gt; DOLFIN_EPS &amp;&amp; x[0] &lt; (1.0 - DOLFIN_EPS) &amp;&amp;
+            x[1] &gt; DOLFIN_EPS &amp;&amp; x[1] &lt; (1.0 - DOLFIN_EPS) &amp;&amp;
+            on_boundary);
+  }
+};
+
+int main()
+{
+  // Read mesh from file
+  Mesh mesh(MPI_COMM_SELF);
+  HDF5File fpH5m(MPI_COMM_SELF,"./dolfin_fine.h5","r");
+  fpH5m.read(mesh,"mesh",false);
+
+  // Read velocity field from file
+  Functionals::CoefficientSpace_p Vp(mesh);
+  Function p(Vp);
+  HDF5File fpH5p(MPI_COMM_SELF,"./dolfin_fine_pressure.h5","r");
+  fpH5p.read(p,"p");
+
+  // Mark 'fish'
+  FacetFunction&lt;std::size_t&gt; markers(mesh, 1);
+  Fish fish;
+  fish.mark(markers, 1);
+
+  // Functionals for lift and drag
+  Functionals::Form_lift L(mesh, p);
+  Functionals::Form_drag D(mesh, p);
+
+  // Attach markers to functionals
+  L.ds = markers;
+  D.ds = markers;
+
+  // Assemble functionals over sub domain
+  const double lift = assemble(L);
+  const double drag = assemble(D);
+
+  info("Lift: %f", lift);
+  info("Drag: %f", drag);
+}
+</code></pre>
+
+<p>Executing this program by "mpirun -n 2 ./myprogram", it sums up p at all process. How can I get sum at 1 process?</p>
+</div>
+										</div>
+										<div class="qa-q-view-tags">
+											<ul class="qa-q-view-tag-list">
+												<li class="qa-q-view-tag-item"><a href="../../tag/parallel" rel="tag" class="qa-tag-link">parallel</a></li>
+												<li class="qa-q-view-tag-item"><a href="../../tag/assemble" rel="tag" class="qa-tag-link">assemble</a></li>
+												<li class="qa-q-view-tag-item"><a href="../../tag/mpi" rel="tag" class="qa-tag-link">mpi</a></li>
+											</ul>
+										</div>
+										<span class="qa-q-view-avatar-meta">
+											<span class="qa-q-view-meta">
+												<a href="../../6348/assemble-function-value-in-mpi" class="qa-q-view-what">asked</a>
+												<span class="qa-q-view-when">
+													<span class="qa-q-view-when-data"><span class="published"><span class="value-title" title="2015-01-19T04:52:30+0000"></span>Jan 19, 2015</span></span>
+												</span>
+												<span class="qa-q-view-who">
+													<span class="qa-q-view-who-pad">by </span>
+													<span class="qa-q-view-who-data"><span class="vcard author"><a href="../../user/eclatant" class="qa-user-link url nickname">eclatant</a></span></span>
+													<span class="qa-q-view-who-title">FEniCS Novice</span>
+													<span class="qa-q-view-who-points">
+														<span class="qa-q-view-who-points-pad">(</span><span class="qa-q-view-who-points-data">140</span><span class="qa-q-view-who-points-pad"> points)</span>
+													</span>
+												</span>
+											</span>
+										</span>
+										<div class="qa-q-view-buttons">
+										</div>
+										
+										<div class="qa-q-view-c-list" style="display:none;" id="c6348_list">
+										</div> <!-- END qa-c-list -->
+										
+										<input type="hidden" name="code" value="0-1516468068-74b002eb1fe7fba279251b2297f60f769cd10061">
+										<input type="hidden" name="qa_click" value="">
+									</form>
+									<div class="qa-c-form">
+									</div> <!-- END qa-c-form -->
+									
+								</div> <!-- END qa-q-view-main -->
+								<div class="qa-q-view-clear">
+								</div>
+							</div> <!-- END qa-q-view -->
+							
+						</div>
+						<div class="qa-part-a-list">
+							<h2 id="a_list_title" style="display:none;"></h2>
+							<div class="qa-a-list" id="a_list">
+								
+							</div> <!-- END qa-a-list -->
+							
+						</div>
+					</div> <!-- END qa-main -->
+					
+				</div> <!-- END main-wrapper -->
+			</div> <!-- END main-shadow -->
+		</div> <!-- END body-wrapper -->
+		<!-- END footer-bottom-group -->
+		
+		<div style="position:absolute; left:-9999px; top:-9999px;">
+			<span id="qa-waiting-template" class="qa-waiting">...</span>
+		</div>
+	
+	
+
+</body><!-- Powered by Question2Answer - http://www.question2answer.org/ --></html>

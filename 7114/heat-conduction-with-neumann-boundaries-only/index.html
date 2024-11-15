@@ -1,0 +1,590 @@
+<html><!-- Powered by Question2Answer - http://www.question2answer.org/ --><head>
+		<meta http-equiv="content-type" content="text/html; charset=utf-8">
+		<title>Heat-conduction with neumann-boundaries only - FEniCS Q&amp;A</title>
+		<meta name="description" content='tl;dr: fenics keeps telling me "An Integral without a Domain is now illegal" and I dont know why. Long  ... = None T = Function(V) t = del_t while t'>
+		<meta name="keywords" content="transient,neumann,heat-equation,time-dependent">
+		<link rel="stylesheet" type="text/css" href="../../qa-theme/Snow/qa-styles.css">
+		<link rel="canonical" href="http://fenicsproject.org/qa/7114/heat-conduction-with-neumann-boundaries-only">
+		<script type="text/x-mathjax-config">
+  MathJax.Hub.Config({
+    extensions: ["tex2jax.js"],
+    jax: ["input/TeX","output/HTML-CSS"],
+    tex2jax: {inlineMath: [["$","$"],["\\(","\\)"]]},
+    TeX: { extensions: ["AMSmath.js","AMSsymbols.js"]}
+  });
+</script>
+<script type="text/javascript" src="../../mathjax/MathJax.js"></script>
+		<script src="../../jquery-1.7.2.min.js" type="text/javascript"></script>
+		<script src="../../highlight.min.js"></script>
+<script type="text/javascript">
+$(function(){
+	$('.wmd-input').keypress(function(){
+		window.clearTimeout(hljs.Timeout);
+		hljs.Timeout = window.setTimeout(function() {
+			hljs.initHighlighting.called = false;
+			hljs.initHighlighting();
+		}, 500);
+	});
+	window.setTimeout(function() {
+		hljs.initHighlighting.called = false;
+		hljs.initHighlighting();
+	}, 500);
+});
+</script>
+
+
+	</head>
+	<body class="qa-template-question qa-body-js-off">
+		<div class="qa-body-wrapper">
+			
+			<div class="qa-header">
+				<div class="qa-logo">
+					<a href="../../" class="qa-logo-link" title="FEniCS Q&amp;A"><img src="../../qa-theme/fenics_qa.png" border="0" alt="FEniCS Q&amp;A"></a>
+				</div>
+				<div class="qa-header-clear">
+				</div>
+			</div> <!-- END qa-header -->
+			
+			<div class="qa-main-shadow">
+				
+				<div class="qa-main-wrapper">
+					
+					<div class="qa-sidepanel">
+						<div class="qa-sidebar">
+							This is a read only copy of the old FEniCS QA forum. Please visit the <a href="https://www.allanswered.com/community/s/fenics-project/">new QA forum</a> to ask questions
+						</div>
+						
+					</div>
+					
+					<div class="qa-main">
+						<h1>
+							<span class="entry-title">Heat-conduction with neumann-boundaries only</span>
+						</h1>
+						<div class="qa-part-q-view">
+							<div class="qa-q-view  hentry question" id="q7114">
+								<form method="post" action="../../7114/heat-conduction-with-neumann-boundaries-only">
+									<div class="qa-q-view-stats">
+										<div class="qa-voting qa-voting-net" id="voting_7114">
+											<div class="qa-vote-count qa-vote-count-net">
+												<span class="qa-netvote-count">
+													<span class="qa-netvote-count-data">0<span class="votes-up"><span class="value-title" title="0"></span></span><span class="votes-down"><span class="value-title" title="0"></span></span></span><span class="qa-netvote-count-pad"> votes</span>
+												</span>
+											</div>
+											<div class="qa-vote-clear">
+											</div>
+										</div>
+									</div>
+									<input type="hidden" name="code" value="0-1516468105-5ad71ec7e4bc6f97624b2610f9844ccdcdb7fbd0">
+								</form>
+								<div class="qa-q-view-main">
+									<form method="post" action="../../7114/heat-conduction-with-neumann-boundaries-only">
+										<div class="qa-q-view-content">
+											<a name="7114"></a><div class="entry-content"><p>tl;dr:<br>
+fenics keeps telling me "An Integral without a Domain is now illegal" and I dont know why.<br>
+Long version:<br>
+Hi guys, i want to solve the heat conduction for a cube with neumann-condition on the boundaries (convection and radiation on top and bottom and source of heat on bottom which might be constant in this example). Therefore I installed FEniCS on my MacBook and wrote the following code:</p>
+
+<pre><code>mesh = UnitCubeMesh(10,10,10)
+xmax, ymax, zmax = 1, 1, 1
+V = FunctionSpace(mesh, 'Lagrange', 1)
+boundary_parts = FacetFunction("size_t", mesh)
+
+class Bottom(SubDomain):
+   def inside(self, x, on_boundary):
+      tol = 1E-14
+      return on_boundary and abs(x[2]) &lt; tol
+bottom = Bottom()
+bottom.mark(boundary_parts, 0)
+
+class Top(SubDomain):
+   def inside(self, x, on_boundary):
+      tol = 1E-14
+      return on_boundary and abs(x[2] - zmax) &lt; tol
+top = Top()
+top.mark(boundary_parts, 0)
+</code></pre>
+
+<p>Classes Left, Right, Front and Back analog.<br>
+I continue as described in <a rel="nofollow" href="http://fenicsproject.org/documentation/tutorial/timedep.html"></a><a rel="nofollow" href="http://fenicsproject.org/documentation/tutorial/timedep.html">http://fenicsproject.org/documentation/tutorial/timedep.html</a> and and <a rel="nofollow" href="http://fenicsproject.org/documentation/tutorial/materials.html#multiple-neumann-robin-and-dirichlet-condition"></a><a rel="nofollow" href="http://fenicsproject.org/documentation/tutorial/materials.html#multiple-neumann-robin-and-dirichlet-condition">http://fenicsproject.org/documentation/tutorial/materials.html#multiple-neumann-robin-and-dirichlet-condition</a> (both examples work with my version of FEniCS, so I guess i installed it correctly):</p>
+
+<pre><code>T = TrialFunction(V)
+v = TestFunction(V)
+T0 = Constant("293")
+T_1= interpolate(T0, V)
+del_t=1
+t_ges=10
+source=Constant("5")
+a = (T*v + inner(nabla_grad(T), nabla_grad(v)))*dx - del_t*(T-T0)*ds(0) - del_t*(T-T0)*ds(1)
+L= T_1*v*dx - del_t*source*ds(0)
+</code></pre>
+
+<p>Now I need to combine both tutorial chapters:</p>
+
+<pre><code>A = assemble(a, exterior_facet_domains = boundary_parts)
+b = None
+T = Function(V)
+t = del_t
+while t &lt;= t_ges:
+   b = assemble(L, tensor=b, exterior_face_domains=boundary_parts)
+   solve(A, T.vector(), b, 'lu')
+   t += dt
+   plot(T)
+   T_1.assign(T)
+interactive()
+</code></pre>
+
+<p>But if I try to run the program now, it tells me Integrals without a Domain would be illegal now - the domains were declared above.<br>
+The error seems to be in the line where i declared <code>L = T_1*v*dx -del_t*source*dx</code>; when i delete the part with the source the error is replaced with another error message:<br>
+Now it seems to find an error in the line where i wrote <code>A=assemble(...)</code> and says (after a few lines of directories): "ufl.algorithms.check_arities.ArityMismatch: Multiplying expressions with overlapping form argument number 1, argument is v_1"</p>
+
+<p>Please help me, I am using FEniCS for the first time and cant find my mistake in the code above.</p>
+</div>
+										</div>
+										<div class="qa-q-view-tags">
+											<ul class="qa-q-view-tag-list">
+												<li class="qa-q-view-tag-item"><a href="../../tag/transient" rel="tag" class="qa-tag-link">transient</a></li>
+												<li class="qa-q-view-tag-item"><a href="../../tag/neumann" rel="tag" class="qa-tag-link">neumann</a></li>
+												<li class="qa-q-view-tag-item"><a href="../../tag/heat-equation" rel="tag" class="qa-tag-link">heat-equation</a></li>
+												<li class="qa-q-view-tag-item"><a href="../../tag/time-dependent" rel="tag" class="qa-tag-link">time-dependent</a></li>
+											</ul>
+										</div>
+										<span class="qa-q-view-avatar-meta">
+											<span class="qa-q-view-meta">
+												<a href="../../7114/heat-conduction-with-neumann-boundaries-only" class="qa-q-view-what">asked</a>
+												<span class="qa-q-view-when">
+													<span class="qa-q-view-when-data"><span class="published"><span class="value-title" title="2015-05-13T08:03:25+0000"></span>May 13, 2015</span></span>
+												</span>
+												<span class="qa-q-view-who">
+													<span class="qa-q-view-who-pad">by </span>
+													<span class="qa-q-view-who-data"><span class="vcard author"><a href="../../user/MaxMeier" class="qa-user-link url nickname">MaxMeier</a></span></span>
+													<span class="qa-q-view-who-title">FEniCS Novice</span>
+													<span class="qa-q-view-who-points">
+														<span class="qa-q-view-who-points-pad">(</span><span class="qa-q-view-who-points-data">850</span><span class="qa-q-view-who-points-pad"> points)</span>
+													</span>
+												</span>
+											</span>
+										</span>
+										<div class="qa-q-view-buttons">
+										</div>
+										
+										<div class="qa-q-view-c-list" id="c7114_list">
+											<div class="qa-c-list-item  hentry comment" id="c7123">
+												<div class="qa-c-item-content">
+													<a name="7123"></a><div class="entry-content"><p>The domains are the classes Bottom, Top etc., arent they?</p>
+</div>
+												</div>
+												<div class="qa-c-item-footer">
+													<span class="qa-c-item-avatar-meta">
+														<span class="qa-c-item-meta">
+															<a href="../../7114/heat-conduction-with-neumann-boundaries-only?show=7123#c7123" class="qa-c-item-what">commented</a>
+															<span class="qa-c-item-when">
+																<span class="qa-c-item-when-data"><span class="published"><span class="value-title" title="2015-05-13T11:15:34+0000"></span>May 13, 2015</span></span>
+															</span>
+															<span class="qa-c-item-who">
+																<span class="qa-c-item-who-pad">by </span>
+																<span class="qa-c-item-who-data"><span class="vcard author"><a href="../../user/MaxMeier" class="qa-user-link url nickname">MaxMeier</a></span></span>
+																<span class="qa-c-item-who-title">FEniCS Novice</span>
+																<span class="qa-c-item-who-points">
+																	<span class="qa-c-item-who-points-pad">(</span><span class="qa-c-item-who-points-data">850</span><span class="qa-c-item-who-points-pad"> points)</span>
+																</span>
+															</span>
+														</span>
+													</span>
+													<div class="qa-c-item-buttons">
+													</div>
+												</div>
+												<div class="qa-c-item-clear">
+												</div>
+											</div> <!-- END qa-c-item -->
+										</div> <!-- END qa-c-list -->
+										
+										<input type="hidden" name="code" value="0-1516468105-d0004d29f695cf425aa8238081caea1583f151c7">
+										<input type="hidden" name="qa_click" value="">
+									</form>
+									<div class="qa-c-form">
+									</div> <!-- END qa-c-form -->
+									
+								</div> <!-- END qa-q-view-main -->
+								<div class="qa-q-view-clear">
+								</div>
+							</div> <!-- END qa-q-view -->
+							
+						</div>
+						<div class="qa-part-a-list">
+							<h2 id="a_list_title">1 Answer</h2>
+							<div class="qa-a-list" id="a_list">
+								
+								<div class="qa-a-list-item  hentry answer answer-selected qa-a-list-item-selected" id="a7126">
+									<form method="post" action="../../7114/heat-conduction-with-neumann-boundaries-only">
+										<div class="qa-voting qa-voting-net" id="voting_7126">
+											<div class="qa-vote-count qa-vote-count-net">
+												<span class="qa-netvote-count">
+													<span class="qa-netvote-count-data">+1<span class="votes-up"><span class="value-title" title="1"></span></span><span class="votes-down"><span class="value-title" title="0"></span></span></span><span class="qa-netvote-count-pad"> vote</span>
+												</span>
+											</div>
+											<div class="qa-vote-clear">
+											</div>
+										</div>
+										<input type="hidden" name="code" value="0-1516468105-5ad71ec7e4bc6f97624b2610f9844ccdcdb7fbd0">
+									</form>
+									<div class="qa-a-item-main">
+										<form method="post" action="../../7114/heat-conduction-with-neumann-boundaries-only">
+											<div class="qa-a-item-selected">
+												<div class="qa-a-selection">
+													<div class="qa-a-selected">&#160;</div>
+													<div class="qa-a-selected-text">Best answer</div>
+												</div>
+												<div class="qa-a-item-content">
+													<a name="7126"></a><div class="entry-content"><p>Hi,</p>
+
+<p>When I try to run the provided code I get the error "All terms in form must have same rank" which means that your weak formula is not well-posed. The generic weak formulation is a(u,v)=L(v) and it seems you forgot to multiply by the test function v, here's the fix:</p>
+
+<pre><code>a = (T*v + inner(nabla_grad(T), nabla_grad(v)))*dx() - del_t*(T-T0)*v*ds(0) - del_t*(T-T0)*v*ds(1)
+L = T_1*v*dx() - del_t*source*v*ds(0)
+</code></pre>
+
+<p>If you have trouble defining the formula you can just add all the terms in a single functionnal then call rhs and lhs (right hand side/left hand side) to sort it:</p>
+
+<pre><code>Fa = (T*v + inner(nabla_grad(T), nabla_grad(v)))*dx() - del_t*(T-T0)*ds(0) - del_t*(T-T0)*ds(1)
+FL= T_1*v*dx() - del_t*source*ds(0)
+F=Fa+FL
+a=lhs(F)
+L=rhs(F)
+</code></pre>
+
+<p>Which automatically builds the form. Then the code runs fine but you didn't define dt in the while loop so it stops.</p>
+
+<p>If you define dt it will run. Be careful you marked both subdomains as 0:</p>
+
+<pre><code>bottom.mark(boundary_parts, 0)
+top.mark(boundary_parts, 0)
+</code></pre>
+
+<p>in order to distinguish the top of the box, the bottom of the box and the interior you should do:</p>
+
+<pre><code>boundary_parts = FacetFunction("size_t", mesh)
+boundary_parts.set_all(0) #marks whole cube as domain 0
+
+class Bottom(SubDomain):
+   def inside(self, x, on_boundary):
+      tol = 1E-14
+      return on_boundary and abs(x[2]) &lt; tol
+bottom = Bottom()
+bottom.mark(boundary_parts, 1) #marks bottom of the cube as 1
+
+class Top(SubDomain):
+   def inside(self, x, on_boundary):
+      tol = 1E-14
+      return on_boundary and abs(x[2] - zmax) &lt; tol
+top = Top()
+top.mark(boundary_parts, 2) #marks the top of the cube as 2
+</code></pre>
+
+<p>then you can define a measure on each of the subdomains:</p>
+
+<pre><code>dx=Measure('dx')[boundary_parts]
+ds=Measure('ds')[boundary_parts]
+</code></pre>
+
+<p>With all this, you can get a running code, still, I'm not much into heat conduction and I don't know if the output is what you were looking for, anyway here's the full code, hoping this could help you:</p>
+
+<pre><code>from dolfin import *
+import numpy as np
+
+mesh = UnitCubeMesh(10,10,10)
+xmax, ymax, zmax = 1, 1, 1
+V = FunctionSpace(mesh, 'Lagrange', 1)
+boundary_parts = FacetFunction("size_t", mesh)
+boundary_parts.set_all(0) #marks whole cube as domain 0
+
+class Bottom(SubDomain):
+   def inside(self, x, on_boundary):
+      tol = 1E-14
+      return on_boundary and abs(x[2]) &lt; tol
+bottom = Bottom()
+bottom.mark(boundary_parts, 1) #marks bottom of the cube as 1
+
+class Top(SubDomain):
+   def inside(self, x, on_boundary):
+      tol = 1E-14
+      return on_boundary and abs(x[2] - zmax) &lt; tol
+top = Top()
+top.mark(boundary_parts, 2) #marks the top of the cube as 2
+
+dx=Measure('dx')[boundary_parts]
+ds=Measure('ds')[boundary_parts]
+
+plot(boundary_parts)
+
+T = TrialFunction(V)
+v = TestFunction(V)
+T0 = Constant("293")
+T_1= interpolate(T0, V)
+del_t=1
+t_ges=10
+source=Constant("5")
+Fa = (T*v + inner(nabla_grad(T), nabla_grad(v)))*dx() - del_t*(T-T0)*v*ds(1) - del_t*(T-T0)*v*ds(2)
+FL= T_1*v*dx() - del_t*source*v*ds(1)
+
+F=Fa+FL
+
+a=lhs(F)
+L=rhs(F)
+
+A = assemble(a, exterior_facet_domains = boundary_parts)
+b = None
+T = Function(V)
+t = del_t
+dt = 0.5
+while t &lt;= t_ges:
+   b = assemble(L, tensor=b, exterior_facet_domains=boundary_parts)
+   solve(A, T.vector(), b, 'lu')
+   t += dt
+   T_1.assign(T)
+
+plot(T_1)
+</code></pre>
+</div>
+												</div>
+												<span class="qa-a-item-avatar-meta">
+													<span class="qa-a-item-meta">
+														<a href="../../7114/heat-conduction-with-neumann-boundaries-only?show=7126#a7126" class="qa-a-item-what">answered</a>
+														<span class="qa-a-item-when">
+															<span class="qa-a-item-when-data"><span class="published"><span class="value-title" title="2015-05-13T12:12:33+0000"></span>May 13, 2015</span></span>
+														</span>
+														<span class="qa-a-item-who">
+															<span class="qa-a-item-who-pad">by </span>
+															<span class="qa-a-item-who-data"><span class="vcard author"><a href="../../user/MathieuFV" class="qa-user-link url nickname">MathieuFV</a></span></span>
+															<span class="qa-a-item-who-title">FEniCS User</span>
+															<span class="qa-a-item-who-points">
+																<span class="qa-a-item-who-points-pad">(</span><span class="qa-a-item-who-points-data">1,490</span><span class="qa-a-item-who-points-pad"> points)</span>
+															</span>
+														</span>
+														<br>
+														<span class="qa-a-item-what">selected</span>
+														<span class="qa-a-item-when">
+															<span class="qa-a-item-when-data"><span class="updated"><span class="value-title" title="2015-05-13T12:38:44+0000"></span>May 13, 2015</span></span>
+														</span>
+														<span class="qa-a-item-who">
+															<span class="qa-a-item-who-pad">by </span><span class="qa-a-item-who-data"><a href="../../user/MaxMeier" class="qa-user-link url nickname">MaxMeier</a></span>
+														</span>
+													</span>
+												</span>
+											</div>
+											<div class="qa-a-item-buttons">
+												</div>
+											
+											<div class="qa-a-item-c-list" id="c7126_list">
+												<div class="qa-c-list-item  hentry comment" id="c7128">
+													<div class="qa-c-item-content">
+														<a name="7128"></a><div class="entry-content"><p>Thank you so much! I was searching everywhere and couldnt find this mistake. </p>
+</div>
+													</div>
+													<div class="qa-c-item-footer">
+														<span class="qa-c-item-avatar-meta">
+															<span class="qa-c-item-meta">
+																<a href="../../7114/heat-conduction-with-neumann-boundaries-only?show=7128#c7128" class="qa-c-item-what">commented</a>
+																<span class="qa-c-item-when">
+																	<span class="qa-c-item-when-data"><span class="published"><span class="value-title" title="2015-05-13T13:02:28+0000"></span>May 13, 2015</span></span>
+																</span>
+																<span class="qa-c-item-who">
+																	<span class="qa-c-item-who-pad">by </span>
+																	<span class="qa-c-item-who-data"><span class="vcard author"><a href="../../user/MaxMeier" class="qa-user-link url nickname">MaxMeier</a></span></span>
+																	<span class="qa-c-item-who-title">FEniCS Novice</span>
+																	<span class="qa-c-item-who-points">
+																		<span class="qa-c-item-who-points-pad">(</span><span class="qa-c-item-who-points-data">850</span><span class="qa-c-item-who-points-pad"> points)</span>
+																	</span>
+																</span>
+															</span>
+														</span>
+														<div class="qa-c-item-buttons">
+														</div>
+													</div>
+													<div class="qa-c-item-clear">
+													</div>
+												</div> <!-- END qa-c-item -->
+												<div class="qa-c-list-item  hentry comment" id="c7156">
+													<div class="qa-c-item-content">
+														<a name="7156"></a><div class="entry-content"><p>Your solution is quite good, but you made a little mistake when you wrote:</p>
+
+<pre><code>F = Fa + FL
+</code></pre>
+
+<p>It was correct to write:</p>
+
+<pre><code>F = Fa - FL
+</code></pre>
+
+<p>Otherwise the results were very weird, because a or L would have the wrong sign.</p>
+</div>
+													</div>
+													<div class="qa-c-item-footer">
+														<span class="qa-c-item-avatar-meta">
+															<span class="qa-c-item-meta">
+																<a href="../../7114/heat-conduction-with-neumann-boundaries-only?show=7156#c7156" class="qa-c-item-what">commented</a>
+																<span class="qa-c-item-when">
+																	<span class="qa-c-item-when-data"><span class="published"><span class="value-title" title="2015-05-18T08:54:39+0000"></span>May 18, 2015</span></span>
+																</span>
+																<span class="qa-c-item-who">
+																	<span class="qa-c-item-who-pad">by </span>
+																	<span class="qa-c-item-who-data"><span class="vcard author"><a href="../../user/MaxMeier" class="qa-user-link url nickname">MaxMeier</a></span></span>
+																	<span class="qa-c-item-who-title">FEniCS Novice</span>
+																	<span class="qa-c-item-who-points">
+																		<span class="qa-c-item-who-points-pad">(</span><span class="qa-c-item-who-points-data">850</span><span class="qa-c-item-who-points-pad"> points)</span>
+																	</span>
+																</span>
+															</span>
+														</span>
+														<div class="qa-c-item-buttons">
+														</div>
+													</div>
+													<div class="qa-c-item-clear">
+													</div>
+												</div> <!-- END qa-c-item -->
+												<div class="qa-c-list-item  hentry comment" id="c7183">
+													<div class="qa-c-item-content">
+														<a name="7183"></a><div class="entry-content"><p>Well, indeed it looked very odd because of this mistake... Thank you for the update!</p>
+</div>
+													</div>
+													<div class="qa-c-item-footer">
+														<span class="qa-c-item-avatar-meta">
+															<span class="qa-c-item-meta">
+																<a href="../../7114/heat-conduction-with-neumann-boundaries-only?show=7183#c7183" class="qa-c-item-what">commented</a>
+																<span class="qa-c-item-when">
+																	<span class="qa-c-item-when-data"><span class="published"><span class="value-title" title="2015-05-19T14:57:48+0000"></span>May 19, 2015</span></span>
+																</span>
+																<span class="qa-c-item-who">
+																	<span class="qa-c-item-who-pad">by </span>
+																	<span class="qa-c-item-who-data"><span class="vcard author"><a href="../../user/MathieuFV" class="qa-user-link url nickname">MathieuFV</a></span></span>
+																	<span class="qa-c-item-who-title">FEniCS User</span>
+																	<span class="qa-c-item-who-points">
+																		<span class="qa-c-item-who-points-pad">(</span><span class="qa-c-item-who-points-data">1,490</span><span class="qa-c-item-who-points-pad"> points)</span>
+																	</span>
+																</span>
+															</span>
+														</span>
+														<div class="qa-c-item-buttons">
+														</div>
+													</div>
+													<div class="qa-c-item-clear">
+													</div>
+												</div> <!-- END qa-c-item -->
+												<div class="qa-c-list-item  hentry comment" id="c8276">
+													<div class="qa-c-item-content">
+														<a name="8276"></a><div class="entry-content"><p>Hello Maxmeier,</p>
+
+<p>I am solving a heat equation for the first time and was looking at the code above.</p>
+
+<p>Here, you say  you are implying convection at top and radiation at bottom in your bilinear form through this:</p>
+
+<pre><code>- del_t*(T-T0)*v*ds(1) - del_t*(T-T0)*v*ds(2)
+</code></pre>
+
+<p>Also, your initial temperature of cube is 293 while the source of heat at bottom is 5.</p>
+
+<p>Could you pls. spare a few minutes to explain the <strong>extended</strong> variational equation (as above) and physical meaning behind what is happening here. It would be very helpful for me.</p>
+
+<p>What does T-T0 mean? Your heat source is less than your initial temperature and what are you implying by radiation at bottom and convection at top. Also, I thought that convection required 'movement of a medium', so what does convection at top mean?</p>
+</div>
+													</div>
+													<div class="qa-c-item-footer">
+														<span class="qa-c-item-avatar-meta">
+															<span class="qa-c-item-avatar">
+																<a href="../../user/Chaitanya_Raj_Goyal" class="qa-avatar-link"><img src="../../?qa=image&amp;qa_blobid=5557427273671820211&amp;qa_size=20" width="20" height="12" class="qa-avatar-image" alt=""></a>
+															</span>
+															<span class="qa-c-item-meta">
+																<a href="../../7114/heat-conduction-with-neumann-boundaries-only?show=8276#c8276" class="qa-c-item-what">commented</a>
+																<span class="qa-c-item-when">
+																	<span class="qa-c-item-when-data"><span class="published"><span class="value-title" title="2015-10-03T18:01:06+0000"></span>Oct 3, 2015</span></span>
+																</span>
+																<span class="qa-c-item-who">
+																	<span class="qa-c-item-who-pad">by </span>
+																	<span class="qa-c-item-who-data"><span class="vcard author"><a href="../../user/Chaitanya_Raj_Goyal" class="qa-user-link url nickname">Chaitanya_Raj_Goyal</a></span></span>
+																	<span class="qa-c-item-who-title">FEniCS User</span>
+																	<span class="qa-c-item-who-points">
+																		<span class="qa-c-item-who-points-pad">(</span><span class="qa-c-item-who-points-data">4,150</span><span class="qa-c-item-who-points-pad"> points)</span>
+																	</span>
+																</span>
+																<br>
+																<span class="qa-c-item-what">edited</span>
+																<span class="qa-c-item-when">
+																	<span class="qa-c-item-when-data"><span class="updated"><span class="value-title" title="2015-10-03T18:06:59+0000"></span>Oct 3, 2015</span></span>
+																</span>
+																<span class="qa-c-item-who">
+																	<span class="qa-c-item-who-pad">by </span><span class="qa-c-item-who-data"><a href="../../user/Chaitanya_Raj_Goyal" class="qa-user-link url nickname">Chaitanya_Raj_Goyal</a></span>
+																</span>
+															</span>
+														</span>
+														<div class="qa-c-item-buttons">
+														</div>
+													</div>
+													<div class="qa-c-item-clear">
+													</div>
+												</div> <!-- END qa-c-item -->
+												<div class="qa-c-list-item  hentry comment" id="c8289">
+													<div class="qa-c-item-content">
+														<a name="8289"></a><div class="entry-content"><p>I'm kind of in a hurry right now, so I will answer shortly:<br>
+The source is not a temperature with value 5, its power with for example 5 Watt. You will need to add some constants like density, thermal conductivity and capacity. T-T0 means convection to the surrounding air. The air is moving, thats why its called convection. In the equation above there is no radiation, I added it later because the solution algorithm becomes a little bit more tricky with nonlinear boundary conditions. </p>
+</div>
+													</div>
+													<div class="qa-c-item-footer">
+														<span class="qa-c-item-avatar-meta">
+															<span class="qa-c-item-meta">
+																<a href="../../7114/heat-conduction-with-neumann-boundaries-only?show=8289#c8289" class="qa-c-item-what">commented</a>
+																<span class="qa-c-item-when">
+																	<span class="qa-c-item-when-data"><span class="published"><span class="value-title" title="2015-10-06T10:14:04+0000"></span>Oct 6, 2015</span></span>
+																</span>
+																<span class="qa-c-item-who">
+																	<span class="qa-c-item-who-pad">by </span>
+																	<span class="qa-c-item-who-data"><span class="vcard author"><a href="../../user/MaxMeier" class="qa-user-link url nickname">MaxMeier</a></span></span>
+																	<span class="qa-c-item-who-title">FEniCS Novice</span>
+																	<span class="qa-c-item-who-points">
+																		<span class="qa-c-item-who-points-pad">(</span><span class="qa-c-item-who-points-data">850</span><span class="qa-c-item-who-points-pad"> points)</span>
+																	</span>
+																</span>
+																<br>
+																<span class="qa-c-item-what">edited</span>
+																<span class="qa-c-item-when">
+																	<span class="qa-c-item-when-data"><span class="updated"><span class="value-title" title="2015-10-06T10:45:29+0000"></span>Oct 6, 2015</span></span>
+																</span>
+																<span class="qa-c-item-who">
+																	<span class="qa-c-item-who-pad">by </span><span class="qa-c-item-who-data"><a href="../../user/MaxMeier" class="qa-user-link url nickname">MaxMeier</a></span>
+																</span>
+															</span>
+														</span>
+														<div class="qa-c-item-buttons">
+														</div>
+													</div>
+													<div class="qa-c-item-clear">
+													</div>
+												</div> <!-- END qa-c-item -->
+											</div> <!-- END qa-c-list -->
+											
+											<input type="hidden" name="code" value="0-1516468105-a17b3de161c3d9172f1f70faa02f5060484a2a9f">
+											<input type="hidden" name="qa_click" value="">
+										</form>
+										<div class="qa-c-form">
+										</div> <!-- END qa-c-form -->
+										
+									</div> <!-- END qa-a-item-main -->
+									<div class="qa-a-item-clear">
+									</div>
+								</div> <!-- END qa-a-list-item -->
+								
+							</div> <!-- END qa-a-list -->
+							
+						</div>
+					</div> <!-- END qa-main -->
+					
+				</div> <!-- END main-wrapper -->
+			</div> <!-- END main-shadow -->
+		</div> <!-- END body-wrapper -->
+		<!-- END footer-bottom-group -->
+		
+		<div style="position:absolute; left:-9999px; top:-9999px;">
+			<span id="qa-waiting-template" class="qa-waiting">...</span>
+		</div>
+	
+	
+
+</body><!-- Powered by Question2Answer - http://www.question2answer.org/ --></html>

@@ -1,0 +1,358 @@
+<html><!-- Powered by Question2Answer - http://www.question2answer.org/ --><head>
+		<meta http-equiv="content-type" content="text/html; charset=utf-8">
+		<title>Newton-Raphson without boundary condition - FEniCS Q&amp;A</title>
+		<meta name="description" content="Dear all, First of all thanks for the support in all my silly questions. I am ... 2016.2.0 *** Git changeset: 0f003bc07ee5fd583fb956245016d5972b80fea1">
+		<meta name="keywords" content="newton-solver,level-set-method">
+		<link rel="stylesheet" type="text/css" href="../../qa-theme/Snow/qa-styles.css">
+		<link rel="canonical" href="http://fenicsproject.org/qa/14306/newton-raphson-without-boundary-condition">
+		<script type="text/x-mathjax-config">
+  MathJax.Hub.Config({
+    extensions: ["tex2jax.js"],
+    jax: ["input/TeX","output/HTML-CSS"],
+    tex2jax: {inlineMath: [["$","$"],["\\(","\\)"]]},
+    TeX: { extensions: ["AMSmath.js","AMSsymbols.js"]}
+  });
+</script>
+<script type="text/javascript" src="../../mathjax/MathJax.js"></script>
+		<script src="../../jquery-1.7.2.min.js" type="text/javascript"></script>
+		<script src="../../highlight.min.js"></script>
+<script type="text/javascript">
+$(function(){
+	$('.wmd-input').keypress(function(){
+		window.clearTimeout(hljs.Timeout);
+		hljs.Timeout = window.setTimeout(function() {
+			hljs.initHighlighting.called = false;
+			hljs.initHighlighting();
+		}, 500);
+	});
+	window.setTimeout(function() {
+		hljs.initHighlighting.called = false;
+		hljs.initHighlighting();
+	}, 500);
+});
+</script>
+
+
+	</head>
+	<body class="qa-template-question qa-body-js-off">
+		<div class="qa-body-wrapper">
+			
+			<div class="qa-header">
+				<div class="qa-logo">
+					<a href="../../" class="qa-logo-link" title="FEniCS Q&amp;A"><img src="../../qa-theme/fenics_qa.png" border="0" alt="FEniCS Q&amp;A"></a>
+				</div>
+				<div class="qa-header-clear">
+				</div>
+			</div> <!-- END qa-header -->
+			
+			<div class="qa-main-shadow">
+				
+				<div class="qa-main-wrapper">
+					
+					<div class="qa-sidepanel">
+						<div class="qa-sidebar">
+							This is a read only copy of the old FEniCS QA forum. Please visit the <a href="https://www.allanswered.com/community/s/fenics-project/">new QA forum</a> to ask questions
+						</div>
+						
+					</div>
+					
+					<div class="qa-main">
+						<h1>
+							<span class="entry-title">Newton-Raphson without boundary condition</span>
+						</h1>
+						<div class="qa-part-q-view">
+							<div class="qa-q-view  hentry question" id="q14306">
+								<form method="post" action="../../14306/newton-raphson-without-boundary-condition">
+									<div class="qa-q-view-stats">
+										<div class="qa-voting qa-voting-net" id="voting_14306">
+											<div class="qa-vote-count qa-vote-count-net">
+												<span class="qa-netvote-count">
+													<span class="qa-netvote-count-data">+2<span class="votes-up"><span class="value-title" title="2"></span></span><span class="votes-down"><span class="value-title" title="0"></span></span></span><span class="qa-netvote-count-pad"> votes</span>
+												</span>
+											</div>
+											<div class="qa-vote-clear">
+											</div>
+										</div>
+									</div>
+									<input type="hidden" name="code" value="0-1516466514-f0fa128b98278265b12bcc3e46b7fdadcf472602">
+								</form>
+								<div class="qa-q-view-main">
+									<form method="post" action="../../14306/newton-raphson-without-boundary-condition">
+										<div class="qa-q-view-content">
+											<a name="14306"></a><div class="entry-content"><p>Dear all,</p>
+
+<p>First of all thanks for the support in all my silly questions.</p>
+
+<p>I am trying to implement the code below using Newton-Raphson, but this problem has only initial guess (no boundary conditions) and I have no idea how can I do this work.  </p>
+
+<pre><code># Modules
+from fenics import*
+import time
+%matplotlib inline
+
+# Parameters
+theta = Constant(0.5)    # theta schema
+t_end = 5.0
+num_steps = 10
+dt = t_end/num_steps
+
+mesh = RectangleMesh(Point(0.0, 0.0), Point(1.0, 4.0), 1, 1,"crossed")    
+center = Point(0.5, 0.5)
+radius = 0.2
+dist = Expression('sqrt((x[0]-A)*(x[0]-A) + (x[1]-B)*(x[1]-B))-r',degree=2, A=center[0], B=center[1],r=radius)
+
+# Difine function space
+V = FunctionSpace(mesh, "Lagrange", 1)
+u = Function(V)
+u0 = Function(V)
+w = TestFunction(V)
+
+#initial condition
+u0 = interpolate(dist, V)
+
+# Reinitalization
+n = grad(u0)
+h = CellSize(mesh)
+epsilon = 2*h
+beta = theta*dt
+
+F = u*w*dx - beta*u*inner(grad(w),n)*dx + epsilon*beta*inner(grad(u),n)*inner(grad(w),n)*dx + \
+    epsilon*dt*u*u0*inner(grad(w),n)*dx - (u0*w*dx + beta*u0*inner(grad(w),n)*dx - \
+    epsilon*beta*inner(grad(u0),n)*inner(grad(w),n)*dx) 
+
+J = derivative(F, u)
+bcs = Constant(0)
+
+ffc_options={"quadrature_degree":4,"optimize":True,"eliminate_zeros":False}
+problem=NonlinearVariationalProblem(F,u,bcs,J,ffc_options)
+solver=NonlinearVariationalSolver(problem)
+
+prm = solver.parameters
+#info(prm, True)
+prm['nonlinear_solver'] = 'newton'
+prm['newton_solver']['linear_solver'] = 'mumps'
+prm['newton_solver']['lu_solver']['report'] = False
+prm['newton_solver']['lu_solver']['same_nonzero_pattern']=True
+prm['newton_solver']['absolute_tolerance'] = 1E-10
+prm['newton_solver']['relative_tolerance'] = 1E-10
+prm['newton_solver']['maximum_iterations'] = 20
+prm['newton_solver']['report'] = True
+#prm['newton_solver']['error_on_nonconvergence'] = False
+</code></pre>
+
+<p>error:</p>
+
+<pre><code>RuntimeErrorTraceback (most recent call last)
+&lt;ipython-input-5-39e0129517f4&gt; in &lt;module&gt;()
+      1 ffc_options={"quadrature_degree":4,"optimize":True,"eliminate_zeros":False}
+----&gt; 2 problem=NonlinearVariationalProblem(F,u,bcs,J,ffc_options)
+      3 solver=NonlinearVariationalSolver(problem)
+      4 
+      5 prm = solver.parameters
+
+/usr/local/lib/python2.7/dist-packages/dolfin/fem/solving.py in __init__(self, F, u, bcs, J, form_compiler_parameters)
+    135         # Extract and check arguments
+    136         u = _extract_u(u)
+--&gt; 137         bcs = _extract_bcs(bcs)
+    138 
+    139         # Store input UFL forms and solution Function
+
+/usr/local/lib/python2.7/dist-packages/dolfin/fem/solving.py in _extract_bcs(bcs)
+    491             cpp.dolfin_error("solving.py",
+    492                              "solve variational problem",
+--&gt; 493                              "Unable to extract boundary condition arguments")
+    494     return bcs
+
+/usr/local/lib/python2.7/dist-packages/dolfin/cpp/common.py in dolfin_error(location, task, reason)
+   2910 
+   2911     """
+-&gt; 2912     return _common.dolfin_error(location, task, reason)
+   2913 
+   2914 def deprecation(feature, version_deprecated, message):
+
+RuntimeError: 
+
+*** -------------------------------------------------------------------------
+*** DOLFIN encountered an error. If you are not able to resolve this issue
+*** using the information listed below, you can ask for help at
+***
+***     fenics-support@googlegroups.com
+***
+*** Remember to include the error message listed below and, if possible,
+*** include a *minimal* running example to reproduce the error.
+***
+*** -------------------------------------------------------------------------
+*** Error:   Unable to solve variational problem.
+*** Reason:  Unable to extract boundary condition arguments.
+*** Where:   This error was encountered inside solving.py.
+*** Process: 0
+*** 
+*** DOLFIN version: 2016.2.0
+*** Git changeset:  0f003bc07ee5fd583fb956245016d5972b80fea1
+</code></pre>
+</div>
+										</div>
+										<div class="qa-q-view-tags">
+											<ul class="qa-q-view-tag-list">
+												<li class="qa-q-view-tag-item"><a href="../../tag/newton-solver" rel="tag" class="qa-tag-link">newton-solver</a></li>
+												<li class="qa-q-view-tag-item"><a href="../../tag/level-set-method" rel="tag" class="qa-tag-link">level-set-method</a></li>
+											</ul>
+										</div>
+										<span class="qa-q-view-avatar-meta">
+											<span class="qa-q-view-meta">
+												<a href="../../14306/newton-raphson-without-boundary-condition" class="qa-q-view-what">asked</a>
+												<span class="qa-q-view-when">
+													<span class="qa-q-view-when-data"><span class="published"><span class="value-title" title="2017-07-11T16:05:14+0000"></span>Jul 11, 2017</span></span>
+												</span>
+												<span class="qa-q-view-who">
+													<span class="qa-q-view-who-pad">by </span>
+													<span class="qa-q-view-who-data"><span class="vcard author"><a href="../../user/pimenta.pvcl" class="qa-user-link url nickname">pimenta.pvcl</a></span></span>
+													<span class="qa-q-view-who-title">FEniCS Novice</span>
+													<span class="qa-q-view-who-points">
+														<span class="qa-q-view-who-points-pad">(</span><span class="qa-q-view-who-points-data">320</span><span class="qa-q-view-who-points-pad"> points)</span>
+													</span>
+												</span>
+											</span>
+										</span>
+										<div class="qa-q-view-buttons">
+										</div>
+										
+										<div class="qa-q-view-c-list" style="display:none;" id="c14306_list">
+										</div> <!-- END qa-c-list -->
+										
+										<input type="hidden" name="code" value="0-1516466514-848f62ecc00afd6a89cb0945c9730ac4e7d4335f">
+										<input type="hidden" name="qa_click" value="">
+									</form>
+									<div class="qa-c-form">
+									</div> <!-- END qa-c-form -->
+									
+								</div> <!-- END qa-q-view-main -->
+								<div class="qa-q-view-clear">
+								</div>
+							</div> <!-- END qa-q-view -->
+							
+						</div>
+						<div class="qa-part-a-list">
+							<h2 id="a_list_title">1 Answer</h2>
+							<div class="qa-a-list" id="a_list">
+								
+								<div class="qa-a-list-item  hentry answer answer-selected qa-a-list-item-selected" id="a14307">
+									<form method="post" action="../../14306/newton-raphson-without-boundary-condition">
+										<div class="qa-voting qa-voting-net" id="voting_14307">
+											<div class="qa-vote-count qa-vote-count-net">
+												<span class="qa-netvote-count">
+													<span class="qa-netvote-count-data">+1<span class="votes-up"><span class="value-title" title="1"></span></span><span class="votes-down"><span class="value-title" title="0"></span></span></span><span class="qa-netvote-count-pad"> vote</span>
+												</span>
+											</div>
+											<div class="qa-vote-clear">
+											</div>
+										</div>
+										<input type="hidden" name="code" value="0-1516466514-f0fa128b98278265b12bcc3e46b7fdadcf472602">
+									</form>
+									<div class="qa-a-item-main">
+										<form method="post" action="../../14306/newton-raphson-without-boundary-condition">
+											<div class="qa-a-item-selected">
+												<div class="qa-a-selection">
+													<div class="qa-a-selected">&#160;</div>
+													<div class="qa-a-selected-text">Best answer</div>
+												</div>
+												<div class="qa-a-item-content">
+													<a name="14307"></a><div class="entry-content"><p>Try:</p>
+
+<pre><code>bcs = []
+problem=NonlinearVariationalProblem(F,u,bcs,J)
+</code></pre>
+
+<p>The empty list means no Dirichlet boundary conditions.</p>
+</div>
+												</div>
+												<span class="qa-a-item-avatar-meta">
+													<span class="qa-a-item-avatar">
+														<a href="../../user/nate" class="qa-avatar-link"><img src="../../?qa=image&amp;qa_blobid=969593914916706065&amp;qa_size=40" width="40" height="40" class="qa-avatar-image" alt=""></a>
+													</span>
+													<span class="qa-a-item-meta">
+														<a href="../../14306/newton-raphson-without-boundary-condition?show=14307#a14307" class="qa-a-item-what">answered</a>
+														<span class="qa-a-item-when">
+															<span class="qa-a-item-when-data"><span class="published"><span class="value-title" title="2017-07-11T19:39:03+0000"></span>Jul 11, 2017</span></span>
+														</span>
+														<span class="qa-a-item-who">
+															<span class="qa-a-item-who-pad">by </span>
+															<span class="qa-a-item-who-data"><span class="vcard author"><a href="../../user/nate" class="qa-user-link url nickname">nate</a></span></span>
+															<span class="qa-a-item-who-title">FEniCS Expert</span>
+															<span class="qa-a-item-who-points">
+																<span class="qa-a-item-who-points-pad">(</span><span class="qa-a-item-who-points-data">17,050</span><span class="qa-a-item-who-points-pad"> points)</span>
+															</span>
+														</span>
+														<br>
+														<span class="qa-a-item-what">selected</span>
+														<span class="qa-a-item-when">
+															<span class="qa-a-item-when-data"><span class="updated"><span class="value-title" title="2017-07-11T20:07:57+0000"></span>Jul 11, 2017</span></span>
+														</span>
+														<span class="qa-a-item-who">
+															<span class="qa-a-item-who-pad">by </span><span class="qa-a-item-who-data"><a href="../../user/pimenta.pvcl" class="qa-user-link url nickname">pimenta.pvcl</a></span>
+														</span>
+													</span>
+												</span>
+											</div>
+											<div class="qa-a-item-buttons">
+												</div>
+											
+											<div class="qa-a-item-c-list" id="c14307_list">
+												<div class="qa-c-list-item  hentry comment" id="c14309">
+													<div class="qa-c-item-content">
+														<a name="14309"></a><div class="entry-content"><p>Thanks for all! </p>
+</div>
+													</div>
+													<div class="qa-c-item-footer">
+														<span class="qa-c-item-avatar-meta">
+															<span class="qa-c-item-meta">
+																<a href="../../14306/newton-raphson-without-boundary-condition?show=14309#c14309" class="qa-c-item-what">commented</a>
+																<span class="qa-c-item-when">
+																	<span class="qa-c-item-when-data"><span class="published"><span class="value-title" title="2017-07-11T20:08:16+0000"></span>Jul 11, 2017</span></span>
+																</span>
+																<span class="qa-c-item-who">
+																	<span class="qa-c-item-who-pad">by </span>
+																	<span class="qa-c-item-who-data"><span class="vcard author"><a href="../../user/pimenta.pvcl" class="qa-user-link url nickname">pimenta.pvcl</a></span></span>
+																	<span class="qa-c-item-who-title">FEniCS Novice</span>
+																	<span class="qa-c-item-who-points">
+																		<span class="qa-c-item-who-points-pad">(</span><span class="qa-c-item-who-points-data">320</span><span class="qa-c-item-who-points-pad"> points)</span>
+																	</span>
+																</span>
+															</span>
+														</span>
+														<div class="qa-c-item-buttons">
+														</div>
+													</div>
+													<div class="qa-c-item-clear">
+													</div>
+												</div> <!-- END qa-c-item -->
+											</div> <!-- END qa-c-list -->
+											
+											<input type="hidden" name="code" value="0-1516466514-3703bd4f2533da5c5141632afed9f9d56d37a745">
+											<input type="hidden" name="qa_click" value="">
+										</form>
+										<div class="qa-c-form">
+										</div> <!-- END qa-c-form -->
+										
+									</div> <!-- END qa-a-item-main -->
+									<div class="qa-a-item-clear">
+									</div>
+								</div> <!-- END qa-a-list-item -->
+								
+							</div> <!-- END qa-a-list -->
+							
+						</div>
+					</div> <!-- END qa-main -->
+					
+				</div> <!-- END main-wrapper -->
+			</div> <!-- END main-shadow -->
+		</div> <!-- END body-wrapper -->
+		<!-- END footer-bottom-group -->
+		
+		<div style="position:absolute; left:-9999px; top:-9999px;">
+			<span id="qa-waiting-template" class="qa-waiting">...</span>
+		</div>
+	
+	
+
+</body><!-- Powered by Question2Answer - http://www.question2answer.org/ --></html>

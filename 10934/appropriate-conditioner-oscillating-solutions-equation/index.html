@@ -1,0 +1,492 @@
+<html><!-- Powered by Question2Answer - http://www.question2answer.org/ --><head>
+		<meta http-equiv="content-type" content="text/html; charset=utf-8">
+		<title>What is an appropriate pre-conditioner for oscillating solutions of the Stoke's equation? - FEniCS Q&amp;A</title>
+		<meta name="description" content="I would like to solve the Stoke's equation for pressure and velocity fields which vary sinusoidally in ... [1]**2)-radius) return on_boundary and dist">
+		<meta name="keywords" content="preconditioner,stokes">
+		<link rel="stylesheet" type="text/css" href="../../qa-theme/Snow/qa-styles.css">
+		<link rel="canonical" href="http://fenicsproject.org/qa/10934/appropriate-conditioner-oscillating-solutions-equation">
+		<script type="text/x-mathjax-config">
+  MathJax.Hub.Config({
+    extensions: ["tex2jax.js"],
+    jax: ["input/TeX","output/HTML-CSS"],
+    tex2jax: {inlineMath: [["$","$"],["\\(","\\)"]]},
+    TeX: { extensions: ["AMSmath.js","AMSsymbols.js"]}
+  });
+</script>
+<script type="text/javascript" src="../../mathjax/MathJax.js"></script>
+		<script src="../../jquery-1.7.2.min.js" type="text/javascript"></script>
+		<script src="../../highlight.min.js"></script>
+<script type="text/javascript">
+$(function(){
+	$('.wmd-input').keypress(function(){
+		window.clearTimeout(hljs.Timeout);
+		hljs.Timeout = window.setTimeout(function() {
+			hljs.initHighlighting.called = false;
+			hljs.initHighlighting();
+		}, 500);
+	});
+	window.setTimeout(function() {
+		hljs.initHighlighting.called = false;
+		hljs.initHighlighting();
+	}, 500);
+});
+</script>
+
+
+	</head>
+	<body class="qa-template-question qa-body-js-off">
+		<div class="qa-body-wrapper">
+			
+			<div class="qa-header">
+				<div class="qa-logo">
+					<a href="../../" class="qa-logo-link" title="FEniCS Q&amp;A"><img src="../../qa-theme/fenics_qa.png" border="0" alt="FEniCS Q&amp;A"></a>
+				</div>
+				<div class="qa-header-clear">
+				</div>
+			</div> <!-- END qa-header -->
+			
+			<div class="qa-main-shadow">
+				
+				<div class="qa-main-wrapper">
+					
+					<div class="qa-sidepanel">
+						<div class="qa-sidebar">
+							This is a read only copy of the old FEniCS QA forum. Please visit the <a href="https://www.allanswered.com/community/s/fenics-project/">new QA forum</a> to ask questions
+						</div>
+						
+					</div>
+					
+					<div class="qa-main">
+						<h1>
+							<span class="entry-title">What is an appropriate pre-conditioner for oscillating solutions of the Stoke's equation?</span>
+						</h1>
+						<div class="qa-part-q-view">
+							<div class="qa-q-view  hentry question" id="q10934">
+								<form method="post" action="../../10934/appropriate-conditioner-oscillating-solutions-equation">
+									<div class="qa-q-view-stats">
+										<div class="qa-voting qa-voting-net" id="voting_10934">
+											<div class="qa-vote-count qa-vote-count-net">
+												<span class="qa-netvote-count">
+													<span class="qa-netvote-count-data">0<span class="votes-up"><span class="value-title" title="0"></span></span><span class="votes-down"><span class="value-title" title="0"></span></span></span><span class="qa-netvote-count-pad"> votes</span>
+												</span>
+											</div>
+											<div class="qa-vote-clear">
+											</div>
+										</div>
+									</div>
+									<input type="hidden" name="code" value="0-1516467085-f1e54103e2d692b2a17e26410c7b95a66a4b3d5a">
+								</form>
+								<div class="qa-q-view-main">
+									<form method="post" action="../../10934/appropriate-conditioner-oscillating-solutions-equation">
+										<div class="qa-q-view-content">
+											<a name="10934"></a><div class="entry-content"><p>I would like to solve the Stoke's equation for pressure and velocity fields which vary sinusoidally in time: $ u(x,y,t) = \tilde{u}(x,y) \exp( i \omega t) $.  Following advice on this form and in the documentation I split the complex $\tilde{u}(x,y) $ into a real and imaginary part, select Taylor-Hood  elements and solve.  Using a direct solver (mumps) this yields the solution of Tuck ([E.O. Tuck, J Eng Math 3 29]) for an oscillating cantilever.  </p>
+
+<p>I tried to then solve with an iterative solver.  However, it is not clear to me how to define the preconditioner and as an engineer the references in the Fenics book (chapter 35) are hard to follow.  The best I could manage so far was a shotgun approach (commented in the code listing below for the amusement of any specialists on this forum).  Can anyone point me in the right direction (either a form for the preconditioner or if it exists a simpler discussion of preconditioning)?</p>
+
+<p>As a final comment using a popular but very expensive commercial tool this model did solve using a ilu precondition and gmres (fortunately for simple folk like me the user doesn't have to specify a preconditioner for this tool) so I guess the situation is not intrinsically hopeless.  However, I ultimately want to use dolfin-adjoint so this route is not particularly attractive...</p>
+
+<p>In any event here is my model:</p>
+
+<pre><code>import numpy as np
+from dolfin import *
+import mshr as mr
+
+#--- variables
+R_L = 50.
+Ro = 10
+Re=10
+
+t = 0.02
+a = 1
+radius = R_L/np.sqrt(Re)
+
+
+#--- define geometry (use polygon for bc later)
+cantilever = mr.Polygon([Point(-a,-t/2),Point(a,-t/2),Point(a,t/2),Point(0,t/2)\
+                 ,Point(-a,t/2)])
+ob = mr.Circle(Point(0,0),radius,segments=100)
+
+domain = ob-cantilever
+mesh = mr.generate_mesh(domain,20)
+
+#--- mark boundaries
+class outer_boundary(SubDomain):
+    def inside(self,x,on_boundary):
+        dist = 0        
+        if on_boundary:
+            dist = np.abs(np.sqrt(x[0]**2+x[1]**2)-radius)
+        return on_boundary and dist&lt;0.1
+
+ob = outer_boundary()
+
+class canti_boundary(SubDomain):
+    def inside(self,x,on_boundary):
+        dist = 0        
+        if on_boundary:
+            dist = np.abs(np.sqrt(x[0]**2+x[1]**2)-radius)
+        return on_boundary and not dist &lt;0.1
+
+
+cb =canti_boundary()
+
+bnd_mf = MeshFunction("size_t", mesh, mesh.topology().dim() - 1)
+bnd_mf.set_all(0)
+ob.mark(bnd_mf,1)
+cb.mark(bnd_mf,2)
+
+
+# Define function spaces
+V = VectorFunctionSpace(mesh, "CG", 2, dim=4) # Trial: pair of velocity fields, Test: Cauchy Tensor
+Q = VectorFunctionSpace(mesh, "CG", 1, dim=2) # Trial: pair of pressure fields, Test: Divergence condition
+W = V * Q
+S = FunctionSpace(mesh,'CG',1) # for post only
+VV = VectorFunctionSpace(mesh,'CG',1) # for post only
+
+# No-slip boundary condition for velocity
+noslip = Constant((0., 0., 0., 0.))
+osc = Expression(("0", "1","0.", "0.0"))
+freeS_p = Constant((0,0))
+
+
+def is_canti_center(x,on_boundary):
+    return near(x[0],0) and near(x[1],t/2)
+
+bc1 = DirichletBC(W.sub(0), noslip, bnd_mf, 1)
+bc2 = DirichletBC(W.sub(0), osc, bnd_mf, 2)
+bcp = DirichletBC(W.sub(1),freeS_p,is_canti_center,'pointwise')
+
+# Collect boundary conditions
+bcs = [bc1,bc2,bcp]
+
+
+# Define variational problem
+(un, pn)  = TrialFunctions(W)
+(vn, qn) = TestFunctions(W)
+
+ur = as_vector([un[0],un[1]])
+ui = as_vector([un[2],un[3]])
+pr = pn[0]
+pi = pn[1]
+
+vr = as_vector([vn[0],vn[1]])
+vi = as_vector([vn[2],vn[3]])
+qr = qn[0]
+qi = qn[1]
+
+fr = Constant((0,0))
+fi = Constant((0,0))
+
+(j,l) = indices(2)
+
+a = Dx(ur[l],j)*Dx(vr[l],j)*dx-Dx(vr[j],j)*pr*dx + qr*Dx(ur[j],j)*dx+\
+    Dx(ui[l],j)*Dx(vi[l],j)*dx-Dx(vi[j],j)*pi*dx + qi*Dx(ui[j],j)*dx-\
+    Constant(Re)*ui[j]*vr[j]*dx+Constant(Re)*ur[j]*vi[j]*dx
+
+L = fr[j]*vr[j]*dx+fi[j]*vi[j]*dx
+
+###---- Solution with Direct Solver
+w = Function(W)
+solve(a==L,w,bcs=bcs,solver_parameters={"linear_solver": "mumps"})
+###/---- Solution with Direct Solver
+
+###---- Solution with Iterative Solver ??
+#A,bb = assemble_system(a,L,bcs)
+#precond = (inner(nabla_grad(ur), nabla_grad(vr))+ inner(nabla_grad(ui), nabla_grad(vi)))*dx\
+#          + (dot(ur,vr)+dot(ui,vi)) * dx\
+#          + (pr*qr+pi*qi) * dx\
+#          + (dot(grad(pr),grad(qr))+dot(grad(pi),grad(qi))) * dx
+#P, btmp = assemble_system(precond, L, bcs)
+#w = Function(W)
+#solver = KrylovSolver("gmres", "ilu")
+#solver.set_operators(A, P)
+#solver.parameters['monitor_convergence'] = True
+#solver.parameters['maximum_iterations'] = 1000
+#solver.solve(w.vector(), bb)
+###/---- Solution with Iterative Solver
+
+
+# # Split the mixed solution using a shallow copy
+(un,pn) = w.split()
+
+ur = as_vector([un[0],un[1]])
+ui = as_vector([un[2],un[3]])
+pr = pn[0]
+pi = pn[1]
+
+# Plot solution: in phase and quadrature compents
+plot(ur,title='u: llel V')
+plot(ui,title='u: llel A')
+
+plot(pr,title='p: llel V')
+plot(pi,title='p: llel A')
+
+#-- post process
+uxr = project(ur[0],S)
+uyr = project(ur[1],S)
+uxt = Function(S)
+
+uxi = project(ui[0],S)
+uyi = project(ui[1],S)
+uyt = Function(S)
+ut = Function(VV)
+
+interactive()
+</code></pre>
+</div>
+										</div>
+										<div class="qa-q-view-tags">
+											<ul class="qa-q-view-tag-list">
+												<li class="qa-q-view-tag-item"><a href="../../tag/preconditioner" rel="tag" class="qa-tag-link">preconditioner</a></li>
+												<li class="qa-q-view-tag-item"><a href="../../tag/stokes" rel="tag" class="qa-tag-link">stokes</a></li>
+											</ul>
+										</div>
+										<span class="qa-q-view-avatar-meta">
+											<span class="qa-q-view-meta">
+												<a href="../../10934/appropriate-conditioner-oscillating-solutions-equation" class="qa-q-view-what">asked</a>
+												<span class="qa-q-view-when">
+													<span class="qa-q-view-when-data"><span class="published"><span class="value-title" title="2016-08-19T08:48:36+0000"></span>Aug 19, 2016</span></span>
+												</span>
+												<span class="qa-q-view-who">
+													<span class="qa-q-view-who-pad">by </span>
+													<span class="qa-q-view-who-data"><span class="vcard author"><a href="../../user/9954colinr" class="qa-user-link url nickname">9954colinr</a></span></span>
+													<span class="qa-q-view-who-title">FEniCS Novice</span>
+													<span class="qa-q-view-who-points">
+														<span class="qa-q-view-who-points-pad">(</span><span class="qa-q-view-who-points-data">290</span><span class="qa-q-view-who-points-pad"> points)</span>
+													</span>
+												</span>
+											</span>
+										</span>
+										<div class="qa-q-view-buttons">
+										</div>
+										
+										<div class="qa-q-view-c-list" style="display:none;" id="c10934_list">
+										</div> <!-- END qa-c-list -->
+										
+										<input type="hidden" name="code" value="0-1516467085-76490e522644323016115cc3c8dbfa0c506a5648">
+										<input type="hidden" name="qa_click" value="">
+									</form>
+									<div class="qa-c-form">
+									</div> <!-- END qa-c-form -->
+									
+								</div> <!-- END qa-q-view-main -->
+								<div class="qa-q-view-clear">
+								</div>
+							</div> <!-- END qa-q-view -->
+							
+						</div>
+						<div class="qa-part-a-list">
+							<h2 id="a_list_title">1 Answer</h2>
+							<div class="qa-a-list" id="a_list">
+								
+								<div class="qa-a-list-item  hentry answer" id="a10939">
+									<form method="post" action="../../10934/appropriate-conditioner-oscillating-solutions-equation">
+										<div class="qa-voting qa-voting-net" id="voting_10939">
+											<div class="qa-vote-count qa-vote-count-net">
+												<span class="qa-netvote-count">
+													<span class="qa-netvote-count-data">+1<span class="votes-up"><span class="value-title" title="1"></span></span><span class="votes-down"><span class="value-title" title="0"></span></span></span><span class="qa-netvote-count-pad"> vote</span>
+												</span>
+											</div>
+											<div class="qa-vote-clear">
+											</div>
+										</div>
+										<input type="hidden" name="code" value="0-1516467085-f1e54103e2d692b2a17e26410c7b95a66a4b3d5a">
+									</form>
+									<div class="qa-a-item-main">
+										<form method="post" action="../../10934/appropriate-conditioner-oscillating-solutions-equation">
+											<div class="qa-a-selection">
+											</div>
+											<div class="qa-a-item-content">
+												<a name="10939"></a><div class="entry-content"><p>Your preconditioner is quite close to what I would have suggested in <br>
+the first place. However, I would not have included the <br>
+term  (dot(grad(pr),grad(qr))+dot(grad(pi),grad(qi)))<br>
+and would also considered "amg" rather than "ilu".</p>
+</div>
+											</div>
+											<span class="qa-a-item-avatar-meta">
+												<span class="qa-a-item-meta">
+													<a href="../../10934/appropriate-conditioner-oscillating-solutions-equation?show=10939#a10939" class="qa-a-item-what">answered</a>
+													<span class="qa-a-item-when">
+														<span class="qa-a-item-when-data"><span class="published"><span class="value-title" title="2016-08-19T19:39:05+0000"></span>Aug 19, 2016</span></span>
+													</span>
+													<span class="qa-a-item-who">
+														<span class="qa-a-item-who-pad">by </span>
+														<span class="qa-a-item-who-data"><span class="vcard author"><a href="../../user/Kent-Andre+Mardal" class="qa-user-link url nickname">Kent-Andre Mardal</a></span></span>
+														<span class="qa-a-item-who-title">FEniCS Expert</span>
+														<span class="qa-a-item-who-points">
+															<span class="qa-a-item-who-points-pad">(</span><span class="qa-a-item-who-points-data">14,380</span><span class="qa-a-item-who-points-pad"> points)</span>
+														</span>
+													</span>
+												</span>
+											</span>
+											<div class="qa-a-item-buttons">
+												</div>
+											
+											<div class="qa-a-item-c-list" id="c10939_list">
+												<div class="qa-c-list-item  hentry comment" id="c10940">
+													<div class="qa-c-item-content">
+														<a name="10940"></a><div class="entry-content"><p>Thanks for the suggestions!</p>
+
+<p>They did reduce size of the residual after 1000 iterations but it was still converging rather slowly.</p>
+
+<p>If you have any other things I can try to improve matters further that would be great otherwise I will see if I can scrape by with a direct solver (finally I need to treat a 3D problem).</p>
+</div>
+													</div>
+													<div class="qa-c-item-footer">
+														<span class="qa-c-item-avatar-meta">
+															<span class="qa-c-item-meta">
+																<a href="../../10934/appropriate-conditioner-oscillating-solutions-equation?show=10940#c10940" class="qa-c-item-what">commented</a>
+																<span class="qa-c-item-when">
+																	<span class="qa-c-item-when-data"><span class="published"><span class="value-title" title="2016-08-20T16:02:37+0000"></span>Aug 20, 2016</span></span>
+																</span>
+																<span class="qa-c-item-who">
+																	<span class="qa-c-item-who-pad">by </span>
+																	<span class="qa-c-item-who-data"><span class="vcard author"><a href="../../user/9954colinr" class="qa-user-link url nickname">9954colinr</a></span></span>
+																	<span class="qa-c-item-who-title">FEniCS Novice</span>
+																	<span class="qa-c-item-who-points">
+																		<span class="qa-c-item-who-points-pad">(</span><span class="qa-c-item-who-points-data">290</span><span class="qa-c-item-who-points-pad"> points)</span>
+																	</span>
+																</span>
+															</span>
+														</span>
+														<div class="qa-c-item-buttons">
+														</div>
+													</div>
+													<div class="qa-c-item-clear">
+													</div>
+												</div> <!-- END qa-c-item -->
+												<div class="qa-c-list-item  hentry comment" id="c10957">
+													<div class="qa-c-item-content">
+														<a name="10957"></a><div class="entry-content"><p>Check if it works well when the system is symmetric. That is when Re=0. <br>
+Then you can add the term related to Re also to the preconditioned<br>
+to check. I often make the system symmetric by changing the sign <br>
+on the pressure. If you do so, then with Re=0, you are in the<br>
+domain where theory predicts nice results. </p>
+</div>
+													</div>
+													<div class="qa-c-item-footer">
+														<span class="qa-c-item-avatar-meta">
+															<span class="qa-c-item-meta">
+																<a href="../../10934/appropriate-conditioner-oscillating-solutions-equation?show=10957#c10957" class="qa-c-item-what">commented</a>
+																<span class="qa-c-item-when">
+																	<span class="qa-c-item-when-data"><span class="published"><span class="value-title" title="2016-08-22T20:31:26+0000"></span>Aug 22, 2016</span></span>
+																</span>
+																<span class="qa-c-item-who">
+																	<span class="qa-c-item-who-pad">by </span>
+																	<span class="qa-c-item-who-data"><span class="vcard author"><a href="../../user/Kent-Andre+Mardal" class="qa-user-link url nickname">Kent-Andre Mardal</a></span></span>
+																	<span class="qa-c-item-who-title">FEniCS Expert</span>
+																	<span class="qa-c-item-who-points">
+																		<span class="qa-c-item-who-points-pad">(</span><span class="qa-c-item-who-points-data">14,380</span><span class="qa-c-item-who-points-pad"> points)</span>
+																	</span>
+																</span>
+															</span>
+														</span>
+														<div class="qa-c-item-buttons">
+														</div>
+													</div>
+													<div class="qa-c-item-clear">
+													</div>
+												</div> <!-- END qa-c-item -->
+												<div class="qa-c-list-item  hentry comment" id="c10981">
+													<div class="qa-c-item-content">
+														<a name="10981"></a><div class="entry-content"><p>Hi Kent-Andre,</p>
+
+<p>this works nicely when Re=0.  </p>
+
+<p>Flipping the sign of the pressure also helped.  With this change it was possible to solve also for Re=0.1 (gmres converged after 2700 iterations).  Adding the term containing the Re number to the preconditioner resulted in convergence for Re=0.1 after 2158 iterations.</p>
+
+<p>gmres fails to converge in 10,000 iterations for Re=1.</p>
+
+<p>At this point I am not sure if I should mark the question answered.  As far as I can tell this is an appropriate preconditioner even if there are still some regions which cause the overall system trouble.  What is your opinion?</p>
+
+<p>thanks for your help with this,</p>
+
+<p>Colin</p>
+</div>
+													</div>
+													<div class="qa-c-item-footer">
+														<span class="qa-c-item-avatar-meta">
+															<span class="qa-c-item-meta">
+																<a href="../../10934/appropriate-conditioner-oscillating-solutions-equation?show=10981#c10981" class="qa-c-item-what">commented</a>
+																<span class="qa-c-item-when">
+																	<span class="qa-c-item-when-data"><span class="published"><span class="value-title" title="2016-08-24T13:05:19+0000"></span>Aug 24, 2016</span></span>
+																</span>
+																<span class="qa-c-item-who">
+																	<span class="qa-c-item-who-pad">by </span>
+																	<span class="qa-c-item-who-data"><span class="vcard author"><a href="../../user/9954colinr" class="qa-user-link url nickname">9954colinr</a></span></span>
+																	<span class="qa-c-item-who-title">FEniCS Novice</span>
+																	<span class="qa-c-item-who-points">
+																		<span class="qa-c-item-who-points-pad">(</span><span class="qa-c-item-who-points-data">290</span><span class="qa-c-item-who-points-pad"> points)</span>
+																	</span>
+																</span>
+															</span>
+														</span>
+														<div class="qa-c-item-buttons">
+														</div>
+													</div>
+													<div class="qa-c-item-clear">
+													</div>
+												</div> <!-- END qa-c-item -->
+												<div class="qa-c-list-item  hentry comment" id="c10987">
+													<div class="qa-c-item-content">
+														<a name="10987"></a><div class="entry-content"><p>2700 iterations is a lot. You need to look at the convergence criterion<br>
+as well. Probably it goes down to 10**(-16)  or something which may not<br>
+be what you want. </p>
+
+<p>You can also add the Re part to the preconditioner. Ideally you should<br>
+try for a block Gauss-Seidel variant, but it is currently hard with the<br>
+FEniCS API. You would need to do it in the PETSc backend / cbc.block </p>
+</div>
+													</div>
+													<div class="qa-c-item-footer">
+														<span class="qa-c-item-avatar-meta">
+															<span class="qa-c-item-meta">
+																<a href="../../10934/appropriate-conditioner-oscillating-solutions-equation?show=10987#c10987" class="qa-c-item-what">commented</a>
+																<span class="qa-c-item-when">
+																	<span class="qa-c-item-when-data"><span class="published"><span class="value-title" title="2016-08-25T11:37:19+0000"></span>Aug 25, 2016</span></span>
+																</span>
+																<span class="qa-c-item-who">
+																	<span class="qa-c-item-who-pad">by </span>
+																	<span class="qa-c-item-who-data"><span class="vcard author"><a href="../../user/Kent-Andre+Mardal" class="qa-user-link url nickname">Kent-Andre Mardal</a></span></span>
+																	<span class="qa-c-item-who-title">FEniCS Expert</span>
+																	<span class="qa-c-item-who-points">
+																		<span class="qa-c-item-who-points-pad">(</span><span class="qa-c-item-who-points-data">14,380</span><span class="qa-c-item-who-points-pad"> points)</span>
+																	</span>
+																</span>
+															</span>
+														</span>
+														<div class="qa-c-item-buttons">
+														</div>
+													</div>
+													<div class="qa-c-item-clear">
+													</div>
+												</div> <!-- END qa-c-item -->
+											</div> <!-- END qa-c-list -->
+											
+											<input type="hidden" name="code" value="0-1516467085-8534b7846c1e03759c9cee702277c47633f770dd">
+											<input type="hidden" name="qa_click" value="">
+										</form>
+										<div class="qa-c-form">
+										</div> <!-- END qa-c-form -->
+										
+									</div> <!-- END qa-a-item-main -->
+									<div class="qa-a-item-clear">
+									</div>
+								</div> <!-- END qa-a-list-item -->
+								
+							</div> <!-- END qa-a-list -->
+							
+						</div>
+					</div> <!-- END qa-main -->
+					
+				</div> <!-- END main-wrapper -->
+			</div> <!-- END main-shadow -->
+		</div> <!-- END body-wrapper -->
+		<!-- END footer-bottom-group -->
+		
+		<div style="position:absolute; left:-9999px; top:-9999px;">
+			<span id="qa-waiting-template" class="qa-waiting">...</span>
+		</div>
+	
+	
+
+</body><!-- Powered by Question2Answer - http://www.question2answer.org/ --></html>

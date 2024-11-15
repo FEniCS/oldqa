@@ -1,0 +1,313 @@
+<html><!-- Powered by Question2Answer - http://www.question2answer.org/ --><head>
+		<meta http-equiv="content-type" content="text/html; charset=utf-8">
+		<title>Extracting node points from subdomain - FEniCS Q&amp;A</title>
+		<meta name="description" content="I'm trying to compute a time dependent expression object in a domain that is divided into two subdomains. ...  loop and plot u_p = Function(V) while t">
+		<link rel="stylesheet" type="text/css" href="../../qa-theme/Snow/qa-styles.css">
+		<link rel="canonical" href="http://fenicsproject.org/qa/2246/extracting-node-points-from-subdomain">
+		<script type="text/x-mathjax-config">
+  MathJax.Hub.Config({
+    extensions: ["tex2jax.js"],
+    jax: ["input/TeX","output/HTML-CSS"],
+    tex2jax: {inlineMath: [["$","$"],["\\(","\\)"]]},
+    TeX: { extensions: ["AMSmath.js","AMSsymbols.js"]}
+  });
+</script>
+<script type="text/javascript" src="../../mathjax/MathJax.js"></script>
+		<script src="../../jquery-1.7.2.min.js" type="text/javascript"></script>
+		<script src="../../highlight.min.js"></script>
+<script type="text/javascript">
+$(function(){
+	$('.wmd-input').keypress(function(){
+		window.clearTimeout(hljs.Timeout);
+		hljs.Timeout = window.setTimeout(function() {
+			hljs.initHighlighting.called = false;
+			hljs.initHighlighting();
+		}, 500);
+	});
+	window.setTimeout(function() {
+		hljs.initHighlighting.called = false;
+		hljs.initHighlighting();
+	}, 500);
+});
+</script>
+
+
+	</head>
+	<body class="qa-template-question qa-body-js-off">
+		<div class="qa-body-wrapper">
+			
+			<div class="qa-header">
+				<div class="qa-logo">
+					<a href="../../" class="qa-logo-link" title="FEniCS Q&amp;A"><img src="../../qa-theme/fenics_qa.png" border="0" alt="FEniCS Q&amp;A"></a>
+				</div>
+				<div class="qa-header-clear">
+				</div>
+			</div> <!-- END qa-header -->
+			
+			<div class="qa-main-shadow">
+				
+				<div class="qa-main-wrapper">
+					
+					<div class="qa-sidepanel">
+						<div class="qa-sidebar">
+							This is a read only copy of the old FEniCS QA forum. Please visit the <a href="https://www.allanswered.com/community/s/fenics-project/">new QA forum</a> to ask questions
+						</div>
+						
+					</div>
+					
+					<div class="qa-main">
+						<h1>
+							<span class="entry-title">Extracting node points from subdomain</span>
+						</h1>
+						<div class="qa-part-q-view">
+							<div class="qa-q-view  hentry question" id="q2246">
+								<form method="post" action="../../2246/extracting-node-points-from-subdomain">
+									<div class="qa-q-view-stats">
+										<div class="qa-voting qa-voting-net" id="voting_2246">
+											<div class="qa-vote-count qa-vote-count-net">
+												<span class="qa-netvote-count">
+													<span class="qa-netvote-count-data">0<span class="votes-up"><span class="value-title" title="0"></span></span><span class="votes-down"><span class="value-title" title="0"></span></span></span><span class="qa-netvote-count-pad"> votes</span>
+												</span>
+											</div>
+											<div class="qa-vote-clear">
+											</div>
+										</div>
+									</div>
+									<input type="hidden" name="code" value="0-1516467919-d0a8d5882ca2ed8afcaa0c8885fb2e0bc7a217e7">
+								</form>
+								<div class="qa-q-view-main">
+									<form method="post" action="../../2246/extracting-node-points-from-subdomain">
+										<div class="qa-q-view-content">
+											<a name="2246"></a><div class="entry-content"><p>I'm trying to compute a time dependent expression object in a domain that is divided into two subdomains. After running the program, I would like to extract the values of the solution at the node points in the first subdomain. I have a code under that tries to implement this, but I end up with an array of size 3 no matter how fine my mesh is. </p>
+
+<p>The code is given below. Any help or advice is greatly appreciated!</p>
+
+<p></p><pre><code><br>
+from dolfin import *<br>
+import math as mt
+
+<code># size of Mesh
+L = 1
+h = 1
+l = 39
+m = 39
+
+# Mesh, functionspace, subdomains
+mesh = RectangleMesh(0,0,L,h,l,m)
+cf = CellFunction("size_t", mesh, 0)
+V = FunctionSpace(mesh, "Lagrange", 1)
+o2 = AutoSubDomain(lambda x: x[0] &gt; 0.5)
+o2.mark(cf,1)
+
+# Constants
+omega = 10
+c1 = 1
+lk = mt.pi/(2*h)
+kk = mt.sqrt(omega**2/c1**2 - lk**2)
+
+# Time parameters
+dt = 0.1
+T = 10
+t = 0
+
+# Exact solution
+u_e = Expression("sin(%s*t - %s*x[0])*cos(%s*x[1])"% (omega, kk, lk), t=t)
+
+# Main loop and plot
+u_p = Function(V)
+while t &lt;= 10:
+    begin("Computing at time t=%g" % t)
+    u_e.t = t
+    u_p.assign(interpolate(u_e, V))
+    plot(u_p, rescale=False)
+    end()
+
+    t += dt
+
+# Extract solution array from domain 1
+for cell in cells(mesh):
+    i = cell.index()
+    c = cf[i]
+    if c == 1:
+        dofs = V.dofmap().cell_dofs(i)
+        vals = u_p.vector()[dofs]
+
+print vals.array()
+</code></code></pre>
+</div>
+										</div>
+										<span class="qa-q-view-avatar-meta">
+											<span class="qa-q-view-meta">
+												<a href="../../2246/extracting-node-points-from-subdomain" class="qa-q-view-what">asked</a>
+												<span class="qa-q-view-when">
+													<span class="qa-q-view-when-data"><span class="published"><span class="value-title" title="2014-01-14T13:41:29+0000"></span>Jan 14, 2014</span></span>
+												</span>
+												<span class="qa-q-view-who">
+													<span class="qa-q-view-who-pad">by </span>
+													<span class="qa-q-view-who-data"><span class="vcard author"><a href="../../user/danieljt" class="qa-user-link url nickname">danieljt</a></span></span>
+													<span class="qa-q-view-who-title">FEniCS Novice</span>
+													<span class="qa-q-view-who-points">
+														<span class="qa-q-view-who-points-pad">(</span><span class="qa-q-view-who-points-data">410</span><span class="qa-q-view-who-points-pad"> points)</span>
+													</span>
+												</span>
+												<br>
+												<span class="qa-q-view-what">edited</span>
+												<span class="qa-q-view-when">
+													<span class="qa-q-view-when-data"><span class="updated"><span class="value-title" title="2014-01-14T14:51:36+0000"></span>Jan 14, 2014</span></span>
+												</span>
+												<span class="qa-q-view-who">
+													<span class="qa-q-view-who-pad">by </span><span class="qa-q-view-who-data"><a href="../../user/danieljt" class="qa-user-link url nickname">danieljt</a></span>
+												</span>
+											</span>
+										</span>
+										<div class="qa-q-view-buttons">
+										</div>
+										
+										<div class="qa-q-view-c-list" style="display:none;" id="c2246_list">
+										</div> <!-- END qa-c-list -->
+										
+										<input type="hidden" name="code" value="0-1516467919-623ebcb6dabb120f6c5abd150ec5ed02b70bda8e">
+										<input type="hidden" name="qa_click" value="">
+									</form>
+									<div class="qa-c-form">
+									</div> <!-- END qa-c-form -->
+									
+								</div> <!-- END qa-q-view-main -->
+								<div class="qa-q-view-clear">
+								</div>
+							</div> <!-- END qa-q-view -->
+							
+						</div>
+						<div class="qa-part-a-list">
+							<h2 id="a_list_title">1 Answer</h2>
+							<div class="qa-a-list" id="a_list">
+								
+								<div class="qa-a-list-item  hentry answer answer-selected qa-a-list-item-selected" id="a2249">
+									<form method="post" action="../../2246/extracting-node-points-from-subdomain">
+										<div class="qa-voting qa-voting-net" id="voting_2249">
+											<div class="qa-vote-count qa-vote-count-net">
+												<span class="qa-netvote-count">
+													<span class="qa-netvote-count-data">0<span class="votes-up"><span class="value-title" title="0"></span></span><span class="votes-down"><span class="value-title" title="0"></span></span></span><span class="qa-netvote-count-pad"> votes</span>
+												</span>
+											</div>
+											<div class="qa-vote-clear">
+											</div>
+										</div>
+										<input type="hidden" name="code" value="0-1516467919-d0a8d5882ca2ed8afcaa0c8885fb2e0bc7a217e7">
+									</form>
+									<div class="qa-a-item-main">
+										<form method="post" action="../../2246/extracting-node-points-from-subdomain">
+											<div class="qa-a-item-selected">
+												<div class="qa-a-selection">
+													<div class="qa-a-selected">&#160;</div>
+													<div class="qa-a-selected-text">Best answer</div>
+												</div>
+												<div class="qa-a-item-content">
+													<a name="2249"></a><div class="entry-content"><p>Hi, the way you wrote the code, you will end up with <strong>vals</strong> pointing to the values at <strong>cell_dofs</strong> of the last cell in the <strong>cells(mesh)</strong> iterator. The length of <strong>vals</strong> is 3 since you are using cG1 elements on triangles. You are not adding vals to some longer array, but always pointing it to something else! As a suggestion, in the code below the values of function in the domain of interest are used to build a dictionary and in the rest of the domain the values are set to meaningless values so you can clearly distinguish the two in the plot.</p>
+
+<pre><code>u_pv = u_p.vector()                                                              
+vals = {}                                                                        
+for cell in cells(mesh):                                                         
+    i = cell.index()                                                             
+    c = cf[i]                                                                    
+    dofs = V.dofmap().cell_dofs(i)                                               
+    if c == 0: # set domain0 values to something unphysical                      
+      u_pv[dofs] = -1.5                                                          
+    else:                                                                        
+      vals[i] = u_pv.array()[dofs]                                               
+
+print vals                                                                       
+plot(u_p, interactive=True)    
+</code></pre>
+</div>
+												</div>
+												<span class="qa-a-item-avatar-meta">
+													<span class="qa-a-item-avatar">
+														<a href="../../user/MiroK" class="qa-avatar-link"><img src="https://www.gravatar.com/avatar/f566be3274ec73e3a6dda27bca11631c?s=40" width="40" height="40" class="qa-avatar-image" alt=""></a>
+													</span>
+													<span class="qa-a-item-meta">
+														<a href="../../2246/extracting-node-points-from-subdomain?show=2249#a2249" class="qa-a-item-what">answered</a>
+														<span class="qa-a-item-when">
+															<span class="qa-a-item-when-data"><span class="published"><span class="value-title" title="2014-01-14T16:49:19+0000"></span>Jan 14, 2014</span></span>
+														</span>
+														<span class="qa-a-item-who">
+															<span class="qa-a-item-who-pad">by </span>
+															<span class="qa-a-item-who-data"><span class="vcard author"><a href="../../user/MiroK" class="qa-user-link url nickname">MiroK</a></span></span>
+															<span class="qa-a-item-who-title">FEniCS Expert</span>
+															<span class="qa-a-item-who-points">
+																<span class="qa-a-item-who-points-pad">(</span><span class="qa-a-item-who-points-data">80,920</span><span class="qa-a-item-who-points-pad"> points)</span>
+															</span>
+														</span>
+														<br>
+														<span class="qa-a-item-what">selected</span>
+														<span class="qa-a-item-when">
+															<span class="qa-a-item-when-data"><span class="updated"><span class="value-title" title="2014-01-14T18:08:48+0000"></span>Jan 14, 2014</span></span>
+														</span>
+														<span class="qa-a-item-who">
+															<span class="qa-a-item-who-pad">by </span><span class="qa-a-item-who-data"><a href="../../user/danieljt" class="qa-user-link url nickname">danieljt</a></span>
+														</span>
+													</span>
+												</span>
+											</div>
+											<div class="qa-a-item-buttons">
+												</div>
+											
+											<div class="qa-a-item-c-list" id="c2249_list">
+												<div class="qa-c-list-item  hentry comment" id="c2251">
+													<div class="qa-c-item-content">
+														<a name="2251"></a><div class="entry-content"><p>Thank you MiroK. That solved my problem!</p>
+</div>
+													</div>
+													<div class="qa-c-item-footer">
+														<span class="qa-c-item-avatar-meta">
+															<span class="qa-c-item-meta">
+																<a href="../../2246/extracting-node-points-from-subdomain?show=2251#c2251" class="qa-c-item-what">commented</a>
+																<span class="qa-c-item-when">
+																	<span class="qa-c-item-when-data"><span class="published"><span class="value-title" title="2014-01-14T18:10:06+0000"></span>Jan 14, 2014</span></span>
+																</span>
+																<span class="qa-c-item-who">
+																	<span class="qa-c-item-who-pad">by </span>
+																	<span class="qa-c-item-who-data"><span class="vcard author"><a href="../../user/danieljt" class="qa-user-link url nickname">danieljt</a></span></span>
+																	<span class="qa-c-item-who-title">FEniCS Novice</span>
+																	<span class="qa-c-item-who-points">
+																		<span class="qa-c-item-who-points-pad">(</span><span class="qa-c-item-who-points-data">410</span><span class="qa-c-item-who-points-pad"> points)</span>
+																	</span>
+																</span>
+															</span>
+														</span>
+														<div class="qa-c-item-buttons">
+														</div>
+													</div>
+													<div class="qa-c-item-clear">
+													</div>
+												</div> <!-- END qa-c-item -->
+											</div> <!-- END qa-c-list -->
+											
+											<input type="hidden" name="code" value="0-1516467919-02733374fdad6f313715f2cef6675f917e23eb0c">
+											<input type="hidden" name="qa_click" value="">
+										</form>
+										<div class="qa-c-form">
+										</div> <!-- END qa-c-form -->
+										
+									</div> <!-- END qa-a-item-main -->
+									<div class="qa-a-item-clear">
+									</div>
+								</div> <!-- END qa-a-list-item -->
+								
+							</div> <!-- END qa-a-list -->
+							
+						</div>
+					</div> <!-- END qa-main -->
+					
+				</div> <!-- END main-wrapper -->
+			</div> <!-- END main-shadow -->
+		</div> <!-- END body-wrapper -->
+		<!-- END footer-bottom-group -->
+		
+		<div style="position:absolute; left:-9999px; top:-9999px;">
+			<span id="qa-waiting-template" class="qa-waiting">...</span>
+		</div>
+	
+	
+
+</body><!-- Powered by Question2Answer - http://www.question2answer.org/ --></html>

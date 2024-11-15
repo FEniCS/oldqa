@@ -1,0 +1,380 @@
+<html><!-- Powered by Question2Answer - http://www.question2answer.org/ --><head>
+		<meta http-equiv="content-type" content="text/html; charset=utf-8">
+		<title>Unrealistic results 3D Navier Stokes - FEniCS Q&amp;A</title>
+		<meta name="description" content="I want to solve a 3D (stationary) Navier Stokes problem. Since I am not very skilled in fenics  ... self,x,on_boundary): return on_boundary and \ x[2]">
+		<meta name="keywords" content="3d,navier-stokes">
+		<link rel="stylesheet" type="text/css" href="../../qa-theme/Snow/qa-styles.css">
+		<link rel="canonical" href="http://fenicsproject.org/qa/6668/unrealistic-results-3d-navier-stokes">
+		<script type="text/x-mathjax-config">
+  MathJax.Hub.Config({
+    extensions: ["tex2jax.js"],
+    jax: ["input/TeX","output/HTML-CSS"],
+    tex2jax: {inlineMath: [["$","$"],["\\(","\\)"]]},
+    TeX: { extensions: ["AMSmath.js","AMSsymbols.js"]}
+  });
+</script>
+<script type="text/javascript" src="../../mathjax/MathJax.js"></script>
+		<script src="../../jquery-1.7.2.min.js" type="text/javascript"></script>
+		<script src="../../highlight.min.js"></script>
+<script type="text/javascript">
+$(function(){
+	$('.wmd-input').keypress(function(){
+		window.clearTimeout(hljs.Timeout);
+		hljs.Timeout = window.setTimeout(function() {
+			hljs.initHighlighting.called = false;
+			hljs.initHighlighting();
+		}, 500);
+	});
+	window.setTimeout(function() {
+		hljs.initHighlighting.called = false;
+		hljs.initHighlighting();
+	}, 500);
+});
+</script>
+
+
+	</head>
+	<body class="qa-template-question qa-body-js-off">
+		<div class="qa-body-wrapper">
+			
+			<div class="qa-header">
+				<div class="qa-logo">
+					<a href="../../" class="qa-logo-link" title="FEniCS Q&amp;A"><img src="../../qa-theme/fenics_qa.png" border="0" alt="FEniCS Q&amp;A"></a>
+				</div>
+				<div class="qa-header-clear">
+				</div>
+			</div> <!-- END qa-header -->
+			
+			<div class="qa-main-shadow">
+				
+				<div class="qa-main-wrapper">
+					
+					<div class="qa-sidepanel">
+						<div class="qa-sidebar">
+							This is a read only copy of the old FEniCS QA forum. Please visit the <a href="https://www.allanswered.com/community/s/fenics-project/">new QA forum</a> to ask questions
+						</div>
+						
+					</div>
+					
+					<div class="qa-main">
+						<h1>
+							<span class="entry-title">Unrealistic results 3D Navier Stokes</span>
+						</h1>
+						<div class="qa-part-q-view">
+							<div class="qa-q-view  hentry question" id="q6668">
+								<form method="post" action="../../6668/unrealistic-results-3d-navier-stokes">
+									<div class="qa-q-view-stats">
+										<div class="qa-voting qa-voting-net" id="voting_6668">
+											<div class="qa-vote-count qa-vote-count-net">
+												<span class="qa-netvote-count">
+													<span class="qa-netvote-count-data">0<span class="votes-up"><span class="value-title" title="0"></span></span><span class="votes-down"><span class="value-title" title="0"></span></span></span><span class="qa-netvote-count-pad"> votes</span>
+												</span>
+											</div>
+											<div class="qa-vote-clear">
+											</div>
+										</div>
+									</div>
+									<input type="hidden" name="code" value="0-1516468082-9ebe05ffa16c5c0f8a147bc293c31695dcc0e2f3">
+								</form>
+								<div class="qa-q-view-main">
+									<form method="post" action="../../6668/unrealistic-results-3d-navier-stokes">
+										<div class="qa-q-view-content">
+											<a name="6668"></a><div class="entry-content"><p>I want to solve a 3D (stationary) Navier Stokes problem. Since I am not very skilled in fenics I modified the 2D (instationary) example demo_navier_stokes.py. I generated the geometry and mesh with Gmsh and converted to xml format with dolfin-convert.py. Since I could not tranfer boundaries from msh to xml I had to redefine the boundaries in fenics.</p>
+
+<p>For example a cylindrical part:</p>
+
+<pre><code># class GasInletBoundary(SubDomain):
+        def inside(self,x,on_boundary):
+        return on_boundary and \
+        x[2]&lt;eps and math.hypot(x[0],x[1])&lt;=d1/2
+gamma_1 = GasInletBoundary()
+gamma_1.mark(boundary_parts,1)
+#
+</code></pre>
+
+<p>Etc...for a total of 8 boundaries.<br>
+There are 2 boundaries with prescribed velocities and 1 with prescribed pressure. Also many surfaces with noslip boundary conditions. I don't think that the boundary conditions are conflicting.</p>
+
+<pre><code># boundary conditions VectorFunctionSpace V (velocity)
+bc_1    = DirichletBC(V,(0,0,v_gas),boundary_parts,1)
+bc_2    = DirichletBC(V,(0,0,v_air),boundary_parts,2)
+
+# boundary conditions for (scalar) FunctionSpace Q (pressure)
+bc_3    = DirichletBC(Q, p_out,boundary_parts,3)
+
+# noslip boundary conditions VectorFunctionSpace V (velocity)
+bc_4    = DirichletBC(V,(0,0,0),boundary_parts,4)
+bc_5    = DirichletBC(V,(0,0,0),boundary_parts,5)
+</code></pre>
+
+<p>All boundaries are put in a list bcu and bcp like the example.<br>
+Solution the same as in the example.</p>
+
+<p>When I choose the timing parameters such that the cycle is executed oly once like dt = 0.2 and total time T = 0.3 than the result is a reasonable solution that may or may not be right. Probably not.</p>
+
+<p>If I increase the total time T and the loop is executed several times then the (some) velocities increase more or less exponentially. The final solution has a number of velocities order of magnitude 1.0E+100 or so. It looks as if in certain areas the boundary conditions get detached since when I print the velocity at the boundary I also get other values returned than the initial condition.  The plot of the velocity reveals that only in certain areas the velocity has large magnitude.</p>
+
+<p>There are no errors exept "Requested preconditioner is not available for uBAS Krylov solver" Using ILU.</p>
+
+<p>I can send code and mesh if you contact me and/or a plot of the velocity.</p>
+
+<p>Hope that somebody can help me.</p>
+</div>
+										</div>
+										<div class="qa-q-view-tags">
+											<ul class="qa-q-view-tag-list">
+												<li class="qa-q-view-tag-item"><a href="../../tag/3d" rel="tag" class="qa-tag-link">3d</a></li>
+												<li class="qa-q-view-tag-item"><a href="../../tag/navier-stokes" rel="tag" class="qa-tag-link">navier-stokes</a></li>
+											</ul>
+										</div>
+										<span class="qa-q-view-avatar-meta">
+											<span class="qa-q-view-meta">
+												<a href="../../6668/unrealistic-results-3d-navier-stokes" class="qa-q-view-what">asked</a>
+												<span class="qa-q-view-when">
+													<span class="qa-q-view-when-data"><span class="published"><span class="value-title" title="2015-03-03T15:01:28+0000"></span>Mar 3, 2015</span></span>
+												</span>
+												<span class="qa-q-view-who">
+													<span class="qa-q-view-who-pad">by </span>
+													<span class="qa-q-view-who-data"><span class="vcard author"><a href="../../user/gerthuisman" class="qa-user-link url nickname">gerthuisman</a></span></span>
+													<span class="qa-q-view-who-title">FEniCS Novice</span>
+													<span class="qa-q-view-who-points">
+														<span class="qa-q-view-who-points-pad">(</span><span class="qa-q-view-who-points-data">120</span><span class="qa-q-view-who-points-pad"> points)</span>
+													</span>
+												</span>
+											</span>
+										</span>
+										<div class="qa-q-view-buttons">
+										</div>
+										
+										<div class="qa-q-view-c-list" style="display:none;" id="c6668_list">
+										</div> <!-- END qa-c-list -->
+										
+										<input type="hidden" name="code" value="0-1516468082-2c42b958987bae72243d35282b6ce04ec8dfdc62">
+										<input type="hidden" name="qa_click" value="">
+									</form>
+									<div class="qa-c-form">
+									</div> <!-- END qa-c-form -->
+									
+								</div> <!-- END qa-q-view-main -->
+								<div class="qa-q-view-clear">
+								</div>
+							</div> <!-- END qa-q-view -->
+							
+						</div>
+						<div class="qa-part-a-list">
+							<h2 id="a_list_title">1 Answer</h2>
+							<div class="qa-a-list" id="a_list">
+								
+								<div class="qa-a-list-item  hentry answer" id="a6686">
+									<form method="post" action="../../6668/unrealistic-results-3d-navier-stokes">
+										<div class="qa-voting qa-voting-net" id="voting_6686">
+											<div class="qa-vote-count qa-vote-count-net">
+												<span class="qa-netvote-count">
+													<span class="qa-netvote-count-data">0<span class="votes-up"><span class="value-title" title="0"></span></span><span class="votes-down"><span class="value-title" title="0"></span></span></span><span class="qa-netvote-count-pad"> votes</span>
+												</span>
+											</div>
+											<div class="qa-vote-clear">
+											</div>
+										</div>
+										<input type="hidden" name="code" value="0-1516468082-9ebe05ffa16c5c0f8a147bc293c31695dcc0e2f3">
+									</form>
+									<div class="qa-a-item-main">
+										<form method="post" action="../../6668/unrealistic-results-3d-navier-stokes">
+											<div class="qa-a-selection">
+											</div>
+											<div class="qa-a-item-content">
+												<a name="6686"></a><div class="entry-content"><p>I am not sure if have clearly understand your Problem. But you want to use an instationary solver (2D) to solve the stationary Problem (3D). Thats probably not a good idea. <br>
+I would try to use the Nonlinear variational Problem</p>
+
+<pre><code>    # build derivative
+    dw = TrialFunction(self.W)
+    dF = derivative(F, w, dw)
+
+    # solve the problem
+    nsproblem = NonlinearVariationalProblem(F, w, bc, dF)
+    solver = NonlinearVariationalSolver(nsproblem)  
+    solver.solve()
+</code></pre>
+
+<p>where F is your weak formulation in Mixed FunctionSpace W=V*Q. If you get no convergence you can compute a solution for a low Reynoldsnumber and take this as a initial w for the next iteration. Be sure that your mesh is fine enough. </p>
+</div>
+											</div>
+											<span class="qa-a-item-avatar-meta">
+												<span class="qa-a-item-meta">
+													<a href="../../6668/unrealistic-results-3d-navier-stokes?show=6686#a6686" class="qa-a-item-what">answered</a>
+													<span class="qa-a-item-when">
+														<span class="qa-a-item-when-data"><span class="published"><span class="value-title" title="2015-03-04T08:59:04+0000"></span>Mar 4, 2015</span></span>
+													</span>
+													<span class="qa-a-item-who">
+														<span class="qa-a-item-who-pad">by </span>
+														<span class="qa-a-item-who-data"><span class="vcard author"><a href="../../user/maxb90" class="qa-user-link url nickname">maxb90</a></span></span>
+														<span class="qa-a-item-who-title">FEniCS Novice</span>
+														<span class="qa-a-item-who-points">
+															<span class="qa-a-item-who-points-pad">(</span><span class="qa-a-item-who-points-data">770</span><span class="qa-a-item-who-points-pad"> points)</span>
+														</span>
+													</span>
+												</span>
+											</span>
+											<div class="qa-a-item-buttons">
+												</div>
+											
+											<div class="qa-a-item-c-list" id="c6686_list">
+												<div class="qa-c-list-item  hentry comment" id="c6687">
+													<div class="qa-c-item-content">
+														<a name="6687"></a><div class="entry-content"><p>after that you can split your solution w in velocity and pressure components</p>
+
+<pre><code>(u, p) = w.split(deepcopy=True)
+</code></pre>
+</div>
+													</div>
+													<div class="qa-c-item-footer">
+														<span class="qa-c-item-avatar-meta">
+															<span class="qa-c-item-meta">
+																<a href="../../6668/unrealistic-results-3d-navier-stokes?show=6687#c6687" class="qa-c-item-what">commented</a>
+																<span class="qa-c-item-when">
+																	<span class="qa-c-item-when-data"><span class="published"><span class="value-title" title="2015-03-04T09:03:22+0000"></span>Mar 4, 2015</span></span>
+																</span>
+																<span class="qa-c-item-who">
+																	<span class="qa-c-item-who-pad">by </span>
+																	<span class="qa-c-item-who-data"><span class="vcard author"><a href="../../user/maxb90" class="qa-user-link url nickname">maxb90</a></span></span>
+																	<span class="qa-c-item-who-title">FEniCS Novice</span>
+																	<span class="qa-c-item-who-points">
+																		<span class="qa-c-item-who-points-pad">(</span><span class="qa-c-item-who-points-data">770</span><span class="qa-c-item-who-points-pad"> points)</span>
+																	</span>
+																</span>
+															</span>
+														</span>
+														<div class="qa-c-item-buttons">
+														</div>
+													</div>
+													<div class="qa-c-item-clear">
+													</div>
+												</div> <!-- END qa-c-item -->
+												<div class="qa-c-list-item  hentry comment" id="c6691">
+													<div class="qa-c-item-content">
+														<a name="6691"></a><div class="entry-content"><p>Thank you Max for your quick reply. I understand your reservations but I could not find a stationary 3D Navier Stokes example where I only needed to change the geometry, mesh and boundary conditions. I will study your solution and modify my code (if I can). Maybe for clarification I copy some more code of my 3D NS problem. I indeed refined the mesh a couple of times but without result.</p>
+
+<p>Function Spaces:</p>
+
+<pre><code># Define function spaces (P2-P1)
+V = VectorFunctionSpace(mesh, "CG", 2)
+Q = FunctionSpace(mesh, "CG", 1)
+
+# Define trial and test functions
+u = TrialFunction(V)
+p = TrialFunction(Q)
+v = TestFunction(V)
+q = TestFunction(Q)
+</code></pre>
+
+<p>Boundary conditions etc... I have explained in the question.</p>
+
+<p>Create Functions:</p>
+
+<pre><code># Create functions
+ u0 = Function(V)
+ u1 = Function(V)
+ p1 = Function(Q)
+</code></pre>
+
+<p>Then the solution is more or less like in the example:</p>
+
+<pre><code># Tentative velocity step
+F1 = (1/k)*inner(u - u0, v)*dx + inner(grad(u0)*u0, v)*dx + \
+nu*inner(grad(u), grad(v))*dx - inner(f, v)*dx
+a1 = lhs(F1)
+L1 = rhs(F1)
+
+# Pressure update
+a2 = inner(grad(p), grad(q))*dx
+L2 = -(1/k)*div(u1)*q*dx
+
+ # Velocity update
+ a3 = inner(u, v)*dx
+ L3 = inner(u1, v)*dx - k*inner(grad(p1), v)*dx
+
+# Assemble matrices
+A1 = assemble(a1)
+A2 = assemble(a2)
+A3 = assemble(a3)
+
+# Time-stepping
+t = dt
+while t &lt; T + DOLFIN_EPS:
+
+# Compute tentative velocity step
+begin("Computing tentative velocity")
+b1 = assemble(L1)
+[bc.apply(A1, b1) for bc in bcu]
+solve(A1, u1.vector(), b1, "gmres", "default")
+end()
+
+# Pressure correction
+begin("Computing pressure correction")
+b2 = assemble(L2)
+[bc.apply(A2, b2) for bc in bcp]
+solve(A2, p1.vector(), b2, "gmres", "default")
+end()
+
+# Velocity correction
+begin("Computing velocity correction")
+b3 = assemble(L3)
+[bc.apply(A3, b3) for bc in bcu]
+solve(A3, u1.vector(), b3, "gmres", "default")
+end()
+</code></pre>
+</div>
+													</div>
+													<div class="qa-c-item-footer">
+														<span class="qa-c-item-avatar-meta">
+															<span class="qa-c-item-meta">
+																<a href="../../6668/unrealistic-results-3d-navier-stokes?show=6691#c6691" class="qa-c-item-what">commented</a>
+																<span class="qa-c-item-when">
+																	<span class="qa-c-item-when-data"><span class="published"><span class="value-title" title="2015-03-04T14:52:53+0000"></span>Mar 4, 2015</span></span>
+																</span>
+																<span class="qa-c-item-who">
+																	<span class="qa-c-item-who-pad">by </span>
+																	<span class="qa-c-item-who-data"><span class="vcard author"><a href="../../user/gerthuisman" class="qa-user-link url nickname">gerthuisman</a></span></span>
+																	<span class="qa-c-item-who-title">FEniCS Novice</span>
+																	<span class="qa-c-item-who-points">
+																		<span class="qa-c-item-who-points-pad">(</span><span class="qa-c-item-who-points-data">120</span><span class="qa-c-item-who-points-pad"> points)</span>
+																	</span>
+																</span>
+															</span>
+														</span>
+														<div class="qa-c-item-buttons">
+														</div>
+													</div>
+													<div class="qa-c-item-clear">
+													</div>
+												</div> <!-- END qa-c-item -->
+											</div> <!-- END qa-c-list -->
+											
+											<input type="hidden" name="code" value="0-1516468082-e5146c0b4dc6caa527dba494794bf95e3c03c6a1">
+											<input type="hidden" name="qa_click" value="">
+										</form>
+										<div class="qa-c-form">
+										</div> <!-- END qa-c-form -->
+										
+									</div> <!-- END qa-a-item-main -->
+									<div class="qa-a-item-clear">
+									</div>
+								</div> <!-- END qa-a-list-item -->
+								
+							</div> <!-- END qa-a-list -->
+							
+						</div>
+					</div> <!-- END qa-main -->
+					
+				</div> <!-- END main-wrapper -->
+			</div> <!-- END main-shadow -->
+		</div> <!-- END body-wrapper -->
+		<!-- END footer-bottom-group -->
+		
+		<div style="position:absolute; left:-9999px; top:-9999px;">
+			<span id="qa-waiting-template" class="qa-waiting">...</span>
+		</div>
+	
+	
+
+</body><!-- Powered by Question2Answer - http://www.question2answer.org/ --></html>

@@ -1,0 +1,412 @@
+<html><!-- Powered by Question2Answer - http://www.question2answer.org/ --><head>
+		<meta http-equiv="content-type" content="text/html; charset=utf-8">
+		<title>FeNiCs take a long time to run - FEniCS Q&amp;A</title>
+		<meta name="description" content='Hi, For some reason, I am not sure why FeNicS is taking to run for a mixed field  ... .split() vtk_file = File("nonlinearelasticity.pvd") vtk_file'>
+		<link rel="stylesheet" type="text/css" href="../../qa-theme/Snow/qa-styles.css">
+		<link rel="canonical" href="http://fenicsproject.org/qa/6998/fenics-take-a-long-time-to-run">
+		<script type="text/x-mathjax-config">
+  MathJax.Hub.Config({
+    extensions: ["tex2jax.js"],
+    jax: ["input/TeX","output/HTML-CSS"],
+    tex2jax: {inlineMath: [["$","$"],["\\(","\\)"]]},
+    TeX: { extensions: ["AMSmath.js","AMSsymbols.js"]}
+  });
+</script>
+<script type="text/javascript" src="../../mathjax/MathJax.js"></script>
+		<script src="../../jquery-1.7.2.min.js" type="text/javascript"></script>
+		<script src="../../highlight.min.js"></script>
+<script type="text/javascript">
+$(function(){
+	$('.wmd-input').keypress(function(){
+		window.clearTimeout(hljs.Timeout);
+		hljs.Timeout = window.setTimeout(function() {
+			hljs.initHighlighting.called = false;
+			hljs.initHighlighting();
+		}, 500);
+	});
+	window.setTimeout(function() {
+		hljs.initHighlighting.called = false;
+		hljs.initHighlighting();
+	}, 500);
+});
+</script>
+
+
+	</head>
+	<body class="qa-template-question qa-body-js-off">
+		<div class="qa-body-wrapper">
+			
+			<div class="qa-header">
+				<div class="qa-logo">
+					<a href="../../" class="qa-logo-link" title="FEniCS Q&amp;A"><img src="../../qa-theme/fenics_qa.png" border="0" alt="FEniCS Q&amp;A"></a>
+				</div>
+				<div class="qa-header-clear">
+				</div>
+			</div> <!-- END qa-header -->
+			
+			<div class="qa-main-shadow">
+				
+				<div class="qa-main-wrapper">
+					
+					<div class="qa-sidepanel">
+						<div class="qa-sidebar">
+							This is a read only copy of the old FEniCS QA forum. Please visit the <a href="https://www.allanswered.com/community/s/fenics-project/">new QA forum</a> to ask questions
+						</div>
+						
+					</div>
+					
+					<div class="qa-main">
+						<h1>
+							<span class="entry-title">FeNiCs take a long time to run</span>
+						</h1>
+						<div class="qa-part-q-view">
+							<div class="qa-q-view  hentry question" id="q6998">
+								<form method="post" action="../../6998/fenics-take-a-long-time-to-run">
+									<div class="qa-q-view-stats">
+										<div class="qa-voting qa-voting-net" id="voting_6998">
+											<div class="qa-vote-count qa-vote-count-net">
+												<span class="qa-netvote-count">
+													<span class="qa-netvote-count-data">+1<span class="votes-up"><span class="value-title" title="1"></span></span><span class="votes-down"><span class="value-title" title="0"></span></span></span><span class="qa-netvote-count-pad"> vote</span>
+												</span>
+											</div>
+											<div class="qa-vote-clear">
+											</div>
+										</div>
+									</div>
+									<input type="hidden" name="code" value="0-1516468098-ed74687a412164ac072f83267173dc008f617c00">
+								</form>
+								<div class="qa-q-view-main">
+									<form method="post" action="../../6998/fenics-take-a-long-time-to-run">
+										<div class="qa-q-view-content">
+											<a name="6998"></a><div class="entry-content"><p>Hi, </p>
+
+<p>For some reason, I am not sure why FeNicS is taking to run for a mixed field hyperelasticity problem.  There are only 6 cells and the number of dofs shouldn't be a lot. Could be due to the way I wrote the code (see below) ? Thanks!</p>
+
+<hr>
+
+<p>from dolfin import *<br>
+import numpy as np<br>
+from matplotlib import pylab as plt<br>
+from scipy import optimize<br>
+import os</p>
+
+<p>parameters["form_compiler"]["quadrature_degree"] = 4</p>
+
+<p>parameters["form_compiler"]["cpp_optimize"] = True<br>
+ffc_options = {"optimize": True, \<br>
+               "eliminate_zeros": True, \<br>
+               "precompute_basis_const": True, \<br>
+               "precompute_ip_const": True}</p>
+
+<p>nx = 1  <br>
+ny = 1  <br>
+nz = 1  <br>
+mesh = BoxMesh(0, 0, 0, 10, 10, 1, nx, ny, nz)</p>
+
+<p>def analytical_soln_disp(u):</p>
+
+<pre><code>C1 = 0.4#*0.0000980665 #MPa
+x = [u, u]
+
+x3 = 1.0/(x[0]*x[1])**2.0
+sigma1 = 2*C1*(x[0]**2.0 - x3**2.0)
+sigma2 = 2*C1*(x[1]**2.0 - x3**2.0)
+
+return sigma1 
+</code></pre>
+
+<p>def Fmat(u):<br>
+    d = u.geometric_dimension()<br>
+    I = Identity(d)             # Identity tensor<br>
+    F = I + grad(u)             # Deformation gradient<br>
+    return F</p>
+
+<p>def Emat(u):<br>
+    F = Fmat(u)<br>
+    d = u.geometric_dimension()<br>
+    I = Identity(d)             # Identity tensor<br>
+    return 0.5<em>(F.T</em>F - I)</p>
+
+<h6>############ Mooney Rivilin</h6>
+
+<p>def psiE_neohookean(E, p):</p>
+
+<pre><code>C1 = 0.4
+
+d = u.geometric_dimension()
+I = Identity(d)             # Identity tensor
+C = 2*E + I 
+J  = pow(det(C), 0.5)
+Cdev = J**(-2.0/3.0)*C
+
+Ic = tr(C)
+Ic_dev = pow(J, -float(2)/3)*Ic
+
+SE = C1*(Ic_dev - 3) + p*(J - 1)
+
+return SE
+</code></pre>
+
+<h6>#</h6>
+
+<p>def Smat(u, p):</p>
+
+<pre><code>C1 = 0.4
+
+E = Emat(u)
+E = variable(E)
+
+d = u.geometric_dimension()
+I = Identity(d)             # Identity tensor
+C = 2*E + I 
+J  = pow(det(C), 0.5)
+
+Ic = tr(C)
+Ic_dev = pow(J, -float(2)/3)*Ic
+
+Psi = C1*(Ic_dev - 3) + p*(J - 1)
+
+return diff(Psi,E)
+</code></pre>
+
+<p>def Sigma_mat(u, Kappa):</p>
+
+<pre><code>F = Fmat(u)
+S = Smat(u, Kappa)
+J  = det(F)
+
+return 1/J*F*S*F.T
+</code></pre>
+
+<h2>Define boundary</h2>
+
+<p>class Left(SubDomain):<br>
+    def inside(self, x, on_boundary):<br>
+        return abs(x[0] - 0.0) &lt; DOLFIN_EPS and on_boundary</p>
+
+<p>class Right(SubDomain):<br>
+    def inside(self, x, on_boundary):<br>
+        return abs(x[0] - 10.0) &lt; DOLFIN_EPS and on_boundary</p>
+
+<p>class Bottom(SubDomain):<br>
+    def inside(self, x, on_boundary):<br>
+        return abs(x[2] - 0.0) &lt; DOLFIN_EPS and on_boundary</p>
+
+<p>class Top(SubDomain):<br>
+    def inside(self, x, on_boundary):<br>
+        return abs(x[2] - 1.0) &lt; DOLFIN_EPS and on_boundary</p>
+
+<p>class Lower(SubDomain):<br>
+    def inside(self, x, on_boundary):<br>
+        return abs(x[1] - 0.0) &lt; DOLFIN_EPS and on_boundary</p>
+
+<p>class Upper(SubDomain):<br>
+    def inside(self, x, on_boundary):<br>
+        return abs(x[1] - 10.0) &lt; DOLFIN_EPS and on_boundary</p>
+
+<p>V = VectorFunctionSpace(mesh, 'CG', 2)<br>
+Q = FunctionSpace(mesh, 'DG', 0)<br>
+W = MixedFunctionSpace([V,Q]) # mixed space</p>
+
+<h2>Initialize sub-domain instances</h2>
+
+<p>left = Left()<br>
+right = Right()<br>
+bottom = Bottom()<br>
+top = Top()<br>
+lower = Lower()<br>
+upper = Upper()</p>
+
+<h2>Initialize mesh function for boundary domains</h2>
+
+<p>boundaries = FacetFunction("size_t", mesh)<br>
+boundaries.set_all(0)<br>
+left.mark(boundaries, 1)<br>
+right.mark(boundaries, 2)<br>
+bottom.mark(boundaries, 3)<br>
+top.mark(boundaries, 4)<br>
+lower.mark(boundaries, 5)<br>
+upper.mark(boundaries, 6)</p>
+
+<p>ds = Measure("ds")[boundaries]<br>
+n = FacetNormal(mesh)</p>
+
+<h2>Set up boundary condition at left end</h2>
+
+<p>c = Constant((0.0))<br>
+bcleft0 = DirichletBC(W.sub(0).sub(0), c, boundaries, 1)<br>
+bclower1 = DirichletBC(W.sub(0).sub(1), c, boundaries, 5)<br>
+bcbottom2 = DirichletBC(W.sub(0).sub(2), c, boundaries, 3)</p>
+
+<p>uspecified = Expression("u", u = 1.0)<br>
+bc_right0 = DirichletBC(W.sub(0).sub(0), uspecified, boundaries, 2)<br>
+bc_upper1 = DirichletBC(W.sub(0).sub(1), uspecified, boundaries, 6)</p>
+
+<h2>Set up boundary conditions</h2>
+
+<p>bcs = [bcleft0, bclower1, bc_right0, bc_upper1, bcbottom2]</p>
+
+<h3>Define variational problem</h3>
+
+<p>du = TrialFunction(V)<br>
+u = Function(V)<br>
+v = TestFunction(V)</p>
+
+<p>dup = TrialFunction(W)<br>
+up = Function(W)<br>
+vp = TestFunction(W)<br>
+up = Function(W)<br>
+u, p = split(up)</p>
+
+<p>Psi = psiE_neohookean(Emat(u), p)</p>
+
+<h2>Total potential energy</h2>
+
+<h2>Pi = Psi*dx</h2>
+
+<p>Pi = Psi<em>dx #- dot(p</em>n, u)<em>ds(2) - dot(p</em>n, u)*ds(6)</p>
+
+<h2>Compute first variation of Pi (directional derivative about u in the direction of v)</h2>
+
+<p>F = derivative(Pi, up, vp)</p>
+
+<h2>Compute Jacobian of F</h2>
+
+<p>a = derivative(F, up, dup)</p>
+
+<p>problem = NonlinearVariationalProblem(F, up, bcs, a)<br>
+solver = NonlinearVariationalSolver(problem)<br>
+prm = solver.parameters<br>
+prm['newton_solver']['absolute_tolerance'] = 1E-8<br>
+prm['newton_solver']['relative_tolerance'] = 1E-7<br>
+prm['newton_solver']['maximum_iterations'] = 25<br>
+prm['newton_solver']['relaxation_parameter'] = 1.0</p>
+
+<p>usol, psol = up.split()</p>
+
+<p>vtk_file = File("nonlinearelasticity.pvd")<br>
+vtk_file &lt;&lt; usol</p>
+
+<p>lambda_array = np.empty((0))<br>
+sigma_array = np.empty((0))<br>
+sigma_analytical = np.empty((0))<br>
+u_array = np.linspace(0,0.8,10)</p>
+
+<p>p_array = np.linspace(0,100,20)</p>
+
+<p>for udisp in u_array:</p>
+
+<pre><code>uspecified.u = udisp
+
+solver.solve()
+usol, psol = up.split()
+
+
+## Compute solution
+F = project(Fmat(usol),TensorFunctionSpace(mesh, "DG", 0))
+S = project(Sigma_mat(usol, psol),TensorFunctionSpace(mesh, "DG", 0))
+
+print S(10,5,0.5)[0], F(10,5,0.5)[0], F(10,5,0.5)[4], F(10,5,0.5)[8]
+lbda = F(10,5,0.5)[0]
+
+analytical_s11 = analytical_soln_disp(lbda)
+sigma_analytical = np.append(sigma_analytical, analytical_s11)
+
+lambda_array = np.append(lambda_array, F(10,5,0.5)[0])
+sigma_array = np.append(sigma_array, S(10,5,0.5)[0])
+
+vtk_file &lt;&lt; usol
+</code></pre>
+
+<p>plt.plot(lambda_array, sigma_array, '--*')<br>
+plt.plot(lambda_array, sigma_analytical, '-')</p>
+
+<h3>plt.show()</h3>
+</div>
+										</div>
+										<span class="qa-q-view-avatar-meta">
+											<span class="qa-q-view-meta">
+												<a href="../../6998/fenics-take-a-long-time-to-run" class="qa-q-view-what">asked</a>
+												<span class="qa-q-view-when">
+													<span class="qa-q-view-when-data"><span class="published"><span class="value-title" title="2015-04-27T22:56:19+0000"></span>Apr 28, 2015</span></span>
+												</span>
+												<span class="qa-q-view-who">
+													<span class="qa-q-view-who-pad">by </span>
+													<span class="qa-q-view-who-data"><span class="vcard author"><a href="../../user/lee" class="qa-user-link url nickname">lee</a></span></span>
+													<span class="qa-q-view-who-title">FEniCS User</span>
+													<span class="qa-q-view-who-points">
+														<span class="qa-q-view-who-points-pad">(</span><span class="qa-q-view-who-points-data">1,170</span><span class="qa-q-view-who-points-pad"> points)</span>
+													</span>
+												</span>
+											</span>
+										</span>
+										<div class="qa-q-view-buttons">
+										</div>
+										
+										<div class="qa-q-view-c-list" id="c6998_list">
+											<div class="qa-c-list-item  hentry comment" id="c7000">
+												<div class="qa-c-item-content">
+													<a name="7000"></a><div class="entry-content"><p>Have you tried reducing the quadrature degree? 2, for example. Anyhow, I suggest  formatting your code by using the 'Code Sample' button in the edit bar. Another thing, it's FEniCS.</p>
+</div>
+												</div>
+												<div class="qa-c-item-footer">
+													<span class="qa-c-item-avatar-meta">
+														<span class="qa-c-item-avatar">
+															<a href="../../user/Chao+Zhang" class="qa-avatar-link"><img src="https://www.gravatar.com/avatar/a50d81c60676e9ac40552912720d7b96?s=20" width="20" height="20" class="qa-avatar-image" alt=""></a>
+														</span>
+														<span class="qa-c-item-meta">
+															<a href="../../6998/fenics-take-a-long-time-to-run?show=7000#c7000" class="qa-c-item-what">commented</a>
+															<span class="qa-c-item-when">
+																<span class="qa-c-item-when-data"><span class="published"><span class="value-title" title="2015-04-28T11:13:20+0000"></span>Apr 28, 2015</span></span>
+															</span>
+															<span class="qa-c-item-who">
+																<span class="qa-c-item-who-pad">by </span>
+																<span class="qa-c-item-who-data"><span class="vcard author"><a href="../../user/Chao+Zhang" class="qa-user-link url nickname">Chao Zhang</a></span></span>
+																<span class="qa-c-item-who-title">FEniCS User</span>
+																<span class="qa-c-item-who-points">
+																	<span class="qa-c-item-who-points-pad">(</span><span class="qa-c-item-who-points-data">1,180</span><span class="qa-c-item-who-points-pad"> points)</span>
+																</span>
+															</span>
+														</span>
+													</span>
+													<div class="qa-c-item-buttons">
+													</div>
+												</div>
+												<div class="qa-c-item-clear">
+												</div>
+											</div> <!-- END qa-c-item -->
+										</div> <!-- END qa-c-list -->
+										
+										<input type="hidden" name="code" value="0-1516468098-81932155723bc8b71db927fe8068c5db0f56a1c6">
+										<input type="hidden" name="qa_click" value="">
+									</form>
+									<div class="qa-c-form">
+									</div> <!-- END qa-c-form -->
+									
+								</div> <!-- END qa-q-view-main -->
+								<div class="qa-q-view-clear">
+								</div>
+							</div> <!-- END qa-q-view -->
+							
+						</div>
+						<div class="qa-part-a-list">
+							<h2 id="a_list_title" style="display:none;"></h2>
+							<div class="qa-a-list" id="a_list">
+								
+							</div> <!-- END qa-a-list -->
+							
+						</div>
+					</div> <!-- END qa-main -->
+					
+				</div> <!-- END main-wrapper -->
+			</div> <!-- END main-shadow -->
+		</div> <!-- END body-wrapper -->
+		<!-- END footer-bottom-group -->
+		
+		<div style="position:absolute; left:-9999px; top:-9999px;">
+			<span id="qa-waiting-template" class="qa-waiting">...</span>
+		</div>
+	
+	
+
+</body><!-- Powered by Question2Answer - http://www.question2answer.org/ --></html>

@@ -1,0 +1,518 @@
+<html><!-- Powered by Question2Answer - http://www.question2answer.org/ --><head>
+		<meta http-equiv="content-type" content="text/html; charset=utf-8">
+		<title>What is the most accurate way to recover the stress tensor? - FEniCS Q&amp;A</title>
+		<meta name="description" content='Hi, I am trying to solve a simple solid mechanics problem where I need the value of the stress tensor ... u, bcs) uOut = File("displacement.pvd") uOut'>
+		<meta name="keywords" content="elasticity,neumann,project,stress,fenics-solid-mechanics">
+		<link rel="stylesheet" type="text/css" href="../../qa-theme/Snow/qa-styles.css">
+		<link rel="canonical" href="http://fenicsproject.org/qa/10363/what-is-the-most-accurate-way-to-recover-the-stress-tensor">
+		<script type="text/x-mathjax-config">
+  MathJax.Hub.Config({
+    extensions: ["tex2jax.js"],
+    jax: ["input/TeX","output/HTML-CSS"],
+    tex2jax: {inlineMath: [["$","$"],["\\(","\\)"]]},
+    TeX: { extensions: ["AMSmath.js","AMSsymbols.js"]}
+  });
+</script>
+<script type="text/javascript" src="../../mathjax/MathJax.js"></script>
+		<script src="../../jquery-1.7.2.min.js" type="text/javascript"></script>
+		<script src="../../highlight.min.js"></script>
+<script type="text/javascript">
+$(function(){
+	$('.wmd-input').keypress(function(){
+		window.clearTimeout(hljs.Timeout);
+		hljs.Timeout = window.setTimeout(function() {
+			hljs.initHighlighting.called = false;
+			hljs.initHighlighting();
+		}, 500);
+	});
+	window.setTimeout(function() {
+		hljs.initHighlighting.called = false;
+		hljs.initHighlighting();
+	}, 500);
+});
+</script>
+
+
+	</head>
+	<body class="qa-template-question qa-body-js-off">
+		<div class="qa-body-wrapper">
+			
+			<div class="qa-header">
+				<div class="qa-logo">
+					<a href="../../" class="qa-logo-link" title="FEniCS Q&amp;A"><img src="../../qa-theme/fenics_qa.png" border="0" alt="FEniCS Q&amp;A"></a>
+				</div>
+				<div class="qa-header-clear">
+				</div>
+			</div> <!-- END qa-header -->
+			
+			<div class="qa-main-shadow">
+				
+				<div class="qa-main-wrapper">
+					
+					<div class="qa-sidepanel">
+						<div class="qa-sidebar">
+							This is a read only copy of the old FEniCS QA forum. Please visit the <a href="https://www.allanswered.com/community/s/fenics-project/">new QA forum</a> to ask questions
+						</div>
+						
+					</div>
+					
+					<div class="qa-main">
+						<h1>
+							<span class="entry-title">What is the most accurate way to recover the stress tensor?</span>
+						</h1>
+						<div class="qa-part-q-view">
+							<div class="qa-q-view  hentry question" id="q10363">
+								<form method="post" action="../../10363/what-is-the-most-accurate-way-to-recover-the-stress-tensor">
+									<div class="qa-q-view-stats">
+										<div class="qa-voting qa-voting-net" id="voting_10363">
+											<div class="qa-vote-count qa-vote-count-net">
+												<span class="qa-netvote-count">
+													<span class="qa-netvote-count-data">+2<span class="votes-up"><span class="value-title" title="2"></span></span><span class="votes-down"><span class="value-title" title="0"></span></span></span><span class="qa-netvote-count-pad"> votes</span>
+												</span>
+											</div>
+											<div class="qa-vote-clear">
+											</div>
+										</div>
+									</div>
+									<input type="hidden" name="code" value="0-1516467055-094e6371f572898fb4a5f1cee16b0b669cb5f3e7">
+								</form>
+								<div class="qa-q-view-main">
+									<form method="post" action="../../10363/what-is-the-most-accurate-way-to-recover-the-stress-tensor">
+										<div class="qa-q-view-content">
+											<a name="10363"></a><div class="entry-content"><p>Hi,</p>
+
+<p>I am trying to solve a simple solid mechanics problem where I need the value of the stress tensor. I currently am trying to recover it using <code>project()</code>, but the results show that the boundary conditions are not being followed. This indicates to me that I'm doing something wrong, either in the way that I set up the problem, or the way that I recover the stress tensor. Read on for the details:</p>
+
+<p>The model is of an isotropic linearly elastic solid, and I'm solving it in static equilibrium. The domain is a 3d rectangular prism which is fixed on one surface (the left face) with a Dirichlet boundary condition, and has stress-free Neumann boundary conditions on all other surfaces.</p>
+
+<p>Currently, after solving for the displacements <code>u</code>, I recover the value of the stress vector on the top surface (surface traction) as follows:</p>
+
+<pre><code>def sigma(v):
+    gdim = v.geometric_dimension()
+    strain = sym(grad(v))
+    I = Identity(gdim)
+
+    return 2.0*mu*strain + lam*tr(strain)*I
+
+# the surface normal of the top should be (0, 0, 1)
+surface_traction_top = project(sigma(u) * Constant((0, 0, 1)))
+</code></pre>
+
+<p>If I sample points from <code>surface_traction_top</code> along the top of my domain, it shows substantial non-zero values near the left edge. I've plotted the normal stress on the top surface from <code>surface_traction_top</code> to illustrate this:<br>
+<img src="http://i.imgur.com/EWbJ0O8.png" alt="normal stress on the top surface of the domain"></p>
+
+<p>As I understand it, my Neumann boundary condition demands that the surface traction equal a vector of zeros on all boundaries except the left face, which is clamped in place by the Dirichlet boundary condition. This is clearly obeyed for the most part in the above plot, but near that edge, which it shares with the clamped left face, there is substantial deviation.</p>
+
+<p>I have read that in solid mechanics, it is not straightforward to recover the stress tensor in the finite element method, which is what led me to this question. Is there a better way to calculate the stress tensor in FEniCS?</p>
+
+<p><strong>Edit:</strong><br>
+For reference, here's my Python code. I tried to trim it down as much as possible, but it's still a bit lengthy:</p>
+
+<pre><code># Should run on FENICS 1.6.0
+
+# Based on:
+    # FENICS elasticity demo by Garth N. Wells
+    # Hyperelasticity example by Anders Logg from Oxford University's course, Python in Scientific Computing
+
+from dolfin import *
+import numpy as np
+import os
+
+import matplotlib
+if 'DISPLAY' not in os.environ.keys():
+    # allow making figures without X server -- must be run before pyplot is imported
+    matplotlib.use('Agg')
+import matplotlib.pyplot as plt
+
+# make nicer figures if seaborn is available
+try:
+    import seaborn as sns
+    sns.set_style('white')
+    sns.set_context('talk')
+except ImportError:
+    pass
+
+
+
+# specify parameters
+####################
+
+# Adjust log level
+set_log_level(PROGRESS)
+
+# Turn on optimization
+parameters["form_compiler"]["cpp_optimize"] = True
+
+# dimensions of cantilever
+length = 1.25e-2
+width = 0.5e-2
+thickness = 0.1e-2
+
+# Material parameters
+rho   = 1450.0       # kg / m^3 density of PVC plastic
+mu    = 0.0023 * 1e9 # N  / m^2 Lame parameter mu for PVC plastic
+lam = 0.0105 * 1e9 # N  / m^2 Lame parameter lambda for PVC plastic
+
+# number of mesh elements along each axis
+nx = 40
+ny = 15
+nz = 3
+
+
+
+
+# make mesh and define problem
+##############################
+
+mesh = BoxMesh(Point(0,0,0), Point(length, width, thickness), nx, ny, nz)
+
+# Define function space for displacement vector
+V = VectorFunctionSpace(mesh, "Lagrange", 2)
+
+# gravity
+body_force  = Constant((0.0, 0.0, -9.8*rho)) 
+
+# Stress computation
+def sigma(v):
+    gdim = v.geometric_dimension()
+    strain = sym(grad(v))
+    I = Identity(gdim)
+
+    return 2.0*mu*strain + lam*tr(strain)*I
+
+bnd_left = CompiledSubDomain("near(x[0], side) &amp;&amp; on_boundary", side = 0.0)
+bnd_top = CompiledSubDomain("near(x[2], side) &amp;&amp; on_boundary", side = thickness)
+
+# Mark boundaries
+boundaries = FacetFunction("uint", mesh)
+boundaries.set_all(0)
+
+bnd_left.mark(boundaries, 1)
+bnd_top.mark(boundaries, 2)
+
+# Redefine boundary measure
+ds = ds[boundaries]
+
+# Define boundary conditions
+# clamp left face
+bcs = [DirichletBC(V, (0, 0, 0), boundaries, 1)]
+
+
+
+
+# solve for displacement
+########################
+
+# Define variational problem
+u = TrialFunction(V)
+v = TestFunction(V)
+a = inner(sigma(u), grad(v))*dx
+L = inner(body_force, v)*dx
+
+u = Function(V)
+
+solve(a == L, u, bcs)
+
+uOut = File("displacement.pvd")
+uOut &lt;&lt; u
+
+
+
+
+# postprocessing: plot normal stress on top surface
+###################################################
+
+# normal vector in z direction
+nz = Constant((0, 0, 1))
+
+# get solution for normal stress component
+surface_traction_top_normal = project(dot(dot(sigma(u),nz),nz))
+
+# get coordinates spanning top face
+# (x, y, z=thickness)
+x_sweep = np.linspace(0, length, 10 * nx)
+y_sweep = np.linspace(0, width, 10 * ny)
+
+XY_X, XY_Y = np.meshgrid(x_sweep, y_sweep)
+XY_X = XY_X.flatten()
+XY_Y = XY_Y.flatten()
+XY_Z_hi = thickness * np.ones(XY_Y.size)
+
+
+# store interpolated solution at discrete points
+surface_traction_top_normal_discrete = np.zeros(XY_Y.size)
+
+for i, (x,y,z) in enumerate(zip(XY_X, XY_Y, XY_Z_hi)):
+    surface_traction_top_normal_discrete[i] = surface_traction_top_normal(Point(x,y,z))
+
+# find magnitude of stress data, so that we can place 0 in the middle of the plotting scale
+magnitude = max(abs(surface_traction_top_normal_discrete))
+
+# unflatten stress data so it can be plotted coherently
+surface_traction_top_normal_discrete = surface_traction_top_normal_discrete.reshape((len(y_sweep), len(x_sweep)))
+
+# plot
+plt.figure()
+ax = plt.axes()
+ax.set_aspect('equal')
+
+plt.pcolor(x_sweep, y_sweep, surface_traction_top_normal_discrete, cmap='RdBu_r', vmin=-magnitude, vmax=magnitude)
+plt.colorbar(label='$t_{top} \\cdot e_3$')
+plt.xlim([min(x_sweep), max(x_sweep)])
+plt.savefig('top_stress_e3.png')
+</code></pre>
+</div>
+										</div>
+										<div class="qa-q-view-tags">
+											<ul class="qa-q-view-tag-list">
+												<li class="qa-q-view-tag-item"><a href="../../tag/elasticity" rel="tag" class="qa-tag-link">elasticity</a></li>
+												<li class="qa-q-view-tag-item"><a href="../../tag/neumann" rel="tag" class="qa-tag-link">neumann</a></li>
+												<li class="qa-q-view-tag-item"><a href="../../tag/project" rel="tag" class="qa-tag-link">project</a></li>
+												<li class="qa-q-view-tag-item"><a href="../../tag/stress" rel="tag" class="qa-tag-link">stress</a></li>
+												<li class="qa-q-view-tag-item"><a href="../../tag/fenics-solid-mechanics" rel="tag" class="qa-tag-link">fenics-solid-mechanics</a></li>
+											</ul>
+										</div>
+										<span class="qa-q-view-avatar-meta">
+											<span class="qa-q-view-meta">
+												<a href="../../10363/what-is-the-most-accurate-way-to-recover-the-stress-tensor" class="qa-q-view-what">asked</a>
+												<span class="qa-q-view-when">
+													<span class="qa-q-view-when-data"><span class="published"><span class="value-title" title="2016-06-14T21:54:22+0000"></span>Jun 14, 2016</span></span>
+												</span>
+												<span class="qa-q-view-who">
+													<span class="qa-q-view-who-pad">by </span>
+													<span class="qa-q-view-who-data"><span class="vcard author"><a href="../../user/raeneufe" class="qa-user-link url nickname">raeneufe</a></span></span>
+													<span class="qa-q-view-who-title">FEniCS Novice</span>
+													<span class="qa-q-view-who-points">
+														<span class="qa-q-view-who-points-pad">(</span><span class="qa-q-view-who-points-data">270</span><span class="qa-q-view-who-points-pad"> points)</span>
+													</span>
+												</span>
+												<br>
+												<span class="qa-q-view-what">edited</span>
+												<span class="qa-q-view-when">
+													<span class="qa-q-view-when-data"><span class="updated"><span class="value-title" title="2016-06-15T15:45:34+0000"></span>Jun 15, 2016</span></span>
+												</span>
+												<span class="qa-q-view-who">
+													<span class="qa-q-view-who-pad">by </span><span class="qa-q-view-who-data"><a href="../../user/raeneufe" class="qa-user-link url nickname">raeneufe</a></span>
+												</span>
+											</span>
+										</span>
+										<div class="qa-q-view-buttons">
+										</div>
+										
+										<div class="qa-q-view-c-list" style="display:none;" id="c10363_list">
+										</div> <!-- END qa-c-list -->
+										
+										<input type="hidden" name="code" value="0-1516467055-c23ae3594899f7ca1a744e4da4b37f70a7605f75">
+										<input type="hidden" name="qa_click" value="">
+									</form>
+									<div class="qa-c-form">
+									</div> <!-- END qa-c-form -->
+									
+								</div> <!-- END qa-q-view-main -->
+								<div class="qa-q-view-clear">
+								</div>
+							</div> <!-- END qa-q-view -->
+							
+						</div>
+						<div class="qa-part-a-list">
+							<h2 id="a_list_title">1 Answer</h2>
+							<div class="qa-a-list" id="a_list">
+								
+								<div class="qa-a-list-item  hentry answer answer-selected qa-a-list-item-selected" id="a10368">
+									<form method="post" action="../../10363/what-is-the-most-accurate-way-to-recover-the-stress-tensor">
+										<div class="qa-voting qa-voting-net" id="voting_10368">
+											<div class="qa-vote-count qa-vote-count-net">
+												<span class="qa-netvote-count">
+													<span class="qa-netvote-count-data">+3<span class="votes-up"><span class="value-title" title="3"></span></span><span class="votes-down"><span class="value-title" title="0"></span></span></span><span class="qa-netvote-count-pad"> votes</span>
+												</span>
+											</div>
+											<div class="qa-vote-clear">
+											</div>
+										</div>
+										<input type="hidden" name="code" value="0-1516467055-094e6371f572898fb4a5f1cee16b0b669cb5f3e7">
+									</form>
+									<div class="qa-a-item-main">
+										<form method="post" action="../../10363/what-is-the-most-accurate-way-to-recover-the-stress-tensor">
+											<div class="qa-a-item-selected">
+												<div class="qa-a-selection">
+													<div class="qa-a-selected">&#160;</div>
+													<div class="qa-a-selected-text">Best answer</div>
+												</div>
+												<div class="qa-a-item-content">
+													<a name="10368"></a><div class="entry-content"><p>You could project to a DG1 field</p>
+
+<pre><code> nz = Constant((0, 0, 1))
+ surface_traction_top = project(dot(sigma(u),nz), VectorFunctionSpace(mesh,'DG',1))
+ surface_traction_top_normal = project(dot(dot(sigma(u),nz),nz) FunctionSpace(mesh,'DG',1))
+</code></pre>
+</div>
+												</div>
+												<span class="qa-a-item-avatar-meta">
+													<span class="qa-a-item-avatar">
+														<a href="../../user/KristianE" class="qa-avatar-link"><img src="https://www.gravatar.com/avatar/8e8c30d82e263e44bd8fe50055a60421?s=40" width="40" height="40" class="qa-avatar-image" alt=""></a>
+													</span>
+													<span class="qa-a-item-meta">
+														<a href="../../10363/what-is-the-most-accurate-way-to-recover-the-stress-tensor?show=10368#a10368" class="qa-a-item-what">answered</a>
+														<span class="qa-a-item-when">
+															<span class="qa-a-item-when-data"><span class="published"><span class="value-title" title="2016-06-15T09:31:37+0000"></span>Jun 15, 2016</span></span>
+														</span>
+														<span class="qa-a-item-who">
+															<span class="qa-a-item-who-pad">by </span>
+															<span class="qa-a-item-who-data"><span class="vcard author"><a href="../../user/KristianE" class="qa-user-link url nickname">KristianE</a></span></span>
+															<span class="qa-a-item-who-title">FEniCS Expert</span>
+															<span class="qa-a-item-who-points">
+																<span class="qa-a-item-who-points-pad">(</span><span class="qa-a-item-who-points-data">12,900</span><span class="qa-a-item-who-points-pad"> points)</span>
+															</span>
+														</span>
+														<br>
+														<span class="qa-a-item-what">selected</span>
+														<span class="qa-a-item-when">
+															<span class="qa-a-item-when-data"><span class="updated"><span class="value-title" title="2016-06-15T19:50:03+0000"></span>Jun 15, 2016</span></span>
+														</span>
+														<span class="qa-a-item-who">
+															<span class="qa-a-item-who-pad">by </span><span class="qa-a-item-who-data"><a href="../../user/raeneufe" class="qa-user-link url nickname">raeneufe</a></span>
+														</span>
+													</span>
+												</span>
+											</div>
+											<div class="qa-a-item-buttons">
+												</div>
+											
+											<div class="qa-a-item-c-list" id="c10368_list">
+												<div class="qa-c-list-item  hentry comment" id="c10371">
+													<div class="qa-c-item-content">
+														<a name="10371"></a><div class="entry-content"><p>When I tried this, it still gave me the same problem:<br>
+<img src="http://i.imgur.com/v8eILE6.png" alt="enter image description here"></p>
+
+<p>I edited my question to include my full code, if that helps. I applied your suggestion around line 119.</p>
+
+<p>As you can see in the figure, it's a rather coarse mesh. But I found that changing the number of elements doesn't help that much. In particular, increasing the number of elements in the x-direction merely puts a higher surface stress in a smaller area.</p>
+</div>
+													</div>
+													<div class="qa-c-item-footer">
+														<span class="qa-c-item-avatar-meta">
+															<span class="qa-c-item-meta">
+																<a href="../../10363/what-is-the-most-accurate-way-to-recover-the-stress-tensor?show=10371#c10371" class="qa-c-item-what">commented</a>
+																<span class="qa-c-item-when">
+																	<span class="qa-c-item-when-data"><span class="published"><span class="value-title" title="2016-06-15T15:58:58+0000"></span>Jun 15, 2016</span></span>
+																</span>
+																<span class="qa-c-item-who">
+																	<span class="qa-c-item-who-pad">by </span>
+																	<span class="qa-c-item-who-data"><span class="vcard author"><a href="../../user/raeneufe" class="qa-user-link url nickname">raeneufe</a></span></span>
+																	<span class="qa-c-item-who-title">FEniCS Novice</span>
+																	<span class="qa-c-item-who-points">
+																		<span class="qa-c-item-who-points-pad">(</span><span class="qa-c-item-who-points-data">270</span><span class="qa-c-item-who-points-pad"> points)</span>
+																	</span>
+																</span>
+															</span>
+														</span>
+														<div class="qa-c-item-buttons">
+														</div>
+													</div>
+													<div class="qa-c-item-clear">
+													</div>
+												</div> <!-- END qa-c-item -->
+												<div class="qa-c-list-item  hentry comment" id="c10372">
+													<div class="qa-c-item-content">
+														<a name="10372"></a><div class="entry-content"><p>I see that you are using a CG2 field, so I guess you should be using a DG1 stress representation. I have edited my answer accordingly.</p>
+</div>
+													</div>
+													<div class="qa-c-item-footer">
+														<span class="qa-c-item-avatar-meta">
+															<span class="qa-c-item-avatar">
+																<a href="../../user/KristianE" class="qa-avatar-link"><img src="https://www.gravatar.com/avatar/8e8c30d82e263e44bd8fe50055a60421?s=20" width="20" height="20" class="qa-avatar-image" alt=""></a>
+															</span>
+															<span class="qa-c-item-meta">
+																<a href="../../10363/what-is-the-most-accurate-way-to-recover-the-stress-tensor?show=10372#c10372" class="qa-c-item-what">commented</a>
+																<span class="qa-c-item-when">
+																	<span class="qa-c-item-when-data"><span class="published"><span class="value-title" title="2016-06-15T16:58:25+0000"></span>Jun 15, 2016</span></span>
+																</span>
+																<span class="qa-c-item-who">
+																	<span class="qa-c-item-who-pad">by </span>
+																	<span class="qa-c-item-who-data"><span class="vcard author"><a href="../../user/KristianE" class="qa-user-link url nickname">KristianE</a></span></span>
+																	<span class="qa-c-item-who-title">FEniCS Expert</span>
+																	<span class="qa-c-item-who-points">
+																		<span class="qa-c-item-who-points-pad">(</span><span class="qa-c-item-who-points-data">12,900</span><span class="qa-c-item-who-points-pad"> points)</span>
+																	</span>
+																</span>
+															</span>
+														</span>
+														<div class="qa-c-item-buttons">
+														</div>
+													</div>
+													<div class="qa-c-item-clear">
+													</div>
+												</div> <!-- END qa-c-item -->
+												<div class="qa-c-list-item  hentry comment" id="c10377">
+													<div class="qa-c-item-content">
+														<a name="10377"></a><div class="entry-content"><p>Thank you, this mostly solves the problem. If you have time, I have one more quick question about numerical methods.</p>
+
+<p>I started computing the surface integral of normal stress to get a quick statistic. It should equal zero if the Neumann BCs are being obeyed.</p>
+
+<pre><code>surf_integral_top_t3 = assemble(surface_traction_top_normal * ds(2))
+</code></pre>
+
+<p>Before applying your advice, this had a value of about 1e-3.</p>
+
+<p>With your advice, it becomes about 3e-4, which is better, though by no means perfect.</p>
+
+<p>I tried also refining the mesh near that interface, which led to a progressive decrease in the value. As I refined the mesh more, it reached negative 2e-4.</p>
+
+<p>For comparison, I tried the same thing, but projected onto CG1 instead of DG1. For low mesh densities, it didn't work as well as DG1, but as I increased the density, it converged to -5e-5, which is closer to the right answer.</p>
+
+<p>Why did CG1 perform better? I feel as though DG1 should be better able to represent that sharp edge where the two boundaries meet, but that was only for low mesh densities. Is DG1 less stable in general?</p>
+</div>
+													</div>
+													<div class="qa-c-item-footer">
+														<span class="qa-c-item-avatar-meta">
+															<span class="qa-c-item-meta">
+																<a href="../../10363/what-is-the-most-accurate-way-to-recover-the-stress-tensor?show=10377#c10377" class="qa-c-item-what">commented</a>
+																<span class="qa-c-item-when">
+																	<span class="qa-c-item-when-data"><span class="published"><span class="value-title" title="2016-06-15T19:49:58+0000"></span>Jun 15, 2016</span></span>
+																</span>
+																<span class="qa-c-item-who">
+																	<span class="qa-c-item-who-pad">by </span>
+																	<span class="qa-c-item-who-data"><span class="vcard author"><a href="../../user/raeneufe" class="qa-user-link url nickname">raeneufe</a></span></span>
+																	<span class="qa-c-item-who-title">FEniCS Novice</span>
+																	<span class="qa-c-item-who-points">
+																		<span class="qa-c-item-who-points-pad">(</span><span class="qa-c-item-who-points-data">270</span><span class="qa-c-item-who-points-pad"> points)</span>
+																	</span>
+																</span>
+															</span>
+														</span>
+														<div class="qa-c-item-buttons">
+														</div>
+													</div>
+													<div class="qa-c-item-clear">
+													</div>
+												</div> <!-- END qa-c-item -->
+											</div> <!-- END qa-c-list -->
+											
+											<input type="hidden" name="code" value="0-1516467055-6134e36cefc60935f5b04714d6ee236131fed946">
+											<input type="hidden" name="qa_click" value="">
+										</form>
+										<div class="qa-c-form">
+										</div> <!-- END qa-c-form -->
+										
+									</div> <!-- END qa-a-item-main -->
+									<div class="qa-a-item-clear">
+									</div>
+								</div> <!-- END qa-a-list-item -->
+								
+							</div> <!-- END qa-a-list -->
+							
+						</div>
+					</div> <!-- END qa-main -->
+					
+				</div> <!-- END main-wrapper -->
+			</div> <!-- END main-shadow -->
+		</div> <!-- END body-wrapper -->
+		<!-- END footer-bottom-group -->
+		
+		<div style="position:absolute; left:-9999px; top:-9999px;">
+			<span id="qa-waiting-template" class="qa-waiting">...</span>
+		</div>
+	
+	
+
+</body><!-- Powered by Question2Answer - http://www.question2answer.org/ --></html>

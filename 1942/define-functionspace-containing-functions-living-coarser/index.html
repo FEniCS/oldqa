@@ -1,0 +1,349 @@
+<html><!-- Powered by Question2Answer - http://www.question2answer.org/ --><head>
+		<meta http-equiv="content-type" content="text/html; charset=utf-8">
+		<title>Define a FunctionSpace containing only Functions living on a coarser mesh? - FEniCS Q&amp;A</title>
+		<meta name="description" content="Suppose we are given two nested triangulations created via mesh2 = refine(mesh1) is it  ... https://answers.launchpad.net/dolfin/+question/94542">
+		<meta name="keywords" content="mixed-function-space,multilevel,dolfin">
+		<link rel="stylesheet" type="text/css" href="../../qa-theme/Snow/qa-styles.css">
+		<link rel="canonical" href="http://fenicsproject.org/qa/1942/define-functionspace-containing-functions-living-coarser">
+		<script type="text/x-mathjax-config">
+  MathJax.Hub.Config({
+    extensions: ["tex2jax.js"],
+    jax: ["input/TeX","output/HTML-CSS"],
+    tex2jax: {inlineMath: [["$","$"],["\\(","\\)"]]},
+    TeX: { extensions: ["AMSmath.js","AMSsymbols.js"]}
+  });
+</script>
+<script type="text/javascript" src="../../mathjax/MathJax.js"></script>
+		<script src="../../jquery-1.7.2.min.js" type="text/javascript"></script>
+		<script src="../../highlight.min.js"></script>
+<script type="text/javascript">
+$(function(){
+	$('.wmd-input').keypress(function(){
+		window.clearTimeout(hljs.Timeout);
+		hljs.Timeout = window.setTimeout(function() {
+			hljs.initHighlighting.called = false;
+			hljs.initHighlighting();
+		}, 500);
+	});
+	window.setTimeout(function() {
+		hljs.initHighlighting.called = false;
+		hljs.initHighlighting();
+	}, 500);
+});
+</script>
+
+
+	</head>
+	<body class="qa-template-question qa-body-js-off">
+		<div class="qa-body-wrapper">
+			
+			<div class="qa-header">
+				<div class="qa-logo">
+					<a href="../../" class="qa-logo-link" title="FEniCS Q&amp;A"><img src="../../qa-theme/fenics_qa.png" border="0" alt="FEniCS Q&amp;A"></a>
+				</div>
+				<div class="qa-header-clear">
+				</div>
+			</div> <!-- END qa-header -->
+			
+			<div class="qa-main-shadow">
+				
+				<div class="qa-main-wrapper">
+					
+					<div class="qa-sidepanel">
+						<div class="qa-sidebar">
+							This is a read only copy of the old FEniCS QA forum. Please visit the <a href="https://www.allanswered.com/community/s/fenics-project/">new QA forum</a> to ask questions
+						</div>
+						
+					</div>
+					
+					<div class="qa-main">
+						<h1>
+							<span class="entry-title">Define a FunctionSpace containing only Functions living on a coarser mesh?</span>
+						</h1>
+						<div class="qa-part-q-view">
+							<div class="qa-q-view  hentry question" id="q1942">
+								<form method="post" action="../../1942/define-functionspace-containing-functions-living-coarser">
+									<div class="qa-q-view-stats">
+										<div class="qa-voting qa-voting-net" id="voting_1942">
+											<div class="qa-vote-count qa-vote-count-net">
+												<span class="qa-netvote-count">
+													<span class="qa-netvote-count-data">+3<span class="votes-up"><span class="value-title" title="3"></span></span><span class="votes-down"><span class="value-title" title="0"></span></span></span><span class="qa-netvote-count-pad"> votes</span>
+												</span>
+											</div>
+											<div class="qa-vote-clear">
+											</div>
+										</div>
+									</div>
+									<input type="hidden" name="code" value="0-1516467905-174bdcc58435d25dc0a4cb3a305c28bf47f6e624">
+								</form>
+								<div class="qa-q-view-main">
+									<form method="post" action="../../1942/define-functionspace-containing-functions-living-coarser">
+										<div class="qa-q-view-content">
+											<a name="1942"></a><div class="entry-content"><p>Suppose we are given two nested triangulations created via</p>
+
+<pre><code>mesh2 = refine(mesh1)
+</code></pre>
+
+<p>is it possible to create a piecewise linear space associated with mesh2, but containing only those functions present on the coarser level mesh1?</p>
+
+<p>Let me add that I would willingly trade some unnecessary DOFs for simplicity of a potential solution, since I only want to do some prototyping right now. Thus, it is perfectly fine if a solution is proposed which only constrains the fine-level DOFs but leaves them in the system.</p>
+
+<p>The question is related to the discussion <a rel="nofollow" href="https://answers.launchpad.net/dolfin/+question/94542">'Mixed elements with two different meshes'</a> which did not come up with a solution yet.</p>
+
+<p><strong>A way which doesn't work:</strong> Suppose we have the nested function spaces</p>
+
+<pre><code>Q1 = FunctionSpace(mesh1, 'CG', 1)
+Q2 = FunctionSpace(mesh2, 'CG', 1)
+</code></pre>
+
+<p>These spaces have the problem that they live on different meshes. Particularly, I cannot create a mixed space</p>
+
+<pre><code>W = Q1*Q2
+</code></pre>
+
+<p>and get away with it. From my experiments I found out that it is sort of allowed by the interface that you create and use mixed spaces using components defined on different meshes, but (understandably) things will break whenever you try to solve some problem defined using such a mixed space.</p>
+
+<p><strong>Some background:</strong> If it is not yet clear what I mean, let me try to give some more detail. I want to to test a projection-based stabilization technique for equal-order elements for Stokes flow. Therefore, I need to be able to incorporate a term of the form</p>
+
+<p>$$ \int_\Omega (p-Pp)\cdot(q-Pq) dx $$</p>
+
+<p>where P projects pressures from the fine-level to the coarse-level (e.g., by injection).</p>
+
+<p>To my knowledge, something like this cannot be assembled out of the box. The worst case would be to implement the assembly of the matrix-block associated with the stabilization term by hand. I just want to make sure that there is no easier way before starting that, so I thought about possible workarounds</p>
+
+<p>Alternatively to assembling these terms, everything would be fine if I could define a FunctionSpace containing the functions of Q1, but defined on the finer mesh2.</p>
+
+<p>In that case, I would add an auxiliary pressure variable Pp and define these terms as</p>
+
+<pre><code>(p-Pp)*(q-Pq)*dx
+</code></pre>
+
+<p>with test functions q and Pq from the respective pressure function spaces. This would then ensure that Pp is the projection of p to the coarser level (at the price of additional DOFs for Pp, but I don't care about such issues at the moment) and the discrete problem should be equivalent to having a realization of operator P.</p>
+
+<p>Any help is appreciated!</p>
+</div>
+										</div>
+										<div class="qa-q-view-tags">
+											<ul class="qa-q-view-tag-list">
+												<li class="qa-q-view-tag-item"><a href="../../tag/mixed-function-space" rel="tag" class="qa-tag-link">mixed-function-space</a></li>
+												<li class="qa-q-view-tag-item"><a href="../../tag/multilevel" rel="tag" class="qa-tag-link">multilevel</a></li>
+												<li class="qa-q-view-tag-item"><a href="../../tag/dolfin" rel="tag" class="qa-tag-link">dolfin</a></li>
+											</ul>
+										</div>
+										<span class="qa-q-view-avatar-meta">
+											<span class="qa-q-view-meta">
+												<a href="../../1942/define-functionspace-containing-functions-living-coarser" class="qa-q-view-what">asked</a>
+												<span class="qa-q-view-when">
+													<span class="qa-q-view-when-data"><span class="published"><span class="value-title" title="2013-12-08T15:37:27+0000"></span>Dec 8, 2013</span></span>
+												</span>
+												<span class="qa-q-view-who">
+													<span class="qa-q-view-who-pad">by </span>
+													<span class="qa-q-view-who-data"><span class="vcard author"><a href="../../user/Christian+Waluga" class="qa-user-link url nickname">Christian Waluga</a></span></span>
+													<span class="qa-q-view-who-title">FEniCS Expert</span>
+													<span class="qa-q-view-who-points">
+														<span class="qa-q-view-who-points-pad">(</span><span class="qa-q-view-who-points-data">12,310</span><span class="qa-q-view-who-points-pad"> points)</span>
+													</span>
+												</span>
+												<br>
+												<span class="qa-q-view-what">edited</span>
+												<span class="qa-q-view-when">
+													<span class="qa-q-view-when-data"><span class="updated"><span class="value-title" title="2013-12-08T15:48:20+0000"></span>Dec 8, 2013</span></span>
+												</span>
+												<span class="qa-q-view-who">
+													<span class="qa-q-view-who-pad">by </span><span class="qa-q-view-who-data"><a href="../../user/Christian+Waluga" class="qa-user-link url nickname">Christian Waluga</a></span>
+												</span>
+											</span>
+										</span>
+										<div class="qa-q-view-buttons">
+										</div>
+										
+										<div class="qa-q-view-c-list" style="display:none;" id="c1942_list">
+										</div> <!-- END qa-c-list -->
+										
+										<input type="hidden" name="code" value="0-1516467905-cb6e52289834915a404a541c82540e1de9f4fd31">
+										<input type="hidden" name="qa_click" value="">
+									</form>
+									<div class="qa-c-form">
+									</div> <!-- END qa-c-form -->
+									
+								</div> <!-- END qa-q-view-main -->
+								<div class="qa-q-view-clear">
+								</div>
+							</div> <!-- END qa-q-view -->
+							
+						</div>
+						<div class="qa-part-a-list">
+							<h2 id="a_list_title">1 Answer</h2>
+							<div class="qa-a-list" id="a_list">
+								
+								<div class="qa-a-list-item  hentry answer answer-selected qa-a-list-item-selected" id="a1976">
+									<form method="post" action="../../1942/define-functionspace-containing-functions-living-coarser">
+										<div class="qa-voting qa-voting-net" id="voting_1976">
+											<div class="qa-vote-count qa-vote-count-net">
+												<span class="qa-netvote-count">
+													<span class="qa-netvote-count-data">+2<span class="votes-up"><span class="value-title" title="2"></span></span><span class="votes-down"><span class="value-title" title="0"></span></span></span><span class="qa-netvote-count-pad"> votes</span>
+												</span>
+											</div>
+											<div class="qa-vote-clear">
+											</div>
+										</div>
+										<input type="hidden" name="code" value="0-1516467905-174bdcc58435d25dc0a4cb3a305c28bf47f6e624">
+									</form>
+									<div class="qa-a-item-main">
+										<form method="post" action="../../1942/define-functionspace-containing-functions-living-coarser">
+											<div class="qa-a-item-selected">
+												<div class="qa-a-selection">
+													<div class="qa-a-selected">&#160;</div>
+													<div class="qa-a-selected-text">Best answer</div>
+												</div>
+												<div class="qa-a-item-content">
+													<a name="1976"></a><div class="entry-content"><p>Okay, after some tedious fiddling, I found part of the solution, which is the placement of velocities and pressures on different levels. The rest should be not a problem anymore. What the code listed below does is to solve the Stokes equations using a Taylor-Hood(ish) element, but instead of the usual $P_2-P_1$-combination it interpolates the velocity using piecewise linears on a finer mesh (sometimes called $P_1-iso-P_2$ element).</p>
+
+<p>What I did to put the pressure on the coarser level is simply to constrain the unnecessary pressures at the midpoint nodes. Be aware that I made some assumptions regarding DOF-numbering etc. and maybe I forgot about some corner pressures when other meshes are used. I consider this a hack... However, I am pretty happy with it, since it is not awfully slow. If somebody has a more elegant/faster/shorter suggestion to do the things below, please let me know!</p>
+
+<p><strong>Example code:</strong></p>
+
+<pre><code>from dolfin import *
+import numpy, sys, math
+
+dolfin.parameters["reorder_dofs_serial"] = False
+maxlevel = 5
+
+def print_rates(h, E):
+  print   'err(u,L2)  rate  err(u,H1)  rate  err(p,L2)  rate'
+  print   '%.4e -     %.4e -     %.4e -     ' \
+    %(E[0][0], E[0][1], E[0][2])
+  for i in range(1, len(E)):
+    b = h[i-1]/h[i]
+    err0 = math.log(E[i-1][0]/E[i][0], b)
+    err1 = math.log(E[i-1][1]/E[i][1], b)
+    err2 = math.log(E[i-1][2]/E[i][2], b)
+    print '%.4e %.2f  %.4e %.2f  %.4e %.2f' \
+      %(E[i][0], err0, E[i][1], err1, E[i][2], err2)
+  print '\n'
+  return
+
+mesh = UnitSquareMesh(1, 1, 'crossed')
+h, err = [], []
+
+for i in xrange(maxlevel):
+
+  nv0 = mesh.size(0) # remember for later
+  mesh = refine(mesh)
+
+  V = VectorFunctionSpace(mesh, 'CG', 1)
+  Q = FunctionSpace(mesh, 'CG', 1)
+  R = FunctionSpace(mesh, 'R', 0)
+  W = MixedFunctionSpace([V, Q, R])
+
+  # variational problem
+  u, p, m = TrialFunctions(W)
+  v, q, r = TestFunctions(W)
+
+  # exact solution and rhs
+  U = Expression(('x[0]+x[0]*x[0]-2*x[0]*x[1]+x[0]*x[0]*x[0]-3*x[0]*x[1]*x[1]+x[0]*x[0]*x[1]',\
+                  '-x[1]-2*x[0]*x[1]+x[1]*x[1]-3*x[0]*x[0]*x[1]+x[1]*x[1]*x[1]-x[0]*x[1]*x[1]'), degree=4)
+  P = Expression('x[0]*x[1]+x[0]+x[1]+x[0]*x[0]*x[0]*x[1]*x[1]-4./3', degree=5)
+  F = Expression(('3*x[0]*x[0]*x[1]*x[1]-x[1]-1.0', '2*x[0]*x[0]*x[0]*x[1]+3*x[0]-1.0'), degree=4)
+
+  bc = DirichletBC(W.sub(0), U, 'on_boundary')
+
+  stokes = inner(grad(u),grad(v))*dx - div(v)*p*dx - div(u)*q*dx - dot(F,v)*dx + p*r*dx + m*q*dx
+  A, b = assemble_system(lhs(stokes), rhs(stokes), bc, finalize_tensor = False)
+
+  # constrain some dofs
+  dm = W.sub(1).dofmap().collapse(mesh)[1]
+  map = {}
+  for v in vertices(mesh):
+    if v.index() &gt;= nv0 or len([c for c in cells(v)]) == 1:
+      vdof = dm[v.index()]
+      map[vdof] = []
+      for e in edges(v):
+        map[vdof] += [dm[v2.index()] for v2 in vertices(e) if v2.index() &lt; nv0]
+  rows = numpy.asarray([m[0] for m in map.items()], dtype='intc')
+  for r in rows:
+    A.setrow(r, numpy.asarray([r] + map[r], dtype='uintp'), numpy.asarray([1.0,-0.5,-0.5]))
+  A.apply('insert')
+
+  # solve the problem
+  x = Function(W)
+  solve(A, x.vector(), b)
+  uh, ph, mh = x.split()
+  plot(ph)
+
+  h.append(mesh.hmin())
+  err.append((errornorm(U, uh), errornorm(U, uh, 'H10'), errornorm(P, ph)))
+
+print_rates(h,err)
+</code></pre>
+
+<p><strong>Output:</strong></p>
+
+<pre><code>err(u,L2)  rate  err(u,H1)  rate  err(p,L2)  rate
+2.5905e-01 -     2.1610e+00 -     2.2103e+00 -     
+6.7218e-02 1.95  9.5323e-01 1.18  8.6163e-01 1.36
+1.6748e-02 2.00  4.4739e-01 1.09  2.7860e-01 1.63
+4.2041e-03 1.99  2.1694e-01 1.04  8.4477e-02 1.72
+1.0568e-03 1.99  1.0713e-01 1.02  2.4851e-02 1.77
+</code></pre>
+</div>
+												</div>
+												<span class="qa-a-item-avatar-meta">
+													<span class="qa-a-item-meta">
+														<a href="../../1942/define-functionspace-containing-functions-living-coarser?show=1976#a1976" class="qa-a-item-what">answered</a>
+														<span class="qa-a-item-when">
+															<span class="qa-a-item-when-data"><span class="published"><span class="value-title" title="2013-12-12T14:13:18+0000"></span>Dec 12, 2013</span></span>
+														</span>
+														<span class="qa-a-item-who">
+															<span class="qa-a-item-who-pad">by </span>
+															<span class="qa-a-item-who-data"><span class="vcard author"><a href="../../user/Christian+Waluga" class="qa-user-link url nickname">Christian Waluga</a></span></span>
+															<span class="qa-a-item-who-title">FEniCS Expert</span>
+															<span class="qa-a-item-who-points">
+																<span class="qa-a-item-who-points-pad">(</span><span class="qa-a-item-who-points-data">12,310</span><span class="qa-a-item-who-points-pad"> points)</span>
+															</span>
+														</span>
+														<br>
+														<span class="qa-a-item-what">selected</span>
+														<span class="qa-a-item-when">
+															<span class="qa-a-item-when-data"><span class="updated"><span class="value-title" title="2014-02-02T17:58:09+0000"></span>Feb 2, 2014</span></span>
+														</span>
+														<span class="qa-a-item-who">
+															<span class="qa-a-item-who-pad">by </span><span class="qa-a-item-who-data"><a href="../../user/Christian+Waluga" class="qa-user-link url nickname">Christian Waluga</a></span>
+														</span>
+													</span>
+												</span>
+											</div>
+											<div class="qa-a-item-buttons">
+												</div>
+											
+											<div class="qa-a-item-c-list" style="display:none;" id="c1976_list">
+											</div> <!-- END qa-c-list -->
+											
+											<input type="hidden" name="code" value="0-1516467905-ad1281251ca78503d6c4c10eb99b14da33b61158">
+											<input type="hidden" name="qa_click" value="">
+										</form>
+										<div class="qa-c-form">
+										</div> <!-- END qa-c-form -->
+										
+									</div> <!-- END qa-a-item-main -->
+									<div class="qa-a-item-clear">
+									</div>
+								</div> <!-- END qa-a-list-item -->
+								
+							</div> <!-- END qa-a-list -->
+							
+						</div>
+					</div> <!-- END qa-main -->
+					
+				</div> <!-- END main-wrapper -->
+			</div> <!-- END main-shadow -->
+		</div> <!-- END body-wrapper -->
+		<!-- END footer-bottom-group -->
+		
+		<div style="position:absolute; left:-9999px; top:-9999px;">
+			<span id="qa-waiting-template" class="qa-waiting">...</span>
+		</div>
+	
+	
+
+</body><!-- Powered by Question2Answer - http://www.question2answer.org/ --></html>

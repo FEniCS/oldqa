@@ -1,0 +1,378 @@
+<html><!-- Powered by Question2Answer - http://www.question2answer.org/ --><head>
+		<meta http-equiv="content-type" content="text/html; charset=utf-8">
+		<title>Electromagnetic waveguide example from the FEniCS book - FEniCS Q&amp;A</title>
+		<meta name="description" content="Hi folks, I am trying to code the EM waveguide example from the section 34 of the FEniCS book ... f.split() plot(transverse) plot(axial) interactive()">
+		<meta name="keywords" content="waveguide,examples,fenics,assemble,slepc">
+		<link rel="stylesheet" type="text/css" href="../../qa-theme/Snow/qa-styles.css">
+		<link rel="canonical" href="http://fenicsproject.org/qa/2694/electromagnetic-waveguide-example-from-the-fenics-book">
+		<script type="text/x-mathjax-config">
+  MathJax.Hub.Config({
+    extensions: ["tex2jax.js"],
+    jax: ["input/TeX","output/HTML-CSS"],
+    tex2jax: {inlineMath: [["$","$"],["\\(","\\)"]]},
+    TeX: { extensions: ["AMSmath.js","AMSsymbols.js"]}
+  });
+</script>
+<script type="text/javascript" src="../../mathjax/MathJax.js"></script>
+		<script src="../../jquery-1.7.2.min.js" type="text/javascript"></script>
+		<script src="../../highlight.min.js"></script>
+<script type="text/javascript">
+$(function(){
+	$('.wmd-input').keypress(function(){
+		window.clearTimeout(hljs.Timeout);
+		hljs.Timeout = window.setTimeout(function() {
+			hljs.initHighlighting.called = false;
+			hljs.initHighlighting();
+		}, 500);
+	});
+	window.setTimeout(function() {
+		hljs.initHighlighting.called = false;
+		hljs.initHighlighting();
+	}, 500);
+});
+</script>
+
+
+	</head>
+	<body class="qa-template-question qa-body-js-off">
+		<div class="qa-body-wrapper">
+			
+			<div class="qa-header">
+				<div class="qa-logo">
+					<a href="../../" class="qa-logo-link" title="FEniCS Q&amp;A"><img src="../../qa-theme/fenics_qa.png" border="0" alt="FEniCS Q&amp;A"></a>
+				</div>
+				<div class="qa-header-clear">
+				</div>
+			</div> <!-- END qa-header -->
+			
+			<div class="qa-main-shadow">
+				
+				<div class="qa-main-wrapper">
+					
+					<div class="qa-sidepanel">
+						<div class="qa-sidebar">
+							This is a read only copy of the old FEniCS QA forum. Please visit the <a href="https://www.allanswered.com/community/s/fenics-project/">new QA forum</a> to ask questions
+						</div>
+						
+					</div>
+					
+					<div class="qa-main">
+						<h1>
+							<span class="entry-title">Electromagnetic waveguide example from the FEniCS book</span>
+						</h1>
+						<div class="qa-part-q-view">
+							<div class="qa-q-view  hentry question" id="q2694">
+								<form method="post" action="../../2694/electromagnetic-waveguide-example-from-the-fenics-book">
+									<div class="qa-q-view-stats">
+										<div class="qa-voting qa-voting-net" id="voting_2694">
+											<div class="qa-vote-count qa-vote-count-net">
+												<span class="qa-netvote-count">
+													<span class="qa-netvote-count-data">+1<span class="votes-up"><span class="value-title" title="1"></span></span><span class="votes-down"><span class="value-title" title="0"></span></span></span><span class="qa-netvote-count-pad"> vote</span>
+												</span>
+											</div>
+											<div class="qa-vote-clear">
+											</div>
+										</div>
+									</div>
+									<input type="hidden" name="code" value="0-1516467938-877917452149ea3c68ab1ffbe51a93ede527aee0">
+								</form>
+								<div class="qa-q-view-main">
+									<form method="post" action="../../2694/electromagnetic-waveguide-example-from-the-fenics-book">
+										<div class="qa-q-view-content">
+											<a name="2694"></a><div class="entry-content"><p>Hi folks,</p>
+
+<p>I am trying to code the EM waveguide example from the section 34 of the FEniCS book. Here is the python code written so far. Unfortunately, I am puzzled by the way to assemble the system and apply the BCS using PETscMatrix and SLEPcEigenSolver. Any hints ?</p>
+
+<pre><code>from dolfin import *
+
+width, height = 1, 0.5
+
+mesh = RectangleMesh(0, 0, width, height, 8, 4, "right")
+
+transverse_order, axial_order = 2, 1
+
+V_N = FunctionSpace(mesh, "Nedelec 1st kind H(curl)", transverse_order)
+V_L = FunctionSpace(mesh, "Lagrange", axial_order)
+
+combined_space = V_N * V_L
+
+(N_i, L_i) = TestFunctions(combined_space)
+(N_j, L_j) = TrialFunctions(combined_space)
+
+class HalfLoadedDielectric(Expression):
+    def eval(self, values, x):
+        if x[1] &lt; 0.25:
+            values[0] = 4.0
+        else:
+            values[0] = 1.0;
+
+e_r = HalfLoadedDielectric()
+one_over_u_r = Expression("1.0") # no magnetic material
+
+k_o_squared = Expression("4*pi*pi*nu*nu*1e-4/9", nu=0.0) # nu is given in MHz
+
+def curl_t(w):
+    return Dx(w[1],0)-Dx(w[0],1)
+
+s_tt = one_over_u_r*dot(curl_t(N_i), curl_t(N_j))
+t_tt = e_r*dot(N_i, N_j)
+
+s_zz = one_over_u_r*dot(grad(L_i), grad(L_j))
+t_zz = e_r*L_i*L_j
+
+b_tt = one_over_u_r*dot(N_i, N_j)
+b_tz = one_over_u_r*dot(N_i, grad(L_j))
+b_zt = one_over_u_r*dot(grad(L_i), N_j)
+
+a_tt = s_tt - k_o_squared*t_tt
+b_zz = s_zz - k_o_squared*t_zz
+
+class ElectricWalls(SubDomain):
+    def inside(self, x, on_boundary):
+        return on_boundary
+
+zero = Constant((0.0, 0.0, 0.0)) # a vector constant value
+
+dirichlet_bc = DirichletBC(combined_space, zero, ElectricWalls())
+
+# Now assemble the matrices
+TO DO
+# Form the system
+TO DO
+# Apply the dirichlet_bc
+TO DO
+# plot the tranverse and longitudinal part
+
+f = Function(combined_space, e)
+(transverse, axial) = f.split()
+plot(transverse)
+plot(axial)
+interactive()
+</code></pre>
+</div>
+										</div>
+										<div class="qa-q-view-tags">
+											<ul class="qa-q-view-tag-list">
+												<li class="qa-q-view-tag-item"><a href="../../tag/waveguide" rel="tag" class="qa-tag-link">waveguide</a></li>
+												<li class="qa-q-view-tag-item"><a href="../../tag/examples" rel="tag" class="qa-tag-link">examples</a></li>
+												<li class="qa-q-view-tag-item"><a href="../../tag/fenics" rel="tag" class="qa-tag-link">fenics</a></li>
+												<li class="qa-q-view-tag-item"><a href="../../tag/assemble" rel="tag" class="qa-tag-link">assemble</a></li>
+												<li class="qa-q-view-tag-item"><a href="../../tag/slepc" rel="tag" class="qa-tag-link">slepc</a></li>
+											</ul>
+										</div>
+										<span class="qa-q-view-avatar-meta">
+											<span class="qa-q-view-meta">
+												<a href="../../2694/electromagnetic-waveguide-example-from-the-fenics-book" class="qa-q-view-what">asked</a>
+												<span class="qa-q-view-when">
+													<span class="qa-q-view-when-data"><span class="published"><span class="value-title" title="2014-02-11T12:39:03+0000"></span>Feb 11, 2014</span></span>
+												</span>
+												<span class="qa-q-view-who">
+													<span class="qa-q-view-who-pad">by </span>
+													<span class="qa-q-view-who-data"><span class="vcard author"><a href="../../user/jcharles" class="qa-user-link url nickname">jcharles</a></span></span>
+													<span class="qa-q-view-who-title">FEniCS Novice</span>
+													<span class="qa-q-view-who-points">
+														<span class="qa-q-view-who-points-pad">(</span><span class="qa-q-view-who-points-data">130</span><span class="qa-q-view-who-points-pad"> points)</span>
+													</span>
+												</span>
+												<br>
+												<span class="qa-q-view-what">edited</span>
+												<span class="qa-q-view-when">
+													<span class="qa-q-view-when-data"><span class="updated"><span class="value-title" title="2014-02-28T09:33:34+0000"></span>Feb 28, 2014</span></span>
+												</span>
+												<span class="qa-q-view-who">
+													<span class="qa-q-view-who-pad">by </span><span class="qa-q-view-who-data"><a href="../../user/jcharles" class="qa-user-link url nickname">jcharles</a></span>
+												</span>
+											</span>
+										</span>
+										<div class="qa-q-view-buttons">
+										</div>
+										
+										<div class="qa-q-view-c-list" style="display:none;" id="c2694_list">
+										</div> <!-- END qa-c-list -->
+										
+										<input type="hidden" name="code" value="0-1516467938-7fa613a76bdc89960df25eb101610a1bf8ee8ddc">
+										<input type="hidden" name="qa_click" value="">
+									</form>
+									<div class="qa-c-form">
+									</div> <!-- END qa-c-form -->
+									
+								</div> <!-- END qa-q-view-main -->
+								<div class="qa-q-view-clear">
+								</div>
+							</div> <!-- END qa-q-view -->
+							
+						</div>
+						<div class="qa-part-a-list">
+							<h2 id="a_list_title">2 Answers</h2>
+							<div class="qa-a-list" id="a_list">
+								
+								<div class="qa-a-list-item  hentry answer" id="a3117">
+									<form method="post" action="../../2694/electromagnetic-waveguide-example-from-the-fenics-book">
+										<div class="qa-voting qa-voting-net" id="voting_3117">
+											<div class="qa-vote-count qa-vote-count-net">
+												<span class="qa-netvote-count">
+													<span class="qa-netvote-count-data">+2<span class="votes-up"><span class="value-title" title="2"></span></span><span class="votes-down"><span class="value-title" title="0"></span></span></span><span class="qa-netvote-count-pad"> votes</span>
+												</span>
+											</div>
+											<div class="qa-vote-clear">
+											</div>
+										</div>
+										<input type="hidden" name="code" value="0-1516467938-877917452149ea3c68ab1ffbe51a93ede527aee0">
+									</form>
+									<div class="qa-a-item-main">
+										<form method="post" action="../../2694/electromagnetic-waveguide-example-from-the-fenics-book">
+											<div class="qa-a-selection">
+											</div>
+											<div class="qa-a-item-content">
+												<a name="3117"></a><div class="entry-content"><p>Hello jcharles !! </p>
+
+<p>I am trying to do the same work as you currently !!! </p>
+
+<p>Perhaps it will help you, I have find the real work of Evan: <a rel="nofollow" href="http://www.evanlezar.com/files/publications/evan_lezar_2011_03_dissertation.pdf">http://www.evanlezar.com/files/publications/evan_lezar_2011_03_dissertation.pdf</a></p>
+
+<p>Do you have completed this work without error?</p>
+</div>
+											</div>
+											<span class="qa-a-item-avatar-meta">
+												<span class="qa-a-item-meta">
+													<a href="../../2694/electromagnetic-waveguide-example-from-the-fenics-book?show=3117#a3117" class="qa-a-item-what">answered</a>
+													<span class="qa-a-item-when">
+														<span class="qa-a-item-when-data"><span class="published"><span class="value-title" title="2014-03-28T14:29:49+0000"></span>Mar 28, 2014</span></span>
+													</span>
+													<span class="qa-a-item-who">
+														<span class="qa-a-item-who-pad">by </span>
+														<span class="qa-a-item-who-data"><span class="vcard author"><a href="../../user/Shizu" class="qa-user-link url nickname">Shizu</a></span></span>
+														<span class="qa-a-item-who-title">FEniCS Novice</span>
+														<span class="qa-a-item-who-points">
+															<span class="qa-a-item-who-points-pad">(</span><span class="qa-a-item-who-points-data">350</span><span class="qa-a-item-who-points-pad"> points)</span>
+														</span>
+													</span>
+												</span>
+											</span>
+											<div class="qa-a-item-buttons">
+												</div>
+											
+											<div class="qa-a-item-c-list" id="c3117_list">
+												<div class="qa-c-list-item  hentry comment" id="c11020">
+													<div class="qa-c-item-content">
+														<a name="11020"></a><div class="entry-content"><p>Hello Shizu, jcharles,</p>
+
+<p>The pdf link doesn't exist anymore. Here is a direct link to Evan Lezar's disseration: <a rel="nofollow" href="http://scholar.sun.ac.za/handle/10019.1/6507">http://scholar.sun.ac.za/handle/10019.1/6507</a></p>
+
+<p>Also, the FEniCS code can be found on page 104 of his dissertation. I will try it out soon. Hope it works :D</p>
+</div>
+													</div>
+													<div class="qa-c-item-footer">
+														<span class="qa-c-item-avatar-meta">
+															<span class="qa-c-item-meta">
+																<a href="../../2694/electromagnetic-waveguide-example-from-the-fenics-book?show=11020#c11020" class="qa-c-item-what">commented</a>
+																<span class="qa-c-item-when">
+																	<span class="qa-c-item-when-data"><span class="published"><span class="value-title" title="2016-08-31T16:33:38+0000"></span>Aug 31, 2016</span></span>
+																</span>
+																<span class="qa-c-item-who">
+																	<span class="qa-c-item-who-pad">by </span>
+																	<span class="qa-c-item-who-data"><span class="vcard author"><a href="../../user/plastic_beach" class="qa-user-link url nickname">plastic_beach</a></span></span>
+																	<span class="qa-c-item-who-title">FEniCS Novice</span>
+																	<span class="qa-c-item-who-points">
+																		<span class="qa-c-item-who-points-pad">(</span><span class="qa-c-item-who-points-data">190</span><span class="qa-c-item-who-points-pad"> points)</span>
+																	</span>
+																</span>
+															</span>
+														</span>
+														<div class="qa-c-item-buttons">
+														</div>
+													</div>
+													<div class="qa-c-item-clear">
+													</div>
+												</div> <!-- END qa-c-item -->
+											</div> <!-- END qa-c-list -->
+											
+											<input type="hidden" name="code" value="0-1516467938-c95b892bdb9fd418474abeb1652a58bfecc553e8">
+											<input type="hidden" name="qa_click" value="">
+										</form>
+										<div class="qa-c-form">
+										</div> <!-- END qa-c-form -->
+										
+									</div> <!-- END qa-a-item-main -->
+									<div class="qa-a-item-clear">
+									</div>
+								</div> <!-- END qa-a-list-item -->
+								
+								<div class="qa-a-list-item  hentry answer" id="a6253">
+									<form method="post" action="../../2694/electromagnetic-waveguide-example-from-the-fenics-book">
+										<div class="qa-voting qa-voting-net" id="voting_6253">
+											<div class="qa-vote-count qa-vote-count-net">
+												<span class="qa-netvote-count">
+													<span class="qa-netvote-count-data">+1<span class="votes-up"><span class="value-title" title="1"></span></span><span class="votes-down"><span class="value-title" title="0"></span></span></span><span class="qa-netvote-count-pad"> vote</span>
+												</span>
+											</div>
+											<div class="qa-vote-clear">
+											</div>
+										</div>
+										<input type="hidden" name="code" value="0-1516467938-877917452149ea3c68ab1ffbe51a93ede527aee0">
+									</form>
+									<div class="qa-a-item-main">
+										<form method="post" action="../../2694/electromagnetic-waveguide-example-from-the-fenics-book">
+											<div class="qa-a-selection">
+											</div>
+											<div class="qa-a-item-content">
+												<a name="6253"></a><div class="entry-content"><p>Hi,</p>
+
+<p>I'm working on the the same topic and I've found some code at <a rel="nofollow" href="http://bazaar.launchpad.net/~evanlezar/+junk/fenics-electromagnetics/files/head:/python/">http://bazaar.launchpad.net/~evanlezar/+junk/fenics-electromagnetics/files/head:/python/</a> <br>
+It doesn't work in my FEnICS build but maybe it helps</p>
+
+<p>Saludos,</p>
+
+<p>Carlos</p>
+</div>
+											</div>
+											<span class="qa-a-item-avatar-meta">
+												<span class="qa-a-item-meta">
+													<a href="../../2694/electromagnetic-waveguide-example-from-the-fenics-book?show=6253#a6253" class="qa-a-item-what">answered</a>
+													<span class="qa-a-item-when">
+														<span class="qa-a-item-when-data"><span class="published"><span class="value-title" title="2014-12-22T12:30:54+0000"></span>Dec 22, 2014</span></span>
+													</span>
+													<span class="qa-a-item-who">
+														<span class="qa-a-item-who-pad">by </span>
+														<span class="qa-a-item-who-data"><span class="vcard author"><a href="../../user/CarlosRevillas" class="qa-user-link url nickname">CarlosRevillas</a></span></span>
+														<span class="qa-a-item-who-title">FEniCS Novice</span>
+														<span class="qa-a-item-who-points">
+															<span class="qa-a-item-who-points-pad">(</span><span class="qa-a-item-who-points-data">170</span><span class="qa-a-item-who-points-pad"> points)</span>
+														</span>
+													</span>
+												</span>
+											</span>
+											<div class="qa-a-item-buttons">
+												</div>
+											
+											<div class="qa-a-item-c-list" style="display:none;" id="c6253_list">
+											</div> <!-- END qa-c-list -->
+											
+											<input type="hidden" name="code" value="0-1516467938-765118d9211aa03a4e666f399e649251a4111e22">
+											<input type="hidden" name="qa_click" value="">
+										</form>
+										<div class="qa-c-form">
+										</div> <!-- END qa-c-form -->
+										
+									</div> <!-- END qa-a-item-main -->
+									<div class="qa-a-item-clear">
+									</div>
+								</div> <!-- END qa-a-list-item -->
+								
+							</div> <!-- END qa-a-list -->
+							
+						</div>
+					</div> <!-- END qa-main -->
+					
+				</div> <!-- END main-wrapper -->
+			</div> <!-- END main-shadow -->
+		</div> <!-- END body-wrapper -->
+		<!-- END footer-bottom-group -->
+		
+		<div style="position:absolute; left:-9999px; top:-9999px;">
+			<span id="qa-waiting-template" class="qa-waiting">...</span>
+		</div>
+	
+	
+
+</body><!-- Powered by Question2Answer - http://www.question2answer.org/ --></html>

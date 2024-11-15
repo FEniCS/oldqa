@@ -1,0 +1,343 @@
+<html><!-- Powered by Question2Answer - http://www.question2answer.org/ --><head>
+		<meta http-equiv="content-type" content="text/html; charset=utf-8">
+		<title>JIT error and dot() dimensions - FEniCS Q&amp;A</title>
+		<meta name="description" content="I am writing a DG discretization of advection-diffusion-reaction, and have two outstanding  ... (bilinear_form) Any help is greatly appreciated!">
+		<meta name="keywords" content="jit,dot-product,dg">
+		<link rel="stylesheet" type="text/css" href="../../qa-theme/Snow/qa-styles.css">
+		<link rel="canonical" href="http://fenicsproject.org/qa/14082/jit-error-and-dot-dimensions">
+		<script type="text/x-mathjax-config">
+  MathJax.Hub.Config({
+    extensions: ["tex2jax.js"],
+    jax: ["input/TeX","output/HTML-CSS"],
+    tex2jax: {inlineMath: [["$","$"],["\\(","\\)"]]},
+    TeX: { extensions: ["AMSmath.js","AMSsymbols.js"]}
+  });
+</script>
+<script type="text/javascript" src="../../mathjax/MathJax.js"></script>
+		<script src="../../jquery-1.7.2.min.js" type="text/javascript"></script>
+		<script src="../../highlight.min.js"></script>
+<script type="text/javascript">
+$(function(){
+	$('.wmd-input').keypress(function(){
+		window.clearTimeout(hljs.Timeout);
+		hljs.Timeout = window.setTimeout(function() {
+			hljs.initHighlighting.called = false;
+			hljs.initHighlighting();
+		}, 500);
+	});
+	window.setTimeout(function() {
+		hljs.initHighlighting.called = false;
+		hljs.initHighlighting();
+	}, 500);
+});
+</script>
+
+
+	</head>
+	<body class="qa-template-question qa-body-js-off">
+		<div class="qa-body-wrapper">
+			
+			<div class="qa-header">
+				<div class="qa-logo">
+					<a href="../../" class="qa-logo-link" title="FEniCS Q&amp;A"><img src="../../qa-theme/fenics_qa.png" border="0" alt="FEniCS Q&amp;A"></a>
+				</div>
+				<div class="qa-header-clear">
+				</div>
+			</div> <!-- END qa-header -->
+			
+			<div class="qa-main-shadow">
+				
+				<div class="qa-main-wrapper">
+					
+					<div class="qa-sidepanel">
+						<div class="qa-sidebar">
+							This is a read only copy of the old FEniCS QA forum. Please visit the <a href="https://www.allanswered.com/community/s/fenics-project/">new QA forum</a> to ask questions
+						</div>
+						
+					</div>
+					
+					<div class="qa-main">
+						<h1>
+							<span class="entry-title">JIT error and dot() dimensions</span>
+						</h1>
+						<div class="qa-part-q-view">
+							<div class="qa-q-view  hentry question" id="q14082">
+								<form method="post" action="../../14082/jit-error-and-dot-dimensions">
+									<div class="qa-q-view-stats">
+										<div class="qa-voting qa-voting-net" id="voting_14082">
+											<div class="qa-vote-count qa-vote-count-net">
+												<span class="qa-netvote-count">
+													<span class="qa-netvote-count-data">0<span class="votes-up"><span class="value-title" title="0"></span></span><span class="votes-down"><span class="value-title" title="0"></span></span></span><span class="qa-netvote-count-pad"> votes</span>
+												</span>
+											</div>
+											<div class="qa-vote-clear">
+											</div>
+										</div>
+									</div>
+									<input type="hidden" name="code" value="0-1516466506-68b82a15c99a03d14a28b104bf10e00df409f74f">
+								</form>
+								<div class="qa-q-view-main">
+									<form method="post" action="../../14082/jit-error-and-dot-dimensions">
+										<div class="qa-q-view-content">
+											<a name="14082"></a><div class="entry-content"><p>I am writing a DG discretization of advection-diffusion-reaction, and have two outstanding problems (reproducing (3.4) in <a rel="nofollow" href="http://arturo.imati.cnr.it/marini/reports/final_sinum.pdf).">http://arturo.imati.cnr.it/marini/reports/final_sinum.pdf).</a> One is that dolfin.dot() says the dimensions are wrong in the following:</p>
+
+<pre><code>dolfin.dot(dolfin.jump(phi), dolfin.avg(dolfin.grad(psi)))*dolfin.dS
+</code></pre>
+
+<p>and instead compiles if I replace avg(grad(psi)) with avg(psi). But the dimensions of that seem wrong to me?</p>
+
+<p>I also get a JIT error trying to integrate jump terms over the boundary, </p>
+
+<pre><code>dolfin.dot(dolfin.jump(phi), dolfin.jump(psi))*dolfin.dS
+</code></pre>
+
+<p>works, but</p>
+
+<pre><code>dolfin.dot(dolfin.jump(phi), dolfin.jump(psi))*dolfin.ds(0)
+</code></pre>
+
+<p>doesn't, returning error `TypeError: 52978288 format: a number is required, not NoneType<br>
+Minimum example:</p>
+
+<pre><code>import dolfin
+import numpy as np
+
+theta = 3.0*dolfin.pi/16.0
+Omega = dolfin.as_vector((dolfin.cos(theta),dolfin.sin(theta)))
+mesh = dolfin.UnitSquareMesh(20, 20)
+
+# Define inflow boundary
+class DirichletBoundary(dolfin.SubDomain):
+    def inside(self, x, on_boundary):
+        return (dolfin.near(x[0],0.0) or dolfin.near(x[1],0.0)) and on_boundary
+
+# Define outflow boundary (disjoint covering of boundary with inflow boundary)
+#   + We assume that Omega*n is positive on Neumann boundary, i.e. it is strictly outflow
+class NeumannBoundary(dolfin.SubDomain):
+    def inside(self, x, on_boundary):
+        return (dolfin.near(x[0],1.0) or dolfin.near(x[1],1.0)) and on_boundary
+
+# Mark different parts of boundary, 0 for Dirichlet and 1 for Neumann
+boundary_parts = dolfin.MeshFunction("size_t", mesh, mesh.topology().dim()-1)
+Gamma_D = DirichletBoundary()
+Gamma_D.mark(boundary_parts, 0)
+Gamma_N = NeumannBoundary()
+Gamma_N.mark(boundary_parts, 1)
+ds = dolfin.Measure("ds", domain=mesh, subdomain_data=boundary_parts)
+
+# Function spaces
+DG = dolfin.FunctionSpace(mesh,"DG", 1)
+
+# Trial and test functions, normal vector, mesh size
+psi = dolfin.TrialFunction(DG)
+phi = dolfin.TestFunction(DG)
+nor = dolfin.FacetNormal(mesh)
+
+# Positive part of Omega*n
+pos_nor = (dolfin.dot(Omega, nor) + np.abs(dolfin.dot(Omega, nor)))/2.0
+# Negative part of Omega*n
+neg_nor = (np.abs(dolfin.dot(Omega, nor)) - dolfin.dot(Omega, nor))/2.0
+
+# DG, Eq. (3.4) 
+#   - 5th line, jit error
+#   - 7th and 8th line, dimensions of dot() error. If I make avg(grad(psi)) --&gt; avg(psi),
+#     it compiles, but this seems wrong...
+bilinear_form = (dolfin.inner(psi,phi) + \
+                dolfin.inner(dolfin.grad(psi), dolfin.grad(phi)) - \
+                dolfin.inner(psi, dolfin.dot(Omega,dolfin.grad(phi))))*dolfin.dx + \
+                dolfin.dot(dolfin.jump(phi), dolfin.jump(psi))*dolfin.dS + \
+                dolfin.dot(dolfin.jump(phi), dolfin.jump(psi))*dolfin.ds(0) + \
+                dolfin.dot(dolfin.jump(phi), pos_nor('+')*psi('+') - neg_nor('+')*psi('-') )*dolfin.dS + \
+                dolfin.dot(dolfin.jump(phi), dolfin.avg(dolfin.grad(psi)))*dolfin.dS + \
+                dolfin.dot(dolfin.jump(phi), dolfin.avg(dolfin.grad(psi)))*dolfin.ds(0) + \
+                pos_nor*phi*psi*dolfin.ds
+
+A = dolfin.assemble(bilinear_form)
+</code></pre>
+
+<p>Any help is greatly appreciated!</p>
+</div>
+										</div>
+										<div class="qa-q-view-tags">
+											<ul class="qa-q-view-tag-list">
+												<li class="qa-q-view-tag-item"><a href="../../tag/jit" rel="tag" class="qa-tag-link">jit</a></li>
+												<li class="qa-q-view-tag-item"><a href="../../tag/dot-product" rel="tag" class="qa-tag-link">dot-product</a></li>
+												<li class="qa-q-view-tag-item"><a href="../../tag/dg" rel="tag" class="qa-tag-link">dg</a></li>
+											</ul>
+										</div>
+										<span class="qa-q-view-avatar-meta">
+											<span class="qa-q-view-meta">
+												<a href="../../14082/jit-error-and-dot-dimensions" class="qa-q-view-what">asked</a>
+												<span class="qa-q-view-when">
+													<span class="qa-q-view-when-data"><span class="published"><span class="value-title" title="2017-06-22T17:29:59+0000"></span>Jun 22, 2017</span></span>
+												</span>
+												<span class="qa-q-view-who">
+													<span class="qa-q-view-who-pad">by </span>
+													<span class="qa-q-view-who-data"><span class="vcard author"><a href="../../user/ben.s.southworth" class="qa-user-link url nickname">ben.s.southworth</a></span></span>
+													<span class="qa-q-view-who-title">FEniCS Novice</span>
+													<span class="qa-q-view-who-points">
+														<span class="qa-q-view-who-points-pad">(</span><span class="qa-q-view-who-points-data">200</span><span class="qa-q-view-who-points-pad"> points)</span>
+													</span>
+												</span>
+											</span>
+										</span>
+										<div class="qa-q-view-buttons">
+										</div>
+										
+										<div class="qa-q-view-c-list" style="display:none;" id="c14082_list">
+										</div> <!-- END qa-c-list -->
+										
+										<input type="hidden" name="code" value="0-1516466506-ed8be05c3efe05a0514036cdcae7bedb8cdad43f">
+										<input type="hidden" name="qa_click" value="">
+									</form>
+									<div class="qa-c-form">
+									</div> <!-- END qa-c-form -->
+									
+								</div> <!-- END qa-q-view-main -->
+								<div class="qa-q-view-clear">
+								</div>
+							</div> <!-- END qa-q-view -->
+							
+						</div>
+						<div class="qa-part-a-list">
+							<h2 id="a_list_title">1 Answer</h2>
+							<div class="qa-a-list" id="a_list">
+								
+								<div class="qa-a-list-item  hentry answer answer-selected qa-a-list-item-selected" id="a14094">
+									<form method="post" action="../../14082/jit-error-and-dot-dimensions">
+										<div class="qa-voting qa-voting-net" id="voting_14094">
+											<div class="qa-vote-count qa-vote-count-net">
+												<span class="qa-netvote-count">
+													<span class="qa-netvote-count-data">+1<span class="votes-up"><span class="value-title" title="1"></span></span><span class="votes-down"><span class="value-title" title="0"></span></span></span><span class="qa-netvote-count-pad"> vote</span>
+												</span>
+											</div>
+											<div class="qa-vote-clear">
+											</div>
+										</div>
+										<input type="hidden" name="code" value="0-1516466506-68b82a15c99a03d14a28b104bf10e00df409f74f">
+									</form>
+									<div class="qa-a-item-main">
+										<form method="post" action="../../14082/jit-error-and-dot-dimensions">
+											<div class="qa-a-item-selected">
+												<div class="qa-a-selection">
+													<div class="qa-a-selected">&#160;</div>
+													<div class="qa-a-selected-text">Best answer</div>
+												</div>
+												<div class="qa-a-item-content">
+													<a name="14094"></a><div class="entry-content"><p>Hi, </p>
+
+<p>to answer your two questions:<br>
+1) The reason why dolfin complains about the wrong dimensions, is that</p>
+
+<pre><code>dolfin.jump(phi)
+</code></pre>
+
+<p>is a scalar, whereas</p>
+
+<pre><code>dolfin.avg(dolfin.grad(psi))
+</code></pre>
+
+<p>is a vector.<br>
+I guess you want to get the jump over the facets, using the facet normals (and expect to get a vector quantity in return)? In your code, this is as simple as explicitly stating:</p>
+
+<pre><code>n = dolfin.FacetNormal(mesh)
+dolfin.dot(dolfin.jump(phi,n), dolfin.avg(dolfin.grad(psi)))*dolfin.dS
+</code></pre>
+
+<p>So note the difference in the definition of the jump.</p>
+
+<p>2) The definition of the jump and the average is slightly different for exterior boundary parts compared to interior boundaries. In the ufl language, you have to stay close to the mathematical definition to get the exterior terms correct. So the exterior term you are looking for can be defined as:</p>
+
+<pre><code>dolfin.dot(u*n, dolfin.grad(v))*ds(0)
+</code></pre>
+
+<p>Hopefully, this helps!</p>
+</div>
+												</div>
+												<span class="qa-a-item-avatar-meta">
+													<span class="qa-a-item-meta">
+														<a href="../../14082/jit-error-and-dot-dimensions?show=14094#a14094" class="qa-a-item-what">answered</a>
+														<span class="qa-a-item-when">
+															<span class="qa-a-item-when-data"><span class="published"><span class="value-title" title="2017-06-23T17:17:15+0000"></span>Jun 23, 2017</span></span>
+														</span>
+														<span class="qa-a-item-who">
+															<span class="qa-a-item-who-pad">by </span>
+															<span class="qa-a-item-who-data"><span class="vcard author"><a href="../../user/jmmal" class="qa-user-link url nickname">jmmal</a></span></span>
+															<span class="qa-a-item-who-title">FEniCS User</span>
+															<span class="qa-a-item-who-points">
+																<span class="qa-a-item-who-points-pad">(</span><span class="qa-a-item-who-points-data">5,890</span><span class="qa-a-item-who-points-pad"> points)</span>
+															</span>
+														</span>
+														<br>
+														<span class="qa-a-item-what">selected</span>
+														<span class="qa-a-item-when">
+															<span class="qa-a-item-when-data"><span class="updated"><span class="value-title" title="2017-06-23T17:24:55+0000"></span>Jun 23, 2017</span></span>
+														</span>
+														<span class="qa-a-item-who">
+															<span class="qa-a-item-who-pad">by </span><span class="qa-a-item-who-data"><a href="../../user/ben.s.southworth" class="qa-user-link url nickname">ben.s.southworth</a></span>
+														</span>
+													</span>
+												</span>
+											</div>
+											<div class="qa-a-item-buttons">
+												</div>
+											
+											<div class="qa-a-item-c-list" id="c14094_list">
+												<div class="qa-c-list-item  hentry comment" id="c14095">
+													<div class="qa-c-item-content">
+														<a name="14095"></a><div class="entry-content"><p>Great, I thought it would be something simple; thank you!</p>
+</div>
+													</div>
+													<div class="qa-c-item-footer">
+														<span class="qa-c-item-avatar-meta">
+															<span class="qa-c-item-meta">
+																<a href="../../14082/jit-error-and-dot-dimensions?show=14095#c14095" class="qa-c-item-what">commented</a>
+																<span class="qa-c-item-when">
+																	<span class="qa-c-item-when-data"><span class="published"><span class="value-title" title="2017-06-23T17:31:24+0000"></span>Jun 23, 2017</span></span>
+																</span>
+																<span class="qa-c-item-who">
+																	<span class="qa-c-item-who-pad">by </span>
+																	<span class="qa-c-item-who-data"><span class="vcard author"><a href="../../user/ben.s.southworth" class="qa-user-link url nickname">ben.s.southworth</a></span></span>
+																	<span class="qa-c-item-who-title">FEniCS Novice</span>
+																	<span class="qa-c-item-who-points">
+																		<span class="qa-c-item-who-points-pad">(</span><span class="qa-c-item-who-points-data">200</span><span class="qa-c-item-who-points-pad"> points)</span>
+																	</span>
+																</span>
+															</span>
+														</span>
+														<div class="qa-c-item-buttons">
+														</div>
+													</div>
+													<div class="qa-c-item-clear">
+													</div>
+												</div> <!-- END qa-c-item -->
+											</div> <!-- END qa-c-list -->
+											
+											<input type="hidden" name="code" value="0-1516466506-641b8cf30fb04f8fd9dbff898f03846f097737a1">
+											<input type="hidden" name="qa_click" value="">
+										</form>
+										<div class="qa-c-form">
+										</div> <!-- END qa-c-form -->
+										
+									</div> <!-- END qa-a-item-main -->
+									<div class="qa-a-item-clear">
+									</div>
+								</div> <!-- END qa-a-list-item -->
+								
+							</div> <!-- END qa-a-list -->
+							
+						</div>
+					</div> <!-- END qa-main -->
+					
+				</div> <!-- END main-wrapper -->
+			</div> <!-- END main-shadow -->
+		</div> <!-- END body-wrapper -->
+		<!-- END footer-bottom-group -->
+		
+		<div style="position:absolute; left:-9999px; top:-9999px;">
+			<span id="qa-waiting-template" class="qa-waiting">...</span>
+		</div>
+	
+	
+
+</body><!-- Powered by Question2Answer - http://www.question2answer.org/ --></html>

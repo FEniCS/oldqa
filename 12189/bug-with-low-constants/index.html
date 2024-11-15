@@ -1,0 +1,289 @@
+<html><!-- Powered by Question2Answer - http://www.question2answer.org/ --><head>
+		<meta http-equiv="content-type" content="text/html; charset=utf-8">
+		<title>Bug with low constants. - FEniCS Q&amp;A</title>
+		<meta name="description" content="Hi Fenics persons, I have been used fenics for transient. When i use low value for constants for diffusive  ... *f*v*dx) n = FacetNormal(mesh) while t">
+		<link rel="stylesheet" type="text/css" href="../../qa-theme/Snow/qa-styles.css">
+		<link rel="canonical" href="http://fenicsproject.org/qa/12189/bug-with-low-constants">
+		<script type="text/x-mathjax-config">
+  MathJax.Hub.Config({
+    extensions: ["tex2jax.js"],
+    jax: ["input/TeX","output/HTML-CSS"],
+    tex2jax: {inlineMath: [["$","$"],["\\(","\\)"]]},
+    TeX: { extensions: ["AMSmath.js","AMSsymbols.js"]}
+  });
+</script>
+<script type="text/javascript" src="../../mathjax/MathJax.js"></script>
+		<script src="../../jquery-1.7.2.min.js" type="text/javascript"></script>
+		<script src="../../highlight.min.js"></script>
+<script type="text/javascript">
+$(function(){
+	$('.wmd-input').keypress(function(){
+		window.clearTimeout(hljs.Timeout);
+		hljs.Timeout = window.setTimeout(function() {
+			hljs.initHighlighting.called = false;
+			hljs.initHighlighting();
+		}, 500);
+	});
+	window.setTimeout(function() {
+		hljs.initHighlighting.called = false;
+		hljs.initHighlighting();
+	}, 500);
+});
+</script>
+
+
+	</head>
+	<body class="qa-template-question qa-body-js-off">
+		<div class="qa-body-wrapper">
+			
+			<div class="qa-header">
+				<div class="qa-logo">
+					<a href="../../" class="qa-logo-link" title="FEniCS Q&amp;A"><img src="../../qa-theme/fenics_qa.png" border="0" alt="FEniCS Q&amp;A"></a>
+				</div>
+				<div class="qa-header-clear">
+				</div>
+			</div> <!-- END qa-header -->
+			
+			<div class="qa-main-shadow">
+				
+				<div class="qa-main-wrapper">
+					
+					<div class="qa-sidepanel">
+						<div class="qa-sidebar">
+							This is a read only copy of the old FEniCS QA forum. Please visit the <a href="https://www.allanswered.com/community/s/fenics-project/">new QA forum</a> to ask questions
+						</div>
+						
+					</div>
+					
+					<div class="qa-main">
+						<h1>
+							<span class="entry-title">Bug with low constants.</span>
+						</h1>
+						<div class="qa-part-q-view">
+							<div class="qa-q-view  hentry question" id="q12189">
+								<form method="post" action="../../12189/bug-with-low-constants">
+									<div class="qa-q-view-stats">
+										<div class="qa-voting qa-voting-net" id="voting_12189">
+											<div class="qa-vote-count qa-vote-count-net">
+												<span class="qa-netvote-count">
+													<span class="qa-netvote-count-data">0<span class="votes-up"><span class="value-title" title="0"></span></span><span class="votes-down"><span class="value-title" title="0"></span></span></span><span class="qa-netvote-count-pad"> votes</span>
+												</span>
+											</div>
+											<div class="qa-vote-clear">
+											</div>
+										</div>
+									</div>
+									<input type="hidden" name="code" value="0-1516467811-d1a9111570cc0d735114b93eb03149fc316a5294">
+								</form>
+								<div class="qa-q-view-main">
+									<form method="post" action="../../12189/bug-with-low-constants">
+										<div class="qa-q-view-content">
+											<a name="12189"></a><div class="entry-content"><p>Hi Fenics persons,</p>
+
+<p>I have been used fenics for transient. When i use low value for constants for diffusive constant and low value for domain L. The grath of solution stop to work in some time. If i increase the Dirichlet conditions value it works for high value.</p>
+
+<p>I tried to use python double precision numpy constant but it is doesnt work too. np.dtype('Float64') or np.dtype('d')</p>
+
+<p>If i use  u01 = Constant(1.0) it stop to work at around 0.2 sec<br>
+If i use  u01 = Constant(10.0) it stop to work at around 5.5 sec<br>
+If i use  u01 = Constant(100.0) it works well.</p>
+
+<p>I am afraid about to use low constants. But i dont know if it is the problem. Is it?</p>
+
+<p>You can confirm it running a simple code:</p>
+
+<pre><code>from dolfin import *
+import numpy as np
+# defining mesh
+n=100
+
+L=1E-6
+mesh = IntervalMesh(n,0,L)
+
+
+
+arq_saida="flux"
+o1 = open(arq_saida,'w')
+
+# definig Function space on this mesh using Lagrange polynoimals of degree 2.
+V = FunctionSpace(mesh, "CG", 2)
+boundaries = FacetFunction('size_t', mesh)
+left   = AutoSubDomain(lambda x: near(x[0], 0.0))
+right  = AutoSubDomain(lambda x: near(x[0], L))
+
+left  .mark(boundaries, 1)
+right .mark(boundaries, 2)
+# definign boundary values
+
+dsN = Measure("ds", subdomain_id=2, subdomain_data=boundaries)
+
+def boundary0(x):
+    return x[0] &lt; DOLFIN_EPS
+def boundary1(x):
+    return x[0] &gt; L - DOLFIN_EPS
+
+dt = Constant(0.003536)
+t = float(dt)
+Tf = 20.
+D=1.4*10**(-14)
+g = Constant(0.0)
+
+# Define boundary condition
+u01 = Constant(10.0)
+u02 = Constant(0.0)
+bc0 = DirichletBC(V, u01, boundary0)
+bc1 = DirichletBC(V, u02, boundary1)
+bcs=[bc0,bc1]
+u0 = interpolate(g, V)
+#Variational problem at each time
+u= Function(V)
+c= Function(V)
+v= TestFunction(V)
+f= Constant(0.0)
+F= (u*v*dx + dt*D*inner(grad(u), grad(v))*dx-u0*v*dx + dt*f*v*dx)
+n = FacetNormal(mesh)
+
+while t &lt;= Tf:
+    g.t = t
+    solve(F == 0, u, bcs)
+    flux = -dot(grad(u), n)*dsN(2)
+    flux = assemble(flux)
+    o1.write("%s"%t)
+    o1.write(" %s\n" %flux)
+    u0.assign(u)
+    t += float(dt)
+    print ("%s %f" %(t , flux))
+    plot(u, title='Solution at t = %g' % t)
+o1.close()
+interactive()
+</code></pre>
+
+<p>How can i solve this problem?</p>
+
+<p>Kind regards,<br>
+LeoCosta</p>
+</div>
+										</div>
+										<span class="qa-q-view-avatar-meta">
+											<span class="qa-q-view-meta">
+												<a href="../../12189/bug-with-low-constants" class="qa-q-view-what">asked</a>
+												<span class="qa-q-view-when">
+													<span class="qa-q-view-when-data"><span class="published"><span class="value-title" title="2017-01-19T12:08:45+0000"></span>Jan 19, 2017</span></span>
+												</span>
+												<span class="qa-q-view-who">
+													<span class="qa-q-view-who-pad">by </span>
+													<span class="qa-q-view-who-data"><span class="vcard author"><a href="../../user/LeoCosta" class="qa-user-link url nickname">LeoCosta</a></span></span>
+													<span class="qa-q-view-who-title">FEniCS User</span>
+													<span class="qa-q-view-who-points">
+														<span class="qa-q-view-who-points-pad">(</span><span class="qa-q-view-who-points-data">1,190</span><span class="qa-q-view-who-points-pad"> points)</span>
+													</span>
+												</span>
+											</span>
+										</span>
+										<div class="qa-q-view-buttons">
+										</div>
+										
+										<div class="qa-q-view-c-list" style="display:none;" id="c12189_list">
+										</div> <!-- END qa-c-list -->
+										
+										<input type="hidden" name="code" value="0-1516467811-40d05d80a735665077e336688baeb33f2e5d9416">
+										<input type="hidden" name="qa_click" value="">
+									</form>
+									<div class="qa-c-form">
+									</div> <!-- END qa-c-form -->
+									
+								</div> <!-- END qa-q-view-main -->
+								<div class="qa-q-view-clear">
+								</div>
+							</div> <!-- END qa-q-view -->
+							
+						</div>
+						<div class="qa-part-a-list">
+							<h2 id="a_list_title">1 Answer</h2>
+							<div class="qa-a-list" id="a_list">
+								
+								<div class="qa-a-list-item  hentry answer" id="a12196">
+									<form method="post" action="../../12189/bug-with-low-constants">
+										<div class="qa-voting qa-voting-net" id="voting_12196">
+											<div class="qa-vote-count qa-vote-count-net">
+												<span class="qa-netvote-count">
+													<span class="qa-netvote-count-data">+1<span class="votes-up"><span class="value-title" title="1"></span></span><span class="votes-down"><span class="value-title" title="0"></span></span></span><span class="qa-netvote-count-pad"> vote</span>
+												</span>
+											</div>
+											<div class="qa-vote-clear">
+											</div>
+										</div>
+										<input type="hidden" name="code" value="0-1516467811-d1a9111570cc0d735114b93eb03149fc316a5294">
+									</form>
+									<div class="qa-a-item-main">
+										<form method="post" action="../../12189/bug-with-low-constants">
+											<div class="qa-a-selection">
+											</div>
+											<div class="qa-a-item-content">
+												<a name="12196"></a><div class="entry-content"><p>It's not a bug (it's a convergence issue!). The problem is the scale of your solution (the solution is fine considering the default tolerances of the newton solver). You need to rescale your problem (changing the units of the lengths and physical parameters, for example)  or change the tolerances of the nonlinear solver. Try this:</p>
+
+<pre><code>solve(F == 0, u, bcs, solver_parameters={"newton_solver": {"relative_tolerance": 1e-18, "absolute_tolerance": 1e-20}})
+</code></pre>
+</div>
+											</div>
+											<span class="qa-a-item-avatar-meta">
+												<span class="qa-a-item-avatar">
+													<a href="../../user/hernan_mella" class="qa-avatar-link"><img src="../../?qa=image&amp;qa_blobid=14920815903966845416&amp;qa_size=40" width="40" height="22" class="qa-avatar-image" alt=""></a>
+												</span>
+												<span class="qa-a-item-meta">
+													<a href="../../12189/bug-with-low-constants?show=12196#a12196" class="qa-a-item-what">answered</a>
+													<span class="qa-a-item-when">
+														<span class="qa-a-item-when-data"><span class="published"><span class="value-title" title="2017-01-19T20:49:58+0000"></span>Jan 19, 2017</span></span>
+													</span>
+													<span class="qa-a-item-who">
+														<span class="qa-a-item-who-pad">by </span>
+														<span class="qa-a-item-who-data"><span class="vcard author"><a href="../../user/hernan_mella" class="qa-user-link url nickname">hernan_mella</a></span></span>
+														<span class="qa-a-item-who-title">FEniCS Expert</span>
+														<span class="qa-a-item-who-points">
+															<span class="qa-a-item-who-points-pad">(</span><span class="qa-a-item-who-points-data">19,460</span><span class="qa-a-item-who-points-pad"> points)</span>
+														</span>
+													</span>
+													<br>
+													<span class="qa-a-item-what">edited</span>
+													<span class="qa-a-item-when">
+														<span class="qa-a-item-when-data"><span class="updated"><span class="value-title" title="2017-01-20T02:58:45+0000"></span>Jan 20, 2017</span></span>
+													</span>
+													<span class="qa-a-item-who">
+														<span class="qa-a-item-who-pad">by </span><span class="qa-a-item-who-data"><a href="../../user/hernan_mella" class="qa-user-link url nickname">hernan_mella</a></span>
+													</span>
+												</span>
+											</span>
+											<div class="qa-a-item-buttons">
+												</div>
+											
+											<div class="qa-a-item-c-list" style="display:none;" id="c12196_list">
+											</div> <!-- END qa-c-list -->
+											
+											<input type="hidden" name="code" value="0-1516467811-4fbea62b5f33ed228574db3d31c2fcd79bd45a1f">
+											<input type="hidden" name="qa_click" value="">
+										</form>
+										<div class="qa-c-form">
+										</div> <!-- END qa-c-form -->
+										
+									</div> <!-- END qa-a-item-main -->
+									<div class="qa-a-item-clear">
+									</div>
+								</div> <!-- END qa-a-list-item -->
+								
+							</div> <!-- END qa-a-list -->
+							
+						</div>
+					</div> <!-- END qa-main -->
+					
+				</div> <!-- END main-wrapper -->
+			</div> <!-- END main-shadow -->
+		</div> <!-- END body-wrapper -->
+		<!-- END footer-bottom-group -->
+		
+		<div style="position:absolute; left:-9999px; top:-9999px;">
+			<span id="qa-waiting-template" class="qa-waiting">...</span>
+		</div>
+	
+	
+
+</body><!-- Powered by Question2Answer - http://www.question2answer.org/ --></html>

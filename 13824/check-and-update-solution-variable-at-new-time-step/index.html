@@ -1,0 +1,379 @@
+<html><!-- Powered by Question2Answer - http://www.question2answer.org/ --><head>
+		<meta http-equiv="content-type" content="text/html; charset=utf-8">
+		<title>check and update solution variable at new time step - FEniCS Q&amp;A</title>
+		<meta name="description" content="Hi, I am solving a time marching problem. I have to compare and update variable from previous  ... (du) updateHist = Hist.vector().set_local(Hisarray)">
+		<link rel="stylesheet" type="text/css" href="../../qa-theme/Snow/qa-styles.css">
+		<link rel="canonical" href="http://fenicsproject.org/qa/13824/check-and-update-solution-variable-at-new-time-step">
+		<script type="text/x-mathjax-config">
+  MathJax.Hub.Config({
+    extensions: ["tex2jax.js"],
+    jax: ["input/TeX","output/HTML-CSS"],
+    tex2jax: {inlineMath: [["$","$"],["\\(","\\)"]]},
+    TeX: { extensions: ["AMSmath.js","AMSsymbols.js"]}
+  });
+</script>
+<script type="text/javascript" src="../../mathjax/MathJax.js"></script>
+		<script src="../../jquery-1.7.2.min.js" type="text/javascript"></script>
+		<script src="../../highlight.min.js"></script>
+<script type="text/javascript">
+$(function(){
+	$('.wmd-input').keypress(function(){
+		window.clearTimeout(hljs.Timeout);
+		hljs.Timeout = window.setTimeout(function() {
+			hljs.initHighlighting.called = false;
+			hljs.initHighlighting();
+		}, 500);
+	});
+	window.setTimeout(function() {
+		hljs.initHighlighting.called = false;
+		hljs.initHighlighting();
+	}, 500);
+});
+</script>
+
+
+	</head>
+	<body class="qa-template-question qa-body-js-off">
+		<div class="qa-body-wrapper">
+			
+			<div class="qa-header">
+				<div class="qa-logo">
+					<a href="../../" class="qa-logo-link" title="FEniCS Q&amp;A"><img src="../../qa-theme/fenics_qa.png" border="0" alt="FEniCS Q&amp;A"></a>
+				</div>
+				<div class="qa-header-clear">
+				</div>
+			</div> <!-- END qa-header -->
+			
+			<div class="qa-main-shadow">
+				
+				<div class="qa-main-wrapper">
+					
+					<div class="qa-sidepanel">
+						<div class="qa-sidebar">
+							This is a read only copy of the old FEniCS QA forum. Please visit the <a href="https://www.allanswered.com/community/s/fenics-project/">new QA forum</a> to ask questions
+						</div>
+						
+					</div>
+					
+					<div class="qa-main">
+						<h1>
+							<span class="entry-title">check and update solution variable at new time step</span>
+						</h1>
+						<div class="qa-part-q-view">
+							<div class="qa-q-view  hentry question" id="q13824">
+								<form method="post" action="../../13824/check-and-update-solution-variable-at-new-time-step">
+									<div class="qa-q-view-stats">
+										<div class="qa-voting qa-voting-net" id="voting_13824">
+											<div class="qa-vote-count qa-vote-count-net">
+												<span class="qa-netvote-count">
+													<span class="qa-netvote-count-data">0<span class="votes-up"><span class="value-title" title="0"></span></span><span class="votes-down"><span class="value-title" title="0"></span></span></span><span class="qa-netvote-count-pad"> votes</span>
+												</span>
+											</div>
+											<div class="qa-vote-clear">
+											</div>
+										</div>
+									</div>
+									<input type="hidden" name="code" value="0-1516466496-9d24854eb195b5c1667d4f7624a3f08cfa405db3">
+								</form>
+								<div class="qa-q-view-main">
+									<form method="post" action="../../13824/check-and-update-solution-variable-at-new-time-step">
+										<div class="qa-q-view-content">
+											<a name="13824"></a><div class="entry-content"><p>Hi, I am solving a time marching problem. I have to compare and update variable from previous time step and new time step (Conditional statement): I am attaching minimal working code. any idea to fix this issue.</p>
+
+<p>Thanks in advance.</p>
+
+<pre><code> from dolfin import *
+ mesh = UnitSquareMesh(4,4)
+ plot(mesh, title = 'mesh', interactive = True)
+ def eps(v):
+     return sym(grad(v))
+ def eps_dev(du):
+     return dev(eps(du))
+ def sigma(u):
+     return 2.0*mu*eps(u) + lmbda*tr(eps(u))*Identity(2)
+ V = VectorFunctionSpace(mesh, 'Lagrange', 1)
+ u = TrialFunction(V)
+ v = TestFunction(V)
+ du = Function(V)
+
+ mu    = 80.77e3
+ lmbda = 121.15e3
+ EDef = inner(sigma(u),grad(v))*dx
+
+
+ class top(SubDomain):
+    def inside(self,x,on_boundary):
+         tol = 1e-10
+         return abs(x[1]-1.0) &lt; tol and on_boundary
+
+ class bottom(SubDomain):
+     def inside(self,x,on_boundary):
+         tol = 1e-10
+         return abs(x[1]) &lt; tol and on_boundary
+ Top = top()
+ Bottom = bottom()
+ bclx= DirichletBC(V.sub(0), Constant(0.0), Bottom)
+ bcly = DirichletBC(V.sub(1), Constant(0.0), Bottom)
+ bcty = DirichletBC(V.sub(1), Constant(1e-4), Top)
+ bc_u = [bcly,bclx,  bcty]
+ solve(lhs(EDef)==rhs(EDef),du,bc_u)
+
+ #---------------------
+ # Definition for energy
+ #--------------------
+ def en_dens(u):
+     str_ele = 0.5*(grad(u) + grad(u).T)
+     IC = tr(str_ele)
+     ICC = tr(str_ele * str_ele)
+     return (0.5*lmbda*IC**2) + mu*ICC
+
+
+
+ WW = FunctionSpace(mesh, 'CG',1)
+ Histold = Function(WW)
+ HistNew = Function(WW)
+ uold = Function(V)
+
+ Hist = en_dens(du)
+ Hisarray = Hist.vector().array()
+ Hisarray[Hisarray &lt; Histold ] = en_dens(du)
+ updateHist = Hist.vector().set_local(Hisarray)
+</code></pre>
+</div>
+										</div>
+										<span class="qa-q-view-avatar-meta">
+											<span class="qa-q-view-meta">
+												<a href="../../13824/check-and-update-solution-variable-at-new-time-step" class="qa-q-view-what">asked</a>
+												<span class="qa-q-view-when">
+													<span class="qa-q-view-when-data"><span class="published"><span class="value-title" title="2017-06-06T05:52:02+0000"></span>Jun 6, 2017</span></span>
+												</span>
+												<span class="qa-q-view-who">
+													<span class="qa-q-view-who-pad">by </span>
+													<span class="qa-q-view-who-data"><span class="vcard author"><a href="../../user/hirshikesh" class="qa-user-link url nickname">hirshikesh</a></span></span>
+													<span class="qa-q-view-who-title">FEniCS User</span>
+													<span class="qa-q-view-who-points">
+														<span class="qa-q-view-who-points-pad">(</span><span class="qa-q-view-who-points-data">1,890</span><span class="qa-q-view-who-points-pad"> points)</span>
+													</span>
+												</span>
+											</span>
+										</span>
+										<div class="qa-q-view-buttons">
+										</div>
+										
+										<div class="qa-q-view-c-list" id="c13824_list">
+											<div class="qa-c-list-item  hentry comment" id="c13829">
+												<div class="qa-c-item-content">
+													<a name="13829"></a><div class="entry-content"><p>Hi there,</p>
+
+<p>as far as I can see, there is no time stepping in the code snippet you posted. Please clarify. Thanks.</p>
+</div>
+												</div>
+												<div class="qa-c-item-footer">
+													<span class="qa-c-item-avatar-meta">
+														<span class="qa-c-item-avatar">
+															<a href="../../user/wilhelmbraun" class="qa-avatar-link"><img src="../../?qa=image&amp;qa_blobid=8837047155364839364&amp;qa_size=20" width="20" height="20" class="qa-avatar-image" alt=""></a>
+														</span>
+														<span class="qa-c-item-meta">
+															<a href="../../13824/check-and-update-solution-variable-at-new-time-step?show=13829#c13829" class="qa-c-item-what">commented</a>
+															<span class="qa-c-item-when">
+																<span class="qa-c-item-when-data"><span class="published"><span class="value-title" title="2017-06-06T15:56:16+0000"></span>Jun 6, 2017</span></span>
+															</span>
+															<span class="qa-c-item-who">
+																<span class="qa-c-item-who-pad">by </span>
+																<span class="qa-c-item-who-data"><span class="vcard author"><a href="../../user/wilhelmbraun" class="qa-user-link url nickname">wilhelmbraun</a></span></span>
+																<span class="qa-c-item-who-title">FEniCS User</span>
+																<span class="qa-c-item-who-points">
+																	<span class="qa-c-item-who-points-pad">(</span><span class="qa-c-item-who-points-data">2,070</span><span class="qa-c-item-who-points-pad"> points)</span>
+																</span>
+															</span>
+														</span>
+													</span>
+													<div class="qa-c-item-buttons">
+													</div>
+												</div>
+												<div class="qa-c-item-clear">
+												</div>
+											</div> <!-- END qa-c-item -->
+											<div class="qa-c-list-item  hentry comment" id="c13830">
+												<div class="qa-c-item-content">
+													<a name="13830"></a><div class="entry-content"><p>This is Just part of main code. In the last section I have here previous time step solution and current time step solution. I have check and update</p>
+
+<p>Thanks for the reply</p>
+</div>
+												</div>
+												<div class="qa-c-item-footer">
+													<span class="qa-c-item-avatar-meta">
+														<span class="qa-c-item-meta">
+															<a href="../../13824/check-and-update-solution-variable-at-new-time-step?show=13830#c13830" class="qa-c-item-what">commented</a>
+															<span class="qa-c-item-when">
+																<span class="qa-c-item-when-data"><span class="published"><span class="value-title" title="2017-06-06T16:00:43+0000"></span>Jun 6, 2017</span></span>
+															</span>
+															<span class="qa-c-item-who">
+																<span class="qa-c-item-who-pad">by </span>
+																<span class="qa-c-item-who-data"><span class="vcard author"><a href="../../user/hirshikesh" class="qa-user-link url nickname">hirshikesh</a></span></span>
+																<span class="qa-c-item-who-title">FEniCS User</span>
+																<span class="qa-c-item-who-points">
+																	<span class="qa-c-item-who-points-pad">(</span><span class="qa-c-item-who-points-data">1,890</span><span class="qa-c-item-who-points-pad"> points)</span>
+																</span>
+															</span>
+														</span>
+													</span>
+													<div class="qa-c-item-buttons">
+													</div>
+												</div>
+												<div class="qa-c-item-clear">
+												</div>
+											</div> <!-- END qa-c-item -->
+											<div class="qa-c-list-item  hentry comment" id="c13831">
+												<div class="qa-c-item-content">
+													<a name="13831"></a><div class="entry-content"><p>Please include the full code. Thanks.</p>
+</div>
+												</div>
+												<div class="qa-c-item-footer">
+													<span class="qa-c-item-avatar-meta">
+														<span class="qa-c-item-avatar">
+															<a href="../../user/wilhelmbraun" class="qa-avatar-link"><img src="../../?qa=image&amp;qa_blobid=8837047155364839364&amp;qa_size=20" width="20" height="20" class="qa-avatar-image" alt=""></a>
+														</span>
+														<span class="qa-c-item-meta">
+															<a href="../../13824/check-and-update-solution-variable-at-new-time-step?show=13831#c13831" class="qa-c-item-what">commented</a>
+															<span class="qa-c-item-when">
+																<span class="qa-c-item-when-data"><span class="published"><span class="value-title" title="2017-06-06T16:01:51+0000"></span>Jun 6, 2017</span></span>
+															</span>
+															<span class="qa-c-item-who">
+																<span class="qa-c-item-who-pad">by </span>
+																<span class="qa-c-item-who-data"><span class="vcard author"><a href="../../user/wilhelmbraun" class="qa-user-link url nickname">wilhelmbraun</a></span></span>
+																<span class="qa-c-item-who-title">FEniCS User</span>
+																<span class="qa-c-item-who-points">
+																	<span class="qa-c-item-who-points-pad">(</span><span class="qa-c-item-who-points-data">2,070</span><span class="qa-c-item-who-points-pad"> points)</span>
+																</span>
+															</span>
+														</span>
+													</span>
+													<div class="qa-c-item-buttons">
+													</div>
+												</div>
+												<div class="qa-c-item-clear">
+												</div>
+											</div> <!-- END qa-c-item -->
+											<div class="qa-c-list-item  hentry comment" id="c13832">
+												<div class="qa-c-item-content">
+													<a name="13832"></a><div class="entry-content"><p>I am facing difficulty in the last section only. Last two line.</p>
+
+<p>Thanks</p>
+</div>
+												</div>
+												<div class="qa-c-item-footer">
+													<span class="qa-c-item-avatar-meta">
+														<span class="qa-c-item-meta">
+															<a href="../../13824/check-and-update-solution-variable-at-new-time-step?show=13832#c13832" class="qa-c-item-what">commented</a>
+															<span class="qa-c-item-when">
+																<span class="qa-c-item-when-data"><span class="published"><span class="value-title" title="2017-06-06T16:03:27+0000"></span>Jun 6, 2017</span></span>
+															</span>
+															<span class="qa-c-item-who">
+																<span class="qa-c-item-who-pad">by </span>
+																<span class="qa-c-item-who-data"><span class="vcard author"><a href="../../user/hirshikesh" class="qa-user-link url nickname">hirshikesh</a></span></span>
+																<span class="qa-c-item-who-title">FEniCS User</span>
+																<span class="qa-c-item-who-points">
+																	<span class="qa-c-item-who-points-pad">(</span><span class="qa-c-item-who-points-data">1,890</span><span class="qa-c-item-who-points-pad"> points)</span>
+																</span>
+															</span>
+														</span>
+													</span>
+													<div class="qa-c-item-buttons">
+													</div>
+												</div>
+												<div class="qa-c-item-clear">
+												</div>
+											</div> <!-- END qa-c-item -->
+										</div> <!-- END qa-c-list -->
+										
+										<input type="hidden" name="code" value="0-1516466496-336de160cabd87acec3f5cf3de23364a501aed42">
+										<input type="hidden" name="qa_click" value="">
+									</form>
+									<div class="qa-c-form">
+									</div> <!-- END qa-c-form -->
+									
+								</div> <!-- END qa-q-view-main -->
+								<div class="qa-q-view-clear">
+								</div>
+							</div> <!-- END qa-q-view -->
+							
+						</div>
+						<div class="qa-part-a-list">
+							<h2 id="a_list_title">1 Answer</h2>
+							<div class="qa-a-list" id="a_list">
+								
+								<div class="qa-a-list-item  hentry answer" id="a13871">
+									<form method="post" action="../../13824/check-and-update-solution-variable-at-new-time-step">
+										<div class="qa-voting qa-voting-net" id="voting_13871">
+											<div class="qa-vote-count qa-vote-count-net">
+												<span class="qa-netvote-count">
+													<span class="qa-netvote-count-data">0<span class="votes-up"><span class="value-title" title="0"></span></span><span class="votes-down"><span class="value-title" title="0"></span></span></span><span class="qa-netvote-count-pad"> votes</span>
+												</span>
+											</div>
+											<div class="qa-vote-clear">
+											</div>
+										</div>
+										<input type="hidden" name="code" value="0-1516466496-9d24854eb195b5c1667d4f7624a3f08cfa405db3">
+									</form>
+									<div class="qa-a-item-main">
+										<form method="post" action="../../13824/check-and-update-solution-variable-at-new-time-step">
+											<div class="qa-a-selection">
+											</div>
+											<div class="qa-a-item-content">
+												<a name="13871"></a><div class="entry-content"><p>From what I can see, <code>en_dens(du)</code> is a scalar and hence it does not make sense to use the <code>vector()</code> method. Do you want to compute <code>en_dens</code> as a function of the coordinates on the whole two-dimensional domain? If so, see e.g. <a rel="nofollow" href="https://fenicsproject.org/pub/tutorial/html/._ftut1020.html#ch:poisson0:functionals">here</a> or <a rel="nofollow" href="https://fenicsproject.org/pub/tutorial/html/._ftut1008.html">here</a> for how to deal with functional involving traces and projections.</p>
+</div>
+											</div>
+											<span class="qa-a-item-avatar-meta">
+												<span class="qa-a-item-avatar">
+													<a href="../../user/wilhelmbraun" class="qa-avatar-link"><img src="../../?qa=image&amp;qa_blobid=8837047155364839364&amp;qa_size=40" width="40" height="40" class="qa-avatar-image" alt=""></a>
+												</span>
+												<span class="qa-a-item-meta">
+													<a href="../../13824/check-and-update-solution-variable-at-new-time-step?show=13871#a13871" class="qa-a-item-what">answered</a>
+													<span class="qa-a-item-when">
+														<span class="qa-a-item-when-data"><span class="published"><span class="value-title" title="2017-06-07T20:12:29+0000"></span>Jun 7, 2017</span></span>
+													</span>
+													<span class="qa-a-item-who">
+														<span class="qa-a-item-who-pad">by </span>
+														<span class="qa-a-item-who-data"><span class="vcard author"><a href="../../user/wilhelmbraun" class="qa-user-link url nickname">wilhelmbraun</a></span></span>
+														<span class="qa-a-item-who-title">FEniCS User</span>
+														<span class="qa-a-item-who-points">
+															<span class="qa-a-item-who-points-pad">(</span><span class="qa-a-item-who-points-data">2,070</span><span class="qa-a-item-who-points-pad"> points)</span>
+														</span>
+													</span>
+												</span>
+											</span>
+											<div class="qa-a-item-buttons">
+												</div>
+											
+											<div class="qa-a-item-c-list" style="display:none;" id="c13871_list">
+											</div> <!-- END qa-c-list -->
+											
+											<input type="hidden" name="code" value="0-1516466496-6321a1204c6b90d5cc38f4eaa53686251372e4a9">
+											<input type="hidden" name="qa_click" value="">
+										</form>
+										<div class="qa-c-form">
+										</div> <!-- END qa-c-form -->
+										
+									</div> <!-- END qa-a-item-main -->
+									<div class="qa-a-item-clear">
+									</div>
+								</div> <!-- END qa-a-list-item -->
+								
+							</div> <!-- END qa-a-list -->
+							
+						</div>
+					</div> <!-- END qa-main -->
+					
+				</div> <!-- END main-wrapper -->
+			</div> <!-- END main-shadow -->
+		</div> <!-- END body-wrapper -->
+		<!-- END footer-bottom-group -->
+		
+		<div style="position:absolute; left:-9999px; top:-9999px;">
+			<span id="qa-waiting-template" class="qa-waiting">...</span>
+		</div>
+	
+	
+
+</body><!-- Powered by Question2Answer - http://www.question2answer.org/ --></html>

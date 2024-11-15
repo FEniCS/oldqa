@@ -1,0 +1,309 @@
+<html><!-- Powered by Question2Answer - http://www.question2answer.org/ --><head>
+		<meta http-equiv="content-type" content="text/html; charset=utf-8">
+		<title>Lack of symmetry of the solution when solving a PDE with symmetric data - FEniCS Q&amp;A</title>
+		<meta name="description" content="Hi everyone, so I've struggled with this problem for a few days now and can't find the answer. I've  ...  U : %s &quot; % U_mat.max()) pdb.set_trace()">
+		<meta name="keywords" content="pde,symmetry">
+		<link rel="stylesheet" type="text/css" href="../../qa-theme/Snow/qa-styles.css">
+		<link rel="canonical" href="http://fenicsproject.org/qa/9156/lack-symmetry-the-solution-when-solving-with-symmetric-data">
+		<script type="text/x-mathjax-config">
+  MathJax.Hub.Config({
+    extensions: ["tex2jax.js"],
+    jax: ["input/TeX","output/HTML-CSS"],
+    tex2jax: {inlineMath: [["$","$"],["\\(","\\)"]]},
+    TeX: { extensions: ["AMSmath.js","AMSsymbols.js"]}
+  });
+</script>
+<script type="text/javascript" src="../../mathjax/MathJax.js"></script>
+		<script src="../../jquery-1.7.2.min.js" type="text/javascript"></script>
+		<script src="../../highlight.min.js"></script>
+<script type="text/javascript">
+$(function(){
+	$('.wmd-input').keypress(function(){
+		window.clearTimeout(hljs.Timeout);
+		hljs.Timeout = window.setTimeout(function() {
+			hljs.initHighlighting.called = false;
+			hljs.initHighlighting();
+		}, 500);
+	});
+	window.setTimeout(function() {
+		hljs.initHighlighting.called = false;
+		hljs.initHighlighting();
+	}, 500);
+});
+</script>
+
+
+	</head>
+	<body class="qa-template-question qa-body-js-off">
+		<div class="qa-body-wrapper">
+			
+			<div class="qa-header">
+				<div class="qa-logo">
+					<a href="../../" class="qa-logo-link" title="FEniCS Q&amp;A"><img src="../../qa-theme/fenics_qa.png" border="0" alt="FEniCS Q&amp;A"></a>
+				</div>
+				<div class="qa-header-clear">
+				</div>
+			</div> <!-- END qa-header -->
+			
+			<div class="qa-main-shadow">
+				
+				<div class="qa-main-wrapper">
+					
+					<div class="qa-sidepanel">
+						<div class="qa-sidebar">
+							This is a read only copy of the old FEniCS QA forum. Please visit the <a href="https://www.allanswered.com/community/s/fenics-project/">new QA forum</a> to ask questions
+						</div>
+						
+					</div>
+					
+					<div class="qa-main">
+						<h1>
+							<span class="entry-title">Lack of symmetry of the solution when solving a PDE with symmetric data</span>
+						</h1>
+						<div class="qa-part-q-view">
+							<div class="qa-q-view  hentry question" id="q9156">
+								<form method="post" action="../../9156/lack-symmetry-the-solution-when-solving-with-symmetric-data">
+									<div class="qa-q-view-stats">
+										<div class="qa-voting qa-voting-net" id="voting_9156">
+											<div class="qa-vote-count qa-vote-count-net">
+												<span class="qa-netvote-count">
+													<span class="qa-netvote-count-data">0<span class="votes-up"><span class="value-title" title="0"></span></span><span class="votes-down"><span class="value-title" title="0"></span></span></span><span class="qa-netvote-count-pad"> votes</span>
+												</span>
+											</div>
+											<div class="qa-vote-clear">
+											</div>
+										</div>
+									</div>
+									<input type="hidden" name="code" value="0-1516468210-ee6bfa0b66d828a9701d672b69d58d5593eb9648">
+								</form>
+								<div class="qa-q-view-main">
+									<form method="post" action="../../9156/lack-symmetry-the-solution-when-solving-with-symmetric-data">
+										<div class="qa-q-view-content">
+											<a name="9156"></a><div class="entry-content"><p>Hi everyone,</p>
+
+<p>so I've struggled with this problem for a few days now and can't find the answer. I've worked out a simple example to present to you.</p>
+
+<p>The domain $\Omega$ is a square $[-1,1]\times [-1,1]$, divided in two subdomains $\Omega_1 = {(x,y): x^2+y^2 &lt; 0.4}$ and $\Omega_2$ is the complementary of $\Omega_1$.</p>
+
+<p>The PDE is of the type<br>
+$\operatorname{div}\sigma(x,y)\nabla u(x,y) = 0 $<br>
+where $\sigma$ is piecewise constant, equal to 1 in  $\Omega_1$ and to $k=0.01$ in $\Omega_2$.</p>
+
+<p>I set Dirichlet boundary conditions on the left side of the square, and Neumann conditions $\partial_n u=1$ on the right side. On the two other sides we have the Neumann conditions $\partial_n u=0$.</p>
+
+<p>I use RectangleMesh for the grid so I expect the solution to be perfectly symmetric since the data is symmetric. However I get a quite large error (in terms of symmetry I mean), which decreases as the mesh gets finer, but for my application it is quite important to have a perfectly symmetric solution for any size of the grid. </p>
+
+<p>My suspicion is that the asymmetry appears because the domain $\Omega_1$ is not aligned with the grid (it's a disk). The problem is I don't know what Fenics is doing with the subdomains exactly so I'm kind of stuck. </p>
+
+<p>Any idea on how I could get a symmetric solution? Should I change the way the subdomains are defined? Below you can find the code. It's printing the maximum difference between the solution U and its mirror image with respect to the x-axis.</p>
+
+<pre><code>from dolfin import *
+import numpy as np
+import pdb
+#------------------------------
+Nx,Ny,lx,ly = [50,50,1.0,1.0]
+k = 0.01
+# mesh and function spaces
+mesh = RectangleMesh(-lx,-ly,lx,ly, Nx, Ny)
+V    = FunctionSpace(mesh, 'CG', 1)
+phi  = Expression('x[1]*x[1] + x[0]*x[0] -0.4')    
+# Define domains and boundaries
+class Omega1(SubDomain):
+    def inside(self, x, on_boundary):
+        return between(x[0], (-lx, lx)) and between(x[1], (-ly, ly)) and phi(x) &lt; 0
+class DirBd(SubDomain):
+    def inside(self, x, on_boundary):
+        return near(x[0], -lx)
+class DirNeu(SubDomain):
+    def inside(self, x, on_boundary):
+        return near(x[0], lx)  
+omega1 = Omega1()                
+dirBd,dirNeu = [DirBd(),DirNeu()]
+boundaries = FacetFunction("size_t", mesh)     
+boundaries.set_all(0)      
+dirBd.mark(  boundaries, 1)
+dirNeu.mark( boundaries, 2)
+domains = CellFunction("size_t", mesh)
+domains.set_all(0)   
+omega1.mark(domains, 1)
+dx = Measure('dx')[domains]
+ds = Measure("ds")[boundaries]  
+
+# Solve equation
+bcd = DirichletBC(V, (0.0), boundaries, 1)   
+u,v = [TrialFunction(V), TestFunction(V)]
+a = inner(grad(u),grad(v))*dx(1) + k*inner(grad(u),grad(v))*dx(0)                
+R = v*ds(2)
+U,A,b = [Function(V),assemble(a),assemble(R)]
+bcd.apply(A)
+bcd.apply(b)
+solver = LUSolver(A)
+solver.solve(U.vector(), b) 
+
+# Compute the maximum difference between the solution U and its mirror image U_flip
+U_array   = U.vector().array()
+U_vec     = U_array[V.dofmap().dof_to_vertex_map(mesh)] 
+U_mat     = U_vec.reshape( Ny+1, Nx+1)  
+U_flip    = np.flipud(U_mat)
+symm_diff = U_flip - U_mat
+
+print("Maximal symmetry error : %s " % symm_diff.max())
+print("Maximal value of U     : %s " % U_mat.max())
+
+pdb.set_trace()  
+</code></pre>
+</div>
+										</div>
+										<div class="qa-q-view-tags">
+											<ul class="qa-q-view-tag-list">
+												<li class="qa-q-view-tag-item"><a href="../../tag/pde" rel="tag" class="qa-tag-link">pde</a></li>
+												<li class="qa-q-view-tag-item"><a href="../../tag/symmetry" rel="tag" class="qa-tag-link">symmetry</a></li>
+											</ul>
+										</div>
+										<span class="qa-q-view-avatar-meta">
+											<span class="qa-q-view-avatar">
+												<a href="../../user/Antoine" class="qa-avatar-link"><img src="../../?qa=image&amp;qa_blobid=2611928258096667348&amp;qa_size=50" width="50" height="33" class="qa-avatar-image" alt=""></a>
+											</span>
+											<span class="qa-q-view-meta">
+												<a href="../../9156/lack-symmetry-the-solution-when-solving-with-symmetric-data" class="qa-q-view-what">asked</a>
+												<span class="qa-q-view-when">
+													<span class="qa-q-view-when-data"><span class="published"><span class="value-title" title="2016-01-30T00:03:45+0000"></span>Jan 30, 2016</span></span>
+												</span>
+												<span class="qa-q-view-who">
+													<span class="qa-q-view-who-pad">by </span>
+													<span class="qa-q-view-who-data"><span class="vcard author"><a href="../../user/Antoine" class="qa-user-link url nickname">Antoine</a></span></span>
+													<span class="qa-q-view-who-title">FEniCS Novice</span>
+													<span class="qa-q-view-who-points">
+														<span class="qa-q-view-who-points-pad">(</span><span class="qa-q-view-who-points-data">810</span><span class="qa-q-view-who-points-pad"> points)</span>
+													</span>
+												</span>
+											</span>
+										</span>
+										<div class="qa-q-view-buttons">
+										</div>
+										
+										<div class="qa-q-view-c-list" style="display:none;" id="c9156_list">
+										</div> <!-- END qa-c-list -->
+										
+										<input type="hidden" name="code" value="0-1516468210-eae287d549670d365b591bb9b9f4827df833989d">
+										<input type="hidden" name="qa_click" value="">
+									</form>
+									<div class="qa-c-form">
+									</div> <!-- END qa-c-form -->
+									
+								</div> <!-- END qa-q-view-main -->
+								<div class="qa-q-view-clear">
+								</div>
+							</div> <!-- END qa-q-view -->
+							
+						</div>
+						<div class="qa-part-a-list">
+							<h2 id="a_list_title">1 Answer</h2>
+							<div class="qa-a-list" id="a_list">
+								
+								<div class="qa-a-list-item  hentry answer" id="a9158">
+									<form method="post" action="../../9156/lack-symmetry-the-solution-when-solving-with-symmetric-data">
+										<div class="qa-voting qa-voting-net" id="voting_9158">
+											<div class="qa-vote-count qa-vote-count-net">
+												<span class="qa-netvote-count">
+													<span class="qa-netvote-count-data">0<span class="votes-up"><span class="value-title" title="0"></span></span><span class="votes-down"><span class="value-title" title="0"></span></span></span><span class="qa-netvote-count-pad"> votes</span>
+												</span>
+											</div>
+											<div class="qa-vote-clear">
+											</div>
+										</div>
+										<input type="hidden" name="code" value="0-1516468210-ee6bfa0b66d828a9701d672b69d58d5593eb9648">
+									</form>
+									<div class="qa-a-item-main">
+										<form method="post" action="../../9156/lack-symmetry-the-solution-when-solving-with-symmetric-data">
+											<div class="qa-a-selection">
+											</div>
+											<div class="qa-a-item-content">
+												<a name="9158"></a><div class="entry-content"><p>You would need to supply "crossed" to RectangleMesh in order to make<br>
+the mesh symmetric: <br>
+mesh = RectangleMesh(-lx,-ly,lx,ly, Nx, Ny, "crossed")</p>
+</div>
+											</div>
+											<span class="qa-a-item-avatar-meta">
+												<span class="qa-a-item-meta">
+													<a href="../../9156/lack-symmetry-the-solution-when-solving-with-symmetric-data?show=9158#a9158" class="qa-a-item-what">answered</a>
+													<span class="qa-a-item-when">
+														<span class="qa-a-item-when-data"><span class="published"><span class="value-title" title="2016-01-30T12:10:19+0000"></span>Jan 30, 2016</span></span>
+													</span>
+													<span class="qa-a-item-who">
+														<span class="qa-a-item-who-pad">by </span>
+														<span class="qa-a-item-who-data"><span class="vcard author"><a href="../../user/Kent-Andre+Mardal" class="qa-user-link url nickname">Kent-Andre Mardal</a></span></span>
+														<span class="qa-a-item-who-title">FEniCS Expert</span>
+														<span class="qa-a-item-who-points">
+															<span class="qa-a-item-who-points-pad">(</span><span class="qa-a-item-who-points-data">14,380</span><span class="qa-a-item-who-points-pad"> points)</span>
+														</span>
+													</span>
+												</span>
+											</span>
+											<div class="qa-a-item-buttons">
+												</div>
+											
+											<div class="qa-a-item-c-list" id="c9158_list">
+												<div class="qa-c-list-item  hentry comment" id="c9170">
+													<div class="qa-c-item-content">
+														<a name="9170"></a><div class="entry-content"><p>Many thanks for your answer, it was simpler than I thought.</p>
+
+<p>I need to mention for those who are interested that with this solution it is necessary to choose  an odd number of cells along the x-and y-axis (Nx and Ny should be odd numbers in the code I gave)  to get a perfectly symmetric solution.</p>
+</div>
+													</div>
+													<div class="qa-c-item-footer">
+														<span class="qa-c-item-avatar-meta">
+															<span class="qa-c-item-avatar">
+																<a href="../../user/Antoine" class="qa-avatar-link"><img src="../../?qa=image&amp;qa_blobid=2611928258096667348&amp;qa_size=20" width="20" height="13" class="qa-avatar-image" alt=""></a>
+															</span>
+															<span class="qa-c-item-meta">
+																<a href="../../9156/lack-symmetry-the-solution-when-solving-with-symmetric-data?show=9170#c9170" class="qa-c-item-what">commented</a>
+																<span class="qa-c-item-when">
+																	<span class="qa-c-item-when-data"><span class="published"><span class="value-title" title="2016-02-01T16:48:34+0000"></span>Feb 1, 2016</span></span>
+																</span>
+																<span class="qa-c-item-who">
+																	<span class="qa-c-item-who-pad">by </span>
+																	<span class="qa-c-item-who-data"><span class="vcard author"><a href="../../user/Antoine" class="qa-user-link url nickname">Antoine</a></span></span>
+																	<span class="qa-c-item-who-title">FEniCS Novice</span>
+																	<span class="qa-c-item-who-points">
+																		<span class="qa-c-item-who-points-pad">(</span><span class="qa-c-item-who-points-data">810</span><span class="qa-c-item-who-points-pad"> points)</span>
+																	</span>
+																</span>
+															</span>
+														</span>
+														<div class="qa-c-item-buttons">
+														</div>
+													</div>
+													<div class="qa-c-item-clear">
+													</div>
+												</div> <!-- END qa-c-item -->
+											</div> <!-- END qa-c-list -->
+											
+											<input type="hidden" name="code" value="0-1516468210-7be5b9f5dbfa982ba26b3602d26af9f75def5c14">
+											<input type="hidden" name="qa_click" value="">
+										</form>
+										<div class="qa-c-form">
+										</div> <!-- END qa-c-form -->
+										
+									</div> <!-- END qa-a-item-main -->
+									<div class="qa-a-item-clear">
+									</div>
+								</div> <!-- END qa-a-list-item -->
+								
+							</div> <!-- END qa-a-list -->
+							
+						</div>
+					</div> <!-- END qa-main -->
+					
+				</div> <!-- END main-wrapper -->
+			</div> <!-- END main-shadow -->
+		</div> <!-- END body-wrapper -->
+		<!-- END footer-bottom-group -->
+		
+		<div style="position:absolute; left:-9999px; top:-9999px;">
+			<span id="qa-waiting-template" class="qa-waiting">...</span>
+		</div>
+	
+	
+
+</body><!-- Powered by Question2Answer - http://www.question2answer.org/ --></html>

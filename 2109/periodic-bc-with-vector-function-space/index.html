@@ -1,0 +1,313 @@
+<html><!-- Powered by Question2Answer - http://www.question2answer.org/ --><head>
+		<meta http-equiv="content-type" content="text/html; charset=utf-8">
+		<title>Periodic BC with Vector Function Space - FEniCS Q&amp;A</title>
+		<meta name="description" content="Dear all, I'm working on a problem that requires the application of periodic BC. In my problem,  ...  really thank you in advance for your help, James">
+		<meta name="keywords" content="periodic-bc,mixed-function-space,vectorfunctionspace">
+		<link rel="stylesheet" type="text/css" href="../../qa-theme/Snow/qa-styles.css">
+		<link rel="canonical" href="http://fenicsproject.org/qa/2109/periodic-bc-with-vector-function-space">
+		<script type="text/x-mathjax-config">
+  MathJax.Hub.Config({
+    extensions: ["tex2jax.js"],
+    jax: ["input/TeX","output/HTML-CSS"],
+    tex2jax: {inlineMath: [["$","$"],["\\(","\\)"]]},
+    TeX: { extensions: ["AMSmath.js","AMSsymbols.js"]}
+  });
+</script>
+<script type="text/javascript" src="../../mathjax/MathJax.js"></script>
+		<script src="../../jquery-1.7.2.min.js" type="text/javascript"></script>
+		<script src="../../highlight.min.js"></script>
+<script type="text/javascript">
+$(function(){
+	$('.wmd-input').keypress(function(){
+		window.clearTimeout(hljs.Timeout);
+		hljs.Timeout = window.setTimeout(function() {
+			hljs.initHighlighting.called = false;
+			hljs.initHighlighting();
+		}, 500);
+	});
+	window.setTimeout(function() {
+		hljs.initHighlighting.called = false;
+		hljs.initHighlighting();
+	}, 500);
+});
+</script>
+
+
+	</head>
+	<body class="qa-template-question qa-body-js-off">
+		<div class="qa-body-wrapper">
+			
+			<div class="qa-header">
+				<div class="qa-logo">
+					<a href="../../" class="qa-logo-link" title="FEniCS Q&amp;A"><img src="../../qa-theme/fenics_qa.png" border="0" alt="FEniCS Q&amp;A"></a>
+				</div>
+				<div class="qa-header-clear">
+				</div>
+			</div> <!-- END qa-header -->
+			
+			<div class="qa-main-shadow">
+				
+				<div class="qa-main-wrapper">
+					
+					<div class="qa-sidepanel">
+						<div class="qa-sidebar">
+							This is a read only copy of the old FEniCS QA forum. Please visit the <a href="https://www.allanswered.com/community/s/fenics-project/">new QA forum</a> to ask questions
+						</div>
+						
+					</div>
+					
+					<div class="qa-main">
+						<h1>
+							<span class="entry-title">Periodic BC with Vector Function Space</span>
+						</h1>
+						<div class="qa-part-q-view">
+							<div class="qa-q-view  hentry question" id="q2109">
+								<form method="post" action="../../2109/periodic-bc-with-vector-function-space">
+									<div class="qa-q-view-stats">
+										<div class="qa-voting qa-voting-net" id="voting_2109">
+											<div class="qa-vote-count qa-vote-count-net">
+												<span class="qa-netvote-count">
+													<span class="qa-netvote-count-data">0<span class="votes-up"><span class="value-title" title="0"></span></span><span class="votes-down"><span class="value-title" title="0"></span></span></span><span class="qa-netvote-count-pad"> votes</span>
+												</span>
+											</div>
+											<div class="qa-vote-clear">
+											</div>
+										</div>
+									</div>
+									<input type="hidden" name="code" value="0-1516467914-9b96fe18e5750bcf0f7fe18ff9589262d9c803b1">
+								</form>
+								<div class="qa-q-view-main">
+									<form method="post" action="../../2109/periodic-bc-with-vector-function-space">
+										<div class="qa-q-view-content">
+											<a name="2109"></a><div class="entry-content"><p>Dear all,<br>
+I'm working on a problem that requires the application of periodic BC. In my problem, I implemented an incompressible Neo Hookean material through a mixed formulation and my unknown is a vectorial unknown, the nodal displacements. I would apply periodic BC to the "vertical" boundary of a rectangle.</p>
+
+<p>I have a couple of questions:<br>
+- is it possible to apply a periodic BC to a VectorFunctionSpace using the procedure as explained in demo_periodic.py? <br>
+- does periodic BC work in mixed formulation (I red something about this but I didn't understand enough)?</p>
+
+<p>Here you can find some code lines to better explain what I implemented.</p>
+
+<pre><code># Create the geometry and the mesh
+mesh = UnitSquareMesh(600,19)
+# Create rectangle from square
+x = mesh.coordinates()[:,0]
+y = mesh.coordinates()[:,1]
+def init(m) :
+   return [0 for i in range(m)]
+x_bar = init(len(x))
+y_bar = init(len(x))
+for k in range(len(x)) :
+   y_bar[k] = y[k]*0.24
+   x_bar[k] = x[k]*20
+xy_bar_coor = np.array([x_bar, y_bar]).transpose()
+mesh.coordinates()[:] = xy_bar_coor
+# Define periodic boundary condition at the extremities
+class PeriodicBoundary(SubDomain):
+   def inside(self,x,on_boundary) :
+   # x[0] = 0 is the reference boundary
+      return bool(x[0] &lt; DOLFIN_EPS and x[0] &gt; -DOLFIN_EPS and on_boundary)
+   #map x[0] = 0 to x[0] = 0
+   def map(self,x,y) :
+      y[0] = x[0] - 20
+      y[1] = x[1]
+pbc = PeriodicBoundary()
+# Create function space
+P2 = VectorFunctionSpace(mesh, "CG", 2, constrained_domain = PeriodicBoundary())
+P1 = FunctionSpace(mesh, "CG", 1)
+V = MixedFunctionSpace([P1,P2])
+# Dirichlet BC
+class X(SubDomain):
+  def inside(self, x, on_boundary):
+     return near(x[0],0.0,0.001) 
+class Y(SubDomain):
+  def inside(self, x, on_boundary):
+     return near(x[1],0.0,0.001) 
+ class XX(SubDomain):
+  def inside(self, x, on_boundary):
+     return near(x[0],20.0,0.001) 
+ x = X()
+ y = Y()
+ xx = XX()
+ zero = Constant(0.0)
+ bc1 = DirichletBC(V.sub(1).sub(0), zero_scalar, X())
+ bc2 = DirichletBC(V.sub(1).sub(1), zero_scalar, Y())
+ bc3 = DirichletBC(V.sub(1).sub(0), zero_scalar, XX())
+ bc = [bc1, bc2, bc3]
+ #Energy formulation and variational form
+ #Solve
+</code></pre>
+
+<p>Should this code work?<br>
+I hope I've been enough clear and I really thank you in advance for your help,</p>
+
+<p>James</p>
+</div>
+										</div>
+										<div class="qa-q-view-tags">
+											<ul class="qa-q-view-tag-list">
+												<li class="qa-q-view-tag-item"><a href="../../tag/periodic-bc" rel="tag" class="qa-tag-link">periodic-bc</a></li>
+												<li class="qa-q-view-tag-item"><a href="../../tag/mixed-function-space" rel="tag" class="qa-tag-link">mixed-function-space</a></li>
+												<li class="qa-q-view-tag-item"><a href="../../tag/vectorfunctionspace" rel="tag" class="qa-tag-link">vectorfunctionspace</a></li>
+											</ul>
+										</div>
+										<span class="qa-q-view-avatar-meta">
+											<span class="qa-q-view-meta">
+												<a href="../../2109/periodic-bc-with-vector-function-space" class="qa-q-view-what">asked</a>
+												<span class="qa-q-view-when">
+													<span class="qa-q-view-when-data"><span class="published"><span class="value-title" title="2013-12-29T18:39:56+0000"></span>Dec 29, 2013</span></span>
+												</span>
+												<span class="qa-q-view-who">
+													<span class="qa-q-view-who-pad">by </span>
+													<span class="qa-q-view-who-data"><span class="vcard author"><a href="../../user/James" class="qa-user-link url nickname">James</a></span></span>
+													<span class="qa-q-view-who-title">FEniCS Novice</span>
+													<span class="qa-q-view-who-points">
+														<span class="qa-q-view-who-points-pad">(</span><span class="qa-q-view-who-points-data">120</span><span class="qa-q-view-who-points-pad"> points)</span>
+													</span>
+												</span>
+											</span>
+										</span>
+										<div class="qa-q-view-buttons">
+										</div>
+										
+										<div class="qa-q-view-c-list" style="display:none;" id="c2109_list">
+										</div> <!-- END qa-c-list -->
+										
+										<input type="hidden" name="code" value="0-1516467914-d117a41be907fa36cab61da779e4d595671a3b17">
+										<input type="hidden" name="qa_click" value="">
+									</form>
+									<div class="qa-c-form">
+									</div> <!-- END qa-c-form -->
+									
+								</div> <!-- END qa-q-view-main -->
+								<div class="qa-q-view-clear">
+								</div>
+							</div> <!-- END qa-q-view -->
+							
+						</div>
+						<div class="qa-part-a-list">
+							<h2 id="a_list_title">1 Answer</h2>
+							<div class="qa-a-list" id="a_list">
+								
+								<div class="qa-a-list-item  hentry answer" id="a2114">
+									<form method="post" action="../../2109/periodic-bc-with-vector-function-space">
+										<div class="qa-voting qa-voting-net" id="voting_2114">
+											<div class="qa-vote-count qa-vote-count-net">
+												<span class="qa-netvote-count">
+													<span class="qa-netvote-count-data">+1<span class="votes-up"><span class="value-title" title="1"></span></span><span class="votes-down"><span class="value-title" title="0"></span></span></span><span class="qa-netvote-count-pad"> vote</span>
+												</span>
+											</div>
+											<div class="qa-vote-clear">
+											</div>
+										</div>
+										<input type="hidden" name="code" value="0-1516467914-9b96fe18e5750bcf0f7fe18ff9589262d9c803b1">
+									</form>
+									<div class="qa-a-item-main">
+										<form method="post" action="../../2109/periodic-bc-with-vector-function-space">
+											<div class="qa-a-selection">
+											</div>
+											<div class="qa-a-item-content">
+												<a name="2114"></a><div class="entry-content"><p>Hi,</p>
+
+<p>Periodic boundary conditions work for any combination of mixed continuous Lagrange spaces. I think your code should work, but I would recommend simplifying the mesh scaling with the much faster</p>
+
+<pre><code>x = mesh.coordinates()
+x[:, 0] = x[:, 0]*20
+x[:, 1] = x[:, 1]*0.24
+</code></pre>
+
+<p>or use RectangleMesh(0, 0, 20, 0.24, 600, 19)</p>
+</div>
+											</div>
+											<span class="qa-a-item-avatar-meta">
+												<span class="qa-a-item-avatar">
+													<a href="../../user/mikael-mortensen" class="qa-avatar-link"><img src="https://www.gravatar.com/avatar/d5614112a2818f1800a461e49ac229df?s=40" width="40" height="40" class="qa-avatar-image" alt=""></a>
+												</span>
+												<span class="qa-a-item-meta">
+													<a href="../../2109/periodic-bc-with-vector-function-space?show=2114#a2114" class="qa-a-item-what">answered</a>
+													<span class="qa-a-item-when">
+														<span class="qa-a-item-when-data"><span class="published"><span class="value-title" title="2013-12-30T13:12:22+0000"></span>Dec 30, 2013</span></span>
+													</span>
+													<span class="qa-a-item-who">
+														<span class="qa-a-item-who-pad">by </span>
+														<span class="qa-a-item-who-data"><span class="vcard author"><a href="../../user/mikael-mortensen" class="qa-user-link url nickname">mikael-mortensen</a></span></span>
+														<span class="qa-a-item-who-title">FEniCS Expert</span>
+														<span class="qa-a-item-who-points">
+															<span class="qa-a-item-who-points-pad">(</span><span class="qa-a-item-who-points-data">29,340</span><span class="qa-a-item-who-points-pad"> points)</span>
+														</span>
+													</span>
+													<br>
+													<span class="qa-a-item-what">edited</span>
+													<span class="qa-a-item-when">
+														<span class="qa-a-item-when-data"><span class="updated"><span class="value-title" title="2013-12-30T18:36:55+0000"></span>Dec 30, 2013</span></span>
+													</span>
+													<span class="qa-a-item-who">
+														<span class="qa-a-item-who-pad">by </span><span class="qa-a-item-who-data"><a href="../../user/mikael-mortensen" class="qa-user-link url nickname">mikael-mortensen</a></span>
+													</span>
+												</span>
+											</span>
+											<div class="qa-a-item-buttons">
+												</div>
+											
+											<div class="qa-a-item-c-list" id="c2114_list">
+												<div class="qa-c-list-item  hentry comment" id="c2172">
+													<div class="qa-c-item-content">
+														<a name="2172"></a><div class="entry-content"><p>Hi Mikael,<br>
+with a short delay, I thank you very much for both the answer to the question and the advice about using mesh commands.</p>
+
+<p>James</p>
+</div>
+													</div>
+													<div class="qa-c-item-footer">
+														<span class="qa-c-item-avatar-meta">
+															<span class="qa-c-item-meta">
+																<a href="../../2109/periodic-bc-with-vector-function-space?show=2172#c2172" class="qa-c-item-what">commented</a>
+																<span class="qa-c-item-when">
+																	<span class="qa-c-item-when-data"><span class="published"><span class="value-title" title="2014-01-07T16:24:10+0000"></span>Jan 7, 2014</span></span>
+																</span>
+																<span class="qa-c-item-who">
+																	<span class="qa-c-item-who-pad">by </span>
+																	<span class="qa-c-item-who-data"><span class="vcard author"><a href="../../user/James" class="qa-user-link url nickname">James</a></span></span>
+																	<span class="qa-c-item-who-title">FEniCS Novice</span>
+																	<span class="qa-c-item-who-points">
+																		<span class="qa-c-item-who-points-pad">(</span><span class="qa-c-item-who-points-data">120</span><span class="qa-c-item-who-points-pad"> points)</span>
+																	</span>
+																</span>
+															</span>
+														</span>
+														<div class="qa-c-item-buttons">
+														</div>
+													</div>
+													<div class="qa-c-item-clear">
+													</div>
+												</div> <!-- END qa-c-item -->
+											</div> <!-- END qa-c-list -->
+											
+											<input type="hidden" name="code" value="0-1516467914-a03a699ab02f78e02b01fe2727509bf27db08f46">
+											<input type="hidden" name="qa_click" value="">
+										</form>
+										<div class="qa-c-form">
+										</div> <!-- END qa-c-form -->
+										
+									</div> <!-- END qa-a-item-main -->
+									<div class="qa-a-item-clear">
+									</div>
+								</div> <!-- END qa-a-list-item -->
+								
+							</div> <!-- END qa-a-list -->
+							
+						</div>
+					</div> <!-- END qa-main -->
+					
+				</div> <!-- END main-wrapper -->
+			</div> <!-- END main-shadow -->
+		</div> <!-- END body-wrapper -->
+		<!-- END footer-bottom-group -->
+		
+		<div style="position:absolute; left:-9999px; top:-9999px;">
+			<span id="qa-waiting-template" class="qa-waiting">...</span>
+		</div>
+	
+	
+
+</body><!-- Powered by Question2Answer - http://www.question2answer.org/ --></html>

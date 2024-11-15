@@ -1,0 +1,393 @@
+<html><!-- Powered by Question2Answer - http://www.question2answer.org/ --><head>
+		<meta http-equiv="content-type" content="text/html; charset=utf-8">
+		<title>navier-stokes chorin - FEniCS Q&amp;A</title>
+		<meta name="description" content="Dear all, i tried to implement Chorin's method to solve NS problem for square driven cavity, but i ... =&quot;Velocity&quot;, rescale=True) # Save to file ufile">
+		<link rel="stylesheet" type="text/css" href="../../qa-theme/Snow/qa-styles.css">
+		<link rel="canonical" href="http://fenicsproject.org/qa/10042/navier-stokes-chorin">
+		<script type="text/x-mathjax-config">
+  MathJax.Hub.Config({
+    extensions: ["tex2jax.js"],
+    jax: ["input/TeX","output/HTML-CSS"],
+    tex2jax: {inlineMath: [["$","$"],["\\(","\\)"]]},
+    TeX: { extensions: ["AMSmath.js","AMSsymbols.js"]}
+  });
+</script>
+<script type="text/javascript" src="../../mathjax/MathJax.js"></script>
+		<script src="../../jquery-1.7.2.min.js" type="text/javascript"></script>
+		<script src="../../highlight.min.js"></script>
+<script type="text/javascript">
+$(function(){
+	$('.wmd-input').keypress(function(){
+		window.clearTimeout(hljs.Timeout);
+		hljs.Timeout = window.setTimeout(function() {
+			hljs.initHighlighting.called = false;
+			hljs.initHighlighting();
+		}, 500);
+	});
+	window.setTimeout(function() {
+		hljs.initHighlighting.called = false;
+		hljs.initHighlighting();
+	}, 500);
+});
+</script>
+
+
+	</head>
+	<body class="qa-template-question qa-body-js-off">
+		<div class="qa-body-wrapper">
+			
+			<div class="qa-header">
+				<div class="qa-logo">
+					<a href="../../" class="qa-logo-link" title="FEniCS Q&amp;A"><img src="../../qa-theme/fenics_qa.png" border="0" alt="FEniCS Q&amp;A"></a>
+				</div>
+				<div class="qa-header-clear">
+				</div>
+			</div> <!-- END qa-header -->
+			
+			<div class="qa-main-shadow">
+				
+				<div class="qa-main-wrapper">
+					
+					<div class="qa-sidepanel">
+						<div class="qa-sidebar">
+							This is a read only copy of the old FEniCS QA forum. Please visit the <a href="https://www.allanswered.com/community/s/fenics-project/">new QA forum</a> to ask questions
+						</div>
+						
+					</div>
+					
+					<div class="qa-main">
+						<h1>
+							<span class="entry-title">navier-stokes chorin</span>
+						</h1>
+						<div class="qa-part-q-view">
+							<div class="qa-q-view  hentry question" id="q10042">
+								<form method="post" action="../../10042/navier-stokes-chorin">
+									<div class="qa-q-view-stats">
+										<div class="qa-voting qa-voting-net" id="voting_10042">
+											<div class="qa-vote-count qa-vote-count-net">
+												<span class="qa-netvote-count">
+													<span class="qa-netvote-count-data">0<span class="votes-up"><span class="value-title" title="0"></span></span><span class="votes-down"><span class="value-title" title="0"></span></span></span><span class="qa-netvote-count-pad"> votes</span>
+												</span>
+											</div>
+											<div class="qa-vote-clear">
+											</div>
+										</div>
+									</div>
+									<input type="hidden" name="code" value="0-1516467037-6334f3373bb44d376e125fdbfc69e530477c9202">
+								</form>
+								<div class="qa-q-view-main">
+									<form method="post" action="../../10042/navier-stokes-chorin">
+										<div class="qa-q-view-content">
+											<a name="10042"></a><div class="entry-content"><p>Dear all,<br>
+i tried to implement Chorin's method to solve NS problem for square driven cavity, but i'm not sure is correct.</p>
+
+<p>from dolfin import *</p>
+
+<p>mesh = UnitSquareMesh(129,129)<br>
+V = VectorFunctionSpace(mesh, "Lagrange", 2)<br>
+Q = FunctionSpace(mesh, "Lagrange", 1)</p>
+
+<h2>Define trial and test functions</h2>
+
+<p>u = TrialFunction(V)<br>
+p = TrialFunction(Q)<br>
+v = TestFunction(V)<br>
+q = TestFunction(Q)</p>
+
+<h2>Functions</h2>
+
+<p>u0 = Function(V)<br>
+u1 = Function(V)<br>
+p1 = Function(Q)</p>
+
+<h2>boundary conditions</h2>
+
+<p>def cavityns(x, on_boundary): return x[0] &lt; DOLFIN_EPS or x[0] &gt; 1- DOLFIN_EPS or x[1] &lt; DOLFIN_EPS<br>
+def cavitytop(x, on_boundary): return x[1] &gt; 1.0 - DOLFIN_EPS</p>
+
+<h2>noslip</h2>
+
+<p>noslip = Constant((0.0, 0.0))<br>
+bc0 = DirichletBC(V, noslip, cavityns)</p>
+
+<h2>lid</h2>
+
+<p>lid = Constant((1.0, 0.0))<br>
+bcl = DirichletBC(V, lid, cavitytop)</p>
+
+<h2>pressure</h2>
+
+<p>pref = DirichletBC(Q, 0, "x[0] &lt; DOLFIN_EPS &amp;&amp; x[1] &lt; DOLFIN_EPS", "pointwise")</p>
+
+<h2>collect BC</h2>
+
+<p>bcu = [bc0, bcl]<br>
+bcp = [pref]<br>
+bc = [bcu, bcp]</p>
+
+<h2>parameters</h2>
+
+<p>n = FacetNormal(mesh)<br>
+nu = Constant(0.01)<br>
+f = Constant((0.0, 0.0))</p>
+
+<h2>Set parameter values</h2>
+
+<p>dt = 0.1<br>
+T = 1  </p>
+
+<h2>Define coefficients</h2>
+
+<p>k = Constant(dt)</p>
+
+<h2>Tentative velocity step</h2>
+
+<h2>a1 = (1/k)<em>inner(u, v)</em>dx +  nu<em>inner(grad(u), grad(v))</em>dx</h2>
+
+<h2>a1 = a1 + inner(grad(u)<em>u0, v)</em>dx</h2>
+
+<h2>L1 = -inner(grad(u0)<em>u0, v)</em>dx + (1/k)<em>inner(u0, v)</em>dx</h2>
+
+<h2>L1 = L1 + inner(f, v)*dx</h2>
+
+<h2>Pressure update</h2>
+
+<h2>a2 = inner(grad(p), grad(q))*dx</h2>
+
+<h2>L2 = -(1/k)<em>div(u1)</em>q*dx</h2>
+
+<h2>Velocity update</h2>
+
+<h2>a3 = inner(u, v)*dx</h2>
+
+<h2>L3 = inner(u1, v)<em>dx - k</em>inner(grad(p1), v)*dx</h2>
+
+<h2>Assemble matrices</h2>
+
+<h2>A1 = assemble(a1)</h2>
+
+<h2>A2 = assemble(a2)</h2>
+
+<h2>A3 = assemble(a3)</h2>
+
+<h2>Use amg preconditioner if available</h2>
+
+<p>prec = "amg" if has_krylov_solver_preconditioner("amg") else "default"</p>
+
+<h2>Use nonzero guesses - essential for CG with non-symmetric BC</h2>
+
+<p>parameters['krylov_solver']['nonzero_initial_guess'] = True</p>
+
+<h2>Create files for storing solution</h2>
+
+<p>ufile = File("results/velocity.pvd")<br>
+pfile = File("results/pressure.pvd")</p>
+
+<h6>#</h6>
+
+<h2>Iterazioni</h2>
+
+<h6>#</h6>
+
+<p>eps = 1.0<br>
+tol = 1.0e-5<br>
+niter = 0<br>
+maxiter = 100</p>
+
+<h6>#</h6>
+
+<h2>Iterations</h2>
+
+<h6>#</h6>
+
+<p>u_old = Function(V)<br>
+u_new = Function(V)</p>
+
+<h2>Time-stepping</h2>
+
+<p>t = dt<br>
+while t &lt;= T:<br>
+    begin("Computing tentative velocity") <br>
+    while eps &gt; tol and niter &lt; maxiter:<br>
+        a1 = (1/k)<em>inner(u, v)</em>dx +  nu<em>inner(grad(u), grad(v))</em>dx<br>
+        tri = (u_old[j]<em>Dx(u[i], j)</em>v[i])<em>dx #trilinear form<br>
+        L1 = inner(f, v)</em>dx + (1/k)<em>inner(u0, v)</em>dx<br>
+        A = assemble(a1)<br>
+        b1 = assemble(L1)<br>
+        C = assemble(tri)<br>
+        A1 = A + C<br>
+        [bc.apply(A1, b1) for bc in bcu]<br>
+        solve(A1, u_new.vector(), b1, "bicgstab", "default")<br>
+        u_ex= interpolate(u_ex, V)<br>
+    eps = errornorm(u_old,u_new)<br>
+        print "iter=%d: norm=%g" % (niter, eps)<br>
+        u_old.assign(u_new)<br>
+        niter += 1<br>
+    end()<br>
+    u1.assign(u_new)<br>
+    niter = 0<br>
+    eps = 1<br>
+    # Pressure correction<br>
+    begin("Computing pressure correction")<br>
+    a2 = inner(grad(p), grad(q))<em>dx<br>
+    L2 = -(1/k)</em>div(u1)<em>q</em>dx<br>
+    A2 = assemble(a2)<br>
+    b2 = assemble(L2)<br>
+    [bc.apply(A2, b2) for bc in bcp]<br>
+    [bc.apply(p1.vector()) for bc in bcp]<br>
+    solve(A2, p1.vector(), b2, "bicgstab", prec)<br>
+    end()</p>
+
+<pre><code># Velocity correction
+begin("Computing velocity correction")
+a3 = inner(u, v)*dx
+L3 = inner(u1, v)*dx - k*inner(grad(p1), v)*dx
+A3 = assemble(a3)
+b3 = assemble(L3)
+[bc.apply(A3, b3) for bc in bcu]
+solve(A3, u1.vector(), b3, "bicgstab", "default")
+end()
+
+# Plot solution
+plot(p1, title="Pressure", rescale=True)
+plot(u1, title="Velocity", rescale=True)
+
+# Save to file
+ufile &lt;&lt; u1
+pfile &lt;&lt; p1
+
+# Move to next time step
+u0.assign(u1)
+t += dt
+print("t =", t)
+</code></pre>
+
+<h2>Hold plot</h2>
+
+<p>interactive()</p>
+
+<p>Best reguards,<br>
+Francesco</p>
+</div>
+										</div>
+										<span class="qa-q-view-avatar-meta">
+											<span class="qa-q-view-meta">
+												<a href="../../10042/navier-stokes-chorin" class="qa-q-view-what">asked</a>
+												<span class="qa-q-view-when">
+													<span class="qa-q-view-when-data"><span class="published"><span class="value-title" title="2016-05-09T09:21:44+0000"></span>May 9, 2016</span></span>
+												</span>
+												<span class="qa-q-view-who">
+													<span class="qa-q-view-who-pad">by </span>
+													<span class="qa-q-view-who-data"><span class="vcard author"><a href="../../user/Francesco_nuke_91" class="qa-user-link url nickname">Francesco_nuke_91</a></span></span>
+													<span class="qa-q-view-who-title">FEniCS Novice</span>
+													<span class="qa-q-view-who-points">
+														<span class="qa-q-view-who-points-pad">(</span><span class="qa-q-view-who-points-data">280</span><span class="qa-q-view-who-points-pad"> points)</span>
+													</span>
+												</span>
+											</span>
+										</span>
+										<div class="qa-q-view-buttons">
+										</div>
+										
+										<div class="qa-q-view-c-list" id="c10042_list">
+											<div class="qa-c-list-item  hentry comment" id="c10043">
+												<div class="qa-c-item-content">
+													<a name="10043"></a><div class="entry-content"><p>Please format your code (indent with four spaces) to make it easier to read.</p>
+</div>
+												</div>
+												<div class="qa-c-item-footer">
+													<span class="qa-c-item-avatar-meta">
+														<span class="qa-c-item-avatar">
+															<a href="../../user/johannr" class="qa-avatar-link"><img src="https://www.gravatar.com/avatar/03ca226ee8d51ad8165d455dd3abad66?s=20" width="20" height="20" class="qa-avatar-image" alt=""></a>
+														</span>
+														<span class="qa-c-item-meta">
+															<a href="../../10042/navier-stokes-chorin?show=10043#c10043" class="qa-c-item-what">commented</a>
+															<span class="qa-c-item-when">
+																<span class="qa-c-item-when-data"><span class="published"><span class="value-title" title="2016-05-09T10:04:39+0000"></span>May 9, 2016</span></span>
+															</span>
+															<span class="qa-c-item-who">
+																<span class="qa-c-item-who-pad">by </span>
+																<span class="qa-c-item-who-data"><span class="vcard author"><a href="../../user/johannr" class="qa-user-link url nickname">johannr</a></span></span>
+																<span class="qa-c-item-who-title">FEniCS Expert</span>
+																<span class="qa-c-item-who-points">
+																	<span class="qa-c-item-who-points-pad">(</span><span class="qa-c-item-who-points-data">17,350</span><span class="qa-c-item-who-points-pad"> points)</span>
+																</span>
+															</span>
+														</span>
+													</span>
+													<div class="qa-c-item-buttons">
+													</div>
+												</div>
+												<div class="qa-c-item-clear">
+												</div>
+											</div> <!-- END qa-c-item -->
+											<div class="qa-c-list-item  hentry comment" id="c10044">
+												<div class="qa-c-item-content">
+													<a name="10044"></a><div class="entry-content"><p>My doubts concerning the indentation;  at the end of the compilation there is an error:</p>
+
+<p>line 92<br>
+    eps = errornorm(u_ex,u_new)<br>
+    ^<br>
+IndentationError: unexpected indent</p>
+
+<p>Thank you !</p>
+</div>
+												</div>
+												<div class="qa-c-item-footer">
+													<span class="qa-c-item-avatar-meta">
+														<span class="qa-c-item-meta">
+															<a href="../../10042/navier-stokes-chorin?show=10044#c10044" class="qa-c-item-what">commented</a>
+															<span class="qa-c-item-when">
+																<span class="qa-c-item-when-data"><span class="published"><span class="value-title" title="2016-05-09T11:13:28+0000"></span>May 9, 2016</span></span>
+															</span>
+															<span class="qa-c-item-who">
+																<span class="qa-c-item-who-pad">by </span>
+																<span class="qa-c-item-who-data"><span class="vcard author"><a href="../../user/Francesco_nuke_91" class="qa-user-link url nickname">Francesco_nuke_91</a></span></span>
+																<span class="qa-c-item-who-title">FEniCS Novice</span>
+																<span class="qa-c-item-who-points">
+																	<span class="qa-c-item-who-points-pad">(</span><span class="qa-c-item-who-points-data">280</span><span class="qa-c-item-who-points-pad"> points)</span>
+																</span>
+															</span>
+														</span>
+													</span>
+													<div class="qa-c-item-buttons">
+													</div>
+												</div>
+												<div class="qa-c-item-clear">
+												</div>
+											</div> <!-- END qa-c-item -->
+										</div> <!-- END qa-c-list -->
+										
+										<input type="hidden" name="code" value="0-1516467037-0de97859336e5eb8a6ae91f910a1df67bff7e9c9">
+										<input type="hidden" name="qa_click" value="">
+									</form>
+									<div class="qa-c-form">
+									</div> <!-- END qa-c-form -->
+									
+								</div> <!-- END qa-q-view-main -->
+								<div class="qa-q-view-clear">
+								</div>
+							</div> <!-- END qa-q-view -->
+							
+						</div>
+						<div class="qa-part-a-list">
+							<h2 id="a_list_title" style="display:none;"></h2>
+							<div class="qa-a-list" id="a_list">
+								
+							</div> <!-- END qa-a-list -->
+							
+						</div>
+					</div> <!-- END qa-main -->
+					
+				</div> <!-- END main-wrapper -->
+			</div> <!-- END main-shadow -->
+		</div> <!-- END body-wrapper -->
+		<!-- END footer-bottom-group -->
+		
+		<div style="position:absolute; left:-9999px; top:-9999px;">
+			<span id="qa-waiting-template" class="qa-waiting">...</span>
+		</div>
+	
+	
+
+</body><!-- Powered by Question2Answer - http://www.question2answer.org/ --></html>

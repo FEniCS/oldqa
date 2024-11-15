@@ -1,0 +1,257 @@
+<html><!-- Powered by Question2Answer - http://www.question2answer.org/ --><head>
+		<meta http-equiv="content-type" content="text/html; charset=utf-8">
+		<title>How can I copy part of a mesh while preserving cell orientations - FEniCS Q&amp;A</title>
+		<meta name="description" content="Hello, When I copy the local part of a distributed mesh, I notice that the cell orientations ... to change the orientations after copying? Thanks, Ben">
+		<link rel="stylesheet" type="text/css" href="../../qa-theme/Snow/qa-styles.css">
+		<link rel="canonical" href="http://fenicsproject.org/qa/11751/how-can-copy-part-of-mesh-while-preserving-cell-orientations">
+		<script type="text/x-mathjax-config">
+  MathJax.Hub.Config({
+    extensions: ["tex2jax.js"],
+    jax: ["input/TeX","output/HTML-CSS"],
+    tex2jax: {inlineMath: [["$","$"],["\\(","\\)"]]},
+    TeX: { extensions: ["AMSmath.js","AMSsymbols.js"]}
+  });
+</script>
+<script type="text/javascript" src="../../mathjax/MathJax.js"></script>
+		<script src="../../jquery-1.7.2.min.js" type="text/javascript"></script>
+		<script src="../../highlight.min.js"></script>
+<script type="text/javascript">
+$(function(){
+	$('.wmd-input').keypress(function(){
+		window.clearTimeout(hljs.Timeout);
+		hljs.Timeout = window.setTimeout(function() {
+			hljs.initHighlighting.called = false;
+			hljs.initHighlighting();
+		}, 500);
+	});
+	window.setTimeout(function() {
+		hljs.initHighlighting.called = false;
+		hljs.initHighlighting();
+	}, 500);
+});
+</script>
+
+
+	</head>
+	<body class="qa-template-question qa-body-js-off">
+		<div class="qa-body-wrapper">
+			
+			<div class="qa-header">
+				<div class="qa-logo">
+					<a href="../../" class="qa-logo-link" title="FEniCS Q&amp;A"><img src="../../qa-theme/fenics_qa.png" border="0" alt="FEniCS Q&amp;A"></a>
+				</div>
+				<div class="qa-header-clear">
+				</div>
+			</div> <!-- END qa-header -->
+			
+			<div class="qa-main-shadow">
+				
+				<div class="qa-main-wrapper">
+					
+					<div class="qa-sidepanel">
+						<div class="qa-sidebar">
+							This is a read only copy of the old FEniCS QA forum. Please visit the <a href="https://www.allanswered.com/community/s/fenics-project/">new QA forum</a> to ask questions
+						</div>
+						
+					</div>
+					
+					<div class="qa-main">
+						<h1>
+							<span class="entry-title">How can I copy part of a mesh while preserving cell orientations</span>
+						</h1>
+						<div class="qa-part-q-view">
+							<div class="qa-q-view  hentry question" id="q11751">
+								<form method="post" action="../../11751/how-can-copy-part-of-mesh-while-preserving-cell-orientations">
+									<div class="qa-q-view-stats">
+										<div class="qa-voting qa-voting-net" id="voting_11751">
+											<div class="qa-vote-count qa-vote-count-net">
+												<span class="qa-netvote-count">
+													<span class="qa-netvote-count-data">0<span class="votes-up"><span class="value-title" title="0"></span></span><span class="votes-down"><span class="value-title" title="0"></span></span></span><span class="qa-netvote-count-pad"> votes</span>
+												</span>
+											</div>
+											<div class="qa-vote-clear">
+											</div>
+										</div>
+									</div>
+									<input type="hidden" name="code" value="0-1516467784-e6bc2fa12e4d5d4c7614912e256de36f12131ed3">
+								</form>
+								<div class="qa-q-view-main">
+									<form method="post" action="../../11751/how-can-copy-part-of-mesh-while-preserving-cell-orientations">
+										<div class="qa-q-view-content">
+											<a name="11751"></a><div class="entry-content"><p>Hello,</p>
+
+<p>When I copy the local part of a distributed mesh, I notice that the cell orientations do not match those of the original mesh.  The following is a code snippet that demonstrates the effect.</p>
+
+<pre><code>from dolfin import *
+
+tdim = 2
+comm = mpi_comm_world()
+mpirank = MPI.rank(comm)
+
+ny = 4
+mesh = UnitSquareMesh(ny-1, ny-1)
+
+# Copy local parts of mesh
+mesh_local = Mesh(mpi_comm_self())
+mesh_editor = MeshEditor()
+mesh_editor.open(mesh_local, tdim, tdim)
+mesh_editor.init_vertices(mesh.num_vertices())
+mesh_editor.init_cells(mesh.num_cells())
+used_verts = []
+for ci in range(mesh.num_cells()):
+
+    c = Cell(mesh,ci)
+
+    vs = []
+    for v in vertices(c):
+        if v.index() not in used_verts:
+            mesh_editor.add_vertex(v.index(), v.x(0), v.x(1))
+            used_verts.append(v.index())
+        vs.append(v.index())        
+    mesh_editor.add_cell(ci, vs[0], vs[1], vs[2])
+
+mesh_editor.close()
+
+for ci in range(mesh_local.num_cells()):
+
+    cg = Cell(mesh, ci)
+    cl = Cell(mesh_local, ci)
+
+    if mpirank == 0:
+        print mpirank, cg.orientation(), cl.orientation()
+</code></pre>
+
+<p>Is there a different way to get the local mesh while preserving the orientations?  Or a way to change the orientations after copying?</p>
+
+<p>Thanks,<br>
+Ben</p>
+</div>
+										</div>
+										<span class="qa-q-view-avatar-meta">
+											<span class="qa-q-view-meta">
+												<a href="../../11751/how-can-copy-part-of-mesh-while-preserving-cell-orientations" class="qa-q-view-what">asked</a>
+												<span class="qa-q-view-when">
+													<span class="qa-q-view-when-data"><span class="published"><span class="value-title" title="2016-11-24T21:26:26+0000"></span>Nov 24, 2016</span></span>
+												</span>
+												<span class="qa-q-view-who">
+													<span class="qa-q-view-who-pad">by </span>
+													<span class="qa-q-view-who-data"><span class="vcard author"><a href="../../user/brk888" class="qa-user-link url nickname">brk888</a></span></span>
+													<span class="qa-q-view-who-title">FEniCS Novice</span>
+													<span class="qa-q-view-who-points">
+														<span class="qa-q-view-who-points-pad">(</span><span class="qa-q-view-who-points-data">990</span><span class="qa-q-view-who-points-pad"> points)</span>
+													</span>
+												</span>
+											</span>
+										</span>
+										<div class="qa-q-view-buttons">
+										</div>
+										
+										<div class="qa-q-view-c-list" id="c11751_list">
+											<div class="qa-c-list-item  hentry comment" id="c11755">
+												<div class="qa-c-item-content">
+													<a name="11755"></a><div class="entry-content"><p>It's really not clear to me what you are doing with mesh_local. When running in parallel the mesh object is automatically split so that on each process the mesh object is already the local parts. If you really want to create a copy of this you could also just use</p>
+
+<pre><code>mesh_local = Mesh(mesh)
+</code></pre>
+
+<p>rather than copying the vertices and cells manually via the mesh editor. </p>
+
+<p>That said, it is strange that your manual copying of the mesh does seem to end up with different orientations. If I go through and print the cell index's of mesh_local after you have done the copy it would appear that the add_cell function re-orders the indices in ascending order. The orientation then changes according to the new vertex ordering. Thus the orientations aren't really different, it just reflects the ordering of the vertices stored in the cell. I personally feel the fact that add_cell doesn't preserve the vertex ordering it is passed is a bad design choice, but perhaps it is done for performance reasons.</p>
+</div>
+												</div>
+												<div class="qa-c-item-footer">
+													<span class="qa-c-item-avatar-meta">
+														<span class="qa-c-item-meta">
+															<a href="../../11751/how-can-copy-part-of-mesh-while-preserving-cell-orientations?show=11755#c11755" class="qa-c-item-what">commented</a>
+															<span class="qa-c-item-when">
+																<span class="qa-c-item-when-data"><span class="published"><span class="value-title" title="2016-11-25T02:43:28+0000"></span>Nov 25, 2016</span></span>
+															</span>
+															<span class="qa-c-item-who">
+																<span class="qa-c-item-who-pad">by </span>
+																<span class="qa-c-item-who-data"><span class="vcard author"><a href="../../user/Brendan" class="qa-user-link url nickname">Brendan</a></span></span>
+																<span class="qa-c-item-who-title">FEniCS Novice</span>
+																<span class="qa-c-item-who-points">
+																	<span class="qa-c-item-who-points-pad">(</span><span class="qa-c-item-who-points-data">890</span><span class="qa-c-item-who-points-pad"> points)</span>
+																</span>
+															</span>
+															<br>
+															<span class="qa-c-item-what">edited</span>
+															<span class="qa-c-item-when">
+																<span class="qa-c-item-when-data"><span class="updated"><span class="value-title" title="2016-11-25T03:09:40+0000"></span>Nov 25, 2016</span></span>
+															</span>
+															<span class="qa-c-item-who">
+																<span class="qa-c-item-who-pad">by </span><span class="qa-c-item-who-data"><a href="../../user/Brendan" class="qa-user-link url nickname">Brendan</a></span>
+															</span>
+														</span>
+													</span>
+													<div class="qa-c-item-buttons">
+													</div>
+												</div>
+												<div class="qa-c-item-clear">
+												</div>
+											</div> <!-- END qa-c-item -->
+											<div class="qa-c-list-item  hentry comment" id="c11816">
+												<div class="qa-c-item-content">
+													<a name="11816"></a><div class="entry-content"><p>Hello,</p>
+
+<p>Thank you for your answer, I found a way to preserve the orientations by using add_vertex_global, since the orientations are based on the global numbering scheme.</p>
+</div>
+												</div>
+												<div class="qa-c-item-footer">
+													<span class="qa-c-item-avatar-meta">
+														<span class="qa-c-item-meta">
+															<a href="../../11751/how-can-copy-part-of-mesh-while-preserving-cell-orientations?show=11816#c11816" class="qa-c-item-what">commented</a>
+															<span class="qa-c-item-when">
+																<span class="qa-c-item-when-data"><span class="published"><span class="value-title" title="2016-12-02T16:30:35+0000"></span>Dec 2, 2016</span></span>
+															</span>
+															<span class="qa-c-item-who">
+																<span class="qa-c-item-who-pad">by </span>
+																<span class="qa-c-item-who-data"><span class="vcard author"><a href="../../user/brk888" class="qa-user-link url nickname">brk888</a></span></span>
+																<span class="qa-c-item-who-title">FEniCS Novice</span>
+																<span class="qa-c-item-who-points">
+																	<span class="qa-c-item-who-points-pad">(</span><span class="qa-c-item-who-points-data">990</span><span class="qa-c-item-who-points-pad"> points)</span>
+																</span>
+															</span>
+														</span>
+													</span>
+													<div class="qa-c-item-buttons">
+													</div>
+												</div>
+												<div class="qa-c-item-clear">
+												</div>
+											</div> <!-- END qa-c-item -->
+										</div> <!-- END qa-c-list -->
+										
+										<input type="hidden" name="code" value="0-1516467784-951dd34d581f24caf288e20b9b1a7931789a555f">
+										<input type="hidden" name="qa_click" value="">
+									</form>
+									<div class="qa-c-form">
+									</div> <!-- END qa-c-form -->
+									
+								</div> <!-- END qa-q-view-main -->
+								<div class="qa-q-view-clear">
+								</div>
+							</div> <!-- END qa-q-view -->
+							
+						</div>
+						<div class="qa-part-a-list">
+							<h2 id="a_list_title" style="display:none;"></h2>
+							<div class="qa-a-list" id="a_list">
+								
+							</div> <!-- END qa-a-list -->
+							
+						</div>
+					</div> <!-- END qa-main -->
+					
+				</div> <!-- END main-wrapper -->
+			</div> <!-- END main-shadow -->
+		</div> <!-- END body-wrapper -->
+		<!-- END footer-bottom-group -->
+		
+		<div style="position:absolute; left:-9999px; top:-9999px;">
+			<span id="qa-waiting-template" class="qa-waiting">...</span>
+		</div>
+	
+	
+
+</body><!-- Powered by Question2Answer - http://www.question2answer.org/ --></html>

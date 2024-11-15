@@ -1,0 +1,253 @@
+<html><!-- Powered by Question2Answer - http://www.question2answer.org/ --><head>
+		<meta http-equiv="content-type" content="text/html; charset=utf-8">
+		<title>Implicit method combined with nonlinear solver issue - FEniCS Q&amp;A</title>
+		<meta name="description" content="I am trying to solve the navier stokes equations using an implicit method combined with newtons method to deal with the  ... ---------------------">
+		<link rel="stylesheet" type="text/css" href="../../qa-theme/Snow/qa-styles.css">
+		<link rel="canonical" href="http://fenicsproject.org/qa/8361/implicit-method-combined-with-nonlinear-solver-issue">
+		<script type="text/x-mathjax-config">
+  MathJax.Hub.Config({
+    extensions: ["tex2jax.js"],
+    jax: ["input/TeX","output/HTML-CSS"],
+    tex2jax: {inlineMath: [["$","$"],["\\(","\\)"]]},
+    TeX: { extensions: ["AMSmath.js","AMSsymbols.js"]}
+  });
+</script>
+<script type="text/javascript" src="../../mathjax/MathJax.js"></script>
+		<script src="../../jquery-1.7.2.min.js" type="text/javascript"></script>
+		<script src="../../highlight.min.js"></script>
+<script type="text/javascript">
+$(function(){
+	$('.wmd-input').keypress(function(){
+		window.clearTimeout(hljs.Timeout);
+		hljs.Timeout = window.setTimeout(function() {
+			hljs.initHighlighting.called = false;
+			hljs.initHighlighting();
+		}, 500);
+	});
+	window.setTimeout(function() {
+		hljs.initHighlighting.called = false;
+		hljs.initHighlighting();
+	}, 500);
+});
+</script>
+
+
+	</head>
+	<body class="qa-template-question qa-body-js-off">
+		<div class="qa-body-wrapper">
+			
+			<div class="qa-header">
+				<div class="qa-logo">
+					<a href="../../" class="qa-logo-link" title="FEniCS Q&amp;A"><img src="../../qa-theme/fenics_qa.png" border="0" alt="FEniCS Q&amp;A"></a>
+				</div>
+				<div class="qa-header-clear">
+				</div>
+			</div> <!-- END qa-header -->
+			
+			<div class="qa-main-shadow">
+				
+				<div class="qa-main-wrapper">
+					
+					<div class="qa-sidepanel">
+						<div class="qa-sidebar">
+							This is a read only copy of the old FEniCS QA forum. Please visit the <a href="https://www.allanswered.com/community/s/fenics-project/">new QA forum</a> to ask questions
+						</div>
+						
+					</div>
+					
+					<div class="qa-main">
+						<h1>
+							<span class="entry-title">Implicit method combined with nonlinear solver issue</span>
+						</h1>
+						<div class="qa-part-q-view">
+							<div class="qa-q-view  hentry question" id="q8361">
+								<form method="post" action="../../8361/implicit-method-combined-with-nonlinear-solver-issue">
+									<div class="qa-q-view-stats">
+										<div class="qa-voting qa-voting-net" id="voting_8361">
+											<div class="qa-vote-count qa-vote-count-net">
+												<span class="qa-netvote-count">
+													<span class="qa-netvote-count-data">0<span class="votes-up"><span class="value-title" title="0"></span></span><span class="votes-down"><span class="value-title" title="0"></span></span></span><span class="qa-netvote-count-pad"> votes</span>
+												</span>
+											</div>
+											<div class="qa-vote-clear">
+											</div>
+										</div>
+									</div>
+									<input type="hidden" name="code" value="0-1516468168-84c82b3d1f9ec23c17268b7fde379434e69266fc">
+								</form>
+								<div class="qa-q-view-main">
+									<form method="post" action="../../8361/implicit-method-combined-with-nonlinear-solver-issue">
+										<div class="qa-q-view-content">
+											<a name="8361"></a><div class="entry-content"><p>I am trying to solve the navier stokes equations using an implicit method combined with newtons method to deal with the nonlinearity. When I try to do so I get the error seen at the bottom of this question. I've included a simplified version of my code below which recreates the error. </p>
+
+<pre><code>from dolfin import *
+from mshr import *
+import numpy as np
+
+circle_outx = 0.0
+circle_outy = 0.0
+circle_outr = 1.0
+circle_inx = 0.5
+circle_iny = 0.0
+circle_inr = 0.1
+
+
+domain = Circle(Point(circle_outx,circle_outy),circle_outr) - Circle(Point(circle_inx,circle_iny),circle_inr)
+mesh = generate_mesh ( domain, 30 )
+
+#Define Function Spaces
+V = VectorFunctionSpace(mesh, "CG", 2)
+Q = FunctionSpace(mesh, "CG", 1)
+W = V * Q
+
+# Boundaries
+def u0_boundary(x, on_boundary):
+    return on_boundary
+
+noslip = Constant((0.0, 0.0))
+
+bc0 = DirichletBC(W.sub(0),noslip,u0_boundary)
+bc1 = DirichletBC(W.sub(1),0.0,u0_boundary)
+bcs = [bc0, bc1]
+
+#Functions and TestFunctions
+u = Function(V)
+p = Function(Q)
+u0 = Function(V)
+p0 = Function(Q)
+w0 = Function(W)
+w = Function(W)
+(v, q) = TestFunctions(W)
+
+# functions for stokes
+(us, ps) = TrialFunctions(W)
+(vs, qs) = TestFunctions(W)
+
+# weak form Stokes equation
+fstokes = Expression(("-1*4*x[1]*(1 - x[0]*x[0] - x[1]*x[1])","4*x[0]*(1 - x[0]*x[0] - x[1]*x[1])"))
+Stokes = (inner(grad(us), grad(vs)) - div(vs)*ps + qs*div(us))*dx
+LStokes = inner(fstokes, vs)*dx
+
+#Get the initial condition
+solve(Stokes == LStokes, w0, bcs,solver_parameters=dict(linear_solver="lu"))
+(uinit, pinit) = w0.split(True)
+u0.assign(uinit)
+p0.assign(pinit)  
+
+
+#This is the nonlinear equation I can't solve
+F = inner(u,v)*dx + inner(grad(u)*u,v)*dx - inner(u0,v) *dx
+J = derivative ( F, w )
+solve ( F == 0, w, bcs, J = J )
+</code></pre>
+
+<p>Solving nonlinear variational problem.<br>
+  Newton iteration 0: r (abs) = 2.292e-03 (tol = 1.000e-10) r (rel) = 1.000e+00 (tol = 1.000e-09)<br>
+[0]PETSC ERROR: --------------------- Error Message ------------------------------------<br>
+[0]PETSC ERROR: Object is in wrong state!<br>
+[0]PETSC ERROR: Matrix is missing diagonal entry in row 1!<br>
+[0]PETSC ERROR: ------------------------------------------------------------------------<br>
+[0]PETSC ERROR: Petsc Release Version 3.3.0, Patch 3, Wed Aug 29 11:26:24 CDT 2012 <br>
+[0]PETSC ERROR: See docs/changes/index.html for recent updates.<br>
+[0]PETSC ERROR: See docs/faq.html for hints about trouble shooting.<br>
+[0]PETSC ERROR: See docs/index.html for manual pages.<br>
+[0]PETSC ERROR: ------------------------------------------------------------------------<br>
+[0]PETSC ERROR: Unknown Name on a darwin14. named Michaels-MacBook-Pro-3.local by michaelschneier Fri Oct 16 17:09:28 2015<br>
+[0]PETSC ERROR: Libraries linked from /Users/johannr/fenics-1.5.0/local/lib<br>
+[0]PETSC ERROR: Configure run at Mon Jan 12 22:17:07 2015<br>
+[0]PETSC ERROR: Configure options --prefix=/Users/johannr/fenics-1.5.0/local COPTFLAGS=-O2 --with-debugging=0 --with-clanguage=cxx --with-c-support=1 --with-blas-lapack-dir=/usr --with-umfpack=1 --with-umfpack-include=/Users/johannr/fenics-1.5.0/local/include/suitesparse --with-umfpack-lib="[/Users/johannr/fenics-1.5.0/local/lib/libumfpack.a,/Users/johannr/fenics-1.5.0/local/lib/libamd.a]" --with-spooles=1 --with-spooles-include=/Users/johannr/fenics-1.5.0/local/include --with-spooles-lib=/Users/johannr/fenics-1.5.0/local/lib/libspooles.a --with-ptscotch=1 --with-ptscotch-dir=/Users/johannr/fenics-1.5.0/local --with-ml=1 --with-ml-include=/Users/johannr/fenics-1.5.0/local/include/trilinos --with-ml-lib=/Users/johannr/fenics-1.5.0/local/lib/libml.dylib --with-hdf5=1 --with-hdf5-dir=/Users/johannr/fenics-1.5.0/local --with-x=0 -with-x11=0 --with-fortran=0 --with-shared-libraries=1 PETSC_DIR=/Users/johannr/fenics-1.5.0/fenics-superbuild/build-fenics/CMakeExternals/src/PETSc PETSC_ARCH=darwin14.0.0-cxx-opt<br>
+[0]PETSC ERROR: ------------------------------------------------------------------------<br>
+[0]PETSC ERROR: MatZeroRows_SeqAIJ() line 1556 in /Users/johannr/fenics-1.5.0/fenics-superbuild/build-fenics/CMakeExternals/src/PETSc/src/mat/impls/aij/seq/aij.c<br>
+[0]PETSC ERROR: MatZeroRowsLocal() line 5652 in /Users/johannr/fenics-1.5.0/fenics-superbuild/build-fenics/CMakeExternals/src/PETSc/src/mat/interface/matrix.c<br>
+Traceback (most recent call last):<br>
+  File "testing.py", line 56, in <br>
+    solve ( F == 0, w, bcs, J = J )<br>
+  File "/Applications/FEniCS.app/Contents/Resources/lib/python2.7/site-packages/dolfin/fem/solving.py", line 269, in solve<br>
+    _solve_varproblem(*args, **kwargs)<br>
+  File "/Applications/FEniCS.app/Contents/Resources/lib/python2.7/site-packages/dolfin/fem/solving.py", line 317, in _solve_varproblem<br>
+    solver.solve()<br>
+RuntimeError: </p>
+
+<p>*** -------------------------------------------------------------------------<br>
+*** DOLFIN encountered an error. If you are not able to resolve this issue<br>
+*** using the information listed below, you can ask for help at</p>
+
+<hr>
+
+<p>***     fenics@fenicsproject.org</p>
+
+<hr>
+
+<p>*** Remember to include the error message listed below and, if possible,<br>
+*** include a <em>minimal</em> running example to reproduce the error.</p>
+
+<hr>
+
+<p>*** -------------------------------------------------------------------------<br>
+*** Error:   Unable to set given (local) rows to identity matrix.<br>
+*** Reason:  some diagonal elements not preallocated (try assembler option keep_diagonal).<br>
+*** Where:   This error was encountered inside PETScMatrix.cpp.<br>
+*** Process: unknown</p>
+
+<hr>
+
+<p>*** DOLFIN version: 1.5.0<br>
+*** Git changeset:  f467b66dcfd821ec20e9f9070c7cef5a991dbc42<br>
+*** -----------------------------------------------------</p>
+</div>
+										</div>
+										<span class="qa-q-view-avatar-meta">
+											<span class="qa-q-view-meta">
+												<a href="../../8361/implicit-method-combined-with-nonlinear-solver-issue" class="qa-q-view-what">asked</a>
+												<span class="qa-q-view-when">
+													<span class="qa-q-view-when-data"><span class="published"><span class="value-title" title="2015-10-16T21:30:31+0000"></span>Oct 16, 2015</span></span>
+												</span>
+												<span class="qa-q-view-who">
+													<span class="qa-q-view-who-pad">by </span>
+													<span class="qa-q-view-who-data"><span class="vcard author"><a href="../../user/mhs13c" class="qa-user-link url nickname">mhs13c</a></span></span>
+													<span class="qa-q-view-who-title">FEniCS Novice</span>
+													<span class="qa-q-view-who-points">
+														<span class="qa-q-view-who-points-pad">(</span><span class="qa-q-view-who-points-data">260</span><span class="qa-q-view-who-points-pad"> points)</span>
+													</span>
+												</span>
+											</span>
+										</span>
+										<div class="qa-q-view-buttons">
+										</div>
+										
+										<div class="qa-q-view-c-list" style="display:none;" id="c8361_list">
+										</div> <!-- END qa-c-list -->
+										
+										<input type="hidden" name="code" value="0-1516468168-7c46110d055d1091f95aba491a56a5ac3b614d4b">
+										<input type="hidden" name="qa_click" value="">
+									</form>
+									<div class="qa-c-form">
+									</div> <!-- END qa-c-form -->
+									
+								</div> <!-- END qa-q-view-main -->
+								<div class="qa-q-view-clear">
+								</div>
+							</div> <!-- END qa-q-view -->
+							
+						</div>
+						<div class="qa-part-a-list">
+							<h2 id="a_list_title" style="display:none;"></h2>
+							<div class="qa-a-list" id="a_list">
+								
+							</div> <!-- END qa-a-list -->
+							
+						</div>
+					</div> <!-- END qa-main -->
+					
+				</div> <!-- END main-wrapper -->
+			</div> <!-- END main-shadow -->
+		</div> <!-- END body-wrapper -->
+		<!-- END footer-bottom-group -->
+		
+		<div style="position:absolute; left:-9999px; top:-9999px;">
+			<span id="qa-waiting-template" class="qa-waiting">...</span>
+		</div>
+	
+	
+
+</body><!-- Powered by Question2Answer - http://www.question2answer.org/ --></html>

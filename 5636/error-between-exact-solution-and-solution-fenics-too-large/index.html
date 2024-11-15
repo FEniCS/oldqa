@@ -1,0 +1,467 @@
+<html><!-- Powered by Question2Answer - http://www.question2answer.org/ --><head>
+		<meta http-equiv="content-type" content="text/html; charset=utf-8">
+		<title>The error between the exact solution and FEM solution in FEniCS is too large - FEniCS Q&amp;A</title>
+		<meta name="description" content="As indicated in the subject, would some body please indicate the problem in my coding. What am I missing ...  = 1e-14 return on_boundary and abs(x[0])">
+		<link rel="stylesheet" type="text/css" href="../../qa-theme/Snow/qa-styles.css">
+		<link rel="canonical" href="http://fenicsproject.org/qa/5636/error-between-exact-solution-and-solution-fenics-too-large">
+		<script type="text/x-mathjax-config">
+  MathJax.Hub.Config({
+    extensions: ["tex2jax.js"],
+    jax: ["input/TeX","output/HTML-CSS"],
+    tex2jax: {inlineMath: [["$","$"],["\\(","\\)"]]},
+    TeX: { extensions: ["AMSmath.js","AMSsymbols.js"]}
+  });
+</script>
+<script type="text/javascript" src="../../mathjax/MathJax.js"></script>
+		<script src="../../jquery-1.7.2.min.js" type="text/javascript"></script>
+		<script src="../../highlight.min.js"></script>
+<script type="text/javascript">
+$(function(){
+	$('.wmd-input').keypress(function(){
+		window.clearTimeout(hljs.Timeout);
+		hljs.Timeout = window.setTimeout(function() {
+			hljs.initHighlighting.called = false;
+			hljs.initHighlighting();
+		}, 500);
+	});
+	window.setTimeout(function() {
+		hljs.initHighlighting.called = false;
+		hljs.initHighlighting();
+	}, 500);
+});
+</script>
+
+
+	</head>
+	<body class="qa-template-question qa-body-js-off">
+		<div class="qa-body-wrapper">
+			
+			<div class="qa-header">
+				<div class="qa-logo">
+					<a href="../../" class="qa-logo-link" title="FEniCS Q&amp;A"><img src="../../qa-theme/fenics_qa.png" border="0" alt="FEniCS Q&amp;A"></a>
+				</div>
+				<div class="qa-header-clear">
+				</div>
+			</div> <!-- END qa-header -->
+			
+			<div class="qa-main-shadow">
+				
+				<div class="qa-main-wrapper">
+					
+					<div class="qa-sidepanel">
+						<div class="qa-sidebar">
+							This is a read only copy of the old FEniCS QA forum. Please visit the <a href="https://www.allanswered.com/community/s/fenics-project/">new QA forum</a> to ask questions
+						</div>
+						
+					</div>
+					
+					<div class="qa-main">
+						<h1>
+							<span class="entry-title">The error between the exact solution and FEM solution in FEniCS is too large</span>
+						</h1>
+						<div class="qa-part-q-view">
+							<div class="qa-q-view  hentry question" id="q5636">
+								<form method="post" action="../../5636/error-between-exact-solution-and-solution-fenics-too-large">
+									<div class="qa-q-view-stats">
+										<div class="qa-voting qa-voting-net" id="voting_5636">
+											<div class="qa-vote-count qa-vote-count-net">
+												<span class="qa-netvote-count">
+													<span class="qa-netvote-count-data">0<span class="votes-up"><span class="value-title" title="0"></span></span><span class="votes-down"><span class="value-title" title="0"></span></span></span><span class="qa-netvote-count-pad"> votes</span>
+												</span>
+											</div>
+											<div class="qa-vote-clear">
+											</div>
+										</div>
+									</div>
+									<input type="hidden" name="code" value="0-1516468036-10603a39a89478d8528c2b0c0c1d2c8c81ecc7ff">
+								</form>
+								<div class="qa-q-view-main">
+									<form method="post" action="../../5636/error-between-exact-solution-and-solution-fenics-too-large">
+										<div class="qa-q-view-content">
+											<a name="5636"></a><div class="entry-content"><p>As indicated in the subject, would some body please indicate the problem in my coding. </p>
+
+<p>What am I missing here?</p>
+
+<p>my code:</p>
+
+<pre><code>""" This solves:
+
+           y''(x) + 4y(x) = 0
+
+           y(0) = -2, y(Pi/4) = 10
+
+    The Exact solution to this problem is:
+
+          y(x) = -2cos(2x) + 10sin(2x))
+ """
+from dolfin import *
+import numpy
+
+a = pi/4.0
+mesh = IntervalMesh(60, 0, a)
+V = FunctionSpace(mesh, 'CG', 4)
+
+# For left boundary, meaning for y(0) = - 2
+ul = Expression("-2- x[0]")
+def left_boundary(x, on_boundary):
+    tol = 1e-14    
+    return on_boundary and abs(x[0])&lt;tol
+bc1 = DirichletBC(V, ul, left_boundary)
+
+# For right boundary, meaning for y(pi/4) = 10
+ur = Expression("10 - x[0] ")
+def right_boundary(x, on_boundary):
+    tol = 1e-14    
+    return on_boundary and abs(x[0] - pi/4) &lt; tol
+bc2 = DirichletBC(V, ur, right_boundary)
+
+# combing bc1 and bc2 in the form of list.
+bc = [bc1, bc2]
+
+u = TrialFunction(V)
+v = TestFunction(V)
+f = Constant(0.0)
+a = inner(grad(u), grad(v))*dx + 4.0*u*v*dx
+L = f*v*dx
+
+u = Function(V)
+solve( a == L, u, bc)
+
+#plot(u, interactive = True)
+
+# Examing the discrete solution
+u_nodal_values = u.vector() # the result is a dolfin vector, having all nodal values.
+u_array = u_nodal_values.array() # converting the dolfin vector to python array for further processing.
+
+# printing the solution at nodes, meaning u(x_i)
+coor = mesh.coordinates()
+
+# comparing the finite element solution with the exact solution.
+# finding the maximum error.
+
+# First defining the exact solution.
+ue = Expression("-2*cos(2*x[0]) + 10*sin(2.0*x[0])")
+u_e = interpolate(ue, V)
+u_e_array = u_e.vector().array()
+print "Max. error:", numpy.abs(u_e_array - u_array).max()
+
+# now printing the approxmiate solution, the exact solution and error side by side.
+#if mesh.num_vertices() == len(u_array):
+#   for i in range(mesh.num_vertices()):
+#        print 'u(%8g)=%g \t %g \t %8g' %(u(coor[i][0]), u_array[i], u_e_array[i], u_e_array[i]-u_array[i])
+</code></pre>
+</div>
+										</div>
+										<span class="qa-q-view-avatar-meta">
+											<span class="qa-q-view-meta">
+												<a href="../../5636/error-between-exact-solution-and-solution-fenics-too-large" class="qa-q-view-what">asked</a>
+												<span class="qa-q-view-when">
+													<span class="qa-q-view-when-data"><span class="published"><span class="value-title" title="2014-09-25T16:19:46+0000"></span>Sep 25, 2014</span></span>
+												</span>
+												<span class="qa-q-view-who">
+													<span class="qa-q-view-who-pad">by </span>
+													<span class="qa-q-view-who-data"><span class="vcard author"><a href="../../user/Orange" class="qa-user-link url nickname">Orange</a></span></span>
+													<span class="qa-q-view-who-title">FEniCS Novice</span>
+													<span class="qa-q-view-who-points">
+														<span class="qa-q-view-who-points-pad">(</span><span class="qa-q-view-who-points-data">470</span><span class="qa-q-view-who-points-pad"> points)</span>
+													</span>
+												</span>
+											</span>
+										</span>
+										<div class="qa-q-view-buttons">
+										</div>
+										
+										<div class="qa-q-view-c-list" style="display:none;" id="c5636_list">
+										</div> <!-- END qa-c-list -->
+										
+										<input type="hidden" name="code" value="0-1516468036-f0ad7f5d1c6c4b91bc8b061e33f806fa56964cfc">
+										<input type="hidden" name="qa_click" value="">
+									</form>
+									<div class="qa-c-form">
+									</div> <!-- END qa-c-form -->
+									
+								</div> <!-- END qa-q-view-main -->
+								<div class="qa-q-view-clear">
+								</div>
+							</div> <!-- END qa-q-view -->
+							
+						</div>
+						<div class="qa-part-a-list">
+							<h2 id="a_list_title">1 Answer</h2>
+							<div class="qa-a-list" id="a_list">
+								
+								<div class="qa-a-list-item  hentry answer" id="a5637">
+									<form method="post" action="../../5636/error-between-exact-solution-and-solution-fenics-too-large">
+										<div class="qa-voting qa-voting-net" id="voting_5637">
+											<div class="qa-vote-count qa-vote-count-net">
+												<span class="qa-netvote-count">
+													<span class="qa-netvote-count-data">+1<span class="votes-up"><span class="value-title" title="1"></span></span><span class="votes-down"><span class="value-title" title="0"></span></span></span><span class="qa-netvote-count-pad"> vote</span>
+												</span>
+											</div>
+											<div class="qa-vote-clear">
+											</div>
+										</div>
+										<input type="hidden" name="code" value="0-1516468036-10603a39a89478d8528c2b0c0c1d2c8c81ecc7ff">
+									</form>
+									<div class="qa-a-item-main">
+										<form method="post" action="../../5636/error-between-exact-solution-and-solution-fenics-too-large">
+											<div class="qa-a-selection">
+											</div>
+											<div class="qa-a-item-content">
+												<a name="5637"></a><div class="entry-content"><p>Hi, your <code>u_r</code> at $\pi/4$ does not evaluate to 10, so you are prescribing wrong value. The sign of the term in <code>a</code> coming from integration by parts should be negative.</p>
+
+<pre><code>ur = Constant(10)
+# ...
+a = -inner(grad(u), grad(v))*dx + 4.0*u*v*dx
+</code></pre>
+
+<p>The simplest way to compare your solution with exact one is via <a rel="nofollow" href="https://bitbucket.org/fenics-project/dolfin/src/master/site-packages/dolfin/fem/norms.py?at=master#cl-156">errornorm</a></p>
+
+<pre><code>print 'L2 norm of error', errornorm(ue, u)
+</code></pre>
+
+<p>Finally, the last commented out loop might work here but it is a bad practise. You should use <a rel="nofollow" href="http://fenicsproject.org/qa/search?q=dofmap">dofmaps</a>.</p>
+</div>
+											</div>
+											<span class="qa-a-item-avatar-meta">
+												<span class="qa-a-item-avatar">
+													<a href="../../user/MiroK" class="qa-avatar-link"><img src="https://www.gravatar.com/avatar/f566be3274ec73e3a6dda27bca11631c?s=40" width="40" height="40" class="qa-avatar-image" alt=""></a>
+												</span>
+												<span class="qa-a-item-meta">
+													<a href="../../5636/error-between-exact-solution-and-solution-fenics-too-large?show=5637#a5637" class="qa-a-item-what">answered</a>
+													<span class="qa-a-item-when">
+														<span class="qa-a-item-when-data"><span class="published"><span class="value-title" title="2014-09-25T16:50:24+0000"></span>Sep 25, 2014</span></span>
+													</span>
+													<span class="qa-a-item-who">
+														<span class="qa-a-item-who-pad">by </span>
+														<span class="qa-a-item-who-data"><span class="vcard author"><a href="../../user/MiroK" class="qa-user-link url nickname">MiroK</a></span></span>
+														<span class="qa-a-item-who-title">FEniCS Expert</span>
+														<span class="qa-a-item-who-points">
+															<span class="qa-a-item-who-points-pad">(</span><span class="qa-a-item-who-points-data">80,920</span><span class="qa-a-item-who-points-pad"> points)</span>
+														</span>
+													</span>
+													<br>
+													<span class="qa-a-item-what">edited</span>
+													<span class="qa-a-item-when">
+														<span class="qa-a-item-when-data"><span class="updated"><span class="value-title" title="2014-09-25T19:26:22+0000"></span>Sep 25, 2014</span></span>
+													</span>
+													<span class="qa-a-item-who">
+														<span class="qa-a-item-who-pad">by </span><span class="qa-a-item-who-data"><a href="../../user/MiroK" class="qa-user-link url nickname">MiroK</a></span>
+													</span>
+												</span>
+											</span>
+											<div class="qa-a-item-buttons">
+												</div>
+											
+											<div class="qa-a-item-c-list" id="c5637_list">
+												<div class="qa-c-list-item  hentry comment" id="c5638">
+													<div class="qa-c-item-content">
+														<a name="5638"></a><div class="entry-content"><p>Thank you for responding.</p>
+
+<p>I am a bit confused here. </p>
+
+<p>You said in my earlier question:</p>
+
+<pre><code>  "for u(0) = 1 use for example u0 = Expression("1-x[0]") "
+</code></pre>
+
+<p>So this is what I am doing here. Would you please explain it a little. What is the general principle?</p>
+
+<p>Thank you</p>
+</div>
+													</div>
+													<div class="qa-c-item-footer">
+														<span class="qa-c-item-avatar-meta">
+															<span class="qa-c-item-meta">
+																<a href="../../5636/error-between-exact-solution-and-solution-fenics-too-large?show=5638#c5638" class="qa-c-item-what">commented</a>
+																<span class="qa-c-item-when">
+																	<span class="qa-c-item-when-data"><span class="published"><span class="value-title" title="2014-09-25T17:23:08+0000"></span>Sep 25, 2014</span></span>
+																</span>
+																<span class="qa-c-item-who">
+																	<span class="qa-c-item-who-pad">by </span>
+																	<span class="qa-c-item-who-data"><span class="vcard author"><a href="../../user/Orange" class="qa-user-link url nickname">Orange</a></span></span>
+																	<span class="qa-c-item-who-title">FEniCS Novice</span>
+																	<span class="qa-c-item-who-points">
+																		<span class="qa-c-item-who-points-pad">(</span><span class="qa-c-item-who-points-data">470</span><span class="qa-c-item-who-points-pad"> points)</span>
+																	</span>
+																</span>
+															</span>
+														</span>
+														<div class="qa-c-item-buttons">
+														</div>
+													</div>
+													<div class="qa-c-item-clear">
+													</div>
+												</div> <!-- END qa-c-item -->
+												<div class="qa-c-list-item  hentry comment" id="c5639">
+													<div class="qa-c-item-content">
+														<a name="5639"></a><div class="entry-content"><p>Note the 'for example' in my answer. If you want <code>u(0)=1</code> then the simplest way is to set<br>
+<code>u0=Constant(1)</code> since wherever (any $x$) you evaluate <code>u0</code> you'll get 1. You can however also set <code>u0 = Expression('1-x[0]')</code>, <code>u0 = Expression('1+x[0]')</code> or <code>u0=Expression('cos(x[0])')</code> since all those expressions evaluate to 1 when $x=0$. That is the princile.</p>
+</div>
+													</div>
+													<div class="qa-c-item-footer">
+														<span class="qa-c-item-avatar-meta">
+															<span class="qa-c-item-avatar">
+																<a href="../../user/MiroK" class="qa-avatar-link"><img src="https://www.gravatar.com/avatar/f566be3274ec73e3a6dda27bca11631c?s=20" width="20" height="20" class="qa-avatar-image" alt=""></a>
+															</span>
+															<span class="qa-c-item-meta">
+																<a href="../../5636/error-between-exact-solution-and-solution-fenics-too-large?show=5639#c5639" class="qa-c-item-what">commented</a>
+																<span class="qa-c-item-when">
+																	<span class="qa-c-item-when-data"><span class="published"><span class="value-title" title="2014-09-25T17:33:16+0000"></span>Sep 25, 2014</span></span>
+																</span>
+																<span class="qa-c-item-who">
+																	<span class="qa-c-item-who-pad">by </span>
+																	<span class="qa-c-item-who-data"><span class="vcard author"><a href="../../user/MiroK" class="qa-user-link url nickname">MiroK</a></span></span>
+																	<span class="qa-c-item-who-title">FEniCS Expert</span>
+																	<span class="qa-c-item-who-points">
+																		<span class="qa-c-item-who-points-pad">(</span><span class="qa-c-item-who-points-data">80,920</span><span class="qa-c-item-who-points-pad"> points)</span>
+																	</span>
+																</span>
+															</span>
+														</span>
+														<div class="qa-c-item-buttons">
+														</div>
+													</div>
+													<div class="qa-c-item-clear">
+													</div>
+												</div> <!-- END qa-c-item -->
+												<div class="qa-c-list-item  hentry comment" id="c5640">
+													<div class="qa-c-item-content">
+														<a name="5640"></a><div class="entry-content"><p>So what I have understood is:</p>
+
+<p>You can do ul = Expression( 1- x[0]), for example, since you left boundary is at x = 0. This means here value of 'x[0]' is 0. </p>
+
+<p>and </p>
+
+<p>now since my right boundary is at x = pi/4. ur = Expression(10 - x[0]), would now corresponds to value of u1 at x = pi/4. Further 'x[0]' would now act as a variable whose value is pi/4.</p>
+
+<p>But where am I telling my script to use x[0] as 0 and then pi/4?</p>
+
+<p>Perhaps the statment:</p>
+
+<p>bc1 = DirichletBC( V, ul, boundary) does  that for ul. <br>
+and <br>
+bc2 = DirichletBC( V, ur, boundary) does  that for ur.</p>
+
+<p>Correct??</p>
+
+<p>P.S to admins, I am really having hard time typing , since my cursor is hanging a lot. I even changed my browser while writing this.</p>
+</div>
+													</div>
+													<div class="qa-c-item-footer">
+														<span class="qa-c-item-avatar-meta">
+															<span class="qa-c-item-meta">
+																<a href="../../5636/error-between-exact-solution-and-solution-fenics-too-large?show=5640#c5640" class="qa-c-item-what">commented</a>
+																<span class="qa-c-item-when">
+																	<span class="qa-c-item-when-data"><span class="published"><span class="value-title" title="2014-09-25T17:58:24+0000"></span>Sep 25, 2014</span></span>
+																</span>
+																<span class="qa-c-item-who">
+																	<span class="qa-c-item-who-pad">by </span>
+																	<span class="qa-c-item-who-data"><span class="vcard author"><a href="../../user/Orange" class="qa-user-link url nickname">Orange</a></span></span>
+																	<span class="qa-c-item-who-title">FEniCS Novice</span>
+																	<span class="qa-c-item-who-points">
+																		<span class="qa-c-item-who-points-pad">(</span><span class="qa-c-item-who-points-data">470</span><span class="qa-c-item-who-points-pad"> points)</span>
+																	</span>
+																</span>
+															</span>
+														</span>
+														<div class="qa-c-item-buttons">
+														</div>
+													</div>
+													<div class="qa-c-item-clear">
+													</div>
+												</div> <!-- END qa-c-item -->
+												<div class="qa-c-list-item  hentry comment" id="c5642">
+													<div class="qa-c-item-content">
+														<a name="5642"></a><div class="entry-content"><p>Yes, the third argument to <code>DirichletBC</code> tells it where to evaluate <code>ul</code> and <code>ur</code>. If you </p>
+
+<pre><code>plot(ur, mesh=mesh)
+</code></pre>
+
+<p><code>ur</code> is evaluated at many different points to create the plot. </p>
+</div>
+													</div>
+													<div class="qa-c-item-footer">
+														<span class="qa-c-item-avatar-meta">
+															<span class="qa-c-item-avatar">
+																<a href="../../user/MiroK" class="qa-avatar-link"><img src="https://www.gravatar.com/avatar/f566be3274ec73e3a6dda27bca11631c?s=20" width="20" height="20" class="qa-avatar-image" alt=""></a>
+															</span>
+															<span class="qa-c-item-meta">
+																<a href="../../5636/error-between-exact-solution-and-solution-fenics-too-large?show=5642#c5642" class="qa-c-item-what">commented</a>
+																<span class="qa-c-item-when">
+																	<span class="qa-c-item-when-data"><span class="published"><span class="value-title" title="2014-09-25T19:31:40+0000"></span>Sep 25, 2014</span></span>
+																</span>
+																<span class="qa-c-item-who">
+																	<span class="qa-c-item-who-pad">by </span>
+																	<span class="qa-c-item-who-data"><span class="vcard author"><a href="../../user/MiroK" class="qa-user-link url nickname">MiroK</a></span></span>
+																	<span class="qa-c-item-who-title">FEniCS Expert</span>
+																	<span class="qa-c-item-who-points">
+																		<span class="qa-c-item-who-points-pad">(</span><span class="qa-c-item-who-points-data">80,920</span><span class="qa-c-item-who-points-pad"> points)</span>
+																	</span>
+																</span>
+															</span>
+														</span>
+														<div class="qa-c-item-buttons">
+														</div>
+													</div>
+													<div class="qa-c-item-clear">
+													</div>
+												</div> <!-- END qa-c-item -->
+												<div class="qa-c-list-item  hentry comment" id="c5644">
+													<div class="qa-c-item-content">
+														<a name="5644"></a><div class="entry-content"><p>Thank you for your time and teaching me some new things!!</p>
+</div>
+													</div>
+													<div class="qa-c-item-footer">
+														<span class="qa-c-item-avatar-meta">
+															<span class="qa-c-item-meta">
+																<a href="../../5636/error-between-exact-solution-and-solution-fenics-too-large?show=5644#c5644" class="qa-c-item-what">commented</a>
+																<span class="qa-c-item-when">
+																	<span class="qa-c-item-when-data"><span class="published"><span class="value-title" title="2014-09-26T04:32:18+0000"></span>Sep 26, 2014</span></span>
+																</span>
+																<span class="qa-c-item-who">
+																	<span class="qa-c-item-who-pad">by </span>
+																	<span class="qa-c-item-who-data"><span class="vcard author"><a href="../../user/Orange" class="qa-user-link url nickname">Orange</a></span></span>
+																	<span class="qa-c-item-who-title">FEniCS Novice</span>
+																	<span class="qa-c-item-who-points">
+																		<span class="qa-c-item-who-points-pad">(</span><span class="qa-c-item-who-points-data">470</span><span class="qa-c-item-who-points-pad"> points)</span>
+																	</span>
+																</span>
+															</span>
+														</span>
+														<div class="qa-c-item-buttons">
+														</div>
+													</div>
+													<div class="qa-c-item-clear">
+													</div>
+												</div> <!-- END qa-c-item -->
+											</div> <!-- END qa-c-list -->
+											
+											<input type="hidden" name="code" value="0-1516468036-dae56374e55b397a1b5b64a8bf1def21835b6387">
+											<input type="hidden" name="qa_click" value="">
+										</form>
+										<div class="qa-c-form">
+										</div> <!-- END qa-c-form -->
+										
+									</div> <!-- END qa-a-item-main -->
+									<div class="qa-a-item-clear">
+									</div>
+								</div> <!-- END qa-a-list-item -->
+								
+							</div> <!-- END qa-a-list -->
+							
+						</div>
+					</div> <!-- END qa-main -->
+					
+				</div> <!-- END main-wrapper -->
+			</div> <!-- END main-shadow -->
+		</div> <!-- END body-wrapper -->
+		<!-- END footer-bottom-group -->
+		
+		<div style="position:absolute; left:-9999px; top:-9999px;">
+			<span id="qa-waiting-template" class="qa-waiting">...</span>
+		</div>
+	
+	
+
+</body><!-- Powered by Question2Answer - http://www.question2answer.org/ --></html>

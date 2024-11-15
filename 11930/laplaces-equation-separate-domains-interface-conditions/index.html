@@ -1,0 +1,276 @@
+<html><!-- Powered by Question2Answer - http://www.question2answer.org/ --><head>
+		<meta http-equiv="content-type" content="text/html; charset=utf-8">
+		<title>Solving Laplaces equation in 3 separate domains with interface(jump) conditions - FEniCS Q&amp;A</title>
+		<meta name="description" content="Hi everyone. Just curious about a few topics. The summary of my problem is a domain (rectangle) is  ... def inside(self, x, on_boundary): return x[1]">
+		<meta name="keywords" content="interface,subdomains">
+		<link rel="stylesheet" type="text/css" href="../../qa-theme/Snow/qa-styles.css">
+		<link rel="canonical" href="http://fenicsproject.org/qa/11930/laplaces-equation-separate-domains-interface-conditions">
+		<script type="text/x-mathjax-config">
+  MathJax.Hub.Config({
+    extensions: ["tex2jax.js"],
+    jax: ["input/TeX","output/HTML-CSS"],
+    tex2jax: {inlineMath: [["$","$"],["\\(","\\)"]]},
+    TeX: { extensions: ["AMSmath.js","AMSsymbols.js"]}
+  });
+</script>
+<script type="text/javascript" src="../../mathjax/MathJax.js"></script>
+		<script src="../../jquery-1.7.2.min.js" type="text/javascript"></script>
+		<script src="../../highlight.min.js"></script>
+<script type="text/javascript">
+$(function(){
+	$('.wmd-input').keypress(function(){
+		window.clearTimeout(hljs.Timeout);
+		hljs.Timeout = window.setTimeout(function() {
+			hljs.initHighlighting.called = false;
+			hljs.initHighlighting();
+		}, 500);
+	});
+	window.setTimeout(function() {
+		hljs.initHighlighting.called = false;
+		hljs.initHighlighting();
+	}, 500);
+});
+</script>
+
+
+	</head>
+	<body class="qa-template-question qa-body-js-off">
+		<div class="qa-body-wrapper">
+			
+			<div class="qa-header">
+				<div class="qa-logo">
+					<a href="../../" class="qa-logo-link" title="FEniCS Q&amp;A"><img src="../../qa-theme/fenics_qa.png" border="0" alt="FEniCS Q&amp;A"></a>
+				</div>
+				<div class="qa-header-clear">
+				</div>
+			</div> <!-- END qa-header -->
+			
+			<div class="qa-main-shadow">
+				
+				<div class="qa-main-wrapper">
+					
+					<div class="qa-sidepanel">
+						<div class="qa-sidebar">
+							This is a read only copy of the old FEniCS QA forum. Please visit the <a href="https://www.allanswered.com/community/s/fenics-project/">new QA forum</a> to ask questions
+						</div>
+						
+					</div>
+					
+					<div class="qa-main">
+						<h1>
+							<span class="entry-title">Solving Laplaces equation in 3 separate domains with interface(jump) conditions</span>
+						</h1>
+						<div class="qa-part-q-view">
+							<div class="qa-q-view  hentry question" id="q11930">
+								<form method="post" action="../../11930/laplaces-equation-separate-domains-interface-conditions">
+									<div class="qa-q-view-stats">
+										<div class="qa-voting qa-voting-net" id="voting_11930">
+											<div class="qa-vote-count qa-vote-count-net">
+												<span class="qa-netvote-count">
+													<span class="qa-netvote-count-data">+1<span class="votes-up"><span class="value-title" title="1"></span></span><span class="votes-down"><span class="value-title" title="0"></span></span></span><span class="qa-netvote-count-pad"> vote</span>
+												</span>
+											</div>
+											<div class="qa-vote-clear">
+											</div>
+										</div>
+									</div>
+									<input type="hidden" name="code" value="0-1516467796-1774add9be5d6b961b6349daf12b35c06138a8d2">
+								</form>
+								<div class="qa-q-view-main">
+									<form method="post" action="../../11930/laplaces-equation-separate-domains-interface-conditions">
+										<div class="qa-q-view-content">
+											<a name="11930"></a><div class="entry-content"><p>Hi everyone.</p>
+
+<p>Just curious about a few topics. The summary of my problem is a domain (rectangle) is divided in 3 subdomains  where there are jumps across each interface that divides the domains. I have a few questions. My code is below. My main questions are really with respect to this normal. I believe I should have a normal for each subdomain instead of just saying n = FacetNormal(mesh), my current error is ufl.log.UFLException: Shape mismatch. - anyone know how I would go about this? Secondly I'm breaking my problem into 3 problems - one for each subdomain. Is there a neat way that I can just put the entire problem together - or is the way I'm doing this completely wrong? </p>
+
+<pre><code> from dolfin import *
+from mshr import *
+
+a=0
+b=5.0
+c=0.0
+d=10.0
+tol = 1E-14
+v0=100.0
+
+e_1=1.0
+e_2=1.0
+e_3=1.0
+
+
+def set_mesh(ref,w,h):
+   h2=h/2.0
+   w2=w/2.0
+   p1 = dolfin.Point(0.,0.)
+   p2 = dolfin.Point(w,h)
+   o21=p1
+   o22 = dolfin.Point(w2,h2)
+   domain =   Rectangle(p1,p2)
+   o11 = dolfin.Point(0.,h2)
+   o12 = dolfin.Point(w,h)
+   o31 = dolfin.Point(w2,0.0)
+   o32 = dolfin.Point(w,h2)
+
+
+   domain.set_subdomain(1, Rectangle(o11, o12)) #Omega 1
+   domain.set_subdomain(2, Rectangle(p1, o22)) #Omega 2
+   domain.set_subdomain(3, Rectangle(o31, o32)) #Omega 2
+
+   mesh2d = generate_mesh(domain, ref)
+   return (mesh2d)
+
+
+class Omega_1(SubDomain):
+    def inside(self, x, on_boundary):
+        return x[1] &gt;= ( (c+d)/2.0 - tol)
+class Omega_2(SubDomain):
+    def inside(self, x, on_boundary):
+        return x[1] &lt;= (c+d)/2.0 - tol and x[0] &lt;= (a+b)/2.0 - tol
+class Omega_3(SubDomain):
+    def inside(self, x, on_boundary):
+        return x[1] &lt;= (c+d)/2.0 - tol and x[0] &gt;= (a+b)/2.0 +tol
+
+
+
+def bound_top(x, on_boundary):
+    return on_boundary and near(x[1], 10, tol)
+def bound_bottom(x, on_boundary):
+    return on_boundary and near(x[1], 0, tol)
+def bound_left(x, on_boundary):
+    return on_boundary and near(x[0], 0, tol)
+
+def bound_right(x, on_boundary):
+    return on_boundary and near(x[0], 5, tol)
+
+u_top = Expression("v", degree=2,v=v0)
+u_left = Expression("0", degree=2)
+u_right = Expression("0", degree=2)
+u_bottom = Expression("0", degree=2)
+
+
+mesh= set_mesh(128,5.,10.)
+facet_marker = FacetFunction("size_t", mesh)
+facet_marker.set_all(10)
+Omega_1().mark(facet_marker, 1)
+Omega_2().mark(facet_marker, 2)
+Omega_3().mark(facet_marker, 3)
+n = FacetNormal(mesh)
+ds = ds(subdomain_data=facet_marker)
+
+
+V = FunctionSpace(mesh, "Lagrange", 2)
+
+bc_t = DirichletBC(V, u_top, bound_top)
+bc_b = DirichletBC(V, u_bottom , bound_bottom)
+bc_l = DirichletBC(V, u_left , bound_left)
+bc_r = DirichletBC(V, u_right, bound_right)
+
+bcs=[bc_t,bc_b,bc_l,bc_r]
+
+
+
+u1 = TrialFunction(V)
+u2 = TrialFunction(V)
+u3 = TrialFunction(V)
+n = FacetNormal(mesh)
+
+v = TestFunction(V)
+f = Expression("0.0", degree=2)
+
+
+b1= (e_2/e_1)*inner(dot(grad(u2), n),grad(v) )*ds(2) + (e_3/e_1)*inner(dot(grad(u3), n),grad(v) )*ds(3)
+b2= (e_1/e_2)*inner(dot(grad(u1), n),grad(v) )*ds(1) + (e_3/e_2)*inner(dot(grad(u3), n),grad(v) )*ds(3)
+b3= (e_1/e_3)*inner(dot(grad(u1), n),grad(v) )*ds(1) + (e_2/e_3)*inner(dot(grad(u2), n),grad(v) )*ds(2)
+
+
+a1=-inner(grad(u1), grad(v))*dx + b1 
+a2 = -inner(grad(u2), grad(v))*dx + b2
+a3 = -inner(grad(u3), grad(v))*dx + b3  
+L = f*v*dx
+
+
+
+
+
+
+# Compute solution
+u1 = Function(V)
+solve(a1 == L, u1, bcs)
+
+u2 = Function(V)
+solve(a2 == L, u2, bcs)
+
+u3 = Function(V)
+solve(a3 == L, u3, bcs)
+</code></pre>
+</div>
+										</div>
+										<div class="qa-q-view-tags">
+											<ul class="qa-q-view-tag-list">
+												<li class="qa-q-view-tag-item"><a href="../../tag/interface" rel="tag" class="qa-tag-link">interface</a></li>
+												<li class="qa-q-view-tag-item"><a href="../../tag/subdomains" rel="tag" class="qa-tag-link">subdomains</a></li>
+											</ul>
+										</div>
+										<span class="qa-q-view-avatar-meta">
+											<span class="qa-q-view-meta">
+												<a href="../../11930/laplaces-equation-separate-domains-interface-conditions" class="qa-q-view-what">asked</a>
+												<span class="qa-q-view-when">
+													<span class="qa-q-view-when-data"><span class="published"><span class="value-title" title="2016-12-12T15:54:44+0000"></span>Dec 12, 2016</span></span>
+												</span>
+												<span class="qa-q-view-who">
+													<span class="qa-q-view-who-pad">by </span>
+													<span class="qa-q-view-who-data"><span class="vcard author"><a href="../../user/rvogt2" class="qa-user-link url nickname">rvogt2</a></span></span>
+													<span class="qa-q-view-who-title">FEniCS Novice</span>
+													<span class="qa-q-view-who-points">
+														<span class="qa-q-view-who-points-pad">(</span><span class="qa-q-view-who-points-data">270</span><span class="qa-q-view-who-points-pad"> points)</span>
+													</span>
+												</span>
+												<br>
+												<span class="qa-q-view-what">edited</span>
+												<span class="qa-q-view-when">
+													<span class="qa-q-view-when-data"><span class="updated"><span class="value-title" title="2016-12-12T16:00:23+0000"></span>Dec 12, 2016</span></span>
+												</span>
+												<span class="qa-q-view-who">
+													<span class="qa-q-view-who-pad">by </span><span class="qa-q-view-who-data"><a href="../../user/rvogt2" class="qa-user-link url nickname">rvogt2</a></span>
+												</span>
+											</span>
+										</span>
+										<div class="qa-q-view-buttons">
+										</div>
+										
+										<div class="qa-q-view-c-list" style="display:none;" id="c11930_list">
+										</div> <!-- END qa-c-list -->
+										
+										<input type="hidden" name="code" value="0-1516467796-eb85bf45bf6ed2fe0b9b003a4f311ab411d66b27">
+										<input type="hidden" name="qa_click" value="">
+									</form>
+									<div class="qa-c-form">
+									</div> <!-- END qa-c-form -->
+									
+								</div> <!-- END qa-q-view-main -->
+								<div class="qa-q-view-clear">
+								</div>
+							</div> <!-- END qa-q-view -->
+							
+						</div>
+						<div class="qa-part-a-list">
+							<h2 id="a_list_title" style="display:none;"></h2>
+							<div class="qa-a-list" id="a_list">
+								
+							</div> <!-- END qa-a-list -->
+							
+						</div>
+					</div> <!-- END qa-main -->
+					
+				</div> <!-- END main-wrapper -->
+			</div> <!-- END main-shadow -->
+		</div> <!-- END body-wrapper -->
+		<!-- END footer-bottom-group -->
+		
+		<div style="position:absolute; left:-9999px; top:-9999px;">
+			<span id="qa-waiting-template" class="qa-waiting">...</span>
+		</div>
+	
+	
+
+</body><!-- Powered by Question2Answer - http://www.question2answer.org/ --></html>

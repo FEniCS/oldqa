@@ -1,0 +1,252 @@
+<html><!-- Powered by Question2Answer - http://www.question2answer.org/ --><head>
+		<meta http-equiv="content-type" content="text/html; charset=utf-8">
+		<title>Auto adaptive stokes fails with "Unable to perform just-in-time compilation of form... Unable to extract all indices" - FEniCS Q&amp;A</title>
+		<meta name="description" content='I solve the stokes equations on a square domain. Minimal code: mesh = UnitSquareMesh(8, 8) P2 =  ... "]["symmetric"] = True solver.solve(0.1)'>
+		<meta name="keywords" content="adaptivity,adaptivelinearsolver,stokes">
+		<link rel="stylesheet" type="text/css" href="../../qa-theme/Snow/qa-styles.css">
+		<link rel="canonical" href="http://fenicsproject.org/qa/12271/adaptive-stokes-perform-compilation-unable-extract-indices">
+		<script type="text/x-mathjax-config">
+  MathJax.Hub.Config({
+    extensions: ["tex2jax.js"],
+    jax: ["input/TeX","output/HTML-CSS"],
+    tex2jax: {inlineMath: [["$","$"],["\\(","\\)"]]},
+    TeX: { extensions: ["AMSmath.js","AMSsymbols.js"]}
+  });
+</script>
+<script type="text/javascript" src="../../mathjax/MathJax.js"></script>
+		<script src="../../jquery-1.7.2.min.js" type="text/javascript"></script>
+		<script src="../../highlight.min.js"></script>
+<script type="text/javascript">
+$(function(){
+	$('.wmd-input').keypress(function(){
+		window.clearTimeout(hljs.Timeout);
+		hljs.Timeout = window.setTimeout(function() {
+			hljs.initHighlighting.called = false;
+			hljs.initHighlighting();
+		}, 500);
+	});
+	window.setTimeout(function() {
+		hljs.initHighlighting.called = false;
+		hljs.initHighlighting();
+	}, 500);
+});
+</script>
+
+
+	</head>
+	<body class="qa-template-question qa-body-js-off">
+		<div class="qa-body-wrapper">
+			
+			<div class="qa-header">
+				<div class="qa-logo">
+					<a href="../../" class="qa-logo-link" title="FEniCS Q&amp;A"><img src="../../qa-theme/fenics_qa.png" border="0" alt="FEniCS Q&amp;A"></a>
+				</div>
+				<div class="qa-header-clear">
+				</div>
+			</div> <!-- END qa-header -->
+			
+			<div class="qa-main-shadow">
+				
+				<div class="qa-main-wrapper">
+					
+					<div class="qa-sidepanel">
+						<div class="qa-sidebar">
+							This is a read only copy of the old FEniCS QA forum. Please visit the <a href="https://www.allanswered.com/community/s/fenics-project/">new QA forum</a> to ask questions
+						</div>
+						
+					</div>
+					
+					<div class="qa-main">
+						<h1>
+							<span class="entry-title">Auto adaptive stokes fails with "Unable to perform just-in-time compilation of form... Unable to extract all indices"</span>
+						</h1>
+						<div class="qa-part-q-view">
+							<div class="qa-q-view  hentry question" id="q12271">
+								<form method="post" action="../../12271/adaptive-stokes-perform-compilation-unable-extract-indices">
+									<div class="qa-q-view-stats">
+										<div class="qa-voting qa-voting-net" id="voting_12271">
+											<div class="qa-vote-count qa-vote-count-net">
+												<span class="qa-netvote-count">
+													<span class="qa-netvote-count-data">+2<span class="votes-up"><span class="value-title" title="2"></span></span><span class="votes-down"><span class="value-title" title="0"></span></span></span><span class="qa-netvote-count-pad"> votes</span>
+												</span>
+											</div>
+											<div class="qa-vote-clear">
+											</div>
+										</div>
+									</div>
+									<input type="hidden" name="code" value="0-1516467815-55b31daa2da598c191850de21c6b170dc51417e7">
+								</form>
+								<div class="qa-q-view-main">
+									<form method="post" action="../../12271/adaptive-stokes-perform-compilation-unable-extract-indices">
+										<div class="qa-q-view-content">
+											<a name="12271"></a><div class="entry-content"><p>I solve the stokes equations on a square domain.  Minimal code:</p>
+
+<pre><code>mesh = UnitSquareMesh(8, 8)
+P2 = VectorElement("Lagrange", mesh.ufl_cell(), 2)
+P1 = FiniteElement("Lagrange", mesh.ufl_cell(), 1)
+TH = P2 * P1
+W = FunctionSpace(mesh, TH)
+
+def bottom(x, on_boundary): return near(x[1],0.0)
+def left(x, on_boundary): return near(x[0],0.0)
+bc_b = DirichletBC(W.sub(0), Constant((1.0,0.0)), bottom);
+bc_l = DirichletBC(W.sub(0), Constant((0.0,0.0)), left);
+bc = [bc_b, bc_l]
+
+(u, p) = TrialFunctions(W)
+(v, q) = TestFunctions(W)
+
+a = inner(grad(u), grad(v))*dx + div(v)*p*dx + q*div(u)*dx
+L = inner( Constant((0.0,0.0)), v)*dx
+
+U = Function(W)
+M = p * dx
+solve(a == L, U, bc, tol=0.1, M=M)
+</code></pre>
+
+<p>This code runs if I change the last line to:</p>
+
+<pre><code>solve(a == L, U, bc)
+</code></pre>
+
+<p>As written in fails with the message:</p>
+
+<pre><code>Unable to extract all indices.
+...
+*** Error:   Unable to perform just-in-time compilation of form.
+</code></pre>
+
+<p>I also get the same error if I replace the last line with the code from the Auto adaptive Poisson equation demo,</p>
+
+<pre><code>problem = LinearVariationalProblem(a, L, U, bc)
+solver = AdaptiveLinearVariationalSolver(problem, M)
+solver.parameters["error_control"]["dual_variational_solver"]["linear_solver"] = "cg"
+solver.parameters["error_control"]["dual_variational_solver"]["symmetric"] = True
+solver.solve(0.1)
+</code></pre>
+</div>
+										</div>
+										<div class="qa-q-view-tags">
+											<ul class="qa-q-view-tag-list">
+												<li class="qa-q-view-tag-item"><a href="../../tag/adaptivity" rel="tag" class="qa-tag-link">adaptivity</a></li>
+												<li class="qa-q-view-tag-item"><a href="../../tag/adaptivelinearsolver" rel="tag" class="qa-tag-link">adaptivelinearsolver</a></li>
+												<li class="qa-q-view-tag-item"><a href="../../tag/stokes" rel="tag" class="qa-tag-link">stokes</a></li>
+											</ul>
+										</div>
+										<span class="qa-q-view-avatar-meta">
+											<span class="qa-q-view-meta">
+												<a href="../../12271/adaptive-stokes-perform-compilation-unable-extract-indices" class="qa-q-view-what">asked</a>
+												<span class="qa-q-view-when">
+													<span class="qa-q-view-when-data"><span class="published"><span class="value-title" title="2017-01-27T22:32:16+0000"></span>Jan 27, 2017</span></span>
+												</span>
+												<span class="qa-q-view-who">
+													<span class="qa-q-view-who-pad">by </span>
+													<span class="qa-q-view-who-data"><span class="vcard author"><a href="../../user/radbiv_kylops" class="qa-user-link url nickname">radbiv_kylops</a></span></span>
+													<span class="qa-q-view-who-title">FEniCS Novice</span>
+													<span class="qa-q-view-who-points">
+														<span class="qa-q-view-who-points-pad">(</span><span class="qa-q-view-who-points-data">680</span><span class="qa-q-view-who-points-pad"> points)</span>
+													</span>
+												</span>
+											</span>
+										</span>
+										<div class="qa-q-view-buttons">
+										</div>
+										
+										<div class="qa-q-view-c-list" style="display:none;" id="c12271_list">
+										</div> <!-- END qa-c-list -->
+										
+										<input type="hidden" name="code" value="0-1516467815-59021404d5d58d24dd0c2acfc9d33a2f7eb813b5">
+										<input type="hidden" name="qa_click" value="">
+									</form>
+									<div class="qa-c-form">
+									</div> <!-- END qa-c-form -->
+									
+								</div> <!-- END qa-q-view-main -->
+								<div class="qa-q-view-clear">
+								</div>
+							</div> <!-- END qa-q-view -->
+							
+						</div>
+						<div class="qa-part-a-list">
+							<h2 id="a_list_title">1 Answer</h2>
+							<div class="qa-a-list" id="a_list">
+								
+								<div class="qa-a-list-item  hentry answer" id="a12280">
+									<form method="post" action="../../12271/adaptive-stokes-perform-compilation-unable-extract-indices">
+										<div class="qa-voting qa-voting-net" id="voting_12280">
+											<div class="qa-vote-count qa-vote-count-net">
+												<span class="qa-netvote-count">
+													<span class="qa-netvote-count-data">+1<span class="votes-up"><span class="value-title" title="1"></span></span><span class="votes-down"><span class="value-title" title="0"></span></span></span><span class="qa-netvote-count-pad"> vote</span>
+												</span>
+											</div>
+											<div class="qa-vote-clear">
+											</div>
+										</div>
+										<input type="hidden" name="code" value="0-1516467815-55b31daa2da598c191850de21c6b170dc51417e7">
+									</form>
+									<div class="qa-a-item-main">
+										<form method="post" action="../../12271/adaptive-stokes-perform-compilation-unable-extract-indices">
+											<div class="qa-a-selection">
+											</div>
+											<div class="qa-a-item-content">
+												<a name="12280"></a><div class="entry-content"><p>The problem is that I was writing the refinement criterion in the wrong form.  I was incorrectly defining M as the integral of a TrialFunction when it should have been defined this way:</p>
+
+<pre><code>(uu, pp) = (as_vector((U[0], U[1])), U[2])
+M = uu[0] * dx
+</code></pre>
+
+<p>I found this solution by examining this "undocumented" fenics demo:</p>
+
+<p><a rel="nofollow" href="https://github.com/FEniCS/dolfin/blob/master/demo/undocumented/auto-adaptive-navier-stokes/python/demo_auto-adaptive-navier-stokes.py">https://github.com/FEniCS/dolfin/blob/master/demo/undocumented/auto-adaptive-navier-stokes/python/demo_auto-adaptive-navier-stokes.py</a></p>
+</div>
+											</div>
+											<span class="qa-a-item-avatar-meta">
+												<span class="qa-a-item-meta">
+													<a href="../../12271/adaptive-stokes-perform-compilation-unable-extract-indices?show=12280#a12280" class="qa-a-item-what">answered</a>
+													<span class="qa-a-item-when">
+														<span class="qa-a-item-when-data"><span class="published"><span class="value-title" title="2017-01-30T13:08:07+0000"></span>Jan 30, 2017</span></span>
+													</span>
+													<span class="qa-a-item-who">
+														<span class="qa-a-item-who-pad">by </span>
+														<span class="qa-a-item-who-data"><span class="vcard author"><a href="../../user/radbiv_kylops" class="qa-user-link url nickname">radbiv_kylops</a></span></span>
+														<span class="qa-a-item-who-title">FEniCS Novice</span>
+														<span class="qa-a-item-who-points">
+															<span class="qa-a-item-who-points-pad">(</span><span class="qa-a-item-who-points-data">680</span><span class="qa-a-item-who-points-pad"> points)</span>
+														</span>
+													</span>
+												</span>
+											</span>
+											<div class="qa-a-item-buttons">
+												</div>
+											
+											<div class="qa-a-item-c-list" style="display:none;" id="c12280_list">
+											</div> <!-- END qa-c-list -->
+											
+											<input type="hidden" name="code" value="0-1516467815-79bd59cffb8cc088490a2c1dae0b1088274feb50">
+											<input type="hidden" name="qa_click" value="">
+										</form>
+										<div class="qa-c-form">
+										</div> <!-- END qa-c-form -->
+										
+									</div> <!-- END qa-a-item-main -->
+									<div class="qa-a-item-clear">
+									</div>
+								</div> <!-- END qa-a-list-item -->
+								
+							</div> <!-- END qa-a-list -->
+							
+						</div>
+					</div> <!-- END qa-main -->
+					
+				</div> <!-- END main-wrapper -->
+			</div> <!-- END main-shadow -->
+		</div> <!-- END body-wrapper -->
+		<!-- END footer-bottom-group -->
+		
+		<div style="position:absolute; left:-9999px; top:-9999px;">
+			<span id="qa-waiting-template" class="qa-waiting">...</span>
+		</div>
+	
+	
+
+</body><!-- Powered by Question2Answer - http://www.question2answer.org/ --></html>

@@ -1,0 +1,379 @@
+<html><!-- Powered by Question2Answer - http://www.question2answer.org/ --><head>
+		<meta http-equiv="content-type" content="text/html; charset=utf-8">
+		<title>Helmholtz Equation with absorbent subdomain - FEniCS Q&amp;A</title>
+		<meta name="description" content="Hello everybody I try to solve the Helmholtz equation with an absorbent subdomain. $$\Delta p + k^2 z p =  ...  '_' + str(frequency) + '_pr.pvd') file">
+		<meta name="keywords" content="complex,subdomain,helmholtz">
+		<link rel="stylesheet" type="text/css" href="../../qa-theme/Snow/qa-styles.css">
+		<link rel="canonical" href="http://fenicsproject.org/qa/6386/helmholtz-equation-with-absorbent-subdomain">
+		<script type="text/x-mathjax-config">
+  MathJax.Hub.Config({
+    extensions: ["tex2jax.js"],
+    jax: ["input/TeX","output/HTML-CSS"],
+    tex2jax: {inlineMath: [["$","$"],["\\(","\\)"]]},
+    TeX: { extensions: ["AMSmath.js","AMSsymbols.js"]}
+  });
+</script>
+<script type="text/javascript" src="../../mathjax/MathJax.js"></script>
+		<script src="../../jquery-1.7.2.min.js" type="text/javascript"></script>
+		<script src="../../highlight.min.js"></script>
+<script type="text/javascript">
+$(function(){
+	$('.wmd-input').keypress(function(){
+		window.clearTimeout(hljs.Timeout);
+		hljs.Timeout = window.setTimeout(function() {
+			hljs.initHighlighting.called = false;
+			hljs.initHighlighting();
+		}, 500);
+	});
+	window.setTimeout(function() {
+		hljs.initHighlighting.called = false;
+		hljs.initHighlighting();
+	}, 500);
+});
+</script>
+
+
+	</head>
+	<body class="qa-template-question qa-body-js-off">
+		<div class="qa-body-wrapper">
+			
+			<div class="qa-header">
+				<div class="qa-logo">
+					<a href="../../" class="qa-logo-link" title="FEniCS Q&amp;A"><img src="../../qa-theme/fenics_qa.png" border="0" alt="FEniCS Q&amp;A"></a>
+				</div>
+				<div class="qa-header-clear">
+				</div>
+			</div> <!-- END qa-header -->
+			
+			<div class="qa-main-shadow">
+				
+				<div class="qa-main-wrapper">
+					
+					<div class="qa-sidepanel">
+						<div class="qa-sidebar">
+							This is a read only copy of the old FEniCS QA forum. Please visit the <a href="https://www.allanswered.com/community/s/fenics-project/">new QA forum</a> to ask questions
+						</div>
+						
+					</div>
+					
+					<div class="qa-main">
+						<h1>
+							<span class="entry-title">Helmholtz Equation with absorbent subdomain</span>
+						</h1>
+						<div class="qa-part-q-view">
+							<div class="qa-q-view  hentry question" id="q6386">
+								<form method="post" action="../../6386/helmholtz-equation-with-absorbent-subdomain">
+									<div class="qa-q-view-stats">
+										<div class="qa-voting qa-voting-net" id="voting_6386">
+											<div class="qa-vote-count qa-vote-count-net">
+												<span class="qa-netvote-count">
+													<span class="qa-netvote-count-data">+1<span class="votes-up"><span class="value-title" title="1"></span></span><span class="votes-down"><span class="value-title" title="0"></span></span></span><span class="qa-netvote-count-pad"> vote</span>
+												</span>
+											</div>
+											<div class="qa-vote-clear">
+											</div>
+										</div>
+									</div>
+									<input type="hidden" name="code" value="0-1516468070-04542cf3d50cab04b74fe390865cc3e9f2768a95">
+								</form>
+								<div class="qa-q-view-main">
+									<form method="post" action="../../6386/helmholtz-equation-with-absorbent-subdomain">
+										<div class="qa-q-view-content">
+											<a name="6386"></a><div class="entry-content"><p>Hello everybody</p>
+
+<p>I try to solve the Helmholtz equation with an absorbent subdomain.</p>
+
+<p>$$\Delta p + k^2 z p = 0$$<br>
+with<br>
+$$p = p_r + ip_i$$<br>
+and<br>
+$$z = z_r + iz_i$$</p>
+
+<p>The boundary conditions are periodic on the y and z surfaces of the BoxMesh. On the left (x=0) the boundary condition is fully reflective and on the right (x=Lx) I used a combination of an incoming wave and the Sommerfeld radiation condition:<br>
+$$\vec{n}\cdot\vec{\nabla}p = -ikp + 2p_0ik\exp{ikx}$$</p>
+
+<p>The code I wrote runs without any problems, but the result is wrong as soon as z_i is not equal to zero in any part of the mesh.<br>
+I'm not sure if I made a mistake while splitting the equation into real and imaginary parts, or if I just have an error in the code.</p>
+
+<p>Please help me</p>
+
+<pre><code>import math as m
+import numpy as np
+from dolfin import *
+
+################################################################################
+# set measurements and create mesh
+thickness = 0.1
+length = 1.1
+
+Lx = thickness + length
+Ly = 0.01
+Lz = 0.01
+Nx = 600
+Ny = 1
+Nz = 1
+mesh = BoxMesh(0., 0., 0., Lx, Ly, Lz, Nx, Ny, Nz)
+
+c = 343.4
+rho = 1.204
+xi = 15000.
+kappa = 1.5
+sigma = 0.99
+
+# simulation name
+simname = 'test'
+
+################################################################################
+# set periodic boundary conditions and create constrained function space
+class PeriodicDomain(SubDomain):
+    # set periodic boundary conditions
+
+    def inside(self, x, on_boundary):
+        # return True if on left or bottom boundary AND NOT on one of the two
+        # slave edges
+        return bool((near(x[1], 0) or near(x[2], 0.)) and
+                    (not ((near(x[1], Ly) and near(x[2], 0.)) or
+                     (near(x[1], 0) and near(x[2], Lz)))) and on_boundary)
+
+    def map(self, x, y):
+        if near(x[1], Ly) and near(x[2], Lz):
+            y[0] = x[0]
+            y[1] = x[1] - Ly
+            y[2] = x[2] - Lz
+        elif near(x[1], Ly):
+            y[0] = x[0]
+            y[1] = x[1] - Ly
+            y[2] = x[2]
+        elif near(x[2], Lz):
+            y[0] = x[0]
+            y[1] = x[1]
+            y[2] = x[2] - Lz
+        else:
+            y[0] = -1000
+            y[1] = -1000
+            y[2] = -1000
+
+periodicdomain = PeriodicDomain()
+
+# create by periodic domain constrained function space
+W = FunctionSpace(mesh, 'Lagrange', 2, constrained_domain=periodicdomain)
+W2 = W * W
+
+################################################################################
+# define subdomains
+class Absorber(SubDomain):
+    def inside(self, x, on_boundary):
+        return x[0] &lt;= thickness
+
+class Air(SubDomain):
+    def inside(self, x, on_boundary):
+        return x[0] &gt;= thickness
+
+subdomains = MeshFunction('size_t', mesh, 3)
+subdomain0 = Absorber()
+subdomain0.mark(subdomains, 0)
+subdomain1 = Air()
+subdomain1.mark(subdomains, 1)
+
+V0 = FunctionSpace(mesh, 'DG', 0)
+zr  = Function(V0)
+zi  = Function(V0)
+zr_values = [kappa, 1.]
+zi_values = [-xi*sigma / (rho), 0.]
+
+for cell_no in range(len(subdomains.array())):
+    subdomain_no = subdomains.array()[cell_no]
+    zr.vector()[cell_no] = zr_values[subdomain_no]
+
+for cell_no in range(len(subdomains.array())):
+    subdomain_no = subdomains.array()[cell_no]
+    zi.vector()[cell_no] = zi_values[subdomain_no]
+
+
+################################################################################
+# define ABC Boundary Condition
+boundaries = MeshFunction("size_t", mesh, mesh.topology().dim()-1)
+
+class ABC(SubDomain):
+
+    def inside(self, x, on_boundary):
+        tol = 1E-14
+        return on_boundary and near(x[0], Lx)# or near(x[0], 0.))
+
+
+abc = ABC()
+abc.mark(boundaries, 1)
+
+
+################################################################################
+# define expressions for variational problem and run for all frequencies
+frequencies = np.arange(50, 5624, 20)
+for frequency in frequencies:
+
+    omega = 2.*m.pi*frequency
+    agemo = Constant(1./omega)
+    k = omega/c
+
+    p0r = 1.
+    p0i = 1.
+    f1 = Expression('2*k_*(p0r_*sin(k_*(x[0]-L_)) + p0i_*cos(k_*(x[0]-L_)))', k_=k, p0r_=p0r, p0i_=p0i, L_=Lx)
+    f2 = Expression('2*k_*(p0r_*cos(k_*(x[0]-L_)) - p0i_*sin(k_*(x[0]-L_)))', k_=k, p0r_=p0r, p0i_=p0i, L_=Lx)
+    ksquared = Constant(k**2.)
+    k = Constant(k)
+
+    (pr, pi) = TrialFunction(W2)
+    (w1, w2) = TestFunction(W2)
+
+    a = (pr*zr*w1*ksquared - zi*agemo*pi*w1*ksquared + 
+         zi*agemo*pr*w2*ksquared + zr*pi*w2*ksquared -
+         inner(nabla_grad(pr), nabla_grad(w1)) - 
+         inner(nabla_grad(pi), nabla_grad(w2)))*dx \
+         + (k*pi*w1 - k*pr*w2)*ds(1)
+    L = f1*w1*ds(1) - f2*w2*ds(1)
+
+    A = assemble(a, exterior_facet_domains=boundaries)
+    b = assemble(L, exterior_facet_domains=boundaries)
+
+    # compute solution
+    p = Function(W2)
+    P = p.vector()
+    solve(A, P, b)
+    pr, pi = p.split()
+
+    # write solution to file in VTK format
+    result_path = 'result/' 
+    file = File(result_path + simname + '_' + str(frequency) + '_pr.pvd')
+    file &lt;&lt; pr
+    file = File(result_path + simname + '_' + str(frequency) + '_pi.pvd')
+    file &lt;&lt; pi
+</code></pre>
+</div>
+										</div>
+										<div class="qa-q-view-tags">
+											<ul class="qa-q-view-tag-list">
+												<li class="qa-q-view-tag-item"><a href="../../tag/complex" rel="tag" class="qa-tag-link">complex</a></li>
+												<li class="qa-q-view-tag-item"><a href="../../tag/subdomain" rel="tag" class="qa-tag-link">subdomain</a></li>
+												<li class="qa-q-view-tag-item"><a href="../../tag/helmholtz" rel="tag" class="qa-tag-link">helmholtz</a></li>
+											</ul>
+										</div>
+										<span class="qa-q-view-avatar-meta">
+											<span class="qa-q-view-meta">
+												<a href="../../6386/helmholtz-equation-with-absorbent-subdomain" class="qa-q-view-what">asked</a>
+												<span class="qa-q-view-when">
+													<span class="qa-q-view-when-data"><span class="published"><span class="value-title" title="2015-01-27T09:35:36+0000"></span>Jan 27, 2015</span></span>
+												</span>
+												<span class="qa-q-view-who">
+													<span class="qa-q-view-who-pad">by </span>
+													<span class="qa-q-view-who-data"><span class="vcard author"><a href="../../user/PaulR" class="qa-user-link url nickname">PaulR</a></span></span>
+													<span class="qa-q-view-who-title">FEniCS Novice</span>
+													<span class="qa-q-view-who-points">
+														<span class="qa-q-view-who-points-pad">(</span><span class="qa-q-view-who-points-data">420</span><span class="qa-q-view-who-points-pad"> points)</span>
+													</span>
+												</span>
+												<br>
+												<span class="qa-q-view-what">edited</span>
+												<span class="qa-q-view-when">
+													<span class="qa-q-view-when-data"><span class="updated"><span class="value-title" title="2015-01-27T11:33:33+0000"></span>Jan 27, 2015</span></span>
+												</span>
+												<span class="qa-q-view-who">
+													<span class="qa-q-view-who-pad">by </span><span class="qa-q-view-who-data"><a href="../../user/PaulR" class="qa-user-link url nickname">PaulR</a></span>
+												</span>
+											</span>
+										</span>
+										<div class="qa-q-view-buttons">
+										</div>
+										
+										<div class="qa-q-view-c-list" style="display:none;" id="c6386_list">
+										</div> <!-- END qa-c-list -->
+										
+										<input type="hidden" name="code" value="0-1516468070-a07b66ed0cde6e3ce59b571fd76e81efecec1355">
+										<input type="hidden" name="qa_click" value="">
+									</form>
+									<div class="qa-c-form">
+									</div> <!-- END qa-c-form -->
+									
+								</div> <!-- END qa-q-view-main -->
+								<div class="qa-q-view-clear">
+								</div>
+							</div> <!-- END qa-q-view -->
+							
+						</div>
+						<div class="qa-part-a-list">
+							<h2 id="a_list_title">1 Answer</h2>
+							<div class="qa-a-list" id="a_list">
+								
+								<div class="qa-a-list-item  hentry answer answer-selected qa-a-list-item-selected" id="a6405">
+									<form method="post" action="../../6386/helmholtz-equation-with-absorbent-subdomain">
+										<div class="qa-voting qa-voting-net" id="voting_6405">
+											<div class="qa-vote-count qa-vote-count-net">
+												<span class="qa-netvote-count">
+													<span class="qa-netvote-count-data">+1<span class="votes-up"><span class="value-title" title="1"></span></span><span class="votes-down"><span class="value-title" title="0"></span></span></span><span class="qa-netvote-count-pad"> vote</span>
+												</span>
+											</div>
+											<div class="qa-vote-clear">
+											</div>
+										</div>
+										<input type="hidden" name="code" value="0-1516468070-04542cf3d50cab04b74fe390865cc3e9f2768a95">
+									</form>
+									<div class="qa-a-item-main">
+										<form method="post" action="../../6386/helmholtz-equation-with-absorbent-subdomain">
+											<div class="qa-a-item-selected">
+												<div class="qa-a-selection">
+													<div class="qa-a-selected">&#160;</div>
+													<div class="qa-a-selected-text">Best answer</div>
+												</div>
+												<div class="qa-a-item-content">
+													<a name="6405"></a><div class="entry-content"><p>I have to include interface conditions for the gradient of p between the absorbent and the other subdomain.</p>
+</div>
+												</div>
+												<span class="qa-a-item-avatar-meta">
+													<span class="qa-a-item-meta">
+														<a href="../../6386/helmholtz-equation-with-absorbent-subdomain?show=6405#a6405" class="qa-a-item-what">answered</a>
+														<span class="qa-a-item-when">
+															<span class="qa-a-item-when-data"><span class="published"><span class="value-title" title="2015-01-29T08:22:04+0000"></span>Jan 29, 2015</span></span>
+														</span>
+														<span class="qa-a-item-who">
+															<span class="qa-a-item-who-pad">by </span>
+															<span class="qa-a-item-who-data"><span class="vcard author"><a href="../../user/PaulR" class="qa-user-link url nickname">PaulR</a></span></span>
+															<span class="qa-a-item-who-title">FEniCS Novice</span>
+															<span class="qa-a-item-who-points">
+																<span class="qa-a-item-who-points-pad">(</span><span class="qa-a-item-who-points-data">420</span><span class="qa-a-item-who-points-pad"> points)</span>
+															</span>
+														</span>
+													</span>
+												</span>
+											</div>
+											<div class="qa-a-item-buttons">
+												</div>
+											
+											<div class="qa-a-item-c-list" style="display:none;" id="c6405_list">
+											</div> <!-- END qa-c-list -->
+											
+											<input type="hidden" name="code" value="0-1516468070-f12fc2fa13f7808abd191aed6ccacfa61f2b75ee">
+											<input type="hidden" name="qa_click" value="">
+										</form>
+										<div class="qa-c-form">
+										</div> <!-- END qa-c-form -->
+										
+									</div> <!-- END qa-a-item-main -->
+									<div class="qa-a-item-clear">
+									</div>
+								</div> <!-- END qa-a-list-item -->
+								
+							</div> <!-- END qa-a-list -->
+							
+						</div>
+					</div> <!-- END qa-main -->
+					
+				</div> <!-- END main-wrapper -->
+			</div> <!-- END main-shadow -->
+		</div> <!-- END body-wrapper -->
+		<!-- END footer-bottom-group -->
+		
+		<div style="position:absolute; left:-9999px; top:-9999px;">
+			<span id="qa-waiting-template" class="qa-waiting">...</span>
+		</div>
+	
+	
+
+</body><!-- Powered by Question2Answer - http://www.question2answer.org/ --></html>

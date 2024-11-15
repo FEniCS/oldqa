@@ -1,0 +1,336 @@
+<html><!-- Powered by Question2Answer - http://www.question2answer.org/ --><head>
+		<meta http-equiv="content-type" content="text/html; charset=utf-8">
+		<title>Neumann boundary condition defined by varying function. - FEniCS Q&amp;A</title>
+		<meta name="description" content="In a domain-decomposition context, I wish to define a Neumann boundary condition with a boundary function which  ... v*dsR solve(a == L, u, bc_D)">
+		<meta name="keywords" content="boundarymesh,boundary-conditions,domain-decomposition">
+		<link rel="stylesheet" type="text/css" href="../../qa-theme/Snow/qa-styles.css">
+		<link rel="canonical" href="http://fenicsproject.org/qa/6289/neumann-boundary-condition-defined-by-varying-function">
+		<script type="text/x-mathjax-config">
+  MathJax.Hub.Config({
+    extensions: ["tex2jax.js"],
+    jax: ["input/TeX","output/HTML-CSS"],
+    tex2jax: {inlineMath: [["$","$"],["\\(","\\)"]]},
+    TeX: { extensions: ["AMSmath.js","AMSsymbols.js"]}
+  });
+</script>
+<script type="text/javascript" src="../../mathjax/MathJax.js"></script>
+		<script src="../../jquery-1.7.2.min.js" type="text/javascript"></script>
+		<script src="../../highlight.min.js"></script>
+<script type="text/javascript">
+$(function(){
+	$('.wmd-input').keypress(function(){
+		window.clearTimeout(hljs.Timeout);
+		hljs.Timeout = window.setTimeout(function() {
+			hljs.initHighlighting.called = false;
+			hljs.initHighlighting();
+		}, 500);
+	});
+	window.setTimeout(function() {
+		hljs.initHighlighting.called = false;
+		hljs.initHighlighting();
+	}, 500);
+});
+</script>
+
+
+	</head>
+	<body class="qa-template-question qa-body-js-off">
+		<div class="qa-body-wrapper">
+			
+			<div class="qa-header">
+				<div class="qa-logo">
+					<a href="../../" class="qa-logo-link" title="FEniCS Q&amp;A"><img src="../../qa-theme/fenics_qa.png" border="0" alt="FEniCS Q&amp;A"></a>
+				</div>
+				<div class="qa-header-clear">
+				</div>
+			</div> <!-- END qa-header -->
+			
+			<div class="qa-main-shadow">
+				
+				<div class="qa-main-wrapper">
+					
+					<div class="qa-sidepanel">
+						<div class="qa-sidebar">
+							This is a read only copy of the old FEniCS QA forum. Please visit the <a href="https://www.allanswered.com/community/s/fenics-project/">new QA forum</a> to ask questions
+						</div>
+						
+					</div>
+					
+					<div class="qa-main">
+						<h1>
+							<span class="entry-title">Neumann boundary condition defined by varying function.</span>
+						</h1>
+						<div class="qa-part-q-view">
+							<div class="qa-q-view  hentry question" id="q6289">
+								<form method="post" action="../../6289/neumann-boundary-condition-defined-by-varying-function">
+									<div class="qa-q-view-stats">
+										<div class="qa-voting qa-voting-net" id="voting_6289">
+											<div class="qa-vote-count qa-vote-count-net">
+												<span class="qa-netvote-count">
+													<span class="qa-netvote-count-data">+3<span class="votes-up"><span class="value-title" title="3"></span></span><span class="votes-down"><span class="value-title" title="0"></span></span></span><span class="qa-netvote-count-pad"> votes</span>
+												</span>
+											</div>
+											<div class="qa-vote-clear">
+											</div>
+										</div>
+									</div>
+									<input type="hidden" name="code" value="0-1516468066-b4697d378b8b45c1e296fb7a415c8bff951f1c13">
+								</form>
+								<div class="qa-q-view-main">
+									<form method="post" action="../../6289/neumann-boundary-condition-defined-by-varying-function">
+										<div class="qa-q-view-content">
+											<a name="6289"></a><div class="entry-content"><p>In a domain-decomposition context, I wish to define a Neumann boundary condition with a boundary function which itself comes from the solution of another problem. This boundary function is thus unknown at program start.<br>
+My problem boils down to the minimal square example below, with Dirichlet BC everywhere except on the right side.<br>
+I define a function ("u_b") on this right side (with constant value to make things simple here), using BoundaryMesh :</p>
+
+<pre><code>bmesh = BoundaryMesh(mesh, 'exterior') 
+V_b = FunctionSpace(bmesh, 'Lagrange', 1)
+u_b = Function(V_b); u_b.assign(Constant(3.0))
+</code></pre>
+
+<p>The problem is that I can't use this "u_b" in the "L" expression of the variational problem - see the full minimal example below.<br>
+Could you please help me with this? Thanks a lot.<br>
+Serge</p>
+
+<pre><code>from dolfin import *
+mesh = UnitSquareMesh(10, 10)
+V = FunctionSpace(mesh, 'Lagrange', 1)
+
+class DirichletBoundary(SubDomain):
+    def inside(self, x, on_boundary):
+        tol = 1E-14
+        return on_boundary and ((abs(x[1] - 1) &lt; tol) or (abs(x[0] - 0) &lt; tol) or (abs(x[1] - 0) &lt; tol))
+D_boundary = DirichletBoundary()
+bc_D = DirichletBC(V, Constant(0.0), D_boundary)
+
+class RightBoundary(SubDomain):
+    def inside(self, x, on_boundary):
+        tol = 1E-14
+        return on_boundary and (abs(x[0] - 1) &lt; tol)
+rightBoundary = RightBoundary()
+
+boundaries = FacetFunction("size_t", mesh)
+rightBoundary.mark(boundaries, 1)
+dsR = ds(subdomain_id=1, subdomain_data=boundaries)
+
+u = TrialFunction(V)
+v = TestFunction(V)
+a = inner(grad(u), grad(v))*dx
+f = Constant(1.)
+
+u = Function(V)
+
+bmesh = BoundaryMesh(mesh, 'exterior') 
+V_b = FunctionSpace(bmesh, 'Lagrange', 1)
+
+#u_b = Constant(3.0) #OK
+#u_b = Expression("3.0") #OK
+#u_b = Function(V); u_b.assign(Constant(3.0)) # OK
+u_b = Function(V_b); u_b.assign(Constant(3.0)) # NOT OK
+
+L = f*v*dx + u_b*v*dsR
+solve(a == L, u, bc_D)
+</code></pre>
+</div>
+										</div>
+										<div class="qa-q-view-tags">
+											<ul class="qa-q-view-tag-list">
+												<li class="qa-q-view-tag-item"><a href="../../tag/boundarymesh" rel="tag" class="qa-tag-link">boundarymesh</a></li>
+												<li class="qa-q-view-tag-item"><a href="../../tag/boundary-conditions" rel="tag" class="qa-tag-link">boundary-conditions</a></li>
+												<li class="qa-q-view-tag-item"><a href="../../tag/domain-decomposition" rel="tag" class="qa-tag-link">domain-decomposition</a></li>
+											</ul>
+										</div>
+										<span class="qa-q-view-avatar-meta">
+											<span class="qa-q-view-meta">
+												<a href="../../6289/neumann-boundary-condition-defined-by-varying-function" class="qa-q-view-what">asked</a>
+												<span class="qa-q-view-when">
+													<span class="qa-q-view-when-data"><span class="published"><span class="value-title" title="2015-01-06T16:50:41+0000"></span>Jan 6, 2015</span></span>
+												</span>
+												<span class="qa-q-view-who">
+													<span class="qa-q-view-who-pad">by </span>
+													<span class="qa-q-view-who-data"><span class="vcard author"><a href="../../user/svancri" class="qa-user-link url nickname">svancri</a></span></span>
+													<span class="qa-q-view-who-title">FEniCS Novice</span>
+													<span class="qa-q-view-who-points">
+														<span class="qa-q-view-who-points-pad">(</span><span class="qa-q-view-who-points-data">210</span><span class="qa-q-view-who-points-pad"> points)</span>
+													</span>
+												</span>
+											</span>
+										</span>
+										<div class="qa-q-view-buttons">
+										</div>
+										
+										<div class="qa-q-view-c-list" style="display:none;" id="c6289_list">
+										</div> <!-- END qa-c-list -->
+										
+										<input type="hidden" name="code" value="0-1516468066-9e3c8e86d8d5635bc00749029af76dfc4771de11">
+										<input type="hidden" name="qa_click" value="">
+									</form>
+									<div class="qa-c-form">
+									</div> <!-- END qa-c-form -->
+									
+								</div> <!-- END qa-q-view-main -->
+								<div class="qa-q-view-clear">
+								</div>
+							</div> <!-- END qa-q-view -->
+							
+						</div>
+						<div class="qa-part-a-list">
+							<h2 id="a_list_title">1 Answer</h2>
+							<div class="qa-a-list" id="a_list">
+								
+								<div class="qa-a-list-item  hentry answer" id="a6293">
+									<form method="post" action="../../6289/neumann-boundary-condition-defined-by-varying-function">
+										<div class="qa-voting qa-voting-net" id="voting_6293">
+											<div class="qa-vote-count qa-vote-count-net">
+												<span class="qa-netvote-count">
+													<span class="qa-netvote-count-data">+1<span class="votes-up"><span class="value-title" title="1"></span></span><span class="votes-down"><span class="value-title" title="0"></span></span></span><span class="qa-netvote-count-pad"> vote</span>
+												</span>
+											</div>
+											<div class="qa-vote-clear">
+											</div>
+										</div>
+										<input type="hidden" name="code" value="0-1516468066-b4697d378b8b45c1e296fb7a415c8bff951f1c13">
+									</form>
+									<div class="qa-a-item-main">
+										<form method="post" action="../../6289/neumann-boundary-condition-defined-by-varying-function">
+											<div class="qa-a-selection">
+											</div>
+											<div class="qa-a-item-content">
+												<a name="6293"></a><div class="entry-content"><p>We don't yet support function spaces on 'sub-meshes'. In your case, you can just define<br>
+the space <code>V_b</code> on the entire mesh. </p>
+</div>
+											</div>
+											<span class="qa-a-item-avatar-meta">
+												<span class="qa-a-item-meta">
+													<a href="../../6289/neumann-boundary-condition-defined-by-varying-function?show=6293#a6293" class="qa-a-item-what">answered</a>
+													<span class="qa-a-item-when">
+														<span class="qa-a-item-when-data"><span class="published"><span class="value-title" title="2015-01-07T08:56:47+0000"></span>Jan 7, 2015</span></span>
+													</span>
+													<span class="qa-a-item-who">
+														<span class="qa-a-item-who-pad">by </span>
+														<span class="qa-a-item-who-data"><span class="vcard author"><a href="../../user/Garth+N.+Wells" class="qa-user-link url nickname">Garth N. Wells</a></span></span>
+														<span class="qa-a-item-who-title">FEniCS Expert</span>
+														<span class="qa-a-item-who-points">
+															<span class="qa-a-item-who-points-pad">(</span><span class="qa-a-item-who-points-data">35,930</span><span class="qa-a-item-who-points-pad"> points)</span>
+														</span>
+													</span>
+												</span>
+											</span>
+											<div class="qa-a-item-buttons">
+												</div>
+											
+											<div class="qa-a-item-c-list" id="c6293_list">
+												<div class="qa-c-list-item  hentry comment" id="c6300">
+													<div class="qa-c-item-content">
+														<a name="6300"></a><div class="entry-content"><p>Thanks much Garth for this answer.<br>
+To go a bit further, note that I in fact wish to use a function defined in an adjacent mesh to define a Neumann BC.<br>
+Since it is not yet possible to use functions defined on a sub-mesh (<em>BoundaryMesh</em> here), I try to use directly the function defined in the adjacent mesh:</p>
+
+<pre><code>mesh = RectangleMesh(0., 0, 1., 1, N, N)
+mesh_adjacent = RectangleMesh(1., 0, 2., 1, N, N)
+V_adjacent = FunctionSpace(mesh_adjacent, 'Lagrange', 1)
+u_adjacent = Function(V_adjacent)
+u_adjacent.assign(Constant(3.0))
+</code></pre>
+
+<p>I wish to use this "u_adjacent" in the "L" expression of the variational problem defined on "mesh".<br>
+Unsurprisingly, this does not work with the naive minimal implementation below.<br>
+Somehow one must tell FEniCS that the right boundary of "mesh" coincides with the left boundary of "mesh_adjacent".<br>
+If anybody has a hint - maybe in attacking this problem in a totally different manner - please let me know.<br>
+Thank you again Garth anyway.<br>
+Serge</p>
+
+<pre><code>from dolfin import *
+import numpy as np
+
+N = 10
+mesh = RectangleMesh(0., 0, 1., 1, N, N)
+mesh_adjacent = RectangleMesh(1., 0, 2., 1, N, N)
+V = FunctionSpace(mesh, 'Lagrange', 1)
+V_adjacent = FunctionSpace(mesh_adjacent, 'Lagrange', 1)
+
+class DirichletBoundary(SubDomain):
+    def inside(self, x, on_boundary):
+        tol = 1E-14
+        return on_boundary and ((abs(x[1] - 1) &lt; tol) or (abs(x[0] - 0) &lt; tol) or (abs(x[1] - 0) &lt; tol))
+D_boundary = DirichletBoundary()
+bc_D = DirichletBC(V, Constant(0.0), D_boundary)
+
+class RightBoundary(SubDomain):
+    def inside(self, x, on_boundary):
+        tol = 1E-14
+        return on_boundary and (abs(x[0] - 1) &lt; tol)
+rightBoundary = RightBoundary()
+
+boundaries = FacetFunction("size_t", mesh)
+rightBoundary.mark(boundaries, 1)
+dsR = ds(subdomain_id=1, subdomain_data=boundaries)
+
+u = TrialFunction(V)
+v = TestFunction(V)
+a = inner(grad(u), grad(v))*dx
+f = Constant(1.)
+
+u = Function(V)
+
+u_adjacent = Function(V_adjacent)
+u_adjacent.assign(Constant(3.0))
+
+L = f*v*dx + u_adjacent*v*dsR
+solve(a == L, u, bc_D)
+</code></pre>
+</div>
+													</div>
+													<div class="qa-c-item-footer">
+														<span class="qa-c-item-avatar-meta">
+															<span class="qa-c-item-meta">
+																<a href="../../6289/neumann-boundary-condition-defined-by-varying-function?show=6300#c6300" class="qa-c-item-what">commented</a>
+																<span class="qa-c-item-when">
+																	<span class="qa-c-item-when-data"><span class="published"><span class="value-title" title="2015-01-08T15:00:43+0000"></span>Jan 8, 2015</span></span>
+																</span>
+																<span class="qa-c-item-who">
+																	<span class="qa-c-item-who-pad">by </span>
+																	<span class="qa-c-item-who-data"><span class="vcard author"><a href="../../user/svancri" class="qa-user-link url nickname">svancri</a></span></span>
+																	<span class="qa-c-item-who-title">FEniCS Novice</span>
+																	<span class="qa-c-item-who-points">
+																		<span class="qa-c-item-who-points-pad">(</span><span class="qa-c-item-who-points-data">210</span><span class="qa-c-item-who-points-pad"> points)</span>
+																	</span>
+																</span>
+															</span>
+														</span>
+														<div class="qa-c-item-buttons">
+														</div>
+													</div>
+													<div class="qa-c-item-clear">
+													</div>
+												</div> <!-- END qa-c-item -->
+											</div> <!-- END qa-c-list -->
+											
+											<input type="hidden" name="code" value="0-1516468066-3dac02a83a68c8f50d7960907c62d5a475c260e9">
+											<input type="hidden" name="qa_click" value="">
+										</form>
+										<div class="qa-c-form">
+										</div> <!-- END qa-c-form -->
+										
+									</div> <!-- END qa-a-item-main -->
+									<div class="qa-a-item-clear">
+									</div>
+								</div> <!-- END qa-a-list-item -->
+								
+							</div> <!-- END qa-a-list -->
+							
+						</div>
+					</div> <!-- END qa-main -->
+					
+				</div> <!-- END main-wrapper -->
+			</div> <!-- END main-shadow -->
+		</div> <!-- END body-wrapper -->
+		<!-- END footer-bottom-group -->
+		
+		<div style="position:absolute; left:-9999px; top:-9999px;">
+			<span id="qa-waiting-template" class="qa-waiting">...</span>
+		</div>
+	
+	
+
+</body><!-- Powered by Question2Answer - http://www.question2answer.org/ --></html>

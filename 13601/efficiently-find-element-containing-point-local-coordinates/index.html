@@ -1,0 +1,170 @@
+<html><!-- Powered by Question2Answer - http://www.question2answer.org/ --><head>
+		<meta http-equiv="content-type" content="text/html; charset=utf-8">
+		<title>How can one efficiently find the element containing a point and its local coordinates? - FEniCS Q&amp;A</title>
+		<meta name="description" content="Dear All, I use FEniCS to implement a wide stencil scheme and have the following bottleneck in my computation: Given ... &gt;= 0.0 - self.TOL and x.sum()">
+		<meta name="keywords" content="semi-lagrangian,wide-stencil,interpolation,barycentric-coordinates">
+		<link rel="stylesheet" type="text/css" href="../../qa-theme/Snow/qa-styles.css">
+		<link rel="canonical" href="http://fenicsproject.org/qa/13601/efficiently-find-element-containing-point-local-coordinates">
+		<script type="text/x-mathjax-config">
+  MathJax.Hub.Config({
+    extensions: ["tex2jax.js"],
+    jax: ["input/TeX","output/HTML-CSS"],
+    tex2jax: {inlineMath: [["$","$"],["\\(","\\)"]]},
+    TeX: { extensions: ["AMSmath.js","AMSsymbols.js"]}
+  });
+</script>
+<script type="text/javascript" src="../../mathjax/MathJax.js"></script>
+		<script src="../../jquery-1.7.2.min.js" type="text/javascript"></script>
+		<script src="../../highlight.min.js"></script>
+<script type="text/javascript">
+$(function(){
+	$('.wmd-input').keypress(function(){
+		window.clearTimeout(hljs.Timeout);
+		hljs.Timeout = window.setTimeout(function() {
+			hljs.initHighlighting.called = false;
+			hljs.initHighlighting();
+		}, 500);
+	});
+	window.setTimeout(function() {
+		hljs.initHighlighting.called = false;
+		hljs.initHighlighting();
+	}, 500);
+});
+</script>
+
+
+	</head>
+	<body class="qa-template-question qa-body-js-off">
+		<div class="qa-body-wrapper">
+			
+			<div class="qa-header">
+				<div class="qa-logo">
+					<a href="../../" class="qa-logo-link" title="FEniCS Q&amp;A"><img src="../../qa-theme/fenics_qa.png" border="0" alt="FEniCS Q&amp;A"></a>
+				</div>
+				<div class="qa-header-clear">
+				</div>
+			</div> <!-- END qa-header -->
+			
+			<div class="qa-main-shadow">
+				
+				<div class="qa-main-wrapper">
+					
+					<div class="qa-sidepanel">
+						<div class="qa-sidebar">
+							This is a read only copy of the old FEniCS QA forum. Please visit the <a href="https://www.allanswered.com/community/s/fenics-project/">new QA forum</a> to ask questions
+						</div>
+						
+					</div>
+					
+					<div class="qa-main">
+						<h1>
+							<span class="entry-title">How can one efficiently find the element containing a point and its local coordinates?</span>
+						</h1>
+						<div class="qa-part-q-view">
+							<div class="qa-q-view  hentry question" id="q13601">
+								<form method="post" action="../../13601/efficiently-find-element-containing-point-local-coordinates">
+									<div class="qa-q-view-stats">
+										<div class="qa-voting qa-voting-net" id="voting_13601">
+											<div class="qa-vote-count qa-vote-count-net">
+												<span class="qa-netvote-count">
+													<span class="qa-netvote-count-data">+2<span class="votes-up"><span class="value-title" title="2"></span></span><span class="votes-down"><span class="value-title" title="0"></span></span></span><span class="qa-netvote-count-pad"> votes</span>
+												</span>
+											</div>
+											<div class="qa-vote-clear">
+											</div>
+										</div>
+									</div>
+									<input type="hidden" name="code" value="0-1516467873-bb2378e632399bc4f53fa6af2382be3e8cdabf74">
+								</form>
+								<div class="qa-q-view-main">
+									<form method="post" action="../../13601/efficiently-find-element-containing-point-local-coordinates">
+										<div class="qa-q-view-content">
+											<a name="13601"></a><div class="entry-content"><p>Dear All,</p>
+
+<p>I use FEniCS to implement a wide stencil scheme and have the following bottleneck in my computation: Given a point v somewhere in the computational domain, I need to find the element containing it and the local (barycentric) coordinates of v in that element. I have written the following code, which works but is very slowly:</p>
+
+<pre><code>def interpolate3(self, v):
+# given point coordinates return the interpolation weights
+cell = -1  # set to (non-negative) cell number when found
+x = [0.0, 0.0, 0.0]
+# Bounding box tree to determine relevant cells
+for c in self.bbt.compute_collisions(Point(v[0], v[1], v[2])):
+    # The barycentric coordinates are the interpolation weights
+    localvertices = self.coord[self.c2v[c]]  # vertex coordinates of cell
+    lA = localvertices[1:4] - localvertices[0]  # translate vertices 'towards origin'
+    lb = v - localvertices[0]  # translate first stencil point
+    x = np.linalg.solve(lA.T, lb)  # x in local coordinates
+    if x.min() &gt;= 0.0 - self.TOL and x.sum() &lt;= 1.0 + self.TOL:  # check if in cell
+        cell = c
+        break
+return [cell, x]
+</code></pre>
+
+<p>In words, I search with the bounding box tree which elements c may contain v and then solve a linear system to check whether (a) that is really the case and (b) find the local coordinates. However, for a mesh with a 10^6 DoFs, say, I might call this function 10^8 times, leading to a run time in days on my iMac.</p>
+
+<p>Is there a faster way to do this?</p>
+</div>
+										</div>
+										<div class="qa-q-view-tags">
+											<ul class="qa-q-view-tag-list">
+												<li class="qa-q-view-tag-item"><a href="../../tag/semi-lagrangian" rel="tag" class="qa-tag-link">semi-lagrangian</a></li>
+												<li class="qa-q-view-tag-item"><a href="../../tag/wide-stencil" rel="tag" class="qa-tag-link">wide-stencil</a></li>
+												<li class="qa-q-view-tag-item"><a href="../../tag/interpolation" rel="tag" class="qa-tag-link">interpolation</a></li>
+												<li class="qa-q-view-tag-item"><a href="../../tag/barycentric-coordinates" rel="tag" class="qa-tag-link">barycentric-coordinates</a></li>
+											</ul>
+										</div>
+										<span class="qa-q-view-avatar-meta">
+											<span class="qa-q-view-meta">
+												<a href="../../13601/efficiently-find-element-containing-point-local-coordinates" class="qa-q-view-what">asked</a>
+												<span class="qa-q-view-when">
+													<span class="qa-q-view-when-data"><span class="published"><span class="value-title" title="2017-05-23T07:35:21+0000"></span>May 23, 2017</span></span>
+												</span>
+												<span class="qa-q-view-who">
+													<span class="qa-q-view-who-pad">by </span>
+													<span class="qa-q-view-who-data"><span class="vcard author"><a href="../../user/Kolumbus" class="qa-user-link url nickname">Kolumbus</a></span></span>
+													<span class="qa-q-view-who-title">FEniCS Novice</span>
+													<span class="qa-q-view-who-points">
+														<span class="qa-q-view-who-points-pad">(</span><span class="qa-q-view-who-points-data">140</span><span class="qa-q-view-who-points-pad"> points)</span>
+													</span>
+												</span>
+											</span>
+										</span>
+										<div class="qa-q-view-buttons">
+										</div>
+										
+										<div class="qa-q-view-c-list" style="display:none;" id="c13601_list">
+										</div> <!-- END qa-c-list -->
+										
+										<input type="hidden" name="code" value="0-1516467873-56006db32563ece7d026f3ef853fa94826c70def">
+										<input type="hidden" name="qa_click" value="">
+									</form>
+									<div class="qa-c-form">
+									</div> <!-- END qa-c-form -->
+									
+								</div> <!-- END qa-q-view-main -->
+								<div class="qa-q-view-clear">
+								</div>
+							</div> <!-- END qa-q-view -->
+							
+						</div>
+						<div class="qa-part-a-list">
+							<h2 id="a_list_title" style="display:none;"></h2>
+							<div class="qa-a-list" id="a_list">
+								
+							</div> <!-- END qa-a-list -->
+							
+						</div>
+					</div> <!-- END qa-main -->
+					
+				</div> <!-- END main-wrapper -->
+			</div> <!-- END main-shadow -->
+		</div> <!-- END body-wrapper -->
+		<!-- END footer-bottom-group -->
+		
+		<div style="position:absolute; left:-9999px; top:-9999px;">
+			<span id="qa-waiting-template" class="qa-waiting">...</span>
+		</div>
+	
+	
+
+</body><!-- Powered by Question2Answer - http://www.question2answer.org/ --></html>

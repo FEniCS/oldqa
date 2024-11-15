@@ -1,0 +1,331 @@
+<html><!-- Powered by Question2Answer - http://www.question2answer.org/ --><head>
+		<meta http-equiv="content-type" content="text/html; charset=utf-8">
+		<title>Computing surface integral over spherical surface of subdomains - FEniCS Q&amp;A</title>
+		<meta name="description" content="My system consists of a box which contains a fluid with certain electrical properties and three spheres of material with  ... )+(x[2]-zc)*(x[2]-zc))">
+		<meta name="keywords" content="surface,integrals">
+		<link rel="stylesheet" type="text/css" href="../../qa-theme/Snow/qa-styles.css">
+		<link rel="canonical" href="http://fenicsproject.org/qa/12374/computing-surface-integral-spherical-surface-subdomains">
+		<script type="text/x-mathjax-config">
+  MathJax.Hub.Config({
+    extensions: ["tex2jax.js"],
+    jax: ["input/TeX","output/HTML-CSS"],
+    tex2jax: {inlineMath: [["$","$"],["\\(","\\)"]]},
+    TeX: { extensions: ["AMSmath.js","AMSsymbols.js"]}
+  });
+</script>
+<script type="text/javascript" src="../../mathjax/MathJax.js"></script>
+		<script src="../../jquery-1.7.2.min.js" type="text/javascript"></script>
+		<script src="../../highlight.min.js"></script>
+<script type="text/javascript">
+$(function(){
+	$('.wmd-input').keypress(function(){
+		window.clearTimeout(hljs.Timeout);
+		hljs.Timeout = window.setTimeout(function() {
+			hljs.initHighlighting.called = false;
+			hljs.initHighlighting();
+		}, 500);
+	});
+	window.setTimeout(function() {
+		hljs.initHighlighting.called = false;
+		hljs.initHighlighting();
+	}, 500);
+});
+</script>
+
+
+	</head>
+	<body class="qa-template-question qa-body-js-off">
+		<div class="qa-body-wrapper">
+			
+			<div class="qa-header">
+				<div class="qa-logo">
+					<a href="../../" class="qa-logo-link" title="FEniCS Q&amp;A"><img src="../../qa-theme/fenics_qa.png" border="0" alt="FEniCS Q&amp;A"></a>
+				</div>
+				<div class="qa-header-clear">
+				</div>
+			</div> <!-- END qa-header -->
+			
+			<div class="qa-main-shadow">
+				
+				<div class="qa-main-wrapper">
+					
+					<div class="qa-sidepanel">
+						<div class="qa-sidebar">
+							This is a read only copy of the old FEniCS QA forum. Please visit the <a href="https://www.allanswered.com/community/s/fenics-project/">new QA forum</a> to ask questions
+						</div>
+						
+					</div>
+					
+					<div class="qa-main">
+						<h1>
+							<span class="entry-title">Computing surface integral over spherical surface of subdomains</span>
+						</h1>
+						<div class="qa-part-q-view">
+							<div class="qa-q-view  hentry question" id="q12374">
+								<form method="post" action="../../12374/computing-surface-integral-spherical-surface-subdomains">
+									<div class="qa-q-view-stats">
+										<div class="qa-voting qa-voting-net" id="voting_12374">
+											<div class="qa-vote-count qa-vote-count-net">
+												<span class="qa-netvote-count">
+													<span class="qa-netvote-count-data">+1<span class="votes-up"><span class="value-title" title="1"></span></span><span class="votes-down"><span class="value-title" title="0"></span></span></span><span class="qa-netvote-count-pad"> vote</span>
+												</span>
+											</div>
+											<div class="qa-vote-clear">
+											</div>
+										</div>
+									</div>
+									<input type="hidden" name="code" value="0-1516467820-d69bc013ac5221bad9e2e64c4be2c5f1184e0528">
+								</form>
+								<div class="qa-q-view-main">
+									<form method="post" action="../../12374/computing-surface-integral-spherical-surface-subdomains">
+										<div class="qa-q-view-content">
+											<a name="12374"></a><div class="entry-content"><p>My system consists of a box which contains a fluid with certain electrical properties and three spheres of material with different properties. I would like to know if it is possible to calculate the integral of the Maxwell tensor on the bead surface.</p>
+
+<pre><code>from dolfin import *
+from mshr import  *
+import sys
+import os
+import string
+import numpy
+import xml.etree.ElementTree
+
+
+xBox0=0.
+yBox0=0.
+zBox0=0.
+xBox1=400e-6
+yBox1=100e-6
+zBox1=100e-6
+Cent_x=[]
+Cent_y=[]
+Cent_z=[]
+Rad=[]
+NSpheres=3
+Cent_x.append(10e-6)
+Cent_y.append(50e-6)
+Cent_z.append(50e-6)
+Rad.append(10e-6)
+Cent_x.append(10e-6)
+Cent_y.append(90e-6)
+Cent_z.append(90e-6)
+Rad.append(10e-6)
+Cent_x.append(390e-6)
+Cent_y.append(30e-6)
+Cent_z.append(30e-6)
+Rad.append(10e-6)
+
+
+# Create classes for defining parts of the boundaries and the interior
+# of the domain
+
+class LeftX(SubDomain):
+    def inside(self, x, on_boundary):
+        return near(x[0], xBox0)
+        print x[0]
+
+class RightX(SubDomain):
+    def inside(self, x, on_boundary):
+        return near(x[0], xBox1)
+
+class LeftY(SubDomain):
+    def inside(self, x, on_boundary):
+        return near(x[1], yBox0)
+
+class RightY(SubDomain):
+    def inside(self, x, on_boundary):
+        return near(x[1], yBox1)
+
+class Bottom(SubDomain):
+    def inside(self, x, on_boundary):
+        return near(x[2], zBox0)
+
+class Top(SubDomain):
+    def inside(self, x, on_boundary):
+        return near(x[2], zBox1)
+
+class Sfera(SubDomain):     # Attention xc,yc,zc,r are global variables
+      def inside(self,x,on_boundary):
+          tol =1.e-14
+          if (((x[0]-xc)*(x[0]-xc)+(x[1]-yc)*(x[1]-yc)+(x[2]-zc)*(x[2]-zc))&lt;=rd*rd):
+             value=True
+             print value
+          else:
+               value=False
+          return value
+
+
+# Initialize sub-domain instances
+
+leftx = LeftX()
+rightx = RightX()
+lefty = LeftY()
+righty = RightY()
+top = Top()
+bottom = Bottom()
+
+
+# Define domain and mesh
+
+domain = Box(Point(xBox0,yBox0,zBox0), Point(xBox1,yBox1,zBox1))
+
+mesh = generate_mesh(domain,64)
+
+# Initialize mesh function for interior domains
+
+# mark the subdomains
+
+subdom = MeshFunction("size_t", mesh, 3)
+subdom.set_all(0)
+i=1
+while i&lt;=NSpheres:
+      xc=Cent_x[i-1]
+      yc=Cent_y[i-1]
+      zc=Cent_z[i-1]
+      rd=Rad[i-1]
+      Sphcurr=Sfera()
+      Sphcurr.mark(subdom,i)
+      print i,xc,yc,zc,rd
+      i+=1
+
+# refine mesh in the particle region
+
+noref=2
+i=1
+while i&lt;=noref:
+      cell_markers = CellFunction("bool", mesh)
+      cell_markers.set_all(False)
+      for cell in cells(mesh):
+          ind = subdom[cell]
+          if ind &gt;= 1: #p.distance(center) &lt; 0.2 :
+             cell_markers[cell]=True
+      mesh = refine (mesh, cell_markers)
+      subdom = adapt(subdom, mesh)
+      i+=1
+
+
+# Initialize mesh function for boundary domains
+
+boundaries = FacetFunction("size_t", mesh)
+boundaries.set_all(0)
+top.mark(boundaries, 1)
+bottom.mark(boundaries, 2)
+lefty.mark(boundaries, 3)
+righty.mark(boundaries, 4)
+leftx.mark(boundaries, 5)
+rightx.mark(boundaries, 6)
+
+
+# Define input data
+
+f = Constant(0.0)
+
+# define function space and basis functions
+
+
+V = FunctionSpace(mesh, "CG", 2)
+U = TrialFunction(V)
+vr = TestFunction(V)
+
+
+# Define Dirichlet boundary conditions at top and bottom boundaries (imaginary part of Im(E) = 0)
+
+bcs = [DirichletBC(V, 0.0, boundaries, 1), DirichletBC(V, 1., boundaries, 2)]
+
+
+# Define new measures associated with the interior domains and
+# exterior boundaries
+
+dx = Measure('dx', domain=mesh, subdomain_data=subdom)
+
+ds = Measure('ds', domain=mesh, subdomain_data=boundaries)
+
+
+#Define variational form
+
+
+ar = inner(grad(U), grad(vr))*dx(0)
+Lr = f*vr*dx(0)
+
+i=1
+while i&lt;=NSpheres:
+      ar = ar + 1000000.0*inner(grad(U), grad(vr))*dx(i)
+      Lr = Lr+ f*vr*dx(i)
+      i+=1
+
+
+# Compute solution
+u = Function(V)
+
+a = assemble(ar)
+L = assemble(Lr)
+
+for bc in bcs: bc.apply(a,L)
+solve (a, u.vector(), L)
+
+
+file = File("ask.pvd")
+file &lt;&lt; u
+</code></pre>
+</div>
+										</div>
+										<div class="qa-q-view-tags">
+											<ul class="qa-q-view-tag-list">
+												<li class="qa-q-view-tag-item"><a href="../../tag/surface" rel="tag" class="qa-tag-link">surface</a></li>
+												<li class="qa-q-view-tag-item"><a href="../../tag/integrals" rel="tag" class="qa-tag-link">integrals</a></li>
+											</ul>
+										</div>
+										<span class="qa-q-view-avatar-meta">
+											<span class="qa-q-view-meta">
+												<a href="../../12374/computing-surface-integral-spherical-surface-subdomains" class="qa-q-view-what">asked</a>
+												<span class="qa-q-view-when">
+													<span class="qa-q-view-when-data"><span class="published"><span class="value-title" title="2017-02-08T10:34:09+0000"></span>Feb 8, 2017</span></span>
+												</span>
+												<span class="qa-q-view-who">
+													<span class="qa-q-view-who-pad">by </span>
+													<span class="qa-q-view-who-data"><span class="vcard author"><a href="../../user/MicCas" class="qa-user-link url nickname">MicCas</a></span></span>
+													<span class="qa-q-view-who-title">FEniCS Novice</span>
+													<span class="qa-q-view-who-points">
+														<span class="qa-q-view-who-points-pad">(</span><span class="qa-q-view-who-points-data">130</span><span class="qa-q-view-who-points-pad"> points)</span>
+													</span>
+												</span>
+											</span>
+										</span>
+										<div class="qa-q-view-buttons">
+										</div>
+										
+										<div class="qa-q-view-c-list" style="display:none;" id="c12374_list">
+										</div> <!-- END qa-c-list -->
+										
+										<input type="hidden" name="code" value="0-1516467820-5e0e22fa2be6f139eacf671be6c361f672ff9cf2">
+										<input type="hidden" name="qa_click" value="">
+									</form>
+									<div class="qa-c-form">
+									</div> <!-- END qa-c-form -->
+									
+								</div> <!-- END qa-q-view-main -->
+								<div class="qa-q-view-clear">
+								</div>
+							</div> <!-- END qa-q-view -->
+							
+						</div>
+						<div class="qa-part-a-list">
+							<h2 id="a_list_title" style="display:none;"></h2>
+							<div class="qa-a-list" id="a_list">
+								
+							</div> <!-- END qa-a-list -->
+							
+						</div>
+					</div> <!-- END qa-main -->
+					
+				</div> <!-- END main-wrapper -->
+			</div> <!-- END main-shadow -->
+		</div> <!-- END body-wrapper -->
+		<!-- END footer-bottom-group -->
+		
+		<div style="position:absolute; left:-9999px; top:-9999px;">
+			<span id="qa-waiting-template" class="qa-waiting">...</span>
+		</div>
+	
+	
+
+</body><!-- Powered by Question2Answer - http://www.question2answer.org/ --></html>

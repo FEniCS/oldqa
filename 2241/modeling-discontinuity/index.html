@@ -1,0 +1,380 @@
+<html><!-- Powered by Question2Answer - http://www.question2answer.org/ --><head>
+		<meta http-equiv="content-type" content="text/html; charset=utf-8">
+		<title>Modeling discontinuity - FEniCS Q&amp;A</title>
+		<meta name="description" content="Hi. Thank you all for a nice and good q/a forum. I'm new to FEniCS, so  ... other ways to deal with discontinuities in FEniCS? Greeting Christian">
+		<link rel="stylesheet" type="text/css" href="../../qa-theme/Snow/qa-styles.css">
+		<link rel="canonical" href="http://fenicsproject.org/qa/2241/modeling-discontinuity">
+		<script type="text/x-mathjax-config">
+  MathJax.Hub.Config({
+    extensions: ["tex2jax.js"],
+    jax: ["input/TeX","output/HTML-CSS"],
+    tex2jax: {inlineMath: [["$","$"],["\\(","\\)"]]},
+    TeX: { extensions: ["AMSmath.js","AMSsymbols.js"]}
+  });
+</script>
+<script type="text/javascript" src="../../mathjax/MathJax.js"></script>
+		<script src="../../jquery-1.7.2.min.js" type="text/javascript"></script>
+		<script src="../../highlight.min.js"></script>
+<script type="text/javascript">
+$(function(){
+	$('.wmd-input').keypress(function(){
+		window.clearTimeout(hljs.Timeout);
+		hljs.Timeout = window.setTimeout(function() {
+			hljs.initHighlighting.called = false;
+			hljs.initHighlighting();
+		}, 500);
+	});
+	window.setTimeout(function() {
+		hljs.initHighlighting.called = false;
+		hljs.initHighlighting();
+	}, 500);
+});
+</script>
+
+
+	</head>
+	<body class="qa-template-question qa-body-js-off">
+		<div class="qa-body-wrapper">
+			
+			<div class="qa-header">
+				<div class="qa-logo">
+					<a href="../../" class="qa-logo-link" title="FEniCS Q&amp;A"><img src="../../qa-theme/fenics_qa.png" border="0" alt="FEniCS Q&amp;A"></a>
+				</div>
+				<div class="qa-header-clear">
+				</div>
+			</div> <!-- END qa-header -->
+			
+			<div class="qa-main-shadow">
+				
+				<div class="qa-main-wrapper">
+					
+					<div class="qa-sidepanel">
+						<div class="qa-sidebar">
+							This is a read only copy of the old FEniCS QA forum. Please visit the <a href="https://www.allanswered.com/community/s/fenics-project/">new QA forum</a> to ask questions
+						</div>
+						
+					</div>
+					
+					<div class="qa-main">
+						<h1>
+							<span class="entry-title">Modeling discontinuity</span>
+						</h1>
+						<div class="qa-part-q-view">
+							<div class="qa-q-view  hentry question" id="q2241">
+								<form method="post" action="../../2241/modeling-discontinuity">
+									<div class="qa-q-view-stats">
+										<div class="qa-voting qa-voting-net" id="voting_2241">
+											<div class="qa-vote-count qa-vote-count-net">
+												<span class="qa-netvote-count">
+													<span class="qa-netvote-count-data">0<span class="votes-up"><span class="value-title" title="0"></span></span><span class="votes-down"><span class="value-title" title="0"></span></span></span><span class="qa-netvote-count-pad"> votes</span>
+												</span>
+											</div>
+											<div class="qa-vote-clear">
+											</div>
+										</div>
+									</div>
+									<input type="hidden" name="code" value="0-1516467919-fc32a1a591e1110a7ae78070b7f58287c722a603">
+								</form>
+								<div class="qa-q-view-main">
+									<form method="post" action="../../2241/modeling-discontinuity">
+										<div class="qa-q-view-content">
+											<a name="2241"></a><div class="entry-content"><p>Hi. </p>
+
+<p>Thank you all for a nice and good q/a forum.<br>
+I'm new to FEniCS, so please bear with me. </p>
+
+<p>I'm reading chapter 30 in the Fenics book about discontinuities in the solution. <br>
+And to understand it I tried to implement the code from figure 30.2, as follows:</p>
+
+<pre><code>from dolfin import *
+import sys, math, numpy
+
+nx = 40;  ny = 60
+mesh = UnitSquareMesh(nx, ny)
+h = mesh.hmax()
+
+# Define a MeshFunction over two subdomains
+dcdomain = MeshFunction("size_t", mesh, mesh.topology().dim())
+
+class OmegaHat(SubDomain):
+    def inside(self, x, on_boundary):
+        return True if x[1] &gt;= 0.5-h and x[1] &lt;= 0.5+h else False
+
+# Mark subdomains with numbers 0 and 1
+omegaHat = OmegaHat()
+dcdomain.set_all(0)
+omegaHat.mark(dcdomain, 1)
+
+dc = Measure("dx")[dcdomain]
+
+# Code below is from figure 30.2
+# Define contionous and discontiuous spaces
+Ec = FiniteElement("Lagrange", triangle, 1)
+Ed = RestrictedElement(Ec, dc)
+
+# Create enriched space
+E = Ec + Ed
+
+# Create test and tria functions
+v, u = TestFunction(E), TrialFunction(E)
+
+# Interface flux parameter and source term
+k = Constant(triangle)
+f = Coefficient(Ec)
+
+# Create linear and bilinear forms
+a = inner(grad(u), grad(v))*dx + k*jump(u)*jump(v)*dc
+L = f*v*dx
+</code></pre>
+
+<p>So <em>dc</em> is a measure as text tells. But FEniCS throws the following error:</p>
+
+<blockquote>
+  <p>Expecting a Cell instance, or the string 'facet'. Traceback (most<br>
+  recent call last):   File "demo.py", line 27, in <br>
+      Ed = RestrictedElement(Ec, dc)   File "/Applications/FEniCS.app/Contents/Resources/lib/python2.7/site-packages/ufl/finiteelement/restrictedelement.py",<br>
+  line 42, in <strong>init</strong><br>
+      "Expecting a Cell instance, or the string 'facet'.")   File "/Applications/FEniCS.app/Contents/Resources/lib/python2.7/site-packages/ufl/assertions.py",<br>
+  line 37, in ufl_assert<br>
+      if not condition: error(<em>message)   File "/Applications/FEniCS.app/Contents/Resources/lib/python2.7/site-packages/ufl/log.py",<br>
+  line 154, in error<br>
+      raise self._exception_type(self._format_raw(</em>message)) ufl.log.UFLException: Expecting a Cell instance, or the string<br>
+  'facet'.</p>
+</blockquote>
+
+<p>So it will not accept dc as a measure. Does anyone know what to do to get it right?<br>
+Do I need the form compiler from <a rel="nofollow" href="http://launchpad.net/ffc-pum">http://launchpad.net/ffc-pum</a> before I can do this?<br>
+That one is not available for FEniCS V 1.2?<br>
+If so, is there any other ways to deal with discontinuities in FEniCS?</p>
+
+<p>Greeting Christian</p>
+</div>
+										</div>
+										<span class="qa-q-view-avatar-meta">
+											<span class="qa-q-view-avatar">
+												<a href="../../user/christianv" class="qa-avatar-link"><img src="../../?qa=image&amp;qa_blobid=6727404027380851966&amp;qa_size=50" width="50" height="50" class="qa-avatar-image" alt=""></a>
+											</span>
+											<span class="qa-q-view-meta">
+												<a href="../../2241/modeling-discontinuity" class="qa-q-view-what">asked</a>
+												<span class="qa-q-view-when">
+													<span class="qa-q-view-when-data"><span class="published"><span class="value-title" title="2014-01-14T10:39:59+0000"></span>Jan 14, 2014</span></span>
+												</span>
+												<span class="qa-q-view-who">
+													<span class="qa-q-view-who-pad">by </span>
+													<span class="qa-q-view-who-data"><span class="vcard author"><a href="../../user/christianv" class="qa-user-link url nickname">christianv</a></span></span>
+													<span class="qa-q-view-who-title">FEniCS User</span>
+													<span class="qa-q-view-who-points">
+														<span class="qa-q-view-who-points-pad">(</span><span class="qa-q-view-who-points-data">2,460</span><span class="qa-q-view-who-points-pad"> points)</span>
+													</span>
+												</span>
+												<br>
+												<span class="qa-q-view-what">edited</span>
+												<span class="qa-q-view-when">
+													<span class="qa-q-view-when-data"><span class="updated"><span class="value-title" title="2014-01-14T12:18:00+0000"></span>Jan 14, 2014</span></span>
+												</span>
+												<span class="qa-q-view-who">
+													<span class="qa-q-view-who-pad">by </span><span class="qa-q-view-who-data"><a href="../../user/christianv" class="qa-user-link url nickname">christianv</a></span>
+												</span>
+											</span>
+										</span>
+										<div class="qa-q-view-buttons">
+										</div>
+										
+										<div class="qa-q-view-c-list" style="display:none;" id="c2241_list">
+										</div> <!-- END qa-c-list -->
+										
+										<input type="hidden" name="code" value="0-1516467919-39e1798032222a9183f9a5ec6f2af4337632937e">
+										<input type="hidden" name="qa_click" value="">
+									</form>
+									<div class="qa-c-form">
+									</div> <!-- END qa-c-form -->
+									
+								</div> <!-- END qa-q-view-main -->
+								<div class="qa-q-view-clear">
+								</div>
+							</div> <!-- END qa-q-view -->
+							
+						</div>
+						<div class="qa-part-a-list">
+							<h2 id="a_list_title">1 Answer</h2>
+							<div class="qa-a-list" id="a_list">
+								
+								<div class="qa-a-list-item  hentry answer answer-selected qa-a-list-item-selected" id="a2245">
+									<form method="post" action="../../2241/modeling-discontinuity">
+										<div class="qa-voting qa-voting-net" id="voting_2245">
+											<div class="qa-vote-count qa-vote-count-net">
+												<span class="qa-netvote-count">
+													<span class="qa-netvote-count-data">+3<span class="votes-up"><span class="value-title" title="3"></span></span><span class="votes-down"><span class="value-title" title="0"></span></span></span><span class="qa-netvote-count-pad"> votes</span>
+												</span>
+											</div>
+											<div class="qa-vote-clear">
+											</div>
+										</div>
+										<input type="hidden" name="code" value="0-1516467919-fc32a1a591e1110a7ae78070b7f58287c722a603">
+									</form>
+									<div class="qa-a-item-main">
+										<form method="post" action="../../2241/modeling-discontinuity">
+											<div class="qa-a-item-selected">
+												<div class="qa-a-selection">
+													<div class="qa-a-selected">&#160;</div>
+													<div class="qa-a-selected-text">Best answer</div>
+												</div>
+												<div class="qa-a-item-content">
+													<a name="2245"></a><div class="entry-content"><p>Yes, you need <code>ffc-pum</code> compiler. Moreover, I don't think it works with python interface. Nevertheless, <code>dolfin-pum</code> and <code>ffc-pum</code> are not maintained anymore. You can probably use it with FEniCS 1.0 or some development version between 1.0 and 1.1.</p>
+
+<p>There is a newly started effort <a rel="nofollow" href="https://bitbucket.org/terafrac/terafrac.">https://bitbucket.org/terafrac/terafrac.</a></p>
+</div>
+												</div>
+												<span class="qa-a-item-avatar-meta">
+													<span class="qa-a-item-avatar">
+														<a href="../../user/Jan+Blechta" class="qa-avatar-link"><img src="https://www.gravatar.com/avatar/dc6f8dce77e4a0bd5adc7ff31ab83741?s=40" width="40" height="40" class="qa-avatar-image" alt=""></a>
+													</span>
+													<span class="qa-a-item-meta">
+														<a href="../../2241/modeling-discontinuity?show=2245#a2245" class="qa-a-item-what">answered</a>
+														<span class="qa-a-item-when">
+															<span class="qa-a-item-when-data"><span class="published"><span class="value-title" title="2014-01-14T12:57:18+0000"></span>Jan 14, 2014</span></span>
+														</span>
+														<span class="qa-a-item-who">
+															<span class="qa-a-item-who-pad">by </span>
+															<span class="qa-a-item-who-data"><span class="vcard author"><a href="../../user/Jan+Blechta" class="qa-user-link url nickname">Jan Blechta</a></span></span>
+															<span class="qa-a-item-who-title">FEniCS Expert</span>
+															<span class="qa-a-item-who-points">
+																<span class="qa-a-item-who-points-pad">(</span><span class="qa-a-item-who-points-data">51,420</span><span class="qa-a-item-who-points-pad"> points)</span>
+															</span>
+														</span>
+														<br>
+														<span class="qa-a-item-what">selected</span>
+														<span class="qa-a-item-when">
+															<span class="qa-a-item-when-data"><span class="updated"><span class="value-title" title="2015-02-12T07:42:15+0000"></span>Feb 12, 2015</span></span>
+														</span>
+														<span class="qa-a-item-who">
+															<span class="qa-a-item-who-pad">by </span><span class="qa-a-item-who-data"><a href="../../user/christianv" class="qa-user-link url nickname">christianv</a></span>
+														</span>
+													</span>
+												</span>
+											</div>
+											<div class="qa-a-item-buttons">
+												</div>
+											
+											<div class="qa-a-item-c-list" id="c2245_list">
+												<div class="qa-c-list-item  hentry comment" id="c12873">
+													<div class="qa-c-item-content">
+														<a name="12873"></a><div class="entry-content"><p>Hi Blechta</p>
+
+<p>I am unable to find this link. Is there any new start for the FEniCS PUM ?</p>
+
+<p>Thanks</p>
+</div>
+													</div>
+													<div class="qa-c-item-footer">
+														<span class="qa-c-item-avatar-meta">
+															<span class="qa-c-item-meta">
+																<a href="../../2241/modeling-discontinuity?show=12873#c12873" class="qa-c-item-what">commented</a>
+																<span class="qa-c-item-when">
+																	<span class="qa-c-item-when-data"><span class="published"><span class="value-title" title="2017-03-30T08:55:34+0000"></span>Mar 30, 2017</span></span>
+																</span>
+																<span class="qa-c-item-who">
+																	<span class="qa-c-item-who-pad">by </span>
+																	<span class="qa-c-item-who-data"><span class="vcard author"><a href="../../user/hirshikesh" class="qa-user-link url nickname">hirshikesh</a></span></span>
+																	<span class="qa-c-item-who-title">FEniCS User</span>
+																	<span class="qa-c-item-who-points">
+																		<span class="qa-c-item-who-points-pad">(</span><span class="qa-c-item-who-points-data">1,890</span><span class="qa-c-item-who-points-pad"> points)</span>
+																	</span>
+																</span>
+															</span>
+														</span>
+														<div class="qa-c-item-buttons">
+														</div>
+													</div>
+													<div class="qa-c-item-clear">
+													</div>
+												</div> <!-- END qa-c-item -->
+												<div class="qa-c-list-item  hentry comment" id="c12875">
+													<div class="qa-c-item-content">
+														<a name="12875"></a><div class="entry-content"><p>I'm note aware of any.</p>
+</div>
+													</div>
+													<div class="qa-c-item-footer">
+														<span class="qa-c-item-avatar-meta">
+															<span class="qa-c-item-avatar">
+																<a href="../../user/Jan+Blechta" class="qa-avatar-link"><img src="https://www.gravatar.com/avatar/dc6f8dce77e4a0bd5adc7ff31ab83741?s=20" width="20" height="20" class="qa-avatar-image" alt=""></a>
+															</span>
+															<span class="qa-c-item-meta">
+																<a href="../../2241/modeling-discontinuity?show=12875#c12875" class="qa-c-item-what">commented</a>
+																<span class="qa-c-item-when">
+																	<span class="qa-c-item-when-data"><span class="published"><span class="value-title" title="2017-03-30T09:33:54+0000"></span>Mar 30, 2017</span></span>
+																</span>
+																<span class="qa-c-item-who">
+																	<span class="qa-c-item-who-pad">by </span>
+																	<span class="qa-c-item-who-data"><span class="vcard author"><a href="../../user/Jan+Blechta" class="qa-user-link url nickname">Jan Blechta</a></span></span>
+																	<span class="qa-c-item-who-title">FEniCS Expert</span>
+																	<span class="qa-c-item-who-points">
+																		<span class="qa-c-item-who-points-pad">(</span><span class="qa-c-item-who-points-data">51,420</span><span class="qa-c-item-who-points-pad"> points)</span>
+																	</span>
+																</span>
+															</span>
+														</span>
+														<div class="qa-c-item-buttons">
+														</div>
+													</div>
+													<div class="qa-c-item-clear">
+													</div>
+												</div> <!-- END qa-c-item -->
+												<div class="qa-c-list-item  hentry comment" id="c12877">
+													<div class="qa-c-item-content">
+														<a name="12877"></a><div class="entry-content"><p>Thanks for the reply</p>
+</div>
+													</div>
+													<div class="qa-c-item-footer">
+														<span class="qa-c-item-avatar-meta">
+															<span class="qa-c-item-meta">
+																<a href="../../2241/modeling-discontinuity?show=12877#c12877" class="qa-c-item-what">commented</a>
+																<span class="qa-c-item-when">
+																	<span class="qa-c-item-when-data"><span class="published"><span class="value-title" title="2017-03-30T09:45:02+0000"></span>Mar 30, 2017</span></span>
+																</span>
+																<span class="qa-c-item-who">
+																	<span class="qa-c-item-who-pad">by </span>
+																	<span class="qa-c-item-who-data"><span class="vcard author"><a href="../../user/hirshikesh" class="qa-user-link url nickname">hirshikesh</a></span></span>
+																	<span class="qa-c-item-who-title">FEniCS User</span>
+																	<span class="qa-c-item-who-points">
+																		<span class="qa-c-item-who-points-pad">(</span><span class="qa-c-item-who-points-data">1,890</span><span class="qa-c-item-who-points-pad"> points)</span>
+																	</span>
+																</span>
+															</span>
+														</span>
+														<div class="qa-c-item-buttons">
+														</div>
+													</div>
+													<div class="qa-c-item-clear">
+													</div>
+												</div> <!-- END qa-c-item -->
+											</div> <!-- END qa-c-list -->
+											
+											<input type="hidden" name="code" value="0-1516467919-9d3865562f80a3a431488dfab4c8b6a5dbe66f43">
+											<input type="hidden" name="qa_click" value="">
+										</form>
+										<div class="qa-c-form">
+										</div> <!-- END qa-c-form -->
+										
+									</div> <!-- END qa-a-item-main -->
+									<div class="qa-a-item-clear">
+									</div>
+								</div> <!-- END qa-a-list-item -->
+								
+							</div> <!-- END qa-a-list -->
+							
+						</div>
+					</div> <!-- END qa-main -->
+					
+				</div> <!-- END main-wrapper -->
+			</div> <!-- END main-shadow -->
+		</div> <!-- END body-wrapper -->
+		<!-- END footer-bottom-group -->
+		
+		<div style="position:absolute; left:-9999px; top:-9999px;">
+			<span id="qa-waiting-template" class="qa-waiting">...</span>
+		</div>
+	
+	
+
+</body><!-- Powered by Question2Answer - http://www.question2answer.org/ --></html>

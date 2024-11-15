@@ -1,0 +1,366 @@
+<html><!-- Powered by Question2Answer - http://www.question2answer.org/ --><head>
+		<meta http-equiv="content-type" content="text/html; charset=utf-8">
+		<title>Error:   Unable to define nonlinear variational problem F(u; v) = 0 for all v. - FEniCS Q&amp;A</title>
+		<meta name="description" content="Hi All, Please can someone help with this. When I run the NonlinearVariationalProblem I get the following error.  ...  + f4 T_total = 1 t=dt while (t">
+		<meta name="keywords" content="jacobian,fenics,nonlinear-term,nonlinear">
+		<link rel="stylesheet" type="text/css" href="../../qa-theme/Snow/qa-styles.css">
+		<link rel="canonical" href="http://fenicsproject.org/qa/8646/error-unable-define-nonlinear-variational-problem-for-all">
+		<script type="text/x-mathjax-config">
+  MathJax.Hub.Config({
+    extensions: ["tex2jax.js"],
+    jax: ["input/TeX","output/HTML-CSS"],
+    tex2jax: {inlineMath: [["$","$"],["\\(","\\)"]]},
+    TeX: { extensions: ["AMSmath.js","AMSsymbols.js"]}
+  });
+</script>
+<script type="text/javascript" src="../../mathjax/MathJax.js"></script>
+		<script src="../../jquery-1.7.2.min.js" type="text/javascript"></script>
+		<script src="../../highlight.min.js"></script>
+<script type="text/javascript">
+$(function(){
+	$('.wmd-input').keypress(function(){
+		window.clearTimeout(hljs.Timeout);
+		hljs.Timeout = window.setTimeout(function() {
+			hljs.initHighlighting.called = false;
+			hljs.initHighlighting();
+		}, 500);
+	});
+	window.setTimeout(function() {
+		hljs.initHighlighting.called = false;
+		hljs.initHighlighting();
+	}, 500);
+});
+</script>
+
+
+	</head>
+	<body class="qa-template-question qa-body-js-off">
+		<div class="qa-body-wrapper">
+			
+			<div class="qa-header">
+				<div class="qa-logo">
+					<a href="../../" class="qa-logo-link" title="FEniCS Q&amp;A"><img src="../../qa-theme/fenics_qa.png" border="0" alt="FEniCS Q&amp;A"></a>
+				</div>
+				<div class="qa-header-clear">
+				</div>
+			</div> <!-- END qa-header -->
+			
+			<div class="qa-main-shadow">
+				
+				<div class="qa-main-wrapper">
+					
+					<div class="qa-sidepanel">
+						<div class="qa-sidebar">
+							This is a read only copy of the old FEniCS QA forum. Please visit the <a href="https://www.allanswered.com/community/s/fenics-project/">new QA forum</a> to ask questions
+						</div>
+						
+					</div>
+					
+					<div class="qa-main">
+						<h1>
+							<span class="entry-title">Error:   Unable to define nonlinear variational problem F(u; v) = 0 for all v.</span>
+						</h1>
+						<div class="qa-part-q-view">
+							<div class="qa-q-view  hentry question" id="q8646">
+								<form method="post" action="../../8646/error-unable-define-nonlinear-variational-problem-for-all">
+									<div class="qa-q-view-stats">
+										<div class="qa-voting qa-voting-net" id="voting_8646">
+											<div class="qa-vote-count qa-vote-count-net">
+												<span class="qa-netvote-count">
+													<span class="qa-netvote-count-data">+1<span class="votes-up"><span class="value-title" title="1"></span></span><span class="votes-down"><span class="value-title" title="0"></span></span></span><span class="qa-netvote-count-pad"> vote</span>
+												</span>
+											</div>
+											<div class="qa-vote-clear">
+											</div>
+										</div>
+									</div>
+									<input type="hidden" name="code" value="0-1516468184-9428dcf8ef29a2899d37a108b5bc1e5a3752a62e">
+								</form>
+								<div class="qa-q-view-main">
+									<form method="post" action="../../8646/error-unable-define-nonlinear-variational-problem-for-all">
+										<div class="qa-q-view-content">
+											<a name="8646"></a><div class="entry-content"><p>Hi All,</p>
+
+<p>Please can someone help with this. When I run the NonlinearVariationalProblem I get the following error.  I cant seem to figure out what the problem is. Below is my code and the error.</p>
+
+<h2>Thanks for any help</h2>
+
+<pre><code>from dolfin import *
+
+#Subdomain for Perodic Boundary conditions
+class PeriodicBoundary(SubDomain):
+
+# left boundary is "target domain"
+def inside(self, x, on_boundary):
+    return bool(x[0]&lt; DOLFIN_EPS and x[0]&gt; - DOLFIN_EPS and on_boundary)
+
+# Map right boundary to left boundary
+def map(self, x, y):
+    y[0] = x[0] - 1.0
+    y[1] = x[1]
+
+pbc = PeriodicBoundary()
+
+mesh = RectangleMesh(Point(-1,-1),Point(1,1),200,200) #Domain[-1,1]*[-1,1]
+
+V1= VectorFunctionSpace(mesh, 'CG', degree=2, constrained_domain = pbc)
+V2=VectorFunctionSpace(mesh, 'CG', degree=2, constrained_domain= pbc)
+Q1 = FunctionSpace(mesh, 'CG', degree=1, constrained_domain = pbc )
+Q2 = FunctionSpace(mesh, 'CG', degree=1, constrained_domain = pbc)
+VQ = MixedFunctionSpace([V1,V2, Q1, Q2])
+
+ # Define trial and test functions
+ duu = TrialFunctions(VQ)
+ m,h,q,r = TestFunctions(VQ)
+
+ H= Function(VQ)  
+ U,u, phi,p = split(H)
+
+
+#  Dirichlet boundary condition
+# Sub domain for Dirichlet boundary condition
+class Top(SubDomain):
+     def inside(self, x, on_boundary):
+          return (x[1]&gt;1 - DOLFIN_EPS and on_boundary)
+
+ class Bottom(SubDomain):
+      def inside(self, x, on_boundary):
+        return (x[1]&lt; -1 + DOLFIN_EPS and on_boundary)
+
+UB= Constant((-1,0))
+UT= Constant((1,0))
+ub= Constant((-1,0))
+ut= Constant((1,0))
+
+top= Top()
+bott = Bottom()
+
+bcUB= DirichletBC(VQ.sub(0), UB  ,bott)
+bcUT= DirichletBC(VQ.sub(0), UB  ,top)
+bcub= DirichletBC(VQ.sub(1), ub  ,bott )
+bcut= DirichletBC(VQ.sub(1), ub  ,top )
+
+ bcs = [bcUB,bcUT, bcub,bcut]
+
+
+ #constants
+ c = Constant (2/3)
+xi0= Constant(1)
+n = Constant(2)
+alpha = Constant(25)
+
+
+# initial conditions
+U_int = Expression(["x[1]", "x[1]"])   
+u_int = Expression(["x[1]", "x[1]"])
+phi_int= Constant(0.01)
+p_int = Constant(0.0)
+
+U00 = interpolate(U_int, V1)   
+u00= interpolate(u_int,V2)
+phi00=interpolate(phi_int,Q1)
+p00 = interpolate(p_int, Q2)
+
+ U0 = U00       
+ u0 = u00       
+ phi0 = phi00   
+ p0 = p00       
+
+
+ k_phi = (phi/phi0)**n
+eta = exp(-alpha*(phi-phi0))
+xi = xi0* eta
+dt=0.01
+
+f1 = phi*q*dx - phi0*q*dx - dt*div((1-phi)*U)*q*dx  
+f2 = inner(phi*(u-U), m)*dx  + k_phi * p*div(m)*dx
+f3 = p*div(h)*dx + eta*inner(grad(U) + grad(U).T, grad(h))*dx - (xi*div(U)) *div(h)*dx +   c*(eta*div(U))*div(h)*dx  
+f4 = div(phi*u + (1-phi)*U)*r*dx   
+
+F1 = f1 + f2 + f3 + f4          
+
+
+T_total = 1
+t=dt
+ while (t&lt;=T_total):
+      F = action(F1, H)
+      Jac = derivative(F, H)
+  problem = NonlinearVariationalProblem(F,H,bcs, Jac)
+  solver = NonlinearVariationalSolver(problem)
+  solver.solve()
+  t+=dt
+  (U00, u00, phi00, p00).assign(H)
+</code></pre>
+
+<p>problem = NonlinearVariationalProblem(F,H,bcs, Jac)<br>
+  File "/usr/lib/python2.7/dist-packages/dolfin/fem/solving.py", line 153, in <strong>init</strong><br>
+    cpp.NonlinearVariationalProblem.<strong>init</strong>(self, F, u, bcs, J)<br>
+  File "/usr/lib/python2.7/dist-packages/dolfin/cpp/fem.py", line 2627, in <strong>init</strong><br>
+    _fem.NonlinearVariationalProblem_swiginit(self,_fem.new_NonlinearVariationalProblem(*args))<br>
+RuntimeError: </p>
+
+<p>*** -------------------------------------------------------------------------<br>
+*** DOLFIN encountered an error. If you are not able to resolve this issue<br>
+*** using the information listed below, you can ask for help at</p>
+
+<hr>
+
+<p>***     fenics@fenicsproject.org</p>
+
+<hr>
+
+<p>*** Remember to include the error message listed below and, if possible,<br>
+*** include a <em>minimal</em> running example to reproduce the error.</p>
+
+<hr>
+
+<p>*** -------------------------------------------------------------------------<br>
+*** Error:   Unable to define nonlinear variational problem F(u; v) = 0 for all v.<br>
+*** Reason:  Expecting the residual F to be a linear form (not rank 0).<br>
+*** Where:   This error was encountered inside NonlinearVariationalProblem.cpp.<br>
+*** Process: 0</p>
+
+<hr>
+
+<p>*** DOLFIN version: 1.6.0<br>
+*** Git changeset:  unknown<br>
+*** -------------------------------------------------------------------------</p>
+</div>
+										</div>
+										<div class="qa-q-view-tags">
+											<ul class="qa-q-view-tag-list">
+												<li class="qa-q-view-tag-item"><a href="../../tag/jacobian" rel="tag" class="qa-tag-link">jacobian</a></li>
+												<li class="qa-q-view-tag-item"><a href="../../tag/fenics" rel="tag" class="qa-tag-link">fenics</a></li>
+												<li class="qa-q-view-tag-item"><a href="../../tag/nonlinear-term" rel="tag" class="qa-tag-link">nonlinear-term</a></li>
+												<li class="qa-q-view-tag-item"><a href="../../tag/nonlinear" rel="tag" class="qa-tag-link">nonlinear</a></li>
+											</ul>
+										</div>
+										<span class="qa-q-view-avatar-meta">
+											<span class="qa-q-view-meta">
+												<a href="../../8646/error-unable-define-nonlinear-variational-problem-for-all" class="qa-q-view-what">asked</a>
+												<span class="qa-q-view-when">
+													<span class="qa-q-view-when-data"><span class="published"><span class="value-title" title="2015-11-20T17:58:59+0000"></span>Nov 20, 2015</span></span>
+												</span>
+												<span class="qa-q-view-who">
+													<span class="qa-q-view-who-pad">by </span>
+													<span class="qa-q-view-who-data"><span class="vcard author"><a href="../../user/Vivian" class="qa-user-link url nickname">Vivian</a></span></span>
+													<span class="qa-q-view-who-title">FEniCS Novice</span>
+													<span class="qa-q-view-who-points">
+														<span class="qa-q-view-who-points-pad">(</span><span class="qa-q-view-who-points-data">550</span><span class="qa-q-view-who-points-pad"> points)</span>
+													</span>
+												</span>
+											</span>
+										</span>
+										<div class="qa-q-view-buttons">
+										</div>
+										
+										<div class="qa-q-view-c-list" style="display:none;" id="c8646_list">
+										</div> <!-- END qa-c-list -->
+										
+										<input type="hidden" name="code" value="0-1516468184-ebd859b2b774f1b30fbb290d4284852a1c3a4be9">
+										<input type="hidden" name="qa_click" value="">
+									</form>
+									<div class="qa-c-form">
+									</div> <!-- END qa-c-form -->
+									
+								</div> <!-- END qa-q-view-main -->
+								<div class="qa-q-view-clear">
+								</div>
+							</div> <!-- END qa-q-view -->
+							
+						</div>
+						<div class="qa-part-a-list">
+							<h2 id="a_list_title">1 Answer</h2>
+							<div class="qa-a-list" id="a_list">
+								
+								<div class="qa-a-list-item  hentry answer" id="a8670">
+									<form method="post" action="../../8646/error-unable-define-nonlinear-variational-problem-for-all">
+										<div class="qa-voting qa-voting-net" id="voting_8670">
+											<div class="qa-vote-count qa-vote-count-net">
+												<span class="qa-netvote-count">
+													<span class="qa-netvote-count-data">+1<span class="votes-up"><span class="value-title" title="1"></span></span><span class="votes-down"><span class="value-title" title="0"></span></span></span><span class="qa-netvote-count-pad"> vote</span>
+												</span>
+											</div>
+											<div class="qa-vote-clear">
+											</div>
+										</div>
+										<input type="hidden" name="code" value="0-1516468184-9428dcf8ef29a2899d37a108b5bc1e5a3752a62e">
+									</form>
+									<div class="qa-a-item-main">
+										<form method="post" action="../../8646/error-unable-define-nonlinear-variational-problem-for-all">
+											<div class="qa-a-selection">
+											</div>
+											<div class="qa-a-item-content">
+												<a name="8670"></a><div class="entry-content"><p>The problem is that in your residual form F doesn't exists Trial Functions. The solution for that is use:</p>
+
+<pre><code># Define trial and test functions
+(U, u, phi, p) = TrialFunctions(VQ)
+(m, h, q, r)   = TestFunctions(VQ)
+
+H = Function(VQ)  
+</code></pre>
+
+<p>instead of</p>
+
+<pre><code># Define trial and test functions
+duu = TrialFunctions(VQ)
+m,h,q,r = TestFunctions(VQ)
+
+H = Function(VQ)  
+U,u, phi,p = split(H)
+</code></pre>
+</div>
+											</div>
+											<span class="qa-a-item-avatar-meta">
+												<span class="qa-a-item-avatar">
+													<a href="../../user/hernan_mella" class="qa-avatar-link"><img src="../../?qa=image&amp;qa_blobid=14920815903966845416&amp;qa_size=40" width="40" height="22" class="qa-avatar-image" alt=""></a>
+												</span>
+												<span class="qa-a-item-meta">
+													<a href="../../8646/error-unable-define-nonlinear-variational-problem-for-all?show=8670#a8670" class="qa-a-item-what">answered</a>
+													<span class="qa-a-item-when">
+														<span class="qa-a-item-when-data"><span class="published"><span class="value-title" title="2015-11-24T00:23:13+0000"></span>Nov 24, 2015</span></span>
+													</span>
+													<span class="qa-a-item-who">
+														<span class="qa-a-item-who-pad">by </span>
+														<span class="qa-a-item-who-data"><span class="vcard author"><a href="../../user/hernan_mella" class="qa-user-link url nickname">hernan_mella</a></span></span>
+														<span class="qa-a-item-who-title">FEniCS Expert</span>
+														<span class="qa-a-item-who-points">
+															<span class="qa-a-item-who-points-pad">(</span><span class="qa-a-item-who-points-data">19,460</span><span class="qa-a-item-who-points-pad"> points)</span>
+														</span>
+													</span>
+												</span>
+											</span>
+											<div class="qa-a-item-buttons">
+												</div>
+											
+											<div class="qa-a-item-c-list" style="display:none;" id="c8670_list">
+											</div> <!-- END qa-c-list -->
+											
+											<input type="hidden" name="code" value="0-1516468184-32451123ee22feffdf7d78ca5e35f281f322b5a5">
+											<input type="hidden" name="qa_click" value="">
+										</form>
+										<div class="qa-c-form">
+										</div> <!-- END qa-c-form -->
+										
+									</div> <!-- END qa-a-item-main -->
+									<div class="qa-a-item-clear">
+									</div>
+								</div> <!-- END qa-a-list-item -->
+								
+							</div> <!-- END qa-a-list -->
+							
+						</div>
+					</div> <!-- END qa-main -->
+					
+				</div> <!-- END main-wrapper -->
+			</div> <!-- END main-shadow -->
+		</div> <!-- END body-wrapper -->
+		<!-- END footer-bottom-group -->
+		
+		<div style="position:absolute; left:-9999px; top:-9999px;">
+			<span id="qa-waiting-template" class="qa-waiting">...</span>
+		</div>
+	
+	
+
+</body><!-- Powered by Question2Answer - http://www.question2answer.org/ --></html>

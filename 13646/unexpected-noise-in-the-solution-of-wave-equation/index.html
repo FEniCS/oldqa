@@ -1,0 +1,365 @@
+<html><!-- Powered by Question2Answer - http://www.question2answer.org/ --><head>
+		<meta http-equiv="content-type" content="text/html; charset=utf-8">
+		<title>Unexpected noise in the solution of wave equation - FEniCS Q&amp;A</title>
+		<meta name="description" content="Hello, I'm solving the wave equations in 2D using the Newmark method for the time integration and  ... +&quot;_&quot;+str(size)+&quot;_pressure_0acc.pvd&quot;) vtk_file_a">
+		<meta name="keywords" content="wave-equation,2d,noise">
+		<link rel="stylesheet" type="text/css" href="../../qa-theme/Snow/qa-styles.css">
+		<link rel="canonical" href="http://fenicsproject.org/qa/13646/unexpected-noise-in-the-solution-of-wave-equation">
+		<script type="text/x-mathjax-config">
+  MathJax.Hub.Config({
+    extensions: ["tex2jax.js"],
+    jax: ["input/TeX","output/HTML-CSS"],
+    tex2jax: {inlineMath: [["$","$"],["\\(","\\)"]]},
+    TeX: { extensions: ["AMSmath.js","AMSsymbols.js"]}
+  });
+</script>
+<script type="text/javascript" src="../../mathjax/MathJax.js"></script>
+		<script src="../../jquery-1.7.2.min.js" type="text/javascript"></script>
+		<script src="../../highlight.min.js"></script>
+<script type="text/javascript">
+$(function(){
+	$('.wmd-input').keypress(function(){
+		window.clearTimeout(hljs.Timeout);
+		hljs.Timeout = window.setTimeout(function() {
+			hljs.initHighlighting.called = false;
+			hljs.initHighlighting();
+		}, 500);
+	});
+	window.setTimeout(function() {
+		hljs.initHighlighting.called = false;
+		hljs.initHighlighting();
+	}, 500);
+});
+</script>
+
+
+	</head>
+	<body class="qa-template-question qa-body-js-off">
+		<div class="qa-body-wrapper">
+			
+			<div class="qa-header">
+				<div class="qa-logo">
+					<a href="../../" class="qa-logo-link" title="FEniCS Q&amp;A"><img src="../../qa-theme/fenics_qa.png" border="0" alt="FEniCS Q&amp;A"></a>
+				</div>
+				<div class="qa-header-clear">
+				</div>
+			</div> <!-- END qa-header -->
+			
+			<div class="qa-main-shadow">
+				
+				<div class="qa-main-wrapper">
+					
+					<div class="qa-sidepanel">
+						<div class="qa-sidebar">
+							This is a read only copy of the old FEniCS QA forum. Please visit the <a href="https://www.allanswered.com/community/s/fenics-project/">new QA forum</a> to ask questions
+						</div>
+						
+					</div>
+					
+					<div class="qa-main">
+						<h1>
+							<span class="entry-title">Unexpected noise in the solution of wave equation</span>
+						</h1>
+						<div class="qa-part-q-view">
+							<div class="qa-q-view  hentry question" id="q13646">
+								<form method="post" action="../../13646/unexpected-noise-in-the-solution-of-wave-equation">
+									<div class="qa-q-view-stats">
+										<div class="qa-voting qa-voting-net" id="voting_13646">
+											<div class="qa-vote-count qa-vote-count-net">
+												<span class="qa-netvote-count">
+													<span class="qa-netvote-count-data">+3<span class="votes-up"><span class="value-title" title="3"></span></span><span class="votes-down"><span class="value-title" title="0"></span></span></span><span class="qa-netvote-count-pad"> votes</span>
+												</span>
+											</div>
+											<div class="qa-vote-clear">
+											</div>
+										</div>
+									</div>
+									<input type="hidden" name="code" value="0-1516467875-4f50f01a4c04029ee6222094e9bf2fba37c90feb">
+								</form>
+								<div class="qa-q-view-main">
+									<form method="post" action="../../13646/unexpected-noise-in-the-solution-of-wave-equation">
+										<div class="qa-q-view-content">
+											<a name="13646"></a><div class="entry-content"><p>Hello, </p>
+
+<p>I'm solving the wave equations in 2D using the Newmark method for the time integration and something is wrong with my solution: it contains unexpected noise. </p>
+
+<p>I'm solving it with respect to the acceleration and use the initial condition u0 on the displacement to find the initial condition a0 of the acceleration.</p>
+
+<p>Can anyone spot where is the error? </p>
+
+<pre><code>from dolfin import *
+from mshr import *
+import numpy  as np
+
+
+
+
+# Number of bumps of the waves
+m_ = 1
+n_ = 2
+# Velocity
+c = Constant(5.) 
+
+
+# Order of the Finite Elements 
+pdim = 1
+
+# Create mesh
+xlim = 2
+ylim = 4
+size = 10*3.1
+domain = Rectangle(Point(0., 0.), Point(xlim, ylim))
+mesh = generate_mesh(domain,size)
+
+# Newmark Constants
+beta_ = 0.25
+gamma_ = 0.5
+
+# Time Constants
+dt =  0.001
+T = 0.5
+t = 0.
+
+
+# Boundaries
+class Horizontal(SubDomain):
+    def inside(self, x, on_boundary):
+        return on_boundary and ((abs(x[1] - 0.) &lt; DOLFIN_EPS) or (abs(x[1] - ylim) &lt; DOLFIN_EPS))
+
+class Vertical(SubDomain):
+    def inside(self, x, on_boundary):
+        return on_boundary and ((abs(x[0] - 0.) &lt; DOLFIN_EPS) or (abs(x[0] - xlim) &lt; DOLFIN_EPS))
+
+
+boundaries = FacetFunction("size_t", mesh, 0) 
+
+Horizontal().mark(boundaries, 1) 
+Vertical().mark(boundaries, 2) 
+
+
+# Define Function space, trial and test functions
+V = FunctionSpace(mesh, 'Lagrange', pdim)
+a, phi = TrialFunction(V), TestFunction(V)
+
+# Define Dirichlet BC
+bcH = DirichletBC(V, Constant(0.), boundaries, 1)
+bcV = DirichletBC(V, Constant(0.), boundaries, 2)
+bcs = [bcH, bcV]
+
+
+# Fields from previous time step (displacement, velocity, acceleration)
+u0_expr = 'sin(m_*pi*x[0]/xlim)*sin(n_*pi*x[1]/ylim)'
+u0IC = Expression(u0_expr, m_=m_, n_=n_, xlim=xlim, ylim=ylim, degree = pdim)
+v0IC = Constant(0.)
+
+u0 = interpolate(u0IC, V)
+v0 = interpolate(v0IC, V)
+
+
+# Blocks definition
+def k_block(value):
+    return inner(grad(value),grad(phi)) * dx 
+
+m = pow(c,-2) * a * phi * dx 
+
+# Assemble left hand side 
+A = assemble(m + beta_*pow(dt,2)*k_block(a))
+# Assemble right hand side
+b0 = assemble(-k_block(u0))
+# Impose BCs
+[bc.apply(A) for bc in bcs]  
+
+# Compute a0
+a0 = Function(V)
+solve (A,a0.vector(),b0)
+
+
+# Save initial displacement (actually pressure here) and acceleration  
+vtk_file_a = File("solution/p"+str(pdim)+"_"+str(size)+"_pressure_0acc.pvd")
+vtk_file_a &lt;&lt; a0
+</code></pre>
+</div>
+										</div>
+										<div class="qa-q-view-tags">
+											<ul class="qa-q-view-tag-list">
+												<li class="qa-q-view-tag-item"><a href="../../tag/wave-equation" rel="tag" class="qa-tag-link">wave-equation</a></li>
+												<li class="qa-q-view-tag-item"><a href="../../tag/2d" rel="tag" class="qa-tag-link">2d</a></li>
+												<li class="qa-q-view-tag-item"><a href="../../tag/noise" rel="tag" class="qa-tag-link">noise</a></li>
+											</ul>
+										</div>
+										<span class="qa-q-view-avatar-meta">
+											<span class="qa-q-view-meta">
+												<a href="../../13646/unexpected-noise-in-the-solution-of-wave-equation" class="qa-q-view-what">asked</a>
+												<span class="qa-q-view-when">
+													<span class="qa-q-view-when-data"><span class="published"><span class="value-title" title="2017-05-25T09:58:45+0000"></span>May 25, 2017</span></span>
+												</span>
+												<span class="qa-q-view-who">
+													<span class="qa-q-view-who-pad">by </span>
+													<span class="qa-q-view-who-data"><span class="vcard author"><a href="../../user/caterinabig" class="qa-user-link url nickname">caterinabig</a></span></span>
+													<span class="qa-q-view-who-title">FEniCS User</span>
+													<span class="qa-q-view-who-points">
+														<span class="qa-q-view-who-points-pad">(</span><span class="qa-q-view-who-points-data">1,460</span><span class="qa-q-view-who-points-pad"> points)</span>
+													</span>
+												</span>
+											</span>
+										</span>
+										<div class="qa-q-view-buttons">
+										</div>
+										
+										<div class="qa-q-view-c-list" id="c13646_list">
+											<div class="qa-c-list-item  hentry comment" id="c13647">
+												<div class="qa-c-item-content">
+													<a name="13647"></a><div class="entry-content"><p>Can you post a screenshot or image of what you see? I don't see any noise in the function <code>a0</code>.</p>
+</div>
+												</div>
+												<div class="qa-c-item-footer">
+													<span class="qa-c-item-avatar-meta">
+														<span class="qa-c-item-avatar">
+															<a href="../../user/nate" class="qa-avatar-link"><img src="../../?qa=image&amp;qa_blobid=969593914916706065&amp;qa_size=20" width="20" height="20" class="qa-avatar-image" alt=""></a>
+														</span>
+														<span class="qa-c-item-meta">
+															<a href="../../13646/unexpected-noise-in-the-solution-of-wave-equation?show=13647#c13647" class="qa-c-item-what">commented</a>
+															<span class="qa-c-item-when">
+																<span class="qa-c-item-when-data"><span class="published"><span class="value-title" title="2017-05-25T11:20:58+0000"></span>May 25, 2017</span></span>
+															</span>
+															<span class="qa-c-item-who">
+																<span class="qa-c-item-who-pad">by </span>
+																<span class="qa-c-item-who-data"><span class="vcard author"><a href="../../user/nate" class="qa-user-link url nickname">nate</a></span></span>
+																<span class="qa-c-item-who-title">FEniCS Expert</span>
+																<span class="qa-c-item-who-points">
+																	<span class="qa-c-item-who-points-pad">(</span><span class="qa-c-item-who-points-data">17,050</span><span class="qa-c-item-who-points-pad"> points)</span>
+																</span>
+															</span>
+														</span>
+													</span>
+													<div class="qa-c-item-buttons">
+													</div>
+												</div>
+												<div class="qa-c-item-clear">
+												</div>
+											</div> <!-- END qa-c-item -->
+											<div class="qa-c-list-item  hentry comment" id="c13653">
+												<div class="qa-c-item-content">
+													<a name="13653"></a><div class="entry-content"><p><img src="https://ibb.co/bKcPNa" alt="on the left is a0 and in the righ t&#8203;u0"></p>
+
+<p>Do you see the same problem? </p>
+</div>
+												</div>
+												<div class="qa-c-item-footer">
+													<span class="qa-c-item-avatar-meta">
+														<span class="qa-c-item-meta">
+															<a href="../../13646/unexpected-noise-in-the-solution-of-wave-equation?show=13653#c13653" class="qa-c-item-what">commented</a>
+															<span class="qa-c-item-when">
+																<span class="qa-c-item-when-data"><span class="published"><span class="value-title" title="2017-05-26T06:30:18+0000"></span>May 26, 2017</span></span>
+															</span>
+															<span class="qa-c-item-who">
+																<span class="qa-c-item-who-pad">by </span>
+																<span class="qa-c-item-who-data"><span class="vcard author"><a href="../../user/caterinabig" class="qa-user-link url nickname">caterinabig</a></span></span>
+																<span class="qa-c-item-who-title">FEniCS User</span>
+																<span class="qa-c-item-who-points">
+																	<span class="qa-c-item-who-points-pad">(</span><span class="qa-c-item-who-points-data">1,460</span><span class="qa-c-item-who-points-pad"> points)</span>
+																</span>
+															</span>
+														</span>
+													</span>
+													<div class="qa-c-item-buttons">
+													</div>
+												</div>
+												<div class="qa-c-item-clear">
+												</div>
+											</div> <!-- END qa-c-item -->
+											<div class="qa-c-list-item  hentry comment" id="c13654">
+												<div class="qa-c-item-content">
+													<a name="13654"></a><div class="entry-content"><p>Link to the image: <a rel="nofollow" href="https://ibb.co/bKcPNa">https://ibb.co/bKcPNa</a></p>
+</div>
+												</div>
+												<div class="qa-c-item-footer">
+													<span class="qa-c-item-avatar-meta">
+														<span class="qa-c-item-meta">
+															<a href="../../13646/unexpected-noise-in-the-solution-of-wave-equation?show=13654#c13654" class="qa-c-item-what">commented</a>
+															<span class="qa-c-item-when">
+																<span class="qa-c-item-when-data"><span class="published"><span class="value-title" title="2017-05-26T06:31:37+0000"></span>May 26, 2017</span></span>
+															</span>
+															<span class="qa-c-item-who">
+																<span class="qa-c-item-who-pad">by </span>
+																<span class="qa-c-item-who-data"><span class="vcard author"><a href="../../user/caterinabig" class="qa-user-link url nickname">caterinabig</a></span></span>
+																<span class="qa-c-item-who-title">FEniCS User</span>
+																<span class="qa-c-item-who-points">
+																	<span class="qa-c-item-who-points-pad">(</span><span class="qa-c-item-who-points-data">1,460</span><span class="qa-c-item-who-points-pad"> points)</span>
+																</span>
+															</span>
+														</span>
+													</span>
+													<div class="qa-c-item-buttons">
+													</div>
+												</div>
+												<div class="qa-c-item-clear">
+												</div>
+											</div> <!-- END qa-c-item -->
+											<div class="qa-c-list-item  hentry comment" id="c13663">
+												<div class="qa-c-item-content">
+													<a name="13663"></a><div class="entry-content"><p>Hello nate,</p>
+
+<p>Were you able to see the pictures? Do you see the same ?</p>
+
+<p>Thank you!!!</p>
+</div>
+												</div>
+												<div class="qa-c-item-footer">
+													<span class="qa-c-item-avatar-meta">
+														<span class="qa-c-item-meta">
+															<a href="../../13646/unexpected-noise-in-the-solution-of-wave-equation?show=13663#c13663" class="qa-c-item-what">commented</a>
+															<span class="qa-c-item-when">
+																<span class="qa-c-item-when-data"><span class="published"><span class="value-title" title="2017-05-27T08:15:48+0000"></span>May 27, 2017</span></span>
+															</span>
+															<span class="qa-c-item-who">
+																<span class="qa-c-item-who-pad">by </span>
+																<span class="qa-c-item-who-data"><span class="vcard author"><a href="../../user/caterinabig" class="qa-user-link url nickname">caterinabig</a></span></span>
+																<span class="qa-c-item-who-title">FEniCS User</span>
+																<span class="qa-c-item-who-points">
+																	<span class="qa-c-item-who-points-pad">(</span><span class="qa-c-item-who-points-data">1,460</span><span class="qa-c-item-who-points-pad"> points)</span>
+																</span>
+															</span>
+														</span>
+													</span>
+													<div class="qa-c-item-buttons">
+													</div>
+												</div>
+												<div class="qa-c-item-clear">
+												</div>
+											</div> <!-- END qa-c-item -->
+										</div> <!-- END qa-c-list -->
+										
+										<input type="hidden" name="code" value="0-1516467875-06164ca043cf3bcbdb5f9cfca78421052aa2d1cb">
+										<input type="hidden" name="qa_click" value="">
+									</form>
+									<div class="qa-c-form">
+									</div> <!-- END qa-c-form -->
+									
+								</div> <!-- END qa-q-view-main -->
+								<div class="qa-q-view-clear">
+								</div>
+							</div> <!-- END qa-q-view -->
+							
+						</div>
+						<div class="qa-part-a-list">
+							<h2 id="a_list_title" style="display:none;"></h2>
+							<div class="qa-a-list" id="a_list">
+								
+							</div> <!-- END qa-a-list -->
+							
+						</div>
+					</div> <!-- END qa-main -->
+					
+				</div> <!-- END main-wrapper -->
+			</div> <!-- END main-shadow -->
+		</div> <!-- END body-wrapper -->
+		<!-- END footer-bottom-group -->
+		
+		<div style="position:absolute; left:-9999px; top:-9999px;">
+			<span id="qa-waiting-template" class="qa-waiting">...</span>
+		</div>
+	
+	
+
+</body><!-- Powered by Question2Answer - http://www.question2answer.org/ --></html>

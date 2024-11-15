@@ -1,0 +1,440 @@
+<html><!-- Powered by Question2Answer - http://www.question2answer.org/ --><head>
+		<meta http-equiv="content-type" content="text/html; charset=utf-8">
+		<title>problem with rank of form terms ... - FEniCS Q&amp;A</title>
+		<meta name="description" content='I was trying to test an electrostatic solver with the mixed method described in section 2.2.2 of the ... ) voltage.rename("Voltage", voltage.name()) f'>
+		<link rel="stylesheet" type="text/css" href="../../qa-theme/Snow/qa-styles.css">
+		<link rel="canonical" href="http://fenicsproject.org/qa/2436/problem-with-rank-of-form-terms">
+		<script type="text/x-mathjax-config">
+  MathJax.Hub.Config({
+    extensions: ["tex2jax.js"],
+    jax: ["input/TeX","output/HTML-CSS"],
+    tex2jax: {inlineMath: [["$","$"],["\\(","\\)"]]},
+    TeX: { extensions: ["AMSmath.js","AMSsymbols.js"]}
+  });
+</script>
+<script type="text/javascript" src="../../mathjax/MathJax.js"></script>
+		<script src="../../jquery-1.7.2.min.js" type="text/javascript"></script>
+		<script src="../../highlight.min.js"></script>
+<script type="text/javascript">
+$(function(){
+	$('.wmd-input').keypress(function(){
+		window.clearTimeout(hljs.Timeout);
+		hljs.Timeout = window.setTimeout(function() {
+			hljs.initHighlighting.called = false;
+			hljs.initHighlighting();
+		}, 500);
+	});
+	window.setTimeout(function() {
+		hljs.initHighlighting.called = false;
+		hljs.initHighlighting();
+	}, 500);
+});
+</script>
+
+
+	</head>
+	<body class="qa-template-question qa-body-js-off">
+		<div class="qa-body-wrapper">
+			
+			<div class="qa-header">
+				<div class="qa-logo">
+					<a href="../../" class="qa-logo-link" title="FEniCS Q&amp;A"><img src="../../qa-theme/fenics_qa.png" border="0" alt="FEniCS Q&amp;A"></a>
+				</div>
+				<div class="qa-header-clear">
+				</div>
+			</div> <!-- END qa-header -->
+			
+			<div class="qa-main-shadow">
+				
+				<div class="qa-main-wrapper">
+					
+					<div class="qa-sidepanel">
+						<div class="qa-sidebar">
+							This is a read only copy of the old FEniCS QA forum. Please visit the <a href="https://www.allanswered.com/community/s/fenics-project/">new QA forum</a> to ask questions
+						</div>
+						
+					</div>
+					
+					<div class="qa-main">
+						<h1>
+							<span class="entry-title">problem with rank of form terms ...</span>
+						</h1>
+						<div class="qa-part-q-view">
+							<div class="qa-q-view  hentry question" id="q2436">
+								<form method="post" action="../../2436/problem-with-rank-of-form-terms">
+									<div class="qa-q-view-stats">
+										<div class="qa-voting qa-voting-net" id="voting_2436">
+											<div class="qa-vote-count qa-vote-count-net">
+												<span class="qa-netvote-count">
+													<span class="qa-netvote-count-data">+1<span class="votes-up"><span class="value-title" title="1"></span></span><span class="votes-down"><span class="value-title" title="0"></span></span></span><span class="qa-netvote-count-pad"> vote</span>
+												</span>
+											</div>
+											<div class="qa-vote-clear">
+											</div>
+										</div>
+									</div>
+									<input type="hidden" name="code" value="0-1516467927-11c5939c592023e19635f54be595e197fa8cc47b">
+								</form>
+								<div class="qa-q-view-main">
+									<form method="post" action="../../2436/problem-with-rank-of-form-terms">
+										<div class="qa-q-view-content">
+											<a name="2436"></a><div class="entry-content"><p>I was trying to test an electrostatic solver with the mixed method described in section 2.2.2 of the FEniCS Book, hoping that it would just be a cut-and-paste job, but I have run into an error that I can't seem to track down:</p>
+
+<p>ufl.log.UFLException: All terms in form must have same rank.</p>
+
+<p>I am hoping that it is something simple that I have just messed up in the "a" Form in the code below ...</p>
+
+<p>I am loading meshes from files I create externally, and have pared them down to the point where they aren't too large. I have also posted a smaller version of the code that also produces the error (data follows the code):</p>
+
+<pre><code>#-------------------------------#
+# Construct Mesh, FunctionSpace #
+#-------------------------------#
+mesh = Mesh("test.xml.gz")
+BDM  = FunctionSpace(mesh, "BDM", 1)
+DG   = FunctionSpace(mesh, "DG", 0)
+W    = BDM * DG
+
+#---------------------#
+# Boundary Conditions #
+#---------------------#
+mvc          = MeshValueCollection("size_t", mesh, "test_facets.xml.gz")
+dirichlet_f  = MeshFunction("size_t", mesh, mvc)
+dirichlet_bc = DirichletBC(W.sub(0), Constant((0., 0.)), dirichlet_f, 3)
+
+#----------------------#
+# Dielectric Materials #
+#----------------------#
+epsilon   = Function(DG)
+materials = MeshFunction("size_t", mesh, "test_cells.xml.gz")
+helper    = numpy.asarray(materials.array(), dtype=numpy.int32) - 1
+dm        = DG.dofmap()
+for cell in cells(mesh):
+  helper[dm.cell_dofs(cell.index())] = materials[cell] - 1
+dielectrics = (2.2, 5., 10.)
+epsilon.vector()[:] = numpy.choose(helper, dielectrics)
+
+#------------#
+# Define PDE #
+#------------#
+(electric_field, voltage) = TrialFunctions(W)
+(test1, test2)            = TestFunctions(W)
+
+r = Expression("x[1]") # the radial coordinate is the y coordinate
+n = FacetNormal(mesh)
+# ds = Measure("ds")[dirichlet_f]
+a = (dot(test1, electric_field + nabla_grad(voltage)) - \
+     epsilon*dot(nabla_grad(test2), electric_field))*r*dx + \
+     epsilon*dot(test1, n)*ds(1)
+
+L = Constant(0.0)*test2*dx
+
+w = Function(W)
+solve(a == L, w, dirichlet_bc)
+(electric_field, voltage) = w.split()
+
+# Save solution in VTK format
+f = File("problem.pvd")
+electric_field.rename("Electric_Field", electric_field.name())
+voltage.rename("Voltage", voltage.name())
+
+f &lt;&lt; (voltage, 0.)
+f &lt;&lt; (electric_field, 0.)
+
+plot(voltage, interactive=True)
+</code></pre>
+
+<p>File 1/3 "test.xml.gz" 46 lines of text (without the gzip, obviously):</p>
+
+<pre><code>&lt;?xml version="1.0" encoding="UTF-8"?&gt;
+&lt;dolfin xmlns:dolfin="http://fenicsproject.org"&gt;
+  &lt;mesh celltype="triangle" dim="2"&gt;
+    &lt;cells size="21"&gt;
+      &lt;triangle index="0" v0="0" v1="1" v2="2" /&gt;
+      &lt;triangle index="1" v0="1" v1="3" v2="4" /&gt;
+      &lt;triangle index="2" v0="1" v1="2" v2="5" /&gt;
+      &lt;triangle index="3" v0="0" v1="4" v2="6" /&gt;
+      &lt;triangle index="4" v0="3" v1="5" v2="7" /&gt;
+      &lt;triangle index="5" v0="1" v1="3" v2="5" /&gt;
+      &lt;triangle index="6" v0="0" v1="1" v2="4" /&gt;
+      &lt;triangle index="7" v0="8" v1="9" v2="10" /&gt;
+      &lt;triangle index="8" v0="5" v1="7" v2="11" /&gt;
+      &lt;triangle index="9" v0="9" v1="10" v2="12" /&gt;
+      &lt;triangle index="10" v0="2" v1="5" v2="12" /&gt;
+      &lt;triangle index="11" v0="5" v1="11" v2="12" /&gt;
+      &lt;triangle index="12" v0="2" v1="9" v2="12" /&gt;
+      &lt;triangle index="13" v0="10" v1="11" v2="12" /&gt;
+      &lt;triangle index="14" v0="0" v1="13" v2="14" /&gt;
+      &lt;triangle index="15" v0="2" v1="9" v2="13" /&gt;
+      &lt;triangle index="16" v0="8" v1="9" v2="15" /&gt;
+      &lt;triangle index="17" v0="9" v1="13" v2="15" /&gt;
+      &lt;triangle index="18" v0="0" v1="6" v2="14" /&gt;
+      &lt;triangle index="19" v0="0" v1="2" v2="13" /&gt;
+      &lt;triangle index="20" v0="13" v1="14" v2="15" /&gt;
+    &lt;/cells&gt;
+    &lt;vertices size="16"&gt;
+      &lt;vertex index="0" x="2.50000000e+00" y="0.00000000e+00" /&gt;
+      &lt;vertex index="1" x="1.18969262e+00" y="2.06060806e+00" /&gt;
+      &lt;vertex index="2" x="0.00000000e+00" y="0.00000000e+00" /&gt;
+      &lt;vertex index="3" x="8.68240888e-01" y="4.92403877e+00" /&gt;
+      &lt;vertex index="4" x="3.83022222e+00" y="3.21393805e+00" /&gt;
+      &lt;vertex index="5" x="-1.25000000e+00" y="2.16506351e+00" /&gt;
+      &lt;vertex index="6" x="5.00000000e+00" y="0.00000000e+00" /&gt;
+      &lt;vertex index="7" x="-2.50000000e+00" y="4.33012702e+00" /&gt;
+      &lt;vertex index="8" x="-2.50000000e+00" y="-4.33012702e+00" /&gt;
+      &lt;vertex index="9" x="-1.25000000e+00" y="-2.16506351e+00" /&gt;
+      &lt;vertex index="10" x="-4.69846310e+00" y="-1.71010072e+00" /&gt;
+      &lt;vertex index="11" x="-4.69846310e+00" y="1.71010072e+00" /&gt;
+      &lt;vertex index="12" x="-2.37938524e+00" y="-3.10862447e-16" /&gt;
+      &lt;vertex index="13" x="1.18969262e+00" y="-2.06060806e+00" /&gt;
+      &lt;vertex index="14" x="3.83022222e+00" y="-3.21393805e+00" /&gt;
+      &lt;vertex index="15" x="8.68240888e-01" y="-4.92403877e+00" /&gt;
+    &lt;/vertices&gt;
+  &lt;/mesh&gt;
+&lt;/dolfin&gt;
+</code></pre>
+
+<p>File 2/3 "test_facets.xml.gz" 14 lines of text</p>
+
+<pre><code>&lt;?xml version="1.0" encoding="UTF-8"?&gt;
+&lt;dolfin xmlns:dolfin="http://fenicsproject.org"&gt;
+  &lt;mesh_value_collection name="boundary_markers" type="uint" dim="1" size="9"&gt;
+    &lt;value cell_index="16" local_entity="1" value="3" /&gt;
+    &lt;value cell_index="18" local_entity="0" value="3" /&gt;
+    &lt;value cell_index="13" local_entity="2" value="2" /&gt;
+    &lt;value cell_index="7" local_entity="1" value="2" /&gt;
+    &lt;value cell_index="3" local_entity="0" value="1" /&gt;
+    &lt;value cell_index="1" local_entity="0" value="1" /&gt;
+    &lt;value cell_index="8" local_entity="0" value="2" /&gt;
+    &lt;value cell_index="4" local_entity="1" value="1" /&gt;
+    &lt;value cell_index="20" local_entity="0" value="3" /&gt;
+  &lt;/mesh_value_collection&gt;
+&lt;/dolfin&gt;
+</code></pre>
+
+<p>File 3/3 "test_cells.xml.gz" 28 lines of text</p>
+
+<pre><code>&lt;?xml version="1.0"?&gt;
+&lt;dolfin xmlns:dolfin="http://fenicsproject.org"&gt;
+  &lt;mesh_function&gt;
+    &lt;mesh_value_collection name="cells" type="uint" dim="2" size="21"&gt;
+      &lt;value cell_index="0" local_entity="0" value="1" /&gt;
+      &lt;value cell_index="1" local_entity="0" value="1" /&gt;
+      &lt;value cell_index="2" local_entity="0" value="1" /&gt;
+      &lt;value cell_index="3" local_entity="0" value="1" /&gt;
+      &lt;value cell_index="4" local_entity="0" value="1" /&gt;
+      &lt;value cell_index="5" local_entity="0" value="1" /&gt;
+      &lt;value cell_index="6" local_entity="0" value="1" /&gt;
+      &lt;value cell_index="7" local_entity="0" value="2" /&gt;
+      &lt;value cell_index="8" local_entity="0" value="2" /&gt;
+      &lt;value cell_index="9" local_entity="0" value="2" /&gt;
+      &lt;value cell_index="10" local_entity="0" value="2" /&gt;
+      &lt;value cell_index="11" local_entity="0" value="2" /&gt;
+      &lt;value cell_index="12" local_entity="0" value="2" /&gt;
+      &lt;value cell_index="13" local_entity="0" value="2" /&gt;
+      &lt;value cell_index="14" local_entity="0" value="3" /&gt;
+      &lt;value cell_index="15" local_entity="0" value="3" /&gt;
+      &lt;value cell_index="16" local_entity="0" value="3" /&gt;
+      &lt;value cell_index="17" local_entity="0" value="3" /&gt;
+      &lt;value cell_index="18" local_entity="0" value="3" /&gt;
+      &lt;value cell_index="19" local_entity="0" value="3" /&gt;
+      &lt;value cell_index="20" local_entity="0" value="3" /&gt;
+    &lt;/mesh_value_collection&gt;
+  &lt;/mesh_function&gt;
+&lt;/dolfin&gt;
+</code></pre>
+</div>
+										</div>
+										<span class="qa-q-view-avatar-meta">
+											<span class="qa-q-view-meta">
+												<a href="../../2436/problem-with-rank-of-form-terms" class="qa-q-view-what">asked</a>
+												<span class="qa-q-view-when">
+													<span class="qa-q-view-when-data"><span class="published"><span class="value-title" title="2014-01-23T23:27:16+0000"></span>Jan 24, 2014</span></span>
+												</span>
+												<span class="qa-q-view-who">
+													<span class="qa-q-view-who-pad">by </span>
+													<span class="qa-q-view-who-data"><span class="vcard author"><a href="../../user/timm" class="qa-user-link url nickname">timm</a></span></span>
+													<span class="qa-q-view-who-title">FEniCS User</span>
+													<span class="qa-q-view-who-points">
+														<span class="qa-q-view-who-points-pad">(</span><span class="qa-q-view-who-points-data">2,100</span><span class="qa-q-view-who-points-pad"> points)</span>
+													</span>
+												</span>
+											</span>
+										</span>
+										<div class="qa-q-view-buttons">
+										</div>
+										
+										<div class="qa-q-view-c-list" style="display:none;" id="c2436_list">
+										</div> <!-- END qa-c-list -->
+										
+										<input type="hidden" name="code" value="0-1516467927-d40a951fc2fe87e2945c85f449af249e1dfa6601">
+										<input type="hidden" name="qa_click" value="">
+									</form>
+									<div class="qa-c-form">
+									</div> <!-- END qa-c-form -->
+									
+								</div> <!-- END qa-q-view-main -->
+								<div class="qa-q-view-clear">
+								</div>
+							</div> <!-- END qa-q-view -->
+							
+						</div>
+						<div class="qa-part-a-list">
+							<h2 id="a_list_title">1 Answer</h2>
+							<div class="qa-a-list" id="a_list">
+								
+								<div class="qa-a-list-item  hentry answer answer-selected qa-a-list-item-selected" id="a2443">
+									<form method="post" action="../../2436/problem-with-rank-of-form-terms">
+										<div class="qa-voting qa-voting-net" id="voting_2443">
+											<div class="qa-vote-count qa-vote-count-net">
+												<span class="qa-netvote-count">
+													<span class="qa-netvote-count-data">+2<span class="votes-up"><span class="value-title" title="2"></span></span><span class="votes-down"><span class="value-title" title="0"></span></span></span><span class="qa-netvote-count-pad"> votes</span>
+												</span>
+											</div>
+											<div class="qa-vote-clear">
+											</div>
+										</div>
+										<input type="hidden" name="code" value="0-1516467927-11c5939c592023e19635f54be595e197fa8cc47b">
+									</form>
+									<div class="qa-a-item-main">
+										<form method="post" action="../../2436/problem-with-rank-of-form-terms">
+											<div class="qa-a-item-selected">
+												<div class="qa-a-selection">
+													<div class="qa-a-selected">&#160;</div>
+													<div class="qa-a-selected-text">Best answer</div>
+												</div>
+												<div class="qa-a-item-content">
+													<a name="2443"></a><div class="entry-content"><p>Hi, the surface term in <em>a</em> contains no trial function and should go into the linear form <em>L</em></p>
+
+<pre><code>L = Constant(0.0)*test2*dx + dot(test1, n)*ds(1)
+</code></pre>
+</div>
+												</div>
+												<span class="qa-a-item-avatar-meta">
+													<span class="qa-a-item-avatar">
+														<a href="../../user/MiroK" class="qa-avatar-link"><img src="https://www.gravatar.com/avatar/f566be3274ec73e3a6dda27bca11631c?s=40" width="40" height="40" class="qa-avatar-image" alt=""></a>
+													</span>
+													<span class="qa-a-item-meta">
+														<a href="../../2436/problem-with-rank-of-form-terms?show=2443#a2443" class="qa-a-item-what">answered</a>
+														<span class="qa-a-item-when">
+															<span class="qa-a-item-when-data"><span class="published"><span class="value-title" title="2014-01-24T06:38:47+0000"></span>Jan 24, 2014</span></span>
+														</span>
+														<span class="qa-a-item-who">
+															<span class="qa-a-item-who-pad">by </span>
+															<span class="qa-a-item-who-data"><span class="vcard author"><a href="../../user/MiroK" class="qa-user-link url nickname">MiroK</a></span></span>
+															<span class="qa-a-item-who-title">FEniCS Expert</span>
+															<span class="qa-a-item-who-points">
+																<span class="qa-a-item-who-points-pad">(</span><span class="qa-a-item-who-points-data">80,920</span><span class="qa-a-item-who-points-pad"> points)</span>
+															</span>
+														</span>
+														<br>
+														<span class="qa-a-item-what">selected</span>
+														<span class="qa-a-item-when">
+															<span class="qa-a-item-when-data"><span class="updated"><span class="value-title" title="2014-01-27T15:20:43+0000"></span>Jan 27, 2014</span></span>
+														</span>
+														<span class="qa-a-item-who">
+															<span class="qa-a-item-who-pad">by </span><span class="qa-a-item-who-data"><a href="../../user/timm" class="qa-user-link url nickname">timm</a></span>
+														</span>
+													</span>
+												</span>
+											</div>
+											<div class="qa-a-item-buttons">
+												</div>
+											
+											<div class="qa-a-item-c-list" id="c2443_list">
+												<div class="qa-c-list-item  hentry comment" id="c2452">
+													<div class="qa-c-item-content">
+														<a name="2452"></a><div class="entry-content"><p>Just as an additional remark: one can also simply write the weak form as</p>
+
+<pre><code>F = (dot(test1, electric_field + nabla_grad(voltage)) - \
+   epsilon*dot(nabla_grad(test2), electric_field))*r*dx + \
+   epsilon*dot(test1, n)*ds(1) - L = Constant(0.0)*test2*dx
+</code></pre>
+
+<p>and let lhs and rhs do the sorting:</p>
+
+<pre><code>a = lhs(F)
+L = rhs(F)
+</code></pre>
+</div>
+													</div>
+													<div class="qa-c-item-footer">
+														<span class="qa-c-item-avatar-meta">
+															<span class="qa-c-item-meta">
+																<a href="../../2436/problem-with-rank-of-form-terms?show=2452#c2452" class="qa-c-item-what">commented</a>
+																<span class="qa-c-item-when">
+																	<span class="qa-c-item-when-data"><span class="published"><span class="value-title" title="2014-01-24T12:00:52+0000"></span>Jan 24, 2014</span></span>
+																</span>
+																<span class="qa-c-item-who">
+																	<span class="qa-c-item-who-pad">by </span>
+																	<span class="qa-c-item-who-data"><span class="vcard author"><a href="../../user/Christian+Waluga" class="qa-user-link url nickname">Christian Waluga</a></span></span>
+																	<span class="qa-c-item-who-title">FEniCS Expert</span>
+																	<span class="qa-c-item-who-points">
+																		<span class="qa-c-item-who-points-pad">(</span><span class="qa-c-item-who-points-data">12,310</span><span class="qa-c-item-who-points-pad"> points)</span>
+																	</span>
+																</span>
+															</span>
+														</span>
+														<div class="qa-c-item-buttons">
+														</div>
+													</div>
+													<div class="qa-c-item-clear">
+													</div>
+												</div> <!-- END qa-c-item -->
+												<div class="qa-c-list-item  hentry comment" id="c2481">
+													<div class="qa-c-item-content">
+														<a name="2481"></a><div class="entry-content"><p>Thanks to both of you! I got that error to go away, and learned something new ...</p>
+</div>
+													</div>
+													<div class="qa-c-item-footer">
+														<span class="qa-c-item-avatar-meta">
+															<span class="qa-c-item-meta">
+																<a href="../../2436/problem-with-rank-of-form-terms?show=2481#c2481" class="qa-c-item-what">commented</a>
+																<span class="qa-c-item-when">
+																	<span class="qa-c-item-when-data"><span class="published"><span class="value-title" title="2014-01-27T15:27:39+0000"></span>Jan 27, 2014</span></span>
+																</span>
+																<span class="qa-c-item-who">
+																	<span class="qa-c-item-who-pad">by </span>
+																	<span class="qa-c-item-who-data"><span class="vcard author"><a href="../../user/timm" class="qa-user-link url nickname">timm</a></span></span>
+																	<span class="qa-c-item-who-title">FEniCS User</span>
+																	<span class="qa-c-item-who-points">
+																		<span class="qa-c-item-who-points-pad">(</span><span class="qa-c-item-who-points-data">2,100</span><span class="qa-c-item-who-points-pad"> points)</span>
+																	</span>
+																</span>
+															</span>
+														</span>
+														<div class="qa-c-item-buttons">
+														</div>
+													</div>
+													<div class="qa-c-item-clear">
+													</div>
+												</div> <!-- END qa-c-item -->
+											</div> <!-- END qa-c-list -->
+											
+											<input type="hidden" name="code" value="0-1516467927-7db1963e4f8e66af4f5674f094b10fdaaf1666f8">
+											<input type="hidden" name="qa_click" value="">
+										</form>
+										<div class="qa-c-form">
+										</div> <!-- END qa-c-form -->
+										
+									</div> <!-- END qa-a-item-main -->
+									<div class="qa-a-item-clear">
+									</div>
+								</div> <!-- END qa-a-list-item -->
+								
+							</div> <!-- END qa-a-list -->
+							
+						</div>
+					</div> <!-- END qa-main -->
+					
+				</div> <!-- END main-wrapper -->
+			</div> <!-- END main-shadow -->
+		</div> <!-- END body-wrapper -->
+		<!-- END footer-bottom-group -->
+		
+		<div style="position:absolute; left:-9999px; top:-9999px;">
+			<span id="qa-waiting-template" class="qa-waiting">...</span>
+		</div>
+	
+	
+
+</body><!-- Powered by Question2Answer - http://www.question2answer.org/ --></html>

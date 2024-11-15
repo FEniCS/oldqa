@@ -1,0 +1,293 @@
+<html><!-- Powered by Question2Answer - http://www.question2answer.org/ --><head>
+		<meta http-equiv="content-type" content="text/html; charset=utf-8">
+		<title>Plotting material properties in subdomains given by python class - FEniCS Q&amp;A</title>
+		<meta name="description" content="Thank you in advance. How can I plot the material distribution given by a python class that is  ... 5, title='Heat flow vector field') interactive()">
+		<meta name="keywords" content="subdomains,mesh,mshr,function">
+		<link rel="stylesheet" type="text/css" href="../../qa-theme/Snow/qa-styles.css">
+		<link rel="canonical" href="http://fenicsproject.org/qa/14181/plotting-material-properties-subdomains-given-python-class">
+		<script type="text/x-mathjax-config">
+  MathJax.Hub.Config({
+    extensions: ["tex2jax.js"],
+    jax: ["input/TeX","output/HTML-CSS"],
+    tex2jax: {inlineMath: [["$","$"],["\\(","\\)"]]},
+    TeX: { extensions: ["AMSmath.js","AMSsymbols.js"]}
+  });
+</script>
+<script type="text/javascript" src="../../mathjax/MathJax.js"></script>
+		<script src="../../jquery-1.7.2.min.js" type="text/javascript"></script>
+		<script src="../../highlight.min.js"></script>
+<script type="text/javascript">
+$(function(){
+	$('.wmd-input').keypress(function(){
+		window.clearTimeout(hljs.Timeout);
+		hljs.Timeout = window.setTimeout(function() {
+			hljs.initHighlighting.called = false;
+			hljs.initHighlighting();
+		}, 500);
+	});
+	window.setTimeout(function() {
+		hljs.initHighlighting.called = false;
+		hljs.initHighlighting();
+	}, 500);
+});
+</script>
+
+
+	</head>
+	<body class="qa-template-question qa-body-js-off">
+		<div class="qa-body-wrapper">
+			
+			<div class="qa-header">
+				<div class="qa-logo">
+					<a href="../../" class="qa-logo-link" title="FEniCS Q&amp;A"><img src="../../qa-theme/fenics_qa.png" border="0" alt="FEniCS Q&amp;A"></a>
+				</div>
+				<div class="qa-header-clear">
+				</div>
+			</div> <!-- END qa-header -->
+			
+			<div class="qa-main-shadow">
+				
+				<div class="qa-main-wrapper">
+					
+					<div class="qa-sidepanel">
+						<div class="qa-sidebar">
+							This is a read only copy of the old FEniCS QA forum. Please visit the <a href="https://www.allanswered.com/community/s/fenics-project/">new QA forum</a> to ask questions
+						</div>
+						
+					</div>
+					
+					<div class="qa-main">
+						<h1>
+							<span class="entry-title">Plotting material properties in subdomains given by python class</span>
+						</h1>
+						<div class="qa-part-q-view">
+							<div class="qa-q-view  hentry question" id="q14181">
+								<form method="post" action="../../14181/plotting-material-properties-subdomains-given-python-class">
+									<div class="qa-q-view-stats">
+										<div class="qa-voting qa-voting-net" id="voting_14181">
+											<div class="qa-vote-count qa-vote-count-net">
+												<span class="qa-netvote-count">
+													<span class="qa-netvote-count-data">+1<span class="votes-up"><span class="value-title" title="1"></span></span><span class="votes-down"><span class="value-title" title="0"></span></span></span><span class="qa-netvote-count-pad"> vote</span>
+												</span>
+											</div>
+											<div class="qa-vote-clear">
+											</div>
+										</div>
+									</div>
+									<input type="hidden" name="code" value="0-1516466510-4a57cf7d7d0fad46a234284faf27c919d4a8948d">
+								</form>
+								<div class="qa-q-view-main">
+									<form method="post" action="../../14181/plotting-material-properties-subdomains-given-python-class">
+										<div class="qa-q-view-content">
+											<a name="14181"></a><div class="entry-content"><p>Thank you in advance. How can I plot the material distribution given by a python class that is used in a variational statement?</p>
+
+<p>For example, in the code below I have the following lines to define k and then I use k in the variational statement.</p>
+
+<pre><code># Define thermal conductivity
+class Thermal_Conductivity(Expression):
+    def __init__(self, mesh, **kwargs):
+        self.markers = markers
+    def eval_cell(self, values, x, cell):
+        if markers[cell.index] == 0:
+            values[0] = k_1
+        else:
+            values[0] = k_2
+
+k = Thermal_Conductivity(mesh, degree=1)
+</code></pre>
+
+<p>The code is given below:</p>
+
+<pre><code>from fenics import *
+from mshr import * #library for meshing
+import math as m   #Import like this to prevent overiding of fenics' UFL math functions
+
+# Use compiler optimizations
+parameters["form_compiler"]["cpp_optimize"] = True
+# Allow approximating values for points that may be generated outside
+# of domain (because of numerical inaccuracies)
+parameters["allow_extrapolation"]  = True
+# Choose refinement algorithm (needed for solver to choose right refinement algorithm)
+parameters["refinement_algorithm"] = "plaza_with_parent_facets"
+
+R_inner  =  0.009525
+R_2      =  0.025
+R_outer  =  0.06
+h_p   =  0.50
+h_2   =  0.30
+T_g   = -70.0 #degrees C
+T_inf =  20.0 #degrees C
+#Conduction values
+k_1  =  16.3
+k_2  =  0.25
+#Convection values
+h_a    =  10.0  #Free convection
+h_g    =  500.0 #Forced convection
+
+#Generate mesh with sub-domains
+domain = Rectangle(Point(R_inner,0.0), Point(R_outer,h_p/2.0))
+h = h_2/2.0
+pipe_vertices = [Point(R_inner,0.0), Point(R_2,0.0), Point(R_2,h), Point(R_inner,h)]
+pipe   = Polygon(pipe_vertices)
+domain.set_subdomain(1, pipe)
+meshResolution = 30
+mesh = generate_mesh(domain, meshResolution)
+
+# Define boundaries
+tol = 1.0e-2
+class insideEdge(SubDomain):
+    def inside(self, x, on_boundary):
+        return near(x[0], R_inner)
+
+class outsideEdge(SubDomain):
+    def inside(self, x, on_boundary):
+        return near(x[0], R_outer)
+
+insideEdge  = insideEdge()
+outsideEdge = outsideEdge()
+
+boundaries = FacetFunction('size_t', mesh)
+boundaries.set_all(0)
+insideEdge.mark(boundaries, 1)
+outsideEdge.mark(boundaries, 2)
+ds = Measure('ds')[boundaries]
+
+# Define function space
+V = FunctionSpace(mesh, 'P', 1)
+
+# Define subdomain markers
+markers = MeshFunction('size_t', mesh, 2, mesh.domains())
+
+# Define thermal conductivity
+class Thermal_Conductivity(Expression):
+    def __init__(self, mesh, **kwargs):
+        self.markers = markers
+    def eval_cell(self, values, x, cell):
+        if markers[cell.index] == 0:
+            values[0] = k_1
+        else:
+            values[0] = k_2
+
+k = Thermal_Conductivity(mesh, degree=1)
+
+# Define variational problem
+h_g = Constant(h_g)
+T_g = Constant(T_g)
+h_a = Constant(h_a)
+T_inf = Constant(T_inf)
+T = TrialFunction(V)
+q = TestFunction(V)
+a = k*inner(grad(T), grad(q))*dx() + h_g*T*q*ds(1) + h_a*T*q*ds(2)
+L = h_g*T_g*q*ds(1) + h_a*T_inf*q*ds(2)
+
+
+# Compute solution (adaptive)
+T   = Function(V)
+M   = T*dx()
+tol = 1.0e-5
+problem = LinearVariationalProblem(a,L,T)
+solver  = AdaptiveLinearVariationalSolver(problem,M)
+solver.solve(tol)
+solver.summary()
+plot(mesh.root_node(), title='Original coarse mesh')
+plot(mesh.leaf_node(), title='Fine mesh')
+plot(T.root_node(), title='Temperature distribution (coarse)')
+plot(T.leaf_node(), title='Temperature distribution (fine)')
+
+# Plot heat flow
+plot(-k*grad(T.leaf_node()), scale=1.5, title='Heat flow vector field')
+interactive()
+</code></pre>
+</div>
+										</div>
+										<div class="qa-q-view-tags">
+											<ul class="qa-q-view-tag-list">
+												<li class="qa-q-view-tag-item"><a href="../../tag/subdomains" rel="tag" class="qa-tag-link">subdomains</a></li>
+												<li class="qa-q-view-tag-item"><a href="../../tag/mesh" rel="tag" class="qa-tag-link">mesh</a></li>
+												<li class="qa-q-view-tag-item"><a href="../../tag/mshr" rel="tag" class="qa-tag-link">mshr</a></li>
+												<li class="qa-q-view-tag-item"><a href="../../tag/function" rel="tag" class="qa-tag-link">function</a></li>
+											</ul>
+										</div>
+										<span class="qa-q-view-avatar-meta">
+											<span class="qa-q-view-meta">
+												<a href="../../14181/plotting-material-properties-subdomains-given-python-class" class="qa-q-view-what">asked</a>
+												<span class="qa-q-view-when">
+													<span class="qa-q-view-when-data"><span class="published"><span class="value-title" title="2017-07-01T18:20:33+0000"></span>Jul 1, 2017</span></span>
+												</span>
+												<span class="qa-q-view-who">
+													<span class="qa-q-view-who-pad">by </span>
+													<span class="qa-q-view-who-data"><span class="vcard author"><a href="../../user/alexmm" class="qa-user-link url nickname">alexmm</a></span></span>
+													<span class="qa-q-view-who-title">FEniCS User</span>
+													<span class="qa-q-view-who-points">
+														<span class="qa-q-view-who-points-pad">(</span><span class="qa-q-view-who-points-data">4,240</span><span class="qa-q-view-who-points-pad"> points)</span>
+													</span>
+												</span>
+											</span>
+										</span>
+										<div class="qa-q-view-buttons">
+										</div>
+										
+										<div class="qa-q-view-c-list" id="c14181_list">
+											<div class="qa-c-list-item  hentry comment" id="c14189">
+												<div class="qa-c-item-content">
+													<a name="14189"></a><div class="entry-content"><p>Could you project it onto your functionspace? Like <a rel="nofollow" href="https://fenicsproject.org/qa/14080/set-domain-definition-from-gmsh-created-mesh">here</a></p>
+</div>
+												</div>
+												<div class="qa-c-item-footer">
+													<span class="qa-c-item-avatar-meta">
+														<span class="qa-c-item-meta">
+															<a href="../../14181/plotting-material-properties-subdomains-given-python-class?show=14189#c14189" class="qa-c-item-what">commented</a>
+															<span class="qa-c-item-when">
+																<span class="qa-c-item-when-data"><span class="published"><span class="value-title" title="2017-07-03T06:14:50+0000"></span>Jul 3, 2017</span></span>
+															</span>
+															<span class="qa-c-item-who">
+																<span class="qa-c-item-who-pad">by </span>
+																<span class="qa-c-item-who-data"><span class="vcard author"><a href="../../user/meron" class="qa-user-link url nickname">meron</a></span></span>
+																<span class="qa-c-item-who-title">FEniCS User</span>
+																<span class="qa-c-item-who-points">
+																	<span class="qa-c-item-who-points-pad">(</span><span class="qa-c-item-who-points-data">2,340</span><span class="qa-c-item-who-points-pad"> points)</span>
+																</span>
+															</span>
+														</span>
+													</span>
+													<div class="qa-c-item-buttons">
+													</div>
+												</div>
+												<div class="qa-c-item-clear">
+												</div>
+											</div> <!-- END qa-c-item -->
+										</div> <!-- END qa-c-list -->
+										
+										<input type="hidden" name="code" value="0-1516466510-acd9c5b8f84f4a57e5fc807d03c211cc9efbbee1">
+										<input type="hidden" name="qa_click" value="">
+									</form>
+									<div class="qa-c-form">
+									</div> <!-- END qa-c-form -->
+									
+								</div> <!-- END qa-q-view-main -->
+								<div class="qa-q-view-clear">
+								</div>
+							</div> <!-- END qa-q-view -->
+							
+						</div>
+						<div class="qa-part-a-list">
+							<h2 id="a_list_title" style="display:none;"></h2>
+							<div class="qa-a-list" id="a_list">
+								
+							</div> <!-- END qa-a-list -->
+							
+						</div>
+					</div> <!-- END qa-main -->
+					
+				</div> <!-- END main-wrapper -->
+			</div> <!-- END main-shadow -->
+		</div> <!-- END body-wrapper -->
+		<!-- END footer-bottom-group -->
+		
+		<div style="position:absolute; left:-9999px; top:-9999px;">
+			<span id="qa-waiting-template" class="qa-waiting">...</span>
+		</div>
+	
+	
+
+</body><!-- Powered by Question2Answer - http://www.question2answer.org/ --></html>

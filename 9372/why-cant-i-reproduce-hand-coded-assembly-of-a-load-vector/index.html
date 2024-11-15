@@ -1,0 +1,244 @@
+<html><!-- Powered by Question2Answer - http://www.question2answer.org/ --><head>
+		<meta http-equiv="content-type" content="text/html; charset=utf-8">
+		<title>Why can't I reproduce hand-coded assembly of a load vector - FEniCS Q&amp;A</title>
+		<meta name="description" content="Hello, I have coded the finite element method by hand. In my code I use one point Gaussian  ... 3.43327353e-01 -3.76647679e-01 -1.11067754e-02">
+		<link rel="stylesheet" type="text/css" href="../../qa-theme/Snow/qa-styles.css">
+		<link rel="canonical" href="http://fenicsproject.org/qa/9372/why-cant-i-reproduce-hand-coded-assembly-of-a-load-vector">
+		<script type="text/x-mathjax-config">
+  MathJax.Hub.Config({
+    extensions: ["tex2jax.js"],
+    jax: ["input/TeX","output/HTML-CSS"],
+    tex2jax: {inlineMath: [["$","$"],["\\(","\\)"]]},
+    TeX: { extensions: ["AMSmath.js","AMSsymbols.js"]}
+  });
+</script>
+<script type="text/javascript" src="../../mathjax/MathJax.js"></script>
+		<script src="../../jquery-1.7.2.min.js" type="text/javascript"></script>
+		<script src="../../highlight.min.js"></script>
+<script type="text/javascript">
+$(function(){
+	$('.wmd-input').keypress(function(){
+		window.clearTimeout(hljs.Timeout);
+		hljs.Timeout = window.setTimeout(function() {
+			hljs.initHighlighting.called = false;
+			hljs.initHighlighting();
+		}, 500);
+	});
+	window.setTimeout(function() {
+		hljs.initHighlighting.called = false;
+		hljs.initHighlighting();
+	}, 500);
+});
+</script>
+
+
+	</head>
+	<body class="qa-template-question qa-body-js-off">
+		<div class="qa-body-wrapper">
+			
+			<div class="qa-header">
+				<div class="qa-logo">
+					<a href="../../" class="qa-logo-link" title="FEniCS Q&amp;A"><img src="../../qa-theme/fenics_qa.png" border="0" alt="FEniCS Q&amp;A"></a>
+				</div>
+				<div class="qa-header-clear">
+				</div>
+			</div> <!-- END qa-header -->
+			
+			<div class="qa-main-shadow">
+				
+				<div class="qa-main-wrapper">
+					
+					<div class="qa-sidepanel">
+						<div class="qa-sidebar">
+							This is a read only copy of the old FEniCS QA forum. Please visit the <a href="https://www.allanswered.com/community/s/fenics-project/">new QA forum</a> to ask questions
+						</div>
+						
+					</div>
+					
+					<div class="qa-main">
+						<h1>
+							<span class="entry-title">Why can't I reproduce hand-coded assembly of a load vector</span>
+						</h1>
+						<div class="qa-part-q-view">
+							<div class="qa-q-view  hentry question" id="q9372">
+								<form method="post" action="../../9372/why-cant-i-reproduce-hand-coded-assembly-of-a-load-vector">
+									<div class="qa-q-view-stats">
+										<div class="qa-voting qa-voting-net" id="voting_9372">
+											<div class="qa-vote-count qa-vote-count-net">
+												<span class="qa-netvote-count">
+													<span class="qa-netvote-count-data">0<span class="votes-up"><span class="value-title" title="0"></span></span><span class="votes-down"><span class="value-title" title="0"></span></span></span><span class="qa-netvote-count-pad"> votes</span>
+												</span>
+											</div>
+											<div class="qa-vote-clear">
+											</div>
+										</div>
+									</div>
+									<input type="hidden" name="code" value="0-1516468220-04a1e2ca9ebe77b30c894d6c7bd8f33fd42699e6">
+								</form>
+								<div class="qa-q-view-main">
+									<form method="post" action="../../9372/why-cant-i-reproduce-hand-coded-assembly-of-a-load-vector">
+										<div class="qa-q-view-content">
+											<a name="9372"></a><div class="entry-content"><p>Hello,</p>
+
+<p>I have coded the finite element method by hand.  In my code I use one point Gaussian quadrature for a right hand side.  I evaluate the load function at each triangles centroid, then multiply by the triangle area and 1/3 (representing the hat function evaluated at the triangle centroid), and accumulate into a vector.</p>
+
+<p>In FEniCS, I have gathered that the using </p>
+
+<pre><code>metadata={'quadrature_degree': 1}
+</code></pre>
+
+<p>as an argument to my measure is supposedly doing this.  I was made aware of the caveat regarding Expressions in the following Q&amp;A</p>
+
+<p><a rel="nofollow" href="http://fenicsproject.org/qa/9096/cant-reproduce-integration-function-using-finite-elements">http://fenicsproject.org/qa/9096/cant-reproduce-integration-function-using-finite-elements</a></p>
+
+<p>This leads me to believe I should be able to recover my assembled load vector by supplying an Expression in FEniCS with degree=n, and then increase n to achieve some desired error tolerance between the two vectors.  Of course, this turns out to not be true...</p>
+
+<p>Does this mean FEniCS does something else besides one-point Gaussian quadrature for this quadrature degree for elements in <code>FunctionSpace(mesh, 'CG', 1)</code>?  Or have I missed something else here?</p>
+
+<p>Here is the FEniCS code I use to assemble the load vector:</p>
+
+<pre><code>nx = 4
+ny = 4
+
+mesh = UnitSquareMesh(nx-1, ny-1)
+V = FunctionSpace(mesh, 'Lagrange', 1)
+d2v = dof_to_vertex_map(V)
+u = TrialFunction(V)
+v = TestFunction(V)
+f = Expression('(-8.*pi*pi) * ( sin((2.0*pi*x[0]) - (0.75*pi)) * sin((2.0*pi*x[1]) - (0.75*pi)) )', degree=6)
+L = inner(f,v)*dx(metadata={'quadrature_degree': 1})
+b = assemble(L)
+print assemble(L).array()[d2v]
+</code></pre>
+
+<p>[-0.63313542 -2.49406667  1.88016875  1.24703334  0.14618852  0.61389792<br>
+ -0.12695102 -0.63313542  0.63313542 -0.12695102  1.88016875 -2.38635315<br>
+  1.24703334  0.61389792 -2.49406667  0.63313542]</p>
+
+<p>The output from my own FEM code using one-point Gaussian quadrature is:</p>
+
+<p>-1.45105684e+00  -1.81659774e+00   2.53657278e+00   7.31081807e-01<br>
+  -1.81659774e+00   2.15992510e+00   6.66133815e-16  -3.43327353e-01<br>
+   2.53657278e+00   6.10622664e-16  -2.15992510e+00  -3.76647679e-01<br>
+   7.31081807e-01  -3.43327353e-01  -3.76647679e-01  -1.11067754e-02</p>
+</div>
+										</div>
+										<span class="qa-q-view-avatar-meta">
+											<span class="qa-q-view-meta">
+												<a href="../../9372/why-cant-i-reproduce-hand-coded-assembly-of-a-load-vector" class="qa-q-view-what">asked</a>
+												<span class="qa-q-view-when">
+													<span class="qa-q-view-when-data"><span class="published"><span class="value-title" title="2016-02-22T14:16:54+0000"></span>Feb 22, 2016</span></span>
+												</span>
+												<span class="qa-q-view-who">
+													<span class="qa-q-view-who-pad">by </span>
+													<span class="qa-q-view-who-data"><span class="vcard author"><a href="../../user/brk888" class="qa-user-link url nickname">brk888</a></span></span>
+													<span class="qa-q-view-who-title">FEniCS Novice</span>
+													<span class="qa-q-view-who-points">
+														<span class="qa-q-view-who-points-pad">(</span><span class="qa-q-view-who-points-data">990</span><span class="qa-q-view-who-points-pad"> points)</span>
+													</span>
+												</span>
+												<br>
+												<span class="qa-q-view-what">edited</span>
+												<span class="qa-q-view-when">
+													<span class="qa-q-view-when-data"><span class="updated"><span class="value-title" title="2016-02-23T11:55:29+0000"></span>Feb 23, 2016</span></span>
+												</span>
+												<span class="qa-q-view-who">
+													<span class="qa-q-view-who-pad">by </span><span class="qa-q-view-who-data"><a href="../../user/brk888" class="qa-user-link url nickname">brk888</a></span>
+												</span>
+											</span>
+										</span>
+										<div class="qa-q-view-buttons">
+										</div>
+										
+										<div class="qa-q-view-c-list" id="c9372_list">
+											<div class="qa-c-list-item  hentry comment" id="c9380">
+												<div class="qa-c-item-content">
+													<a name="9380"></a><div class="entry-content"><p>Post short code that computes the vector, and the result that you would expect.</p>
+</div>
+												</div>
+												<div class="qa-c-item-footer">
+													<span class="qa-c-item-avatar-meta">
+														<span class="qa-c-item-meta">
+															<a href="../../9372/why-cant-i-reproduce-hand-coded-assembly-of-a-load-vector?show=9380#c9380" class="qa-c-item-what">commented</a>
+															<span class="qa-c-item-when">
+																<span class="qa-c-item-when-data"><span class="published"><span class="value-title" title="2016-02-23T10:35:44+0000"></span>Feb 23, 2016</span></span>
+															</span>
+															<span class="qa-c-item-who">
+																<span class="qa-c-item-who-pad">by </span>
+																<span class="qa-c-item-who-data"><span class="vcard author"><a href="../../user/Garth+N.+Wells" class="qa-user-link url nickname">Garth N. Wells</a></span></span>
+																<span class="qa-c-item-who-title">FEniCS Expert</span>
+																<span class="qa-c-item-who-points">
+																	<span class="qa-c-item-who-points-pad">(</span><span class="qa-c-item-who-points-data">35,930</span><span class="qa-c-item-who-points-pad"> points)</span>
+																</span>
+															</span>
+														</span>
+													</span>
+													<div class="qa-c-item-buttons">
+													</div>
+												</div>
+												<div class="qa-c-item-clear">
+												</div>
+											</div> <!-- END qa-c-item -->
+											<div class="qa-c-list-item  hentry comment" id="c9401">
+												<div class="qa-c-item-content">
+													<a name="9401"></a><div class="entry-content"><p>** Edited to include code and expected result **</p>
+</div>
+												</div>
+												<div class="qa-c-item-footer">
+													<span class="qa-c-item-avatar-meta">
+														<span class="qa-c-item-meta">
+															<a href="../../9372/why-cant-i-reproduce-hand-coded-assembly-of-a-load-vector?show=9401#c9401" class="qa-c-item-what">commented</a>
+															<span class="qa-c-item-when">
+																<span class="qa-c-item-when-data"><span class="published"><span class="value-title" title="2016-02-23T11:56:08+0000"></span>Feb 23, 2016</span></span>
+															</span>
+															<span class="qa-c-item-who">
+																<span class="qa-c-item-who-pad">by </span>
+																<span class="qa-c-item-who-data"><span class="vcard author"><a href="../../user/brk888" class="qa-user-link url nickname">brk888</a></span></span>
+																<span class="qa-c-item-who-title">FEniCS Novice</span>
+																<span class="qa-c-item-who-points">
+																	<span class="qa-c-item-who-points-pad">(</span><span class="qa-c-item-who-points-data">990</span><span class="qa-c-item-who-points-pad"> points)</span>
+																</span>
+															</span>
+														</span>
+													</span>
+													<div class="qa-c-item-buttons">
+													</div>
+												</div>
+												<div class="qa-c-item-clear">
+												</div>
+											</div> <!-- END qa-c-item -->
+										</div> <!-- END qa-c-list -->
+										
+										<input type="hidden" name="code" value="0-1516468220-2ff211ca66e10dde3ea15f8f489bad3ba8e0233c">
+										<input type="hidden" name="qa_click" value="">
+									</form>
+									<div class="qa-c-form">
+									</div> <!-- END qa-c-form -->
+									
+								</div> <!-- END qa-q-view-main -->
+								<div class="qa-q-view-clear">
+								</div>
+							</div> <!-- END qa-q-view -->
+							
+						</div>
+						<div class="qa-part-a-list">
+							<h2 id="a_list_title" style="display:none;"></h2>
+							<div class="qa-a-list" id="a_list">
+								
+							</div> <!-- END qa-a-list -->
+							
+						</div>
+					</div> <!-- END qa-main -->
+					
+				</div> <!-- END main-wrapper -->
+			</div> <!-- END main-shadow -->
+		</div> <!-- END body-wrapper -->
+		<!-- END footer-bottom-group -->
+		
+		<div style="position:absolute; left:-9999px; top:-9999px;">
+			<span id="qa-waiting-template" class="qa-waiting">...</span>
+		</div>
+	
+	
+
+</body><!-- Powered by Question2Answer - http://www.question2answer.org/ --></html>

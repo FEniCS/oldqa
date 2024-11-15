@@ -1,0 +1,370 @@
+<html><!-- Powered by Question2Answer - http://www.question2answer.org/ --><head>
+		<meta http-equiv="content-type" content="text/html; charset=utf-8">
+		<title>Newbie: Mixed Neumann on top of a box - FEniCS Q&amp;A</title>
+		<meta name="description" content="Dear all, I am studying Fenics, and I find it fascinating. I am playing right  ... .org/documentation/tutorial/materials.html#tut-poisson-mat-neumann">
+		<meta name="keywords" content="boundary-conditions,neumann,dirichlet">
+		<link rel="stylesheet" type="text/css" href="../../qa-theme/Snow/qa-styles.css">
+		<link rel="canonical" href="http://fenicsproject.org/qa/4165/newbie-mixed-neumann-on-top-of-a-box">
+		<script type="text/x-mathjax-config">
+  MathJax.Hub.Config({
+    extensions: ["tex2jax.js"],
+    jax: ["input/TeX","output/HTML-CSS"],
+    tex2jax: {inlineMath: [["$","$"],["\\(","\\)"]]},
+    TeX: { extensions: ["AMSmath.js","AMSsymbols.js"]}
+  });
+</script>
+<script type="text/javascript" src="../../mathjax/MathJax.js"></script>
+		<script src="../../jquery-1.7.2.min.js" type="text/javascript"></script>
+		<script src="../../highlight.min.js"></script>
+<script type="text/javascript">
+$(function(){
+	$('.wmd-input').keypress(function(){
+		window.clearTimeout(hljs.Timeout);
+		hljs.Timeout = window.setTimeout(function() {
+			hljs.initHighlighting.called = false;
+			hljs.initHighlighting();
+		}, 500);
+	});
+	window.setTimeout(function() {
+		hljs.initHighlighting.called = false;
+		hljs.initHighlighting();
+	}, 500);
+});
+</script>
+
+
+	</head>
+	<body class="qa-template-question qa-body-js-off">
+		<div class="qa-body-wrapper">
+			
+			<div class="qa-header">
+				<div class="qa-logo">
+					<a href="../../" class="qa-logo-link" title="FEniCS Q&amp;A"><img src="../../qa-theme/fenics_qa.png" border="0" alt="FEniCS Q&amp;A"></a>
+				</div>
+				<div class="qa-header-clear">
+				</div>
+			</div> <!-- END qa-header -->
+			
+			<div class="qa-main-shadow">
+				
+				<div class="qa-main-wrapper">
+					
+					<div class="qa-sidepanel">
+						<div class="qa-sidebar">
+							This is a read only copy of the old FEniCS QA forum. Please visit the <a href="https://www.allanswered.com/community/s/fenics-project/">new QA forum</a> to ask questions
+						</div>
+						
+					</div>
+					
+					<div class="qa-main">
+						<h1>
+							<span class="entry-title">Newbie: Mixed Neumann on top of a box</span>
+						</h1>
+						<div class="qa-part-q-view">
+							<div class="qa-q-view  hentry question" id="q4165">
+								<form method="post" action="../../4165/newbie-mixed-neumann-on-top-of-a-box">
+									<div class="qa-q-view-stats">
+										<div class="qa-voting qa-voting-net" id="voting_4165">
+											<div class="qa-vote-count qa-vote-count-net">
+												<span class="qa-netvote-count">
+													<span class="qa-netvote-count-data">+3<span class="votes-up"><span class="value-title" title="3"></span></span><span class="votes-down"><span class="value-title" title="0"></span></span></span><span class="qa-netvote-count-pad"> votes</span>
+												</span>
+											</div>
+											<div class="qa-vote-clear">
+											</div>
+										</div>
+									</div>
+									<input type="hidden" name="code" value="0-1516468004-c68b69c3f412c6983c8a51489caa3bbc53ec8a0e">
+								</form>
+								<div class="qa-q-view-main">
+									<form method="post" action="../../4165/newbie-mixed-neumann-on-top-of-a-box">
+										<div class="qa-q-view-content">
+											<a name="4165"></a><div class="entry-content"><p>Dear all, </p>
+
+<p>I am studying Fenics, and I find it fascinating. I am playing right now with a simple elastic problem. However, I am finding not quite easy to impose a mixed Neumann-Dirichlet and I hope you can guide me.</p>
+
+<p>The problem is quite easy: a box, with clamping on the <strong>bottom side</strong>, and a force on the <strong>top side</strong>. </p>
+
+<p>My attempt right now is below. I've tried to put a force on the boundary, but I don't know if (or how) I could define the force as a dirac delta on the top side, but I think this approach will cause more harm than good... am I right?</p>
+
+<p>My question is then: do I have to decompose the box into <strong>five</strong> domains, with the 2D domain, and the four sides, or just two? I am reading <a rel="nofollow" href="http://fenicsproject.org/documentation/tutorial/materials.html#tut-poisson-mat-neumann">this documentation</a>, and I think I should mark the top, defining a class, and just use a function for the Dirichlet condition on the bottom. I've tried this, but nothing happens on the deformation side.</p>
+
+<p><strong>EDIT:</strong> I've changed my code to apply a subdomain condition. It compiles and runs, but I cannot see any deformation: <em>u</em> is constant zero on the domain. </p>
+
+<p><strong>EDIT:</strong> Now the on-top condition handles the top boundary actually. However, nothing changes, and I don't know how to proceed...</p>
+
+<p>Can you help me in figuring out what I am doing wrong?</p>
+
+<pre><code>from dolfin import *
+
+# Constants
+Young   = 30e6
+Poisson = 0.25
+Force   = 1.0
+Width   = 7.0
+Height  = 14.0
+Mu      = Young / (2.0 * (1.0 + Poisson))
+Lambda  = Young * Poisson / ((1.0 + Poisson) * (1.0 - 2.0 * Poisson))
+
+# Floating point tolerance
+Epsilon = 10e-7
+
+# Create mesh and define function space (x0, y0)-(x1, y1), nx, ny
+mesh = RectangleMesh(0, 0, Width, Height, 10, 20)
+
+# 1st order Lagrange shape functions
+V = VectorFunctionSpace(mesh, 'CG', 1)
+
+# Displacement function
+u = TrialFunction(V)
+
+# Test function
+v = TestFunction(V)
+
+# Strain
+def eps(v):
+    return sym(grad(v))
+
+# Stress
+def sigma(v):
+    return 2.0 * Mu * eps(v) + Lambda * tr(eps(v)) * Identity(v.geometric_dimension())
+
+# Bulk Force
+f = Constant((0, 0))
+
+# Set up boundary conditions
+u0 = Constant((0.0, 0.0))
+f1 = Constant((0.0, Force * 1000))
+
+def on_bottom(x, on_boundary):
+    return on_boundary and abs(x[1]) &lt; Epsilon
+
+def on_top(x, on_boundary):
+    return on_boundary and abs(x[1] - Height) &lt; Epsilon
+
+force_vector = Expression(("0.0", "1000"))
+
+# Now let's move to the boundary
+boundary_parts = MeshFunction("size_t", mesh, mesh.topology().dim() - 1)
+
+# The top boundary class
+class TopBoundary(SubDomain):
+    def inside(self, x, on_boundary):
+        return on_boundary and abs(x[0] - Height) &lt; Epsilon
+
+# Mark the top boundary with 0
+NeumannBoundary = TopBoundary()
+NeumannBoundary.mark(boundary_parts, 0)
+
+bcBottom = DirichletBC(V, u0, on_bottom)
+bcs      = [bcBottom]
+
+# Variational form
+a = inner(sigma(u), eps(v)) * dx
+L = inner(f, v) * dx + 10000 * inner(force_vector, v) * ds(0)
+</code></pre>
+</div>
+										</div>
+										<div class="qa-q-view-tags">
+											<ul class="qa-q-view-tag-list">
+												<li class="qa-q-view-tag-item"><a href="../../tag/boundary-conditions" rel="tag" class="qa-tag-link">boundary-conditions</a></li>
+												<li class="qa-q-view-tag-item"><a href="../../tag/neumann" rel="tag" class="qa-tag-link">neumann</a></li>
+												<li class="qa-q-view-tag-item"><a href="../../tag/dirichlet" rel="tag" class="qa-tag-link">dirichlet</a></li>
+											</ul>
+										</div>
+										<span class="qa-q-view-avatar-meta">
+											<span class="qa-q-view-meta">
+												<a href="../../4165/newbie-mixed-neumann-on-top-of-a-box" class="qa-q-view-what">asked</a>
+												<span class="qa-q-view-when">
+													<span class="qa-q-view-when-data"><span class="published"><span class="value-title" title="2014-07-18T13:31:27+0000"></span>Jul 18, 2014</span></span>
+												</span>
+												<span class="qa-q-view-who">
+													<span class="qa-q-view-who-pad">by </span>
+													<span class="qa-q-view-who-data"><span class="vcard author"><a href="../../user/senseiwa" class="qa-user-link url nickname">senseiwa</a></span></span>
+													<span class="qa-q-view-who-title">FEniCS User</span>
+													<span class="qa-q-view-who-points">
+														<span class="qa-q-view-who-points-pad">(</span><span class="qa-q-view-who-points-data">2,620</span><span class="qa-q-view-who-points-pad"> points)</span>
+													</span>
+												</span>
+												<br>
+												<span class="qa-q-view-what">edited</span>
+												<span class="qa-q-view-when">
+													<span class="qa-q-view-when-data"><span class="updated"><span class="value-title" title="2014-07-22T08:47:59+0000"></span>Jul 22, 2014</span></span>
+												</span>
+												<span class="qa-q-view-who">
+													<span class="qa-q-view-who-pad">by </span><span class="qa-q-view-who-data"><a href="../../user/senseiwa" class="qa-user-link url nickname">senseiwa</a></span>
+												</span>
+											</span>
+										</span>
+										<div class="qa-q-view-buttons">
+										</div>
+										
+										<div class="qa-q-view-c-list" id="c4165_list">
+											<div class="qa-c-list-item  hentry comment" id="c4180">
+												<div class="qa-c-item-content">
+													<a name="4180"></a><div class="entry-content"><p>I've changed the class to</p>
+
+<pre><code>class TopBoundary(SubDomain):
+    def inside(self, x, on_boundary):
+        return on_boundary and abs(x[0] - Height) &lt; Epsilon
+</code></pre>
+
+<p>Nothing changes... What am I doing wrong here? Thanks for any help! :)</p>
+</div>
+												</div>
+												<div class="qa-c-item-footer">
+													<span class="qa-c-item-avatar-meta">
+														<span class="qa-c-item-meta">
+															<a href="../../4165/newbie-mixed-neumann-on-top-of-a-box?show=4180#c4180" class="qa-c-item-what">commented</a>
+															<span class="qa-c-item-when">
+																<span class="qa-c-item-when-data"><span class="published"><span class="value-title" title="2014-07-22T08:42:17+0000"></span>Jul 22, 2014</span></span>
+															</span>
+															<span class="qa-c-item-who">
+																<span class="qa-c-item-who-pad">by </span>
+																<span class="qa-c-item-who-data"><span class="vcard author"><a href="../../user/senseiwa" class="qa-user-link url nickname">senseiwa</a></span></span>
+																<span class="qa-c-item-who-title">FEniCS User</span>
+																<span class="qa-c-item-who-points">
+																	<span class="qa-c-item-who-points-pad">(</span><span class="qa-c-item-who-points-data">2,620</span><span class="qa-c-item-who-points-pad"> points)</span>
+																</span>
+															</span>
+														</span>
+													</span>
+													<div class="qa-c-item-buttons">
+													</div>
+												</div>
+												<div class="qa-c-item-clear">
+												</div>
+											</div> <!-- END qa-c-item -->
+										</div> <!-- END qa-c-list -->
+										
+										<input type="hidden" name="code" value="0-1516468004-79113f5779caab820e7c46fdee698852edba8f3e">
+										<input type="hidden" name="qa_click" value="">
+									</form>
+									<div class="qa-c-form">
+									</div> <!-- END qa-c-form -->
+									
+								</div> <!-- END qa-q-view-main -->
+								<div class="qa-q-view-clear">
+								</div>
+							</div> <!-- END qa-q-view -->
+							
+						</div>
+						<div class="qa-part-a-list">
+							<h2 id="a_list_title">1 Answer</h2>
+							<div class="qa-a-list" id="a_list">
+								
+								<div class="qa-a-list-item  hentry answer" id="a4187">
+									<form method="post" action="../../4165/newbie-mixed-neumann-on-top-of-a-box">
+										<div class="qa-voting qa-voting-net" id="voting_4187">
+											<div class="qa-vote-count qa-vote-count-net">
+												<span class="qa-netvote-count">
+													<span class="qa-netvote-count-data">0<span class="votes-up"><span class="value-title" title="0"></span></span><span class="votes-down"><span class="value-title" title="0"></span></span></span><span class="qa-netvote-count-pad"> votes</span>
+												</span>
+											</div>
+											<div class="qa-vote-clear">
+											</div>
+										</div>
+										<input type="hidden" name="code" value="0-1516468004-c68b69c3f412c6983c8a51489caa3bbc53ec8a0e">
+									</form>
+									<div class="qa-a-item-main">
+										<form method="post" action="../../4165/newbie-mixed-neumann-on-top-of-a-box">
+											<div class="qa-a-selection">
+											</div>
+											<div class="qa-a-item-content">
+												<a name="4187"></a><div class="entry-content"><p>Solved! Following <a rel="nofollow" href="http://fenicsproject.org/pub/book/chapters/01/stationary/poisson/dnr_p2D.py">this example</a>, I've managed to solve my problem. The main differences are: don't solve, assemble &amp; solve:</p>
+
+<pre><code># Variational form
+a = inner(sigma(u), eps(v)) * dx
+L = inner(f, v) * dx + inner(force_vector, v) * ds(1)
+
+# Compute solution
+A = assemble(a, exterior_facet_domains = boundary_parts)
+b = assemble(L, exterior_facet_domains = boundary_parts)
+for condition in bcs: condition.apply(A, b)
+
+# SOLVE!
+u = Function(V)
+solve(A, u.vector(), b, 'lu')
+</code></pre>
+
+<p>Damn, that wasn't quite easy.</p>
+</div>
+											</div>
+											<span class="qa-a-item-avatar-meta">
+												<span class="qa-a-item-meta">
+													<a href="../../4165/newbie-mixed-neumann-on-top-of-a-box?show=4187#a4187" class="qa-a-item-what">answered</a>
+													<span class="qa-a-item-when">
+														<span class="qa-a-item-when-data"><span class="published"><span class="value-title" title="2014-07-22T13:57:14+0000"></span>Jul 22, 2014</span></span>
+													</span>
+													<span class="qa-a-item-who">
+														<span class="qa-a-item-who-pad">by </span>
+														<span class="qa-a-item-who-data"><span class="vcard author"><a href="../../user/senseiwa" class="qa-user-link url nickname">senseiwa</a></span></span>
+														<span class="qa-a-item-who-title">FEniCS User</span>
+														<span class="qa-a-item-who-points">
+															<span class="qa-a-item-who-points-pad">(</span><span class="qa-a-item-who-points-data">2,620</span><span class="qa-a-item-who-points-pad"> points)</span>
+														</span>
+													</span>
+												</span>
+											</span>
+											<div class="qa-a-item-buttons">
+												</div>
+											
+											<div class="qa-a-item-c-list" id="c4187_list">
+												<div class="qa-c-list-item  hentry comment" id="c4422">
+													<div class="qa-c-item-content">
+														<a name="4422"></a><div class="entry-content"><p>*_domains of assemble has been deprecated in DOLFIN version 1.4.0.</p>
+</div>
+													</div>
+													<div class="qa-c-item-footer">
+														<span class="qa-c-item-avatar-meta">
+															<span class="qa-c-item-meta">
+																<a href="../../4165/newbie-mixed-neumann-on-top-of-a-box?show=4422#c4422" class="qa-c-item-what">commented</a>
+																<span class="qa-c-item-when">
+																	<span class="qa-c-item-when-data"><span class="published"><span class="value-title" title="2014-08-17T11:57:27+0000"></span>Aug 17, 2014</span></span>
+																</span>
+																<span class="qa-c-item-who">
+																	<span class="qa-c-item-who-pad">by </span>
+																	<span class="qa-c-item-who-data"><span class="vcard author"><a href="../../user/ChrisZhang" class="qa-user-link url nickname">ChrisZhang</a></span></span>
+																	<span class="qa-c-item-who-title">FEniCS Novice</span>
+																	<span class="qa-c-item-who-points">
+																		<span class="qa-c-item-who-points-pad">(</span><span class="qa-c-item-who-points-data">190</span><span class="qa-c-item-who-points-pad"> points)</span>
+																	</span>
+																</span>
+															</span>
+														</span>
+														<div class="qa-c-item-buttons">
+														</div>
+													</div>
+													<div class="qa-c-item-clear">
+													</div>
+												</div> <!-- END qa-c-item -->
+											</div> <!-- END qa-c-list -->
+											
+											<input type="hidden" name="code" value="0-1516468004-92f021d8045f2bd4cce7ac6f8fbb141c12b1af3f">
+											<input type="hidden" name="qa_click" value="">
+										</form>
+										<div class="qa-c-form">
+										</div> <!-- END qa-c-form -->
+										
+									</div> <!-- END qa-a-item-main -->
+									<div class="qa-a-item-clear">
+									</div>
+								</div> <!-- END qa-a-list-item -->
+								
+							</div> <!-- END qa-a-list -->
+							
+						</div>
+					</div> <!-- END qa-main -->
+					
+				</div> <!-- END main-wrapper -->
+			</div> <!-- END main-shadow -->
+		</div> <!-- END body-wrapper -->
+		<!-- END footer-bottom-group -->
+		
+		<div style="position:absolute; left:-9999px; top:-9999px;">
+			<span id="qa-waiting-template" class="qa-waiting">...</span>
+		</div>
+	
+	
+
+</body><!-- Powered by Question2Answer - http://www.question2answer.org/ --></html>

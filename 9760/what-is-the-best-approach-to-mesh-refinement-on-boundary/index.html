@@ -1,0 +1,621 @@
+<html><!-- Powered by Question2Answer - http://www.question2answer.org/ --><head>
+		<meta http-equiv="content-type" content="text/html; charset=utf-8">
+		<title>What is the best approach to mesh refinement on boundary? - FEniCS Q&amp;A</title>
+		<meta name="description" content="I'm solving Laplace equation with discontinuous Dirichlet conditions. So it would be great if there were  ...  1)) plot(E) plot(mesh) interactive()">
+		<meta name="keywords" content="mesh,mesh-generation,mesh-refinement,boundary,discontinuous">
+		<link rel="stylesheet" type="text/css" href="../../qa-theme/Snow/qa-styles.css">
+		<link rel="canonical" href="http://fenicsproject.org/qa/9760/what-is-the-best-approach-to-mesh-refinement-on-boundary">
+		<script type="text/x-mathjax-config">
+  MathJax.Hub.Config({
+    extensions: ["tex2jax.js"],
+    jax: ["input/TeX","output/HTML-CSS"],
+    tex2jax: {inlineMath: [["$","$"],["\\(","\\)"]]},
+    TeX: { extensions: ["AMSmath.js","AMSsymbols.js"]}
+  });
+</script>
+<script type="text/javascript" src="../../mathjax/MathJax.js"></script>
+		<script src="../../jquery-1.7.2.min.js" type="text/javascript"></script>
+		<script src="../../highlight.min.js"></script>
+<script type="text/javascript">
+$(function(){
+	$('.wmd-input').keypress(function(){
+		window.clearTimeout(hljs.Timeout);
+		hljs.Timeout = window.setTimeout(function() {
+			hljs.initHighlighting.called = false;
+			hljs.initHighlighting();
+		}, 500);
+	});
+	window.setTimeout(function() {
+		hljs.initHighlighting.called = false;
+		hljs.initHighlighting();
+	}, 500);
+});
+</script>
+
+
+	</head>
+	<body class="qa-template-question qa-body-js-off">
+		<div class="qa-body-wrapper">
+			
+			<div class="qa-header">
+				<div class="qa-logo">
+					<a href="../../" class="qa-logo-link" title="FEniCS Q&amp;A"><img src="../../qa-theme/fenics_qa.png" border="0" alt="FEniCS Q&amp;A"></a>
+				</div>
+				<div class="qa-header-clear">
+				</div>
+			</div> <!-- END qa-header -->
+			
+			<div class="qa-main-shadow">
+				
+				<div class="qa-main-wrapper">
+					
+					<div class="qa-sidepanel">
+						<div class="qa-sidebar">
+							This is a read only copy of the old FEniCS QA forum. Please visit the <a href="https://www.allanswered.com/community/s/fenics-project/">new QA forum</a> to ask questions
+						</div>
+						
+					</div>
+					
+					<div class="qa-main">
+						<h1>
+							<span class="entry-title">What is the best approach to mesh refinement on boundary?</span>
+						</h1>
+						<div class="qa-part-q-view">
+							<div class="qa-q-view  hentry question" id="q9760">
+								<form method="post" action="../../9760/what-is-the-best-approach-to-mesh-refinement-on-boundary">
+									<div class="qa-q-view-stats">
+										<div class="qa-voting qa-voting-net" id="voting_9760">
+											<div class="qa-vote-count qa-vote-count-net">
+												<span class="qa-netvote-count">
+													<span class="qa-netvote-count-data">0<span class="votes-up"><span class="value-title" title="0"></span></span><span class="votes-down"><span class="value-title" title="0"></span></span></span><span class="qa-netvote-count-pad"> votes</span>
+												</span>
+											</div>
+											<div class="qa-vote-clear">
+											</div>
+										</div>
+									</div>
+									<input type="hidden" name="code" value="0-1516468237-16ad32fdc29717198d4ac101027c7d60d1b628be">
+								</form>
+								<div class="qa-q-view-main">
+									<form method="post" action="../../9760/what-is-the-best-approach-to-mesh-refinement-on-boundary">
+										<div class="qa-q-view-content">
+											<a name="9760"></a><div class="entry-content"><p>I'm solving Laplace equation with discontinuous Dirichlet conditions. So it would be great if there were more cells near the points of breaks than in other areas. What is the best approach to do it (both to <code>UnitSquareMesh</code> and mesh built using <code>generate_mesh</code>)? </p>
+
+<pre><code>from dolfin import *
+from mshr import *
+
+nx, ny = 30, 30
+plx, prx = 0.2, 0.8
+u0, u1 = 0.0, 0.05
+
+#mesh = UnitSquareMesh(nx, ny)
+mesh = generate_mesh(Rectangle(Point(0, 0), Point(1, 1)), 50)
+
+class Plate(SubDomain):
+    def inside(self, x, on_boundary):
+        return (plx &lt; x[0] &lt; prx) and near(x[1], 1.0)
+
+class Boundary(SubDomain):
+    def inside(self, x, on_boundary):
+        return near(x[0], 0.0) or near(x[0], 1.0) or near(x[1], 0.0) or (near(x[1], 1.0) and not (plx &lt; x[0] &lt; prx))
+
+# Initialize sub-domain instances
+plate = Plate()
+boudary = Boundary()
+
+
+# Initialize mesh function for boundary domains
+boundaries = FacetFunction("size_t", mesh)
+boundaries.set_all(0)
+plate.mark(boundaries, 1)
+boudary.mark(boundaries, 2)
+
+# Define function space and basis functions
+V = FunctionSpace(mesh, "Lagrange", 1)
+u = TrialFunction(V)
+v = TestFunction(V)
+
+# Define Dirichlet boundary conditions
+bcs = [DirichletBC(V, Constant(u0), boundaries, 2),
+       DirichletBC(V, Constant(u1), boundaries, 1)]
+
+a = inner(grad(u), grad(v)) * dx
+L = Constant(0.0) * v * dx
+
+u = Function(V)
+
+problem = LinearVariationalProblem(a, L, u, bcs)
+solver = LinearVariationalSolver(problem)
+solver.solve()
+
+plot(u)
+
+E = -project(grad(u), VectorFunctionSpace(mesh, "Lagrange", 1))
+
+plot(E)
+
+plot(mesh)
+
+interactive()
+</code></pre>
+</div>
+										</div>
+										<div class="qa-q-view-tags">
+											<ul class="qa-q-view-tag-list">
+												<li class="qa-q-view-tag-item"><a href="../../tag/mesh" rel="tag" class="qa-tag-link">mesh</a></li>
+												<li class="qa-q-view-tag-item"><a href="../../tag/mesh-generation" rel="tag" class="qa-tag-link">mesh-generation</a></li>
+												<li class="qa-q-view-tag-item"><a href="../../tag/mesh-refinement" rel="tag" class="qa-tag-link">mesh-refinement</a></li>
+												<li class="qa-q-view-tag-item"><a href="../../tag/boundary" rel="tag" class="qa-tag-link">boundary</a></li>
+												<li class="qa-q-view-tag-item"><a href="../../tag/discontinuous" rel="tag" class="qa-tag-link">discontinuous</a></li>
+											</ul>
+										</div>
+										<span class="qa-q-view-avatar-meta">
+											<span class="qa-q-view-meta">
+												<a href="../../9760/what-is-the-best-approach-to-mesh-refinement-on-boundary" class="qa-q-view-what">asked</a>
+												<span class="qa-q-view-when">
+													<span class="qa-q-view-when-data"><span class="published"><span class="value-title" title="2016-04-05T10:47:02+0000"></span>Apr 5, 2016</span></span>
+												</span>
+												<span class="qa-q-view-who">
+													<span class="qa-q-view-who-pad">by </span>
+													<span class="qa-q-view-who-data"><span class="vcard author"><a href="../../user/Illusion" class="qa-user-link url nickname">Illusion</a></span></span>
+													<span class="qa-q-view-who-title">FEniCS Novice</span>
+													<span class="qa-q-view-who-points">
+														<span class="qa-q-view-who-points-pad">(</span><span class="qa-q-view-who-points-data">290</span><span class="qa-q-view-who-points-pad"> points)</span>
+													</span>
+												</span>
+											</span>
+										</span>
+										<div class="qa-q-view-buttons">
+										</div>
+										
+										<div class="qa-q-view-c-list" id="c9760_list">
+											<div class="qa-c-list-item  hentry comment" id="c9761">
+												<div class="qa-c-item-content">
+													<a name="9761"></a><div class="entry-content"><p>This might not be an answer to your question (I never used the built-in mesh capabilities) but I know it is easy to do in GMSH.</p>
+</div>
+												</div>
+												<div class="qa-c-item-footer">
+													<span class="qa-c-item-avatar-meta">
+														<span class="qa-c-item-meta">
+															<a href="../../9760/what-is-the-best-approach-to-mesh-refinement-on-boundary?show=9761#c9761" class="qa-c-item-what">commented</a>
+															<span class="qa-c-item-when">
+																<span class="qa-c-item-when-data"><span class="published"><span class="value-title" title="2016-04-05T13:01:11+0000"></span>Apr 5, 2016</span></span>
+															</span>
+															<span class="qa-c-item-who">
+																<span class="qa-c-item-who-pad">by </span>
+																<span class="qa-c-item-who-data"><span class="vcard author"><a href="../../user/maartent" class="qa-user-link url nickname">maartent</a></span></span>
+																<span class="qa-c-item-who-title">FEniCS User</span>
+																<span class="qa-c-item-who-points">
+																	<span class="qa-c-item-who-points-pad">(</span><span class="qa-c-item-who-points-data">3,910</span><span class="qa-c-item-who-points-pad"> points)</span>
+																</span>
+															</span>
+														</span>
+													</span>
+													<div class="qa-c-item-buttons">
+													</div>
+												</div>
+												<div class="qa-c-item-clear">
+												</div>
+											</div> <!-- END qa-c-item -->
+											<div class="qa-c-list-item  hentry comment" id="c9764">
+												<div class="qa-c-item-content">
+													<a name="9764"></a><div class="entry-content"><p>Thank for the tip!<br>
+I would be very grateful if you sent me on joraillusion@yandex.by some example of usage gmsh with fenics if you have.</p>
+</div>
+												</div>
+												<div class="qa-c-item-footer">
+													<span class="qa-c-item-avatar-meta">
+														<span class="qa-c-item-meta">
+															<a href="../../9760/what-is-the-best-approach-to-mesh-refinement-on-boundary?show=9764#c9764" class="qa-c-item-what">commented</a>
+															<span class="qa-c-item-when">
+																<span class="qa-c-item-when-data"><span class="published"><span class="value-title" title="2016-04-05T15:14:11+0000"></span>Apr 5, 2016</span></span>
+															</span>
+															<span class="qa-c-item-who">
+																<span class="qa-c-item-who-pad">by </span>
+																<span class="qa-c-item-who-data"><span class="vcard author"><a href="../../user/Illusion" class="qa-user-link url nickname">Illusion</a></span></span>
+																<span class="qa-c-item-who-title">FEniCS Novice</span>
+																<span class="qa-c-item-who-points">
+																	<span class="qa-c-item-who-points-pad">(</span><span class="qa-c-item-who-points-data">290</span><span class="qa-c-item-who-points-pad"> points)</span>
+																</span>
+															</span>
+														</span>
+													</span>
+													<div class="qa-c-item-buttons">
+													</div>
+												</div>
+												<div class="qa-c-item-clear">
+												</div>
+											</div> <!-- END qa-c-item -->
+										</div> <!-- END qa-c-list -->
+										
+										<input type="hidden" name="code" value="0-1516468237-ca1c97bc1978542c03c4dab4037bc0df2595e7d1">
+										<input type="hidden" name="qa_click" value="">
+									</form>
+									<div class="qa-c-form">
+									</div> <!-- END qa-c-form -->
+									
+								</div> <!-- END qa-q-view-main -->
+								<div class="qa-q-view-clear">
+								</div>
+							</div> <!-- END qa-q-view -->
+							
+						</div>
+						<div class="qa-part-a-list">
+							<h2 id="a_list_title">2 Answers</h2>
+							<div class="qa-a-list" id="a_list">
+								
+								<div class="qa-a-list-item  hentry answer answer-selected qa-a-list-item-selected" id="a9771">
+									<form method="post" action="../../9760/what-is-the-best-approach-to-mesh-refinement-on-boundary">
+										<div class="qa-voting qa-voting-net" id="voting_9771">
+											<div class="qa-vote-count qa-vote-count-net">
+												<span class="qa-netvote-count">
+													<span class="qa-netvote-count-data">+2<span class="votes-up"><span class="value-title" title="2"></span></span><span class="votes-down"><span class="value-title" title="0"></span></span></span><span class="qa-netvote-count-pad"> votes</span>
+												</span>
+											</div>
+											<div class="qa-vote-clear">
+											</div>
+										</div>
+										<input type="hidden" name="code" value="0-1516468237-16ad32fdc29717198d4ac101027c7d60d1b628be">
+									</form>
+									<div class="qa-a-item-main">
+										<form method="post" action="../../9760/what-is-the-best-approach-to-mesh-refinement-on-boundary">
+											<div class="qa-a-item-selected">
+												<div class="qa-a-selection">
+													<div class="qa-a-selected">&#160;</div>
+													<div class="qa-a-selected-text">Best answer</div>
+												</div>
+												<div class="qa-a-item-content">
+													<a name="9771"></a><div class="entry-content"><p>Hi,<br>
+also you can try something like this:</p>
+
+<pre><code>from dolfin import *
+
+mesh = UnitSquareMesh(20, 20, "crossed")
+
+# Break point
+p   = Point(0.0, 0.5)
+tol = 0.05
+
+# Selecting edges to refine
+class Border(SubDomain):
+    def inside(self, x, on_boundary):
+        return near(x[0], p.x(), tol) and near(x[1], p.y(), tol) and on_boundary
+
+Border = Border()
+
+# Number of refinements
+nor = 3
+
+for i in range(nor):
+    edge_markers = EdgeFunction("bool", mesh)
+    Border.mark(edge_markers, True)
+
+    adapt(mesh, edge_markers)
+    mesh = mesh.child()
+
+plot(mesh, interactive=True)
+</code></pre>
+</div>
+												</div>
+												<span class="qa-a-item-avatar-meta">
+													<span class="qa-a-item-avatar">
+														<a href="../../user/hernan_mella" class="qa-avatar-link"><img src="../../?qa=image&amp;qa_blobid=14920815903966845416&amp;qa_size=40" width="40" height="22" class="qa-avatar-image" alt=""></a>
+													</span>
+													<span class="qa-a-item-meta">
+														<a href="../../9760/what-is-the-best-approach-to-mesh-refinement-on-boundary?show=9771#a9771" class="qa-a-item-what">answered</a>
+														<span class="qa-a-item-when">
+															<span class="qa-a-item-when-data"><span class="published"><span class="value-title" title="2016-04-05T18:05:43+0000"></span>Apr 5, 2016</span></span>
+														</span>
+														<span class="qa-a-item-who">
+															<span class="qa-a-item-who-pad">by </span>
+															<span class="qa-a-item-who-data"><span class="vcard author"><a href="../../user/hernan_mella" class="qa-user-link url nickname">hernan_mella</a></span></span>
+															<span class="qa-a-item-who-title">FEniCS Expert</span>
+															<span class="qa-a-item-who-points">
+																<span class="qa-a-item-who-points-pad">(</span><span class="qa-a-item-who-points-data">19,460</span><span class="qa-a-item-who-points-pad"> points)</span>
+															</span>
+														</span>
+														<br>
+														<span class="qa-a-item-what">selected</span>
+														<span class="qa-a-item-when">
+															<span class="qa-a-item-when-data"><span class="updated"><span class="value-title" title="2016-04-05T22:06:59+0000"></span>Apr 6, 2016</span></span>
+														</span>
+														<span class="qa-a-item-who">
+															<span class="qa-a-item-who-pad">by </span><span class="qa-a-item-who-data"><a href="../../user/Illusion" class="qa-user-link url nickname">Illusion</a></span>
+														</span>
+													</span>
+												</span>
+											</div>
+											<div class="qa-a-item-buttons">
+												</div>
+											
+											<div class="qa-a-item-c-list" id="c9771_list">
+												<div class="qa-c-list-item  hentry comment" id="c9775">
+													<div class="qa-c-item-content">
+														<a name="9775"></a><div class="entry-content"><p>Perfect! Thanks!</p>
+</div>
+													</div>
+													<div class="qa-c-item-footer">
+														<span class="qa-c-item-avatar-meta">
+															<span class="qa-c-item-meta">
+																<a href="../../9760/what-is-the-best-approach-to-mesh-refinement-on-boundary?show=9775#c9775" class="qa-c-item-what">commented</a>
+																<span class="qa-c-item-when">
+																	<span class="qa-c-item-when-data"><span class="published"><span class="value-title" title="2016-04-05T22:06:52+0000"></span>Apr 6, 2016</span></span>
+																</span>
+																<span class="qa-c-item-who">
+																	<span class="qa-c-item-who-pad">by </span>
+																	<span class="qa-c-item-who-data"><span class="vcard author"><a href="../../user/Illusion" class="qa-user-link url nickname">Illusion</a></span></span>
+																	<span class="qa-c-item-who-title">FEniCS Novice</span>
+																	<span class="qa-c-item-who-points">
+																		<span class="qa-c-item-who-points-pad">(</span><span class="qa-c-item-who-points-data">290</span><span class="qa-c-item-who-points-pad"> points)</span>
+																	</span>
+																</span>
+															</span>
+														</span>
+														<div class="qa-c-item-buttons">
+														</div>
+													</div>
+													<div class="qa-c-item-clear">
+													</div>
+												</div> <!-- END qa-c-item -->
+											</div> <!-- END qa-c-list -->
+											
+											<input type="hidden" name="code" value="0-1516468237-62827949899c4df6d07fcdb3776785640072492b">
+											<input type="hidden" name="qa_click" value="">
+										</form>
+										<div class="qa-c-form">
+										</div> <!-- END qa-c-form -->
+										
+									</div> <!-- END qa-a-item-main -->
+									<div class="qa-a-item-clear">
+									</div>
+								</div> <!-- END qa-a-list-item -->
+								
+								<div class="qa-a-list-item  hentry answer" id="a9767">
+									<form method="post" action="../../9760/what-is-the-best-approach-to-mesh-refinement-on-boundary">
+										<div class="qa-voting qa-voting-net" id="voting_9767">
+											<div class="qa-vote-count qa-vote-count-net">
+												<span class="qa-netvote-count">
+													<span class="qa-netvote-count-data">+2<span class="votes-up"><span class="value-title" title="2"></span></span><span class="votes-down"><span class="value-title" title="0"></span></span></span><span class="qa-netvote-count-pad"> votes</span>
+												</span>
+											</div>
+											<div class="qa-vote-clear">
+											</div>
+										</div>
+										<input type="hidden" name="code" value="0-1516468237-16ad32fdc29717198d4ac101027c7d60d1b628be">
+									</form>
+									<div class="qa-a-item-main">
+										<form method="post" action="../../9760/what-is-the-best-approach-to-mesh-refinement-on-boundary">
+											<div class="qa-a-selection">
+											</div>
+											<div class="qa-a-item-content">
+												<a name="9767"></a><div class="entry-content"><p>I made a small example that might help you and hopefully also others.</p>
+
+<ul>
+<li><p>Create a folder and add two files: <code>unitsquare.geo</code> and <code>gmsh_example.py</code>. You can find their contents below.</p></li>
+<li><p>Provided GMSH is installed, run the following in the terminal to create the mesh:</p></li>
+</ul>
+
+<blockquote>
+  <p>gmsh -2 unitsquare.geo</p>
+</blockquote>
+
+<ul>
+<li>A new file <code>unitsquare.msh</code> appears. Convert this to a FEniCS friendly mesh format running:</li>
+</ul>
+
+<blockquote>
+  <p>dolfin-convert unitsquare.msh unitsquare.xml</p>
+</blockquote>
+
+<ul>
+<li>Run the Python file <code>gmsh_example.py</code>. I used your example and adjusted it a little. You can also call the terminal command withing your Python script, if you like to have everything automatized.</li>
+</ul>
+
+<p>That should get you started. Let me know if it works and good luck!</p>
+
+<p><strong>unitsquare.geo</strong></p>
+
+<pre><code>// GMSH allows you to define variables
+l = 0.1;
+lsmall = 0.01;
+// Points are defined by 3 coordinates
+// The 4-th entry describes the required
+// element size around this point
+Point(1) = {0, 0, 0, l};
+Point(2) = {0, 1, 0, l};
+Point(3) = {1, 1, 0, l};
+Point(4) = {1, 0, 0, l};
+Point(5) = {0.2, 1, 0, lsmall};
+Point(6) = {0.8, 1, 0, lsmall};
+Point(7) = {0.1, 1, 0, l};
+Point(8) = {0.9, 1, 0, l};
+Point(9) = {-0, 0.7, 0, l};
+Point(10) = {1, 0.7, 0, l};
+Line(1) = {2, 7};
+Line(2) = {7, 5};
+Line(3) = {5, 6};
+Line(4) = {6, 8};
+Line(5) = {8, 3};
+Line(6) = {3, 10};
+Line(7) = {10, 4};
+Line(8) = {4, 1};
+Line(9) = {1, 9};
+Line(10) = {9, 2};
+Line(11) = {9, 10};
+Line Loop(12) = {1, 2, 3, 4, 5, 6, -11, 10};
+Plane Surface(13) = {12};
+Line Loop(14) = {11, 7, 8, 9};
+Plane Surface(15) = {14};
+// These Physical Lines will be used to define
+// the boundaries; if you start counting from 1
+// then all internal boundaries will be labeled 0
+Physical Line(1) = {10, 1, 9, 8, 7, 6, 5};
+Physical Line(2) = {3};
+Physical Line(3) = {2, 4};
+// Physical Surfaces define regions
+// I usually start counting from 0
+// You need at least 2 or dolfin-convert ignores these
+Physical Surface(0) = {13};
+Physical Surface(1) = {15};
+</code></pre>
+
+<p><strong>gmsh_example.py</strong></p>
+
+<pre><code>from dolfin import *
+
+# Defining mesh, boundaries and regions
+# This assumes some preprocessing (see explanation)
+mesh = Mesh('unitsquare.xml')
+boundaries = MeshFunction('size_t', mesh, 'unitsquare_facet_region.xml')
+regions = MeshFunction('size_t', mesh, 'unitsquare_physical_region.xml')
+dx = Measure('dx')[regions]
+ds = Measure('ds')[boundaries]
+
+# Define function space and basis functions
+V = FunctionSpace(mesh, "Lagrange", 1)
+u = TrialFunction(V)
+v = TestFunction(V)
+
+# Define Dirichlet boundary conditions
+# The boundary labeled 3 can be uncommented to
+# demand a discontinuous jump on the boundary
+u0, u1 = 0.0, 0.05
+bcs = [DirichletBC(V, Constant(u0), boundaries, 1),
+       # DirichletBC(V, Constant(u0), boundaries, 3),
+       DirichletBC(V, Constant(u1), boundaries, 2)]
+
+# Define weak form and solve
+# Although not used here, dx(i) and ds(i) could be used
+# to specify an integral over a specific region/boundary
+a = inner(grad(u), grad(v)) * dx
+L = Constant(0.0) * v * dx
+u = Function(V)
+problem = LinearVariationalProblem(a, L, u, bcs)
+solver = LinearVariationalSolver(problem)
+solver.solve()
+E = -project(grad(u), VectorFunctionSpace(mesh, "Lagrange", 1))
+
+# Plotting
+plot(mesh)
+plot(boundaries)
+plot(regions)
+plot(u)
+plot(E)
+interactive()
+</code></pre>
+</div>
+											</div>
+											<span class="qa-a-item-avatar-meta">
+												<span class="qa-a-item-meta">
+													<a href="../../9760/what-is-the-best-approach-to-mesh-refinement-on-boundary?show=9767#a9767" class="qa-a-item-what">answered</a>
+													<span class="qa-a-item-when">
+														<span class="qa-a-item-when-data"><span class="published"><span class="value-title" title="2016-04-05T16:54:40+0000"></span>Apr 5, 2016</span></span>
+													</span>
+													<span class="qa-a-item-who">
+														<span class="qa-a-item-who-pad">by </span>
+														<span class="qa-a-item-who-data"><span class="vcard author"><a href="../../user/maartent" class="qa-user-link url nickname">maartent</a></span></span>
+														<span class="qa-a-item-who-title">FEniCS User</span>
+														<span class="qa-a-item-who-points">
+															<span class="qa-a-item-who-points-pad">(</span><span class="qa-a-item-who-points-data">3,910</span><span class="qa-a-item-who-points-pad"> points)</span>
+														</span>
+													</span>
+													<br>
+													<span class="qa-a-item-what">edited</span>
+													<span class="qa-a-item-when">
+														<span class="qa-a-item-when-data"><span class="updated"><span class="value-title" title="2016-04-05T17:00:53+0000"></span>Apr 5, 2016</span></span>
+													</span>
+													<span class="qa-a-item-who">
+														<span class="qa-a-item-who-pad">by </span><span class="qa-a-item-who-data"><a href="../../user/maartent" class="qa-user-link url nickname">maartent</a></span>
+													</span>
+												</span>
+											</span>
+											<div class="qa-a-item-buttons">
+												</div>
+											
+											<div class="qa-a-item-c-list" id="c9767_list">
+												<div class="qa-c-list-item  hentry comment" id="c9768">
+													<div class="qa-c-item-content">
+														<a name="9768"></a><div class="entry-content"><p>For clarity, I created the <code>unitsquare.geo</code> file using GMSH's graphical interface. You only need to remember to change the numbering of the physical lines and physical regions if you do so.</p>
+</div>
+													</div>
+													<div class="qa-c-item-footer">
+														<span class="qa-c-item-avatar-meta">
+															<span class="qa-c-item-meta">
+																<a href="../../9760/what-is-the-best-approach-to-mesh-refinement-on-boundary?show=9768#c9768" class="qa-c-item-what">commented</a>
+																<span class="qa-c-item-when">
+																	<span class="qa-c-item-when-data"><span class="published"><span class="value-title" title="2016-04-05T17:07:31+0000"></span>Apr 5, 2016</span></span>
+																</span>
+																<span class="qa-c-item-who">
+																	<span class="qa-c-item-who-pad">by </span>
+																	<span class="qa-c-item-who-data"><span class="vcard author"><a href="../../user/maartent" class="qa-user-link url nickname">maartent</a></span></span>
+																	<span class="qa-c-item-who-title">FEniCS User</span>
+																	<span class="qa-c-item-who-points">
+																		<span class="qa-c-item-who-points-pad">(</span><span class="qa-c-item-who-points-data">3,910</span><span class="qa-c-item-who-points-pad"> points)</span>
+																	</span>
+																</span>
+															</span>
+														</span>
+														<div class="qa-c-item-buttons">
+														</div>
+													</div>
+													<div class="qa-c-item-clear">
+													</div>
+												</div> <!-- END qa-c-item -->
+												<div class="qa-c-list-item  hentry comment" id="c9774">
+													<div class="qa-c-item-content">
+														<a name="9774"></a><div class="entry-content"><p>Thank you for a detailed answer!</p>
+</div>
+													</div>
+													<div class="qa-c-item-footer">
+														<span class="qa-c-item-avatar-meta">
+															<span class="qa-c-item-meta">
+																<a href="../../9760/what-is-the-best-approach-to-mesh-refinement-on-boundary?show=9774#c9774" class="qa-c-item-what">commented</a>
+																<span class="qa-c-item-when">
+																	<span class="qa-c-item-when-data"><span class="published"><span class="value-title" title="2016-04-05T21:53:31+0000"></span>Apr 5, 2016</span></span>
+																</span>
+																<span class="qa-c-item-who">
+																	<span class="qa-c-item-who-pad">by </span>
+																	<span class="qa-c-item-who-data"><span class="vcard author"><a href="../../user/Illusion" class="qa-user-link url nickname">Illusion</a></span></span>
+																	<span class="qa-c-item-who-title">FEniCS Novice</span>
+																	<span class="qa-c-item-who-points">
+																		<span class="qa-c-item-who-points-pad">(</span><span class="qa-c-item-who-points-data">290</span><span class="qa-c-item-who-points-pad"> points)</span>
+																	</span>
+																</span>
+															</span>
+														</span>
+														<div class="qa-c-item-buttons">
+														</div>
+													</div>
+													<div class="qa-c-item-clear">
+													</div>
+												</div> <!-- END qa-c-item -->
+											</div> <!-- END qa-c-list -->
+											
+											<input type="hidden" name="code" value="0-1516468237-c16f98e08975748b20204d0502c396e937b6ab58">
+											<input type="hidden" name="qa_click" value="">
+										</form>
+										<div class="qa-c-form">
+										</div> <!-- END qa-c-form -->
+										
+									</div> <!-- END qa-a-item-main -->
+									<div class="qa-a-item-clear">
+									</div>
+								</div> <!-- END qa-a-list-item -->
+								
+							</div> <!-- END qa-a-list -->
+							
+						</div>
+					</div> <!-- END qa-main -->
+					
+				</div> <!-- END main-wrapper -->
+			</div> <!-- END main-shadow -->
+		</div> <!-- END body-wrapper -->
+		<!-- END footer-bottom-group -->
+		
+		<div style="position:absolute; left:-9999px; top:-9999px;">
+			<span id="qa-waiting-template" class="qa-waiting">...</span>
+		</div>
+	
+	
+
+</body><!-- Powered by Question2Answer - http://www.question2answer.org/ --></html>

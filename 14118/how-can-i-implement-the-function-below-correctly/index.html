@@ -1,0 +1,280 @@
+<html><!-- Powered by Question2Answer - http://www.question2answer.org/ --><head>
+		<meta http-equiv="content-type" content="text/html; charset=utf-8">
+		<title>How can I implement the function below correctly? - FEniCS Q&amp;A</title>
+		<meta name="description" content="from fenics import * import time import os import numpy as np %matplotlib inline mesh = RectangleMesh(Point(0.0 ...  0 with size 1 **Thanks for all**.">
+		<meta name="keywords" content="mixed-formulation,expression">
+		<link rel="stylesheet" type="text/css" href="../../qa-theme/Snow/qa-styles.css">
+		<link rel="canonical" href="http://fenicsproject.org/qa/14118/how-can-i-implement-the-function-below-correctly">
+		<script type="text/x-mathjax-config">
+  MathJax.Hub.Config({
+    extensions: ["tex2jax.js"],
+    jax: ["input/TeX","output/HTML-CSS"],
+    tex2jax: {inlineMath: [["$","$"],["\\(","\\)"]]},
+    TeX: { extensions: ["AMSmath.js","AMSsymbols.js"]}
+  });
+</script>
+<script type="text/javascript" src="../../mathjax/MathJax.js"></script>
+		<script src="../../jquery-1.7.2.min.js" type="text/javascript"></script>
+		<script src="../../highlight.min.js"></script>
+<script type="text/javascript">
+$(function(){
+	$('.wmd-input').keypress(function(){
+		window.clearTimeout(hljs.Timeout);
+		hljs.Timeout = window.setTimeout(function() {
+			hljs.initHighlighting.called = false;
+			hljs.initHighlighting();
+		}, 500);
+	});
+	window.setTimeout(function() {
+		hljs.initHighlighting.called = false;
+		hljs.initHighlighting();
+	}, 500);
+});
+</script>
+
+
+	</head>
+	<body class="qa-template-question qa-body-js-off">
+		<div class="qa-body-wrapper">
+			
+			<div class="qa-header">
+				<div class="qa-logo">
+					<a href="../../" class="qa-logo-link" title="FEniCS Q&amp;A"><img src="../../qa-theme/fenics_qa.png" border="0" alt="FEniCS Q&amp;A"></a>
+				</div>
+				<div class="qa-header-clear">
+				</div>
+			</div> <!-- END qa-header -->
+			
+			<div class="qa-main-shadow">
+				
+				<div class="qa-main-wrapper">
+					
+					<div class="qa-sidepanel">
+						<div class="qa-sidebar">
+							This is a read only copy of the old FEniCS QA forum. Please visit the <a href="https://www.allanswered.com/community/s/fenics-project/">new QA forum</a> to ask questions
+						</div>
+						
+					</div>
+					
+					<div class="qa-main">
+						<h1>
+							<span class="entry-title">How can I implement the function below correctly?</span>
+						</h1>
+						<div class="qa-part-q-view">
+							<div class="qa-q-view  hentry question" id="q14118">
+								<form method="post" action="../../14118/how-can-i-implement-the-function-below-correctly">
+									<div class="qa-q-view-stats">
+										<div class="qa-voting qa-voting-net" id="voting_14118">
+											<div class="qa-vote-count qa-vote-count-net">
+												<span class="qa-netvote-count">
+													<span class="qa-netvote-count-data">0<span class="votes-up"><span class="value-title" title="0"></span></span><span class="votes-down"><span class="value-title" title="0"></span></span></span><span class="qa-netvote-count-pad"> votes</span>
+												</span>
+											</div>
+											<div class="qa-vote-clear">
+											</div>
+										</div>
+									</div>
+									<input type="hidden" name="code" value="0-1516466507-a0183e860af5c918b74e934ac82757d6a4c3b3cd">
+								</form>
+								<div class="qa-q-view-main">
+									<form method="post" action="../../14118/how-can-i-implement-the-function-below-correctly">
+										<div class="qa-q-view-content">
+											<a name="14118"></a><div class="entry-content"><pre><code>from fenics import *
+import time
+
+import os
+import numpy as np
+%matplotlib inline
+
+mesh = RectangleMesh(Point(0.0, 0.0), Point(1.0, 4.0), 10, 40,"crossed")
+
+center = Point(0.5, 0.5)
+radius = 0.2
+
+class InitialCondition(Expression):
+    def eval(self, values, x):
+        values[0] = 0.0
+        values[1] = 0.0
+        values[2] = 0.0
+        values[3] = sqrt((x[0]-center[0])*(x[0]-center[0]) + (x[1]-center[1])*(x[1]-center[1]))-radius
+    def value_shape(self):
+        return (4,)
+
+V=VectorElement("Lagrange", mesh.ufl_cell(), 2)
+P=FiniteElement("Lagrange", mesh.ufl_cell(), 1)
+L=FiniteElement("Lagrange", mesh.ufl_cell(), 1)
+W=MixedElement([V,P,L])
+
+S0 = FunctionSpace(mesh,V)
+S1 = FunctionSpace(mesh,P)
+S2 = FunctionSpace(mesh,L)
+W0 = FunctionSpace(mesh,W)
+
+ic = InitialCondition(element=S2.ufl_element())
+w = Function(W0)
+w.assign(interpolate(ic,S2))
+</code></pre>
+
+<hr>
+
+<pre><code>IndexErrorTraceback (most recent call last)
+&lt;ipython-input-31-15dd7fe51e0c&gt; in &lt;module&gt;()
+     31 ic = InitialCondition(element=S2.ufl_element())
+     32 w = Function(W0)
+---&gt; 33 w.assign(interpolate(ic,S2))
+
+/usr/local/lib/python2.7/dist-packages/dolfin/fem/interpolation.py in interpolate(v, V)
+     64     # Compute interpolation
+     65     Pv = Function(V)
+---&gt; 66     Pv.interpolate(v)
+     67 
+     68     return Pv
+
+&lt;ipython-input-31-15dd7fe51e0c&gt; in eval(self, values, x)
+     13     def eval(self, values, x):
+     14         values[0] = 0.0
+---&gt; 15         values[1] = 0.0
+     16         values[2] = 0.0
+     17         values[3] = sqrt((x[0]-center[0])*(x[0]-center[0]) + (x[1]-center[1])*(x[1]-center[1]))-radius
+</code></pre>
+
+<p>IndexError: index 1 is out of bounds for axis 0 with size 1<br>
+<strong>Thanks for all</strong>.</p>
+</div>
+										</div>
+										<div class="qa-q-view-tags">
+											<ul class="qa-q-view-tag-list">
+												<li class="qa-q-view-tag-item"><a href="../../tag/mixed-formulation" rel="tag" class="qa-tag-link">mixed-formulation</a></li>
+												<li class="qa-q-view-tag-item"><a href="../../tag/expression" rel="tag" class="qa-tag-link">expression</a></li>
+											</ul>
+										</div>
+										<span class="qa-q-view-avatar-meta">
+											<span class="qa-q-view-meta">
+												<a href="../../14118/how-can-i-implement-the-function-below-correctly" class="qa-q-view-what">asked</a>
+												<span class="qa-q-view-when">
+													<span class="qa-q-view-when-data"><span class="published"><span class="value-title" title="2017-06-26T22:18:13+0000"></span>Jun 27, 2017</span></span>
+												</span>
+												<span class="qa-q-view-who">
+													<span class="qa-q-view-who-pad">by </span>
+													<span class="qa-q-view-who-data"><span class="vcard author"><a href="../../user/pimenta.pvcl" class="qa-user-link url nickname">pimenta.pvcl</a></span></span>
+													<span class="qa-q-view-who-title">FEniCS Novice</span>
+													<span class="qa-q-view-who-points">
+														<span class="qa-q-view-who-points-pad">(</span><span class="qa-q-view-who-points-data">320</span><span class="qa-q-view-who-points-pad"> points)</span>
+													</span>
+												</span>
+											</span>
+										</span>
+										<div class="qa-q-view-buttons">
+										</div>
+										
+										<div class="qa-q-view-c-list" style="display:none;" id="c14118_list">
+										</div> <!-- END qa-c-list -->
+										
+										<input type="hidden" name="code" value="0-1516466507-50d3ec0665113940e9850f34f05788feb9a0d1f5">
+										<input type="hidden" name="qa_click" value="">
+									</form>
+									<div class="qa-c-form">
+									</div> <!-- END qa-c-form -->
+									
+								</div> <!-- END qa-q-view-main -->
+								<div class="qa-q-view-clear">
+								</div>
+							</div> <!-- END qa-q-view -->
+							
+						</div>
+						<div class="qa-part-a-list">
+							<h2 id="a_list_title">1 Answer</h2>
+							<div class="qa-a-list" id="a_list">
+								
+								<div class="qa-a-list-item  hentry answer answer-selected qa-a-list-item-selected" id="a14122">
+									<form method="post" action="../../14118/how-can-i-implement-the-function-below-correctly">
+										<div class="qa-voting qa-voting-net" id="voting_14122">
+											<div class="qa-vote-count qa-vote-count-net">
+												<span class="qa-netvote-count">
+													<span class="qa-netvote-count-data">0<span class="votes-up"><span class="value-title" title="0"></span></span><span class="votes-down"><span class="value-title" title="0"></span></span></span><span class="qa-netvote-count-pad"> votes</span>
+												</span>
+											</div>
+											<div class="qa-vote-clear">
+											</div>
+										</div>
+										<input type="hidden" name="code" value="0-1516466507-a0183e860af5c918b74e934ac82757d6a4c3b3cd">
+									</form>
+									<div class="qa-a-item-main">
+										<form method="post" action="../../14118/how-can-i-implement-the-function-below-correctly">
+											<div class="qa-a-item-selected">
+												<div class="qa-a-selection">
+													<div class="qa-a-selected">&#160;</div>
+													<div class="qa-a-selected-text">Best answer</div>
+												</div>
+												<div class="qa-a-item-content">
+													<a name="14122"></a><div class="entry-content"><p>Hi, consider</p>
+
+<pre><code>ic = InitialCondition(element=W0.ufl_element())
+w = interpolate(ic, W0)
+</code></pre>
+
+<p>You would use assign for example in case you would want to have separate initial conditions (expressions associated with <code>S0</code>, <code>S1</code>, <code>S2</code>) that would initialize components of <code>w</code>.</p>
+</div>
+												</div>
+												<span class="qa-a-item-avatar-meta">
+													<span class="qa-a-item-avatar">
+														<a href="../../user/MiroK" class="qa-avatar-link"><img src="https://www.gravatar.com/avatar/f566be3274ec73e3a6dda27bca11631c?s=40" width="40" height="40" class="qa-avatar-image" alt=""></a>
+													</span>
+													<span class="qa-a-item-meta">
+														<a href="../../14118/how-can-i-implement-the-function-below-correctly?show=14122#a14122" class="qa-a-item-what">answered</a>
+														<span class="qa-a-item-when">
+															<span class="qa-a-item-when-data"><span class="published"><span class="value-title" title="2017-06-27T07:58:25+0000"></span>Jun 27, 2017</span></span>
+														</span>
+														<span class="qa-a-item-who">
+															<span class="qa-a-item-who-pad">by </span>
+															<span class="qa-a-item-who-data"><span class="vcard author"><a href="../../user/MiroK" class="qa-user-link url nickname">MiroK</a></span></span>
+															<span class="qa-a-item-who-title">FEniCS Expert</span>
+															<span class="qa-a-item-who-points">
+																<span class="qa-a-item-who-points-pad">(</span><span class="qa-a-item-who-points-data">80,920</span><span class="qa-a-item-who-points-pad"> points)</span>
+															</span>
+														</span>
+														<br>
+														<span class="qa-a-item-what">selected</span>
+														<span class="qa-a-item-when">
+															<span class="qa-a-item-when-data"><span class="updated"><span class="value-title" title="2017-06-27T13:46:25+0000"></span>Jun 27, 2017</span></span>
+														</span>
+														<span class="qa-a-item-who">
+															<span class="qa-a-item-who-pad">by </span><span class="qa-a-item-who-data"><a href="../../user/pimenta.pvcl" class="qa-user-link url nickname">pimenta.pvcl</a></span>
+														</span>
+													</span>
+												</span>
+											</div>
+											<div class="qa-a-item-buttons">
+												</div>
+											
+											<div class="qa-a-item-c-list" style="display:none;" id="c14122_list">
+											</div> <!-- END qa-c-list -->
+											
+											<input type="hidden" name="code" value="0-1516466507-afdc0ad4f75f8f5701141b5df008d98ea2aebdf1">
+											<input type="hidden" name="qa_click" value="">
+										</form>
+										<div class="qa-c-form">
+										</div> <!-- END qa-c-form -->
+										
+									</div> <!-- END qa-a-item-main -->
+									<div class="qa-a-item-clear">
+									</div>
+								</div> <!-- END qa-a-list-item -->
+								
+							</div> <!-- END qa-a-list -->
+							
+						</div>
+					</div> <!-- END qa-main -->
+					
+				</div> <!-- END main-wrapper -->
+			</div> <!-- END main-shadow -->
+		</div> <!-- END body-wrapper -->
+		<!-- END footer-bottom-group -->
+		
+		<div style="position:absolute; left:-9999px; top:-9999px;">
+			<span id="qa-waiting-template" class="qa-waiting">...</span>
+		</div>
+	
+	
+
+</body><!-- Powered by Question2Answer - http://www.question2answer.org/ --></html>

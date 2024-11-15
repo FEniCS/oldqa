@@ -1,0 +1,294 @@
+<html><!-- Powered by Question2Answer - http://www.question2answer.org/ --><head>
+		<meta http-equiv="content-type" content="text/html; charset=utf-8">
+		<title>"Expecting a completed form with domains at this point." - FEniCS Q&amp;A</title>
+		<meta name="description" content="Hello, (my apologies if this appears twice - I can't seem to find the original post). In any case, I am  ...  u = Function(V) solve(a == L, u, bcs)">
+		<meta name="keywords" content="subdomain">
+		<link rel="stylesheet" type="text/css" href="../../qa-theme/Snow/qa-styles.css">
+		<link rel="canonical" href="http://fenicsproject.org/qa/6320/expecting-a-completed-form-with-domains-at-this-point">
+		<script type="text/x-mathjax-config">
+  MathJax.Hub.Config({
+    extensions: ["tex2jax.js"],
+    jax: ["input/TeX","output/HTML-CSS"],
+    tex2jax: {inlineMath: [["$","$"],["\\(","\\)"]]},
+    TeX: { extensions: ["AMSmath.js","AMSsymbols.js"]}
+  });
+</script>
+<script type="text/javascript" src="../../mathjax/MathJax.js"></script>
+		<script src="../../jquery-1.7.2.min.js" type="text/javascript"></script>
+		<script src="../../highlight.min.js"></script>
+<script type="text/javascript">
+$(function(){
+	$('.wmd-input').keypress(function(){
+		window.clearTimeout(hljs.Timeout);
+		hljs.Timeout = window.setTimeout(function() {
+			hljs.initHighlighting.called = false;
+			hljs.initHighlighting();
+		}, 500);
+	});
+	window.setTimeout(function() {
+		hljs.initHighlighting.called = false;
+		hljs.initHighlighting();
+	}, 500);
+});
+</script>
+
+
+	</head>
+	<body class="qa-template-question qa-body-js-off">
+		<div class="qa-body-wrapper">
+			
+			<div class="qa-header">
+				<div class="qa-logo">
+					<a href="../../" class="qa-logo-link" title="FEniCS Q&amp;A"><img src="../../qa-theme/fenics_qa.png" border="0" alt="FEniCS Q&amp;A"></a>
+				</div>
+				<div class="qa-header-clear">
+				</div>
+			</div> <!-- END qa-header -->
+			
+			<div class="qa-main-shadow">
+				
+				<div class="qa-main-wrapper">
+					
+					<div class="qa-sidepanel">
+						<div class="qa-sidebar">
+							This is a read only copy of the old FEniCS QA forum. Please visit the <a href="https://www.allanswered.com/community/s/fenics-project/">new QA forum</a> to ask questions
+						</div>
+						
+					</div>
+					
+					<div class="qa-main">
+						<h1>
+							<span class="entry-title">"Expecting a completed form with domains at this point."</span>
+						</h1>
+						<div class="qa-part-q-view">
+							<div class="qa-q-view  hentry question" id="q6320">
+								<form method="post" action="../../6320/expecting-a-completed-form-with-domains-at-this-point">
+									<div class="qa-q-view-stats">
+										<div class="qa-voting qa-voting-net" id="voting_6320">
+											<div class="qa-vote-count qa-vote-count-net">
+												<span class="qa-netvote-count">
+													<span class="qa-netvote-count-data">0<span class="votes-up"><span class="value-title" title="0"></span></span><span class="votes-down"><span class="value-title" title="0"></span></span></span><span class="qa-netvote-count-pad"> votes</span>
+												</span>
+											</div>
+											<div class="qa-vote-clear">
+											</div>
+										</div>
+									</div>
+									<input type="hidden" name="code" value="0-1516468067-6c56ec7c9150d279c752e5b2f8995c330dcc2e03">
+								</form>
+								<div class="qa-q-view-main">
+									<form method="post" action="../../6320/expecting-a-completed-form-with-domains-at-this-point">
+										<div class="qa-q-view-content">
+											<a name="6320"></a><div class="entry-content"><p>Hello,<br>
+(my apologies if this appears twice - I can't seem to find the original post).</p>
+
+<p>In any case, I am solving a simple laplace equation with dirichlet BCs applied to the left/right sides of the mesh. </p>
+
+<p>My antiquated version of dolfin would permit the weak form</p>
+
+<pre><code>form = inner(grad(u)*grad(v)*dx)
+a,L=lhs(form),rhs(form)
+</code></pre>
+
+<p>while the current version fails with 'Expecting a completed form with domains at this point."' unless I include a Neumann condition acting on the boundaries, like </p>
+
+<pre><code>form = inner(grad(u)*grad(v)*dx)
+form+= Constant(0.)*v*ds
+a,L=lhs(form),rhs(form)
+</code></pre>
+
+<p>Is there something simple I am missing with either my definition of the boundaries or how the weak form is being defined? My full script is below</p>
+
+<p>Thanks!<br>
+Pete</p>
+
+<pre><code>from dolfin import *
+
+# Define Dirichlet boundary (x = 0 or x = 1)
+class LeftBoundary(SubDomain):
+  def inside(self, x, on_boundary):
+    return ( on_boundary and \
+      (x[0] &lt; 0.5))
+
+class RightBoundary(SubDomain):
+  def inside(self, x, on_boundary):
+    return ( on_boundary and \
+      (x[0] &gt; 0.5))
+
+
+# Create mesh and define function space
+if 1:
+  mesh = UnitCubeMesh(8,8,8)
+  V = FunctionSpace(mesh,"CG",1)
+
+  # Initialize mesh function for interior domains
+  domains = CellFunction("size_t", mesh)
+  domains.set_all(0)
+
+  # Initialize mesh function for boundary domains
+  boundaries = FacetFunction("size_t", mesh)
+  boundaries.set_all(0)
+
+  # Define boundary condition
+  bcs=[]
+  leftBoundary = LeftBoundary()
+  lMarker = 2
+  leftBoundary.mark(boundaries,lMarker)
+  bc3 = DirichletBC(V, Constant(1.),boundaries,lMarker)
+  bcs.append(bc3)
+
+  rightBoundary = RightBoundary()
+  rMarker = 3
+  rightBoundary.mark(boundaries,rMarker)
+  bc4 = DirichletBC(V, Constant(0.),boundaries,rMarker)
+  bcs.append(bc4)
+
+
+  # Define variational problem
+  u = TrialFunction(V)
+  v = TestFunction(V)
+
+  # Define measures associated w interior domains and boundaries
+  dx = Measure("dx")[domains]
+  dxs = dx(domain=mesh,subdomain_data=domains)
+  ds = Measure("ds")[boundaries]
+  dss = ds(domain=mesh,subdomain_data=boundaries)
+
+  D = Constant(1.)
+
+  form = D*inner(grad(u), grad(v))*dxs
+  form+= Constant(0.) * v * dss(lMarker)
+  a = lhs(form)
+  L = rhs(form)
+
+
+  # Compute solution
+  u = Function(V)
+  solve(a == L, u, bcs)
+</code></pre>
+</div>
+										</div>
+										<div class="qa-q-view-tags">
+											<ul class="qa-q-view-tag-list">
+												<li class="qa-q-view-tag-item"><a href="../../tag/subdomain" rel="tag" class="qa-tag-link">subdomain</a></li>
+											</ul>
+										</div>
+										<span class="qa-q-view-avatar-meta">
+											<span class="qa-q-view-meta">
+												<a href="../../6320/expecting-a-completed-form-with-domains-at-this-point" class="qa-q-view-what">asked</a>
+												<span class="qa-q-view-when">
+													<span class="qa-q-view-when-data"><span class="published"><span class="value-title" title="2015-01-12T15:51:22+0000"></span>Jan 12, 2015</span></span>
+												</span>
+												<span class="qa-q-view-who">
+													<span class="qa-q-view-who-pad">by </span>
+													<span class="qa-q-view-who-data"><span class="vcard author"><a href="../../user/huskeypm" class="qa-user-link url nickname">huskeypm</a></span></span>
+													<span class="qa-q-view-who-title">FEniCS Novice</span>
+													<span class="qa-q-view-who-points">
+														<span class="qa-q-view-who-points-pad">(</span><span class="qa-q-view-who-points-data">330</span><span class="qa-q-view-who-points-pad"> points)</span>
+													</span>
+												</span>
+											</span>
+										</span>
+										<div class="qa-q-view-buttons">
+										</div>
+										
+										<div class="qa-q-view-c-list" id="c6320_list">
+											<div class="qa-c-list-item  hentry comment" id="c6373">
+												<div class="qa-c-item-content">
+													<a name="6373"></a><div class="entry-content"><p>What version of dolfin do you have? With more or less development version this code works for me.</p>
+</div>
+												</div>
+												<div class="qa-c-item-footer">
+													<span class="qa-c-item-avatar-meta">
+														<span class="qa-c-item-avatar">
+															<a href="../../user/johanhake" class="qa-avatar-link"><img src="https://www.gravatar.com/avatar/73612279d6702974866af2e1a9653a5b?s=20" width="20" height="20" class="qa-avatar-image" alt=""></a>
+														</span>
+														<span class="qa-c-item-meta">
+															<a href="../../6320/expecting-a-completed-form-with-domains-at-this-point?show=6373#c6373" class="qa-c-item-what">commented</a>
+															<span class="qa-c-item-when">
+																<span class="qa-c-item-when-data"><span class="published"><span class="value-title" title="2015-01-23T19:37:34+0000"></span>Jan 23, 2015</span></span>
+															</span>
+															<span class="qa-c-item-who">
+																<span class="qa-c-item-who-pad">by </span>
+																<span class="qa-c-item-who-data"><span class="vcard author"><a href="../../user/johanhake" class="qa-user-link url nickname">johanhake</a></span></span>
+																<span class="qa-c-item-who-title">FEniCS Expert</span>
+																<span class="qa-c-item-who-points">
+																	<span class="qa-c-item-who-points-pad">(</span><span class="qa-c-item-who-points-data">22,480</span><span class="qa-c-item-who-points-pad"> points)</span>
+																</span>
+															</span>
+														</span>
+													</span>
+													<div class="qa-c-item-buttons">
+													</div>
+												</div>
+												<div class="qa-c-item-clear">
+												</div>
+											</div> <!-- END qa-c-item -->
+											<div class="qa-c-list-item  hentry comment" id="c6378">
+												<div class="qa-c-item-content">
+													<a name="6378"></a><div class="entry-content"><p>$ dolfin-version <br>
+1.4.0</p>
+
+<p>It looks like the current version is 1.5, so maybe the issue is resolved with that version. </p>
+
+<p>Thanks!</p>
+</div>
+												</div>
+												<div class="qa-c-item-footer">
+													<span class="qa-c-item-avatar-meta">
+														<span class="qa-c-item-meta">
+															<a href="../../6320/expecting-a-completed-form-with-domains-at-this-point?show=6378#c6378" class="qa-c-item-what">commented</a>
+															<span class="qa-c-item-when">
+																<span class="qa-c-item-when-data"><span class="published"><span class="value-title" title="2015-01-24T11:57:29+0000"></span>Jan 24, 2015</span></span>
+															</span>
+															<span class="qa-c-item-who">
+																<span class="qa-c-item-who-pad">by </span>
+																<span class="qa-c-item-who-data"><span class="vcard author"><a href="../../user/huskeypm" class="qa-user-link url nickname">huskeypm</a></span></span>
+																<span class="qa-c-item-who-title">FEniCS Novice</span>
+																<span class="qa-c-item-who-points">
+																	<span class="qa-c-item-who-points-pad">(</span><span class="qa-c-item-who-points-data">330</span><span class="qa-c-item-who-points-pad"> points)</span>
+																</span>
+															</span>
+														</span>
+													</span>
+													<div class="qa-c-item-buttons">
+													</div>
+												</div>
+												<div class="qa-c-item-clear">
+												</div>
+											</div> <!-- END qa-c-item -->
+										</div> <!-- END qa-c-list -->
+										
+										<input type="hidden" name="code" value="0-1516468067-5f41519a2fd45f0d43b2c79a03e2a82e3cc69496">
+										<input type="hidden" name="qa_click" value="">
+									</form>
+									<div class="qa-c-form">
+									</div> <!-- END qa-c-form -->
+									
+								</div> <!-- END qa-q-view-main -->
+								<div class="qa-q-view-clear">
+								</div>
+							</div> <!-- END qa-q-view -->
+							
+						</div>
+						<div class="qa-part-a-list">
+							<h2 id="a_list_title" style="display:none;"></h2>
+							<div class="qa-a-list" id="a_list">
+								
+							</div> <!-- END qa-a-list -->
+							
+						</div>
+					</div> <!-- END qa-main -->
+					
+				</div> <!-- END main-wrapper -->
+			</div> <!-- END main-shadow -->
+		</div> <!-- END body-wrapper -->
+		<!-- END footer-bottom-group -->
+		
+		<div style="position:absolute; left:-9999px; top:-9999px;">
+			<span id="qa-waiting-template" class="qa-waiting">...</span>
+		</div>
+	
+	
+
+</body><!-- Powered by Question2Answer - http://www.question2answer.org/ --></html>

@@ -1,0 +1,306 @@
+<html><!-- Powered by Question2Answer - http://www.question2answer.org/ --><head>
+		<meta http-equiv="content-type" content="text/html; charset=utf-8">
+		<title>Newton's method programmed manually for parabolic PDE - FEniCS Q&amp;A</title>
+		<meta name="description" content="Hello, this is a question arising from [this post: Newton method programmed manually][1 ... fenicsproject.org/qa/536/newton-method-programmed-manually">
+		<meta name="keywords" content="time-dependent,newton-solver,newton">
+		<link rel="stylesheet" type="text/css" href="../../qa-theme/Snow/qa-styles.css">
+		<link rel="canonical" href="http://fenicsproject.org/qa/2913/newtons-method-programmed-manually-for-parabolic-pde">
+		<script type="text/x-mathjax-config">
+  MathJax.Hub.Config({
+    extensions: ["tex2jax.js"],
+    jax: ["input/TeX","output/HTML-CSS"],
+    tex2jax: {inlineMath: [["$","$"],["\\(","\\)"]]},
+    TeX: { extensions: ["AMSmath.js","AMSsymbols.js"]}
+  });
+</script>
+<script type="text/javascript" src="../../mathjax/MathJax.js"></script>
+		<script src="../../jquery-1.7.2.min.js" type="text/javascript"></script>
+		<script src="../../highlight.min.js"></script>
+<script type="text/javascript">
+$(function(){
+	$('.wmd-input').keypress(function(){
+		window.clearTimeout(hljs.Timeout);
+		hljs.Timeout = window.setTimeout(function() {
+			hljs.initHighlighting.called = false;
+			hljs.initHighlighting();
+		}, 500);
+	});
+	window.setTimeout(function() {
+		hljs.initHighlighting.called = false;
+		hljs.initHighlighting();
+	}, 500);
+});
+</script>
+
+
+	</head>
+	<body class="qa-template-question qa-body-js-off">
+		<div class="qa-body-wrapper">
+			
+			<div class="qa-header">
+				<div class="qa-logo">
+					<a href="../" class="qa-logo-link" title="FEniCS Q&amp;A"><img src="../../qa-theme/fenics_qa.png" border="0" alt="FEniCS Q&amp;A"></a>
+				</div>
+				<div class="qa-header-clear">
+				</div>
+			</div> <!-- END qa-header -->
+			
+			<div class="qa-main-shadow">
+				
+				<div class="qa-main-wrapper">
+					
+					<div class="qa-sidepanel">
+						<div class="qa-sidebar">
+							This is a read only copy of the old FEniCS QA forum. Please visit the <a href="https://www.allanswered.com/community/s/fenics-project/">new QA forum</a> to ask questions
+						</div>
+						
+					</div>
+					
+					<div class="qa-main">
+						<h1>
+							<span class="entry-title">Newton's method programmed manually for parabolic PDE</span>
+						</h1>
+						<div class="qa-part-q-view">
+							<div class="qa-q-view qa-q-closed hentry question" id="q2913">
+								<form method="post" action="../2913">
+									<div class="qa-q-view-stats">
+										<div class="qa-voting qa-voting-net" id="voting_2913">
+											<div class="qa-vote-count qa-vote-count-net">
+												<span class="qa-netvote-count">
+													<span class="qa-netvote-count-data">0<span class="votes-up"><span class="value-title" title="1"></span></span><span class="votes-down"><span class="value-title" title="1"></span></span></span><span class="qa-netvote-count-pad"> votes</span>
+												</span>
+											</div>
+											<div class="qa-vote-clear">
+											</div>
+										</div>
+									</div>
+									<input type="hidden" name="code" value="0-1516476722-ca2db65d7ea5c067829ea59c06e1255ff821d30c">
+								</form>
+								<div class="qa-q-view-main">
+									<form method="post" action="../2913">
+										<div class="qa-q-view-content">
+											<a name="2913"></a><div class="entry-content"><p>Hello,<br>
+this is a question arising from <a rel="nofollow" href="http://fenicsproject.org/qa/536/newton-method-programmed-manually">this post: Newton method programmed manually</a>. I implemented Newton's method manually as well, but the error of my solution and the solution coming from using the <code>NonlinearVariationalSolver</code> seems unreasonable big to me, I would expect a lot smaller error. <br>
+The definition for Newton's method is</p>
+
+<pre><code>m_old = Function(V)
+m_old = interpolate(u_start,V)
+m = Function(V)
+m = interpolate(u_start,V)
+dm = TrialFunction(V)
+n = TestFunction(V)
+
+F_M = inner(m-m_old,n)*dx + dt*dot(grad(m), grad(n))*dx - inner(dt*rhs(m),n)*dx #- dt*g_N*n*dss(2)
+dF_M = derivative(F_M, m, dm)
+
+bcs_dm = homogenize(bcs)
+
+m_inc = Function(V)
+</code></pre>
+
+<p>so in each timestep I'm solving</p>
+
+<pre><code>while eps &gt; 1e-10 and nIter &lt; 10:
+  nIter += 1
+  A, b = assemble_system(dF_M, -F_M, bcs_dm)
+  solve(A, m_inc.vector(), b)
+  eps = norm(m_inc, 'L2')
+
+  a = assemble(F_M)
+
+  m.vector()[:] += m_inc.vector()
+
+for bc in bcs:
+  bc.apply(m.vector())
+</code></pre>
+
+<p>My output of the error <code>error = errornorm(m, z,'l2',5)</code> of the solution <code>z</code> computed by the <code>NonlinearVariationalSolver</code> and <code>m</code> reads as follows:</p>
+
+<pre><code>9.695553e-01
+6.230350e-02
+6.855936e-03
+1.097282e-03
+2.078610e-04
+4.086099e-05
+8.083590e-06
+1.600816e-06
+3.170657e-07
+6.280131e-08
+1.243910e-08
+2.463825e-09
+4.880022e-10
+9.666648e-11
+1.340765e-10
+1.415156e-10
+1.429961e-10
+1.432783e-10
+1.433123e-10
+1.433216e-10
+</code></pre>
+
+<p>Am I wrong expecting a smaller error?<br>
+Thanks for your help.</p>
+</div>
+										</div>
+										<div class="qa-q-view-closed">
+											closed with the note:
+											<span class="qa-q-view-closed-content">
+												issue solved by comment
+											</span>
+										</div>
+										<div class="qa-q-view-tags">
+											<ul class="qa-q-view-tag-list">
+												<li class="qa-q-view-tag-item"><a href="../tag/time-dependent" rel="tag" class="qa-tag-link">time-dependent</a></li>
+												<li class="qa-q-view-tag-item"><a href="../tag/newton-solver" rel="tag" class="qa-tag-link">newton-solver</a></li>
+												<li class="qa-q-view-tag-item"><a href="../tag/newton" rel="tag" class="qa-tag-link">newton</a></li>
+											</ul>
+										</div>
+										<span class="qa-q-view-avatar-meta">
+											<span class="qa-q-view-meta">
+												<a href="../2913/newtons-method-programmed-manually-for-parabolic-pde" class="qa-q-view-what">asked</a>
+												<span class="qa-q-view-when">
+													<span class="qa-q-view-when-data"><span class="published"><span class="value-title" title="2014-03-06T09:00:57+0000"></span>Mar 6, 2014</span></span>
+												</span>
+												<span class="qa-q-view-who">
+													<span class="qa-q-view-who-pad">by </span>
+													<span class="qa-q-view-who-data"><span class="vcard author"><a href="../../user/bobby53" class="qa-user-link url nickname">bobby53</a></span></span>
+													<span class="qa-q-view-who-title">FEniCS User</span>
+													<span class="qa-q-view-who-points">
+														<span class="qa-q-view-who-points-pad">(</span><span class="qa-q-view-who-points-data">1,260</span><span class="qa-q-view-who-points-pad"> points)</span>
+													</span>
+												</span>
+												<br>
+												<span class="qa-q-view-what">closed</span>
+												<span class="qa-q-view-when">
+													<span class="qa-q-view-when-data"><span class="updated"><span class="value-title" title="2014-03-10T17:33:10+0000"></span>Mar 10, 2014</span></span>
+												</span>
+												<span class="qa-q-view-who">
+													<span class="qa-q-view-who-pad">by </span><span class="qa-q-view-who-data"><a href="../../user/bobby53" class="qa-user-link url nickname">bobby53</a></span>
+												</span>
+											</span>
+										</span>
+										<div class="qa-q-view-buttons">
+										</div>
+										
+										<div class="qa-q-view-c-list" id="c2913_list">
+											<div class="qa-c-list-item  hentry comment" id="c2935">
+												<div class="qa-c-item-content">
+													<a name="2935"></a><div class="entry-content"><p>You haven't said what make you think the error is large, and you haven't said how you generated the sequence of errors that you report.</p>
+</div>
+												</div>
+												<div class="qa-c-item-footer">
+													<span class="qa-c-item-avatar-meta">
+														<span class="qa-c-item-meta">
+															<a href="../2913/newtons-method-programmed-manually-for-parabolic-pde?show=2935#c2935" class="qa-c-item-what">commented</a>
+															<span class="qa-c-item-when">
+																<span class="qa-c-item-when-data"><span class="published"><span class="value-title" title="2014-03-10T14:48:39+0000"></span>Mar 10, 2014</span></span>
+															</span>
+															<span class="qa-c-item-who">
+																<span class="qa-c-item-who-pad">by </span>
+																<span class="qa-c-item-who-data"><span class="vcard author"><a href="../../user/Garth+N.+Wells" class="qa-user-link url nickname">Garth N. Wells</a></span></span>
+																<span class="qa-c-item-who-title">FEniCS Expert</span>
+																<span class="qa-c-item-who-points">
+																	<span class="qa-c-item-who-points-pad">(</span><span class="qa-c-item-who-points-data">35,930</span><span class="qa-c-item-who-points-pad"> points)</span>
+																</span>
+															</span>
+														</span>
+													</span>
+													<div class="qa-c-item-buttons">
+													</div>
+												</div>
+												<div class="qa-c-item-clear">
+												</div>
+											</div> <!-- END qa-c-item -->
+											<div class="qa-c-list-item  hentry comment" id="c2939">
+												<div class="qa-c-item-content">
+													<a name="2939"></a><div class="entry-content"><p>Hey Garth,<br>
+I used <code>error = errornorm(m, z,'l2',5)</code>, where <code>m</code> is the solution of my own Newton method and <code>z</code> the one of the <code>NonlinearVariationalSolver</code>. I compared the two solutions with a given problem with analytic solution, and the error was much smaller. So I guess it what just an unlucky pick for an example which lead to this "large" error.<br>
+With large I meant that I expected the error to be around something <code>E-12</code>, which, as you can see, wasn't the case.</p>
+</div>
+												</div>
+												<div class="qa-c-item-footer">
+													<span class="qa-c-item-avatar-meta">
+														<span class="qa-c-item-meta">
+															<a href="../2913/newtons-method-programmed-manually-for-parabolic-pde?show=2939#c2939" class="qa-c-item-what">commented</a>
+															<span class="qa-c-item-when">
+																<span class="qa-c-item-when-data"><span class="published"><span class="value-title" title="2014-03-10T16:49:39+0000"></span>Mar 10, 2014</span></span>
+															</span>
+															<span class="qa-c-item-who">
+																<span class="qa-c-item-who-pad">by </span>
+																<span class="qa-c-item-who-data"><span class="vcard author"><a href="../../user/bobby53" class="qa-user-link url nickname">bobby53</a></span></span>
+																<span class="qa-c-item-who-title">FEniCS User</span>
+																<span class="qa-c-item-who-points">
+																	<span class="qa-c-item-who-points-pad">(</span><span class="qa-c-item-who-points-data">1,260</span><span class="qa-c-item-who-points-pad"> points)</span>
+																</span>
+															</span>
+														</span>
+													</span>
+													<div class="qa-c-item-buttons">
+													</div>
+												</div>
+												<div class="qa-c-item-clear">
+												</div>
+											</div> <!-- END qa-c-item -->
+											<div class="qa-c-list-item  hentry comment" id="c2943">
+												<div class="qa-c-item-content">
+													<a name="2943"></a><div class="entry-content"><p>Try reducing the tolerance for the Newton solver.</p>
+</div>
+												</div>
+												<div class="qa-c-item-footer">
+													<span class="qa-c-item-avatar-meta">
+														<span class="qa-c-item-meta">
+															<a href="../2913/newtons-method-programmed-manually-for-parabolic-pde?show=2943#c2943" class="qa-c-item-what">commented</a>
+															<span class="qa-c-item-when">
+																<span class="qa-c-item-when-data"><span class="published"><span class="value-title" title="2014-03-10T17:45:31+0000"></span>Mar 10, 2014</span></span>
+															</span>
+															<span class="qa-c-item-who">
+																<span class="qa-c-item-who-pad">by </span>
+																<span class="qa-c-item-who-data"><span class="vcard author"><a href="../../user/Garth+N.+Wells" class="qa-user-link url nickname">Garth N. Wells</a></span></span>
+																<span class="qa-c-item-who-title">FEniCS Expert</span>
+																<span class="qa-c-item-who-points">
+																	<span class="qa-c-item-who-points-pad">(</span><span class="qa-c-item-who-points-data">35,930</span><span class="qa-c-item-who-points-pad"> points)</span>
+																</span>
+															</span>
+														</span>
+													</span>
+													<div class="qa-c-item-buttons">
+													</div>
+												</div>
+												<div class="qa-c-item-clear">
+												</div>
+											</div> <!-- END qa-c-item -->
+										</div> <!-- END qa-c-list -->
+										
+										<input type="hidden" name="code" value="0-1516476722-ba2525fc1bc1ceaa912b45a998a5383144fb6d92">
+										<input type="hidden" name="qa_click" value="">
+									</form>
+									<div class="qa-c-form">
+									</div> <!-- END qa-c-form -->
+									
+								</div> <!-- END qa-q-view-main -->
+								<div class="qa-q-view-clear">
+								</div>
+							</div> <!-- END qa-q-view -->
+							
+						</div>
+						<div class="qa-part-a-list">
+							<h2 id="a_list_title" style="display:none;"></h2>
+							<div class="qa-a-list" id="a_list">
+								
+							</div> <!-- END qa-a-list -->
+							
+						</div>
+					</div> <!-- END qa-main -->
+					
+				</div> <!-- END main-wrapper -->
+			</div> <!-- END main-shadow -->
+		</div> <!-- END body-wrapper -->
+		<!-- END footer-bottom-group -->
+		
+		<div style="position:absolute; left:-9999px; top:-9999px;">
+			<span id="qa-waiting-template" class="qa-waiting">...</span>
+		</div>
+	
+	
+
+</body><!-- Powered by Question2Answer - http://www.question2answer.org/ --></html>

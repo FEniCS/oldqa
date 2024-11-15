@@ -1,0 +1,437 @@
+<html><!-- Powered by Question2Answer - http://www.question2answer.org/ --><head>
+		<meta http-equiv="content-type" content="text/html; charset=utf-8">
+		<title>Extract coefficients from forms - FEniCS Q&amp;A</title>
+		<meta name="description" content="Dear FEniCS community, I would like to extract coefficients (not necessarily constants, possibly  ...  coefficient from the form. Thanks, Francesco">
+		<meta name="keywords" content="python,ufl">
+		<link rel="stylesheet" type="text/css" href="../../qa-theme/Snow/qa-styles.css">
+		<link rel="canonical" href="http://fenicsproject.org/qa/10618/extract-coefficients-from-forms">
+		<script type="text/x-mathjax-config">
+  MathJax.Hub.Config({
+    extensions: ["tex2jax.js"],
+    jax: ["input/TeX","output/HTML-CSS"],
+    tex2jax: {inlineMath: [["$","$"],["\\(","\\)"]]},
+    TeX: { extensions: ["AMSmath.js","AMSsymbols.js"]}
+  });
+</script>
+<script type="text/javascript" src="../../mathjax/MathJax.js"></script>
+		<script src="../../jquery-1.7.2.min.js" type="text/javascript"></script>
+		<script src="../../highlight.min.js"></script>
+<script type="text/javascript">
+$(function(){
+	$('.wmd-input').keypress(function(){
+		window.clearTimeout(hljs.Timeout);
+		hljs.Timeout = window.setTimeout(function() {
+			hljs.initHighlighting.called = false;
+			hljs.initHighlighting();
+		}, 500);
+	});
+	window.setTimeout(function() {
+		hljs.initHighlighting.called = false;
+		hljs.initHighlighting();
+	}, 500);
+});
+</script>
+
+
+	</head>
+	<body class="qa-template-question qa-body-js-off">
+		<div class="qa-body-wrapper">
+			
+			<div class="qa-header">
+				<div class="qa-logo">
+					<a href="../../" class="qa-logo-link" title="FEniCS Q&amp;A"><img src="../../qa-theme/fenics_qa.png" border="0" alt="FEniCS Q&amp;A"></a>
+				</div>
+				<div class="qa-header-clear">
+				</div>
+			</div> <!-- END qa-header -->
+			
+			<div class="qa-main-shadow">
+				
+				<div class="qa-main-wrapper">
+					
+					<div class="qa-sidepanel">
+						<div class="qa-sidebar">
+							This is a read only copy of the old FEniCS QA forum. Please visit the <a href="https://www.allanswered.com/community/s/fenics-project/">new QA forum</a> to ask questions
+						</div>
+						
+					</div>
+					
+					<div class="qa-main">
+						<h1>
+							<span class="entry-title">Extract coefficients from forms</span>
+						</h1>
+						<div class="qa-part-q-view">
+							<div class="qa-q-view  hentry question" id="q10618">
+								<form method="post" action="../../10618/extract-coefficients-from-forms">
+									<div class="qa-q-view-stats">
+										<div class="qa-voting qa-voting-net" id="voting_10618">
+											<div class="qa-vote-count qa-vote-count-net">
+												<span class="qa-netvote-count">
+													<span class="qa-netvote-count-data">+1<span class="votes-up"><span class="value-title" title="1"></span></span><span class="votes-down"><span class="value-title" title="0"></span></span></span><span class="qa-netvote-count-pad"> vote</span>
+												</span>
+											</div>
+											<div class="qa-vote-clear">
+											</div>
+										</div>
+									</div>
+									<input type="hidden" name="code" value="0-1516467067-3bd1085e8b7148cdd508662202cb023432faccc8">
+								</form>
+								<div class="qa-q-view-main">
+									<form method="post" action="../../10618/extract-coefficients-from-forms">
+										<div class="qa-q-view-content">
+											<a name="10618"></a><div class="entry-content"><p>Dear FEniCS community,</p>
+
+<p>I would like to extract coefficients (not necessarily constants, possibly expressions) from bilinear/linear forms in order to apply a preprocessing to them before assembling the forms.</p>
+
+<p>For instance, consider the following code</p>
+
+<pre><code>from dolfin import *
+
+mesh = UnitSquareMesh(10, 10)
+V = FunctionSpace(mesh, "Lagrange", 2)
+
+expr1 = Expression("x[0]", element=V.ufl_element())
+expr2 = Expression("x[1]", element=V.ufl_element())
+expr3 = Expression("x[0]", element=V.ufl_element())
+expr4 = Expression("x[1]", element=V.ufl_element())
+
+u = TrialFunction(V)
+v = TestFunction(V)
+a = expr1*inner(grad(u), grad(v))*dx + expr2*u.dx(0)*v*dx + expr3*u*v*dx
+f = expr4*v*dx
+</code></pre>
+
+<p>Given a and f, my final goal would be to extract expr1, expr2, expr3 and expr4, apply some preprocessing on them (obtaining expr1_new, expr2_new, expr3_new and expr4_new) and then assemble the following modified forms:</p>
+
+<pre><code>a_new = expr1_new*inner(grad(u), grad(v))*dx + expr2_new*u.dx(0)*v*dx + expr3_new*u*v*dx
+f_new = expr4_new*v*dx
+assemble(a_new)
+assemble(f_new)
+</code></pre>
+
+<p>Q1. Is it possible to extract the coefficients and then plug them back in the forms? If so, how? I have had a look at</p>
+
+<pre><code>for integral in a.integrals():
+    print integral.integrand()
+</code></pre>
+
+<p>but I am not sure on how to parse it<br>
+Q2. Will this work also for VectorFunctionSpaces, where expressions may be matrices or vectors?<br>
+Q3. Do I have a smart way to detect if two or more of the extracted coefficients are the same? For instance, in the example above, I would need to apply my preprocessing only to expr1 and expr2, since the remaining ones are the same.<br>
+Q4. Would integration over dx vs ds make any difference in the procedure?</p>
+
+<p>I know that in my example I can just apply my preprocessing to each expression and then assemble directly a_new and f_new. However, the actual need is to apply it e.g. to a form obtained with derivative(), so in that case I would be not writing down the bilinear form explicitly and thus I would really need to get each coefficient from the form.</p>
+
+<p>Thanks,<br>
+Francesco</p>
+</div>
+										</div>
+										<div class="qa-q-view-tags">
+											<ul class="qa-q-view-tag-list">
+												<li class="qa-q-view-tag-item"><a href="../../tag/python" rel="tag" class="qa-tag-link">python</a></li>
+												<li class="qa-q-view-tag-item"><a href="../../tag/ufl" rel="tag" class="qa-tag-link">ufl</a></li>
+											</ul>
+										</div>
+										<span class="qa-q-view-avatar-meta">
+											<span class="qa-q-view-meta">
+												<a href="../../10618/extract-coefficients-from-forms" class="qa-q-view-what">asked</a>
+												<span class="qa-q-view-when">
+													<span class="qa-q-view-when-data"><span class="published"><span class="value-title" title="2016-07-07T18:52:49+0000"></span>Jul 7, 2016</span></span>
+												</span>
+												<span class="qa-q-view-who">
+													<span class="qa-q-view-who-pad">by </span>
+													<span class="qa-q-view-who-data"><span class="vcard author"><a href="../../user/francesco.ballarin" class="qa-user-link url nickname">francesco.ballarin</a></span></span>
+													<span class="qa-q-view-who-title">FEniCS User</span>
+													<span class="qa-q-view-who-points">
+														<span class="qa-q-view-who-points-pad">(</span><span class="qa-q-view-who-points-data">4,070</span><span class="qa-q-view-who-points-pad"> points)</span>
+													</span>
+												</span>
+											</span>
+										</span>
+										<div class="qa-q-view-buttons">
+										</div>
+										
+										<div class="qa-q-view-c-list" style="display:none;" id="c10618_list">
+										</div> <!-- END qa-c-list -->
+										
+										<input type="hidden" name="code" value="0-1516467067-cc5c636e395f956769e5a59dad7b583062097e4d">
+										<input type="hidden" name="qa_click" value="">
+									</form>
+									<div class="qa-c-form">
+									</div> <!-- END qa-c-form -->
+									
+								</div> <!-- END qa-q-view-main -->
+								<div class="qa-q-view-clear">
+								</div>
+							</div> <!-- END qa-q-view -->
+							
+						</div>
+						<div class="qa-part-a-list">
+							<h2 id="a_list_title">1 Answer</h2>
+							<div class="qa-a-list" id="a_list">
+								
+								<div class="qa-a-list-item  hentry answer answer-selected qa-a-list-item-selected" id="a10624">
+									<form method="post" action="../../10618/extract-coefficients-from-forms">
+										<div class="qa-voting qa-voting-net" id="voting_10624">
+											<div class="qa-vote-count qa-vote-count-net">
+												<span class="qa-netvote-count">
+													<span class="qa-netvote-count-data">+2<span class="votes-up"><span class="value-title" title="2"></span></span><span class="votes-down"><span class="value-title" title="0"></span></span></span><span class="qa-netvote-count-pad"> votes</span>
+												</span>
+											</div>
+											<div class="qa-vote-clear">
+											</div>
+										</div>
+										<input type="hidden" name="code" value="0-1516467067-3bd1085e8b7148cdd508662202cb023432faccc8">
+									</form>
+									<div class="qa-a-item-main">
+										<form method="post" action="../../10618/extract-coefficients-from-forms">
+											<div class="qa-a-item-selected">
+												<div class="qa-a-selection">
+													<div class="qa-a-selected">&#160;</div>
+													<div class="qa-a-selected-text">Best answer</div>
+												</div>
+												<div class="qa-a-item-content">
+													<a name="10624"></a><div class="entry-content"><p>Hello, <code>coefficients</code> method of <code>Form</code> allows you to get the form's coefficients, while <code>replace</code> function of UFL allows you to perform substitution. Consider</p>
+
+<pre><code>from dolfin import *
+import numpy as np
+
+mesh = UnitSquareMesh(10, 10)
+V = VectorFunctionSpace(mesh, 'CG', 1)
+u = TrialFunction(V)
+v = TestFunction(V)
+
+# Suppose these will be coefficients of your form
+coefs = (Expression('1', cell=mesh.ufl_cell(), degree=1),
+         Expression(('x[0]', 'x[1]'), degree=1, cell=mesh.ufl_cell()),
+         Constant(((1, 2), (3, 4))))
+
+c0, c1, c2 = coefs
+form = c0*inner(u, v)*dx+sqrt(c1[0]**2+c1[1]**2)*inner(u, v)*ds + det(c2)*inner(grad(u), grad(v))*dx
+# All coefs in the form
+print len(form.coefficients())
+
+# Update the coefs: each coef is mapped to `ones` of the corresponding shape
+update = dict((c, Constant(np.ones(c.ufl_shape))) for c in form.coefficients())
+form_new = replace(form, update)
+# All coefs in the form
+print len(form_new.coefficients())
+
+# Form with repeated coefficients is identfied correctly
+form = c0*inner(u, v)*dx + c0*inner(u, v)*ds
+assert len(form.coefficients()) == 1
+</code></pre>
+
+<p>The example shows that answers to Q2 and Q4 are respectively yes and no. As for Q3, coeffcients can be compared with <code>==</code>. </p>
+</div>
+												</div>
+												<span class="qa-a-item-avatar-meta">
+													<span class="qa-a-item-meta">
+														<a href="../../10618/extract-coefficients-from-forms?show=10624#a10624" class="qa-a-item-what">answered</a>
+														<span class="qa-a-item-when">
+															<span class="qa-a-item-when-data"><span class="published"><span class="value-title" title="2016-07-08T09:09:19+0000"></span>Jul 8, 2016</span></span>
+														</span>
+														<span class="qa-a-item-who">
+															<span class="qa-a-item-who-pad">by </span>
+															<span class="qa-a-item-who-data"><span class="vcard author"><a href="../../user/OxbowQuest" class="qa-user-link url nickname">OxbowQuest</a></span></span>
+															<span class="qa-a-item-who-title">FEniCS User</span>
+															<span class="qa-a-item-who-points">
+																<span class="qa-a-item-who-points-pad">(</span><span class="qa-a-item-who-points-data">1,360</span><span class="qa-a-item-who-points-pad"> points)</span>
+															</span>
+														</span>
+														<br>
+														<span class="qa-a-item-what">selected</span>
+														<span class="qa-a-item-when">
+															<span class="qa-a-item-when-data"><span class="updated"><span class="value-title" title="2016-07-09T04:53:58+0000"></span>Jul 9, 2016</span></span>
+														</span>
+														<span class="qa-a-item-who">
+															<span class="qa-a-item-who-pad">by </span><span class="qa-a-item-who-data"><a href="../../user/francesco.ballarin" class="qa-user-link url nickname">francesco.ballarin</a></span>
+														</span>
+													</span>
+												</span>
+											</div>
+											<div class="qa-a-item-buttons">
+												</div>
+											
+											<div class="qa-a-item-c-list" id="c10624_list">
+												<div class="qa-c-list-item  hentry comment" id="c10630">
+													<div class="qa-c-item-content">
+														<a name="10630"></a><div class="entry-content"><p>Thanks! I will mark this as correct answer. The last line in your snippet answers the most common Q3 case that I had in mind. Just to clarify for future reference, however, actually expr1 is not == expr3, because they are two different expression (even though they both represent "x[0]" in my example). This limiting case will never happen when using derivative(), so I am comfortable that Q3 has positive answer in all non trivial (non-user provided forms) cases. </p>
+
+<p>Thanks,<br>
+Francesco</p>
+</div>
+													</div>
+													<div class="qa-c-item-footer">
+														<span class="qa-c-item-avatar-meta">
+															<span class="qa-c-item-meta">
+																<a href="../../10618/extract-coefficients-from-forms?show=10630#c10630" class="qa-c-item-what">commented</a>
+																<span class="qa-c-item-when">
+																	<span class="qa-c-item-when-data"><span class="published"><span class="value-title" title="2016-07-09T04:53:46+0000"></span>Jul 9, 2016</span></span>
+																</span>
+																<span class="qa-c-item-who">
+																	<span class="qa-c-item-who-pad">by </span>
+																	<span class="qa-c-item-who-data"><span class="vcard author"><a href="../../user/francesco.ballarin" class="qa-user-link url nickname">francesco.ballarin</a></span></span>
+																	<span class="qa-c-item-who-title">FEniCS User</span>
+																	<span class="qa-c-item-who-points">
+																		<span class="qa-c-item-who-points-pad">(</span><span class="qa-c-item-who-points-data">4,070</span><span class="qa-c-item-who-points-pad"> points)</span>
+																	</span>
+																</span>
+															</span>
+														</span>
+														<div class="qa-c-item-buttons">
+														</div>
+													</div>
+													<div class="qa-c-item-clear">
+													</div>
+												</div> <!-- END qa-c-item -->
+												<div class="qa-c-list-item  hentry comment" id="c10642">
+													<div class="qa-c-item-content">
+														<a name="10642"></a><div class="entry-content"><p>Hi,<br>
+I have experimented with your code in some cases, and I would like to ask an additional question.</p>
+
+<p>Suppose that <br>
+<code>a = expr1*expr2*inner(grad(u), grad(v))*dx</code><br>
+(or any similar operations between coefficients)</p>
+
+<p>Is there a way to extract the product expr1*expr2 while looping on coefficients, rather than expr1 and expr2 separately?</p>
+
+<p>Thanks</p>
+</div>
+													</div>
+													<div class="qa-c-item-footer">
+														<span class="qa-c-item-avatar-meta">
+															<span class="qa-c-item-meta">
+																<a href="../../10618/extract-coefficients-from-forms?show=10642#c10642" class="qa-c-item-what">commented</a>
+																<span class="qa-c-item-when">
+																	<span class="qa-c-item-when-data"><span class="published"><span class="value-title" title="2016-07-12T08:40:03+0000"></span>Jul 12, 2016</span></span>
+																</span>
+																<span class="qa-c-item-who">
+																	<span class="qa-c-item-who-pad">by </span>
+																	<span class="qa-c-item-who-data"><span class="vcard author"><a href="../../user/francesco.ballarin" class="qa-user-link url nickname">francesco.ballarin</a></span></span>
+																	<span class="qa-c-item-who-title">FEniCS User</span>
+																	<span class="qa-c-item-who-points">
+																		<span class="qa-c-item-who-points-pad">(</span><span class="qa-c-item-who-points-data">4,070</span><span class="qa-c-item-who-points-pad"> points)</span>
+																	</span>
+																</span>
+															</span>
+														</span>
+														<div class="qa-c-item-buttons">
+														</div>
+													</div>
+													<div class="qa-c-item-clear">
+													</div>
+												</div> <!-- END qa-c-item -->
+												<div class="qa-c-list-item  hentry comment" id="c10645">
+													<div class="qa-c-item-content">
+														<a name="10645"></a><div class="entry-content"><p>I think this is possible with <code>ufl.algorithms</code> in particular <code>iter_expressions</code> and <code>traverse_terminals</code>. Your example expr1*expr2 is a <code>Product</code> instance where none of the operands is an <code>Argument</code> type. </p>
+</div>
+													</div>
+													<div class="qa-c-item-footer">
+														<span class="qa-c-item-avatar-meta">
+															<span class="qa-c-item-meta">
+																<a href="../../10618/extract-coefficients-from-forms?show=10645#c10645" class="qa-c-item-what">commented</a>
+																<span class="qa-c-item-when">
+																	<span class="qa-c-item-when-data"><span class="published"><span class="value-title" title="2016-07-13T08:47:59+0000"></span>Jul 13, 2016</span></span>
+																</span>
+																<span class="qa-c-item-who">
+																	<span class="qa-c-item-who-pad">by </span>
+																	<span class="qa-c-item-who-data"><span class="vcard author"><a href="../../user/OxbowQuest" class="qa-user-link url nickname">OxbowQuest</a></span></span>
+																	<span class="qa-c-item-who-title">FEniCS User</span>
+																	<span class="qa-c-item-who-points">
+																		<span class="qa-c-item-who-points-pad">(</span><span class="qa-c-item-who-points-data">1,360</span><span class="qa-c-item-who-points-pad"> points)</span>
+																	</span>
+																</span>
+															</span>
+														</span>
+														<div class="qa-c-item-buttons">
+														</div>
+													</div>
+													<div class="qa-c-item-clear">
+													</div>
+												</div> <!-- END qa-c-item -->
+												<div class="qa-c-list-item  hentry comment" id="c10658">
+													<div class="qa-c-item-content">
+														<a name="10658"></a><div class="entry-content"><p>Thanks, I managed to put together a working example at <br>
+<a rel="nofollow" href="https://gist.github.com/francesco-ballarin/d3198c067fe8193200d85001f20e2ec4">https://gist.github.com/francesco-ballarin/d3198c067fe8193200d85001f20e2ec4</a></p>
+
+<p>However, this example does not work if I replace</p>
+
+<pre><code>  a = expr3*expr2*(1 + expr1*expr2)*inner(grad(u), grad(v))*dx
+</code></pre>
+
+<p>e.g. with</p>
+
+<pre><code> a = expr2*(1 + expr1*expr2)*inner(grad(u), grad(v))*expr3*dx 
+</code></pre>
+
+<p>(note that in the first added I have moved the multiplication by expr3 to the end). The basic idea of the code is to find a common node of the tree where there are only expressions and no arguments, however it seems that in the latter expr3 is always separated from expr2<em>(1 + expr1</em>expr2)*inner(grad(u), grad(v)).<br>
+Are you aware of a better way to trasverse the tree? It is not a big deal in this case, however the replace_in_form function does not seem to work in vector problems, and I suspect that it is related to this, e.g.</p>
+
+<pre><code>V = VectorFunctionSpace(mesh, "Lagrange", 2)
+
+expr1 = Expression("x[0]", cell=mesh.ufl_cell())
+expr2 = Expression(("x[0]", "x[1]"), cell=mesh.ufl_cell())
+expr3 = Constant(((1, 2), (3, 4)))
+
+u = TrialFunction(V)
+v = TestFunction(V)
+a = inner(expr3*grad(u), grad(v))*dx + inner(grad(u)*expr2, v)*dx + expr1*inner(u, v)*dx
+</code></pre>
+
+<p>Thanks!</p>
+</div>
+													</div>
+													<div class="qa-c-item-footer">
+														<span class="qa-c-item-avatar-meta">
+															<span class="qa-c-item-meta">
+																<a href="../../10618/extract-coefficients-from-forms?show=10658#c10658" class="qa-c-item-what">commented</a>
+																<span class="qa-c-item-when">
+																	<span class="qa-c-item-when-data"><span class="published"><span class="value-title" title="2016-07-13T17:24:02+0000"></span>Jul 13, 2016</span></span>
+																</span>
+																<span class="qa-c-item-who">
+																	<span class="qa-c-item-who-pad">by </span>
+																	<span class="qa-c-item-who-data"><span class="vcard author"><a href="../../user/francesco.ballarin" class="qa-user-link url nickname">francesco.ballarin</a></span></span>
+																	<span class="qa-c-item-who-title">FEniCS User</span>
+																	<span class="qa-c-item-who-points">
+																		<span class="qa-c-item-who-points-pad">(</span><span class="qa-c-item-who-points-data">4,070</span><span class="qa-c-item-who-points-pad"> points)</span>
+																	</span>
+																</span>
+															</span>
+														</span>
+														<div class="qa-c-item-buttons">
+														</div>
+													</div>
+													<div class="qa-c-item-clear">
+													</div>
+												</div> <!-- END qa-c-item -->
+											</div> <!-- END qa-c-list -->
+											
+											<input type="hidden" name="code" value="0-1516467067-7aab8394a4e50ef276877814839ed46638a4295f">
+											<input type="hidden" name="qa_click" value="">
+										</form>
+										<div class="qa-c-form">
+										</div> <!-- END qa-c-form -->
+										
+									</div> <!-- END qa-a-item-main -->
+									<div class="qa-a-item-clear">
+									</div>
+								</div> <!-- END qa-a-list-item -->
+								
+							</div> <!-- END qa-a-list -->
+							
+						</div>
+					</div> <!-- END qa-main -->
+					
+				</div> <!-- END main-wrapper -->
+			</div> <!-- END main-shadow -->
+		</div> <!-- END body-wrapper -->
+		<!-- END footer-bottom-group -->
+		
+		<div style="position:absolute; left:-9999px; top:-9999px;">
+			<span id="qa-waiting-template" class="qa-waiting">...</span>
+		</div>
+	
+	
+
+</body><!-- Powered by Question2Answer - http://www.question2answer.org/ --></html>

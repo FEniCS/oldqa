@@ -1,0 +1,352 @@
+<html><!-- Powered by Question2Answer - http://www.question2answer.org/ --><head>
+		<meta http-equiv="content-type" content="text/html; charset=utf-8">
+		<title>'MixedFunctionSpace' object has no attribute 'inside' - FEniCS Q&amp;A</title>
+		<meta name="description" content="Hi, I want to solve an eigenvalue problem in linear elasticity which contains periodic boundary  ...  condition for the mixed function space? Thanks">
+		<meta name="keywords" content="periodic-bc,complex,mixed-function-space">
+		<link rel="stylesheet" type="text/css" href="../../qa-theme/Snow/qa-styles.css">
+		<link rel="canonical" href="http://fenicsproject.org/qa/13427/mixedfunctionspace-object-has-no-attribute-inside">
+		<script type="text/x-mathjax-config">
+  MathJax.Hub.Config({
+    extensions: ["tex2jax.js"],
+    jax: ["input/TeX","output/HTML-CSS"],
+    tex2jax: {inlineMath: [["$","$"],["\\(","\\)"]]},
+    TeX: { extensions: ["AMSmath.js","AMSsymbols.js"]}
+  });
+</script>
+<script type="text/javascript" src="../../mathjax/MathJax.js"></script>
+		<script src="../../jquery-1.7.2.min.js" type="text/javascript"></script>
+		<script src="../../highlight.min.js"></script>
+<script type="text/javascript">
+$(function(){
+	$('.wmd-input').keypress(function(){
+		window.clearTimeout(hljs.Timeout);
+		hljs.Timeout = window.setTimeout(function() {
+			hljs.initHighlighting.called = false;
+			hljs.initHighlighting();
+		}, 500);
+	});
+	window.setTimeout(function() {
+		hljs.initHighlighting.called = false;
+		hljs.initHighlighting();
+	}, 500);
+});
+</script>
+
+
+	</head>
+	<body class="qa-template-question qa-body-js-off">
+		<div class="qa-body-wrapper">
+			
+			<div class="qa-header">
+				<div class="qa-logo">
+					<a href="../../" class="qa-logo-link" title="FEniCS Q&amp;A"><img src="../../qa-theme/fenics_qa.png" border="0" alt="FEniCS Q&amp;A"></a>
+				</div>
+				<div class="qa-header-clear">
+				</div>
+			</div> <!-- END qa-header -->
+			
+			<div class="qa-main-shadow">
+				
+				<div class="qa-main-wrapper">
+					
+					<div class="qa-sidepanel">
+						<div class="qa-sidebar">
+							This is a read only copy of the old FEniCS QA forum. Please visit the <a href="https://www.allanswered.com/community/s/fenics-project/">new QA forum</a> to ask questions
+						</div>
+						
+					</div>
+					
+					<div class="qa-main">
+						<h1>
+							<span class="entry-title">'MixedFunctionSpace' object has no attribute 'inside'</span>
+						</h1>
+						<div class="qa-part-q-view">
+							<div class="qa-q-view  hentry question" id="q13427">
+								<form method="post" action="../../13427/mixedfunctionspace-object-has-no-attribute-inside">
+									<div class="qa-q-view-stats">
+										<div class="qa-voting qa-voting-net" id="voting_13427">
+											<div class="qa-vote-count qa-vote-count-net">
+												<span class="qa-netvote-count">
+													<span class="qa-netvote-count-data">0<span class="votes-up"><span class="value-title" title="0"></span></span><span class="votes-down"><span class="value-title" title="0"></span></span></span><span class="qa-netvote-count-pad"> votes</span>
+												</span>
+											</div>
+											<div class="qa-vote-clear">
+											</div>
+										</div>
+									</div>
+									<input type="hidden" name="code" value="0-1516467866-07dfa947bfecbd7488492aecad462e26a9a3cb01">
+								</form>
+								<div class="qa-q-view-main">
+									<form method="post" action="../../13427/mixedfunctionspace-object-has-no-attribute-inside">
+										<div class="qa-q-view-content">
+											<a name="13427"></a><div class="entry-content"><p>Hi,</p>
+
+<p>I want to solve an eigenvalue problem in linear elasticity which contains periodic boundary condition and complex weak formulation. I defined a mixed function space to handle the complex problem. My code is like this:</p>
+
+<pre><code>    a=5.e-2; #cube size
+# Sub domain for Periodic boundary condition
+class PeriodicBoundary(SubDomain):
+
+    # Left boundary is "target domain" G
+    def inside(self, x, on_boundary):
+        # return True if on left or bottom boundary AND NOT on one of the two slave edges
+        return bool(( near(x[0], -a/2.) or near(x[1], -a/2.) or near(x[2], -a/2.)) and 
+            (not ((near(x[0], a/2.) and near(x[2], -a/2.)) or 
+                  (near(x[0], -a/2.) and near(x[2], a/2.)) or
+                  (near(x[1], a/2.) and near(x[2], -a/2.))or
+                  (near(x[1], -a/2.) and near(x[2], a/2.)))) and on_boundary)
+
+    # Map right boundary (H) to left boundary (G)
+    def map(self, x, y):
+
+        if near(x[0], a/2.) and near(x[2], a/2.):
+            y[0] = x[0] - a/2
+            y[1] = x[1] 
+            y[2] = x[2] - a/2
+        elif near(x[1], a/2.) and near(x[2], a/2.):
+            y[0] = x[0] 
+            y[1] = x[1] - a/2
+            y[2] = x[2] - a/2
+        elif near(x[0], a/2):
+            y[0] = x[0] - a/2
+            y[1] = x[1]
+            y[2] = x[2]
+        elif near(x[1], a/2):
+            y[0] = x[0]
+            y[1] = x[1] - a/2
+            y[2] = x[2] 
+        elif near(x[2], a/2):
+            y[0] = x[0]
+            y[1] = x[1]
+            y[2] = x[2] - a/2
+
+
+
+mesh = BoxMesh(-a/2, -a/2, -a/2, a/2, a/2, a/2,36,36,36)
+
+V = VectorFunctionSpace(mesh, "CG", 1, constrained_domain=PeriodicBoundary())
+Vcomplex = V*V
+
+uR, uI = TrialFunctions(Vcomplex)
+wR, wI = TestFunctions(Vcomplex)
+</code></pre>
+
+<p>when I run the code, it gives the following error:</p>
+
+<pre><code>File "Alessandro.py", line 61, in &lt;module&gt;
+    Vcomplex = V*V
+  File "/share/apps/fenics/lib/python2.7/site-packages/dolfin/functions/functionspace.py", line 126, in __mul__
+    return MixedFunctionSpace((self, other))
+  File "/share/apps/fenics/lib/python2.7/site-packages/dolfin/functions/functionspace.py", line 505, in __init__
+    FunctionSpaceBase.__init__(self, spaces[0].mesh(), element, constrained_domain=spaces[0].dofmap().constrained_domain)
+  File "/share/apps/fenics/lib/python2.7/site-packages/dolfin/functions/functionspace.py", line 93, in __init__
+    dolfin_dofmap  = cpp.DofMap(ufc_dofmap, mesh, constrained_domain)
+  File "/share/apps/fenics/lib/python2.7/site-packages/dolfin/cpp/fem.py", line 654, in __init__
+    _fem.DofMap_swiginit(self,_fem.new_DofMap(*args))
+AttributeError: 'MixedFunctionSpace' object has no attribute 'inside'
+</code></pre>
+
+<p>So due to :AttributeError: 'MixedFunctionSpace' object has no attribute 'inside'<br>
+How should I define the periodic boundary condition for the mixed function space?</p>
+
+<p>Thanks</p>
+</div>
+										</div>
+										<div class="qa-q-view-tags">
+											<ul class="qa-q-view-tag-list">
+												<li class="qa-q-view-tag-item"><a href="../../tag/periodic-bc" rel="tag" class="qa-tag-link">periodic-bc</a></li>
+												<li class="qa-q-view-tag-item"><a href="../../tag/complex" rel="tag" class="qa-tag-link">complex</a></li>
+												<li class="qa-q-view-tag-item"><a href="../../tag/mixed-function-space" rel="tag" class="qa-tag-link">mixed-function-space</a></li>
+											</ul>
+										</div>
+										<span class="qa-q-view-avatar-meta">
+											<span class="qa-q-view-meta">
+												<a href="../../13427/mixedfunctionspace-object-has-no-attribute-inside" class="qa-q-view-what">asked</a>
+												<span class="qa-q-view-when">
+													<span class="qa-q-view-when-data"><span class="published"><span class="value-title" title="2017-05-11T20:21:31+0000"></span>May 11, 2017</span></span>
+												</span>
+												<span class="qa-q-view-who">
+													<span class="qa-q-view-who-pad">by </span>
+													<span class="qa-q-view-who-data"><span class="vcard author"><a href="../../user/Ashkan" class="qa-user-link url nickname">Ashkan</a></span></span>
+													<span class="qa-q-view-who-title">FEniCS Novice</span>
+													<span class="qa-q-view-who-points">
+														<span class="qa-q-view-who-points-pad">(</span><span class="qa-q-view-who-points-data">300</span><span class="qa-q-view-who-points-pad"> points)</span>
+													</span>
+												</span>
+											</span>
+										</span>
+										<div class="qa-q-view-buttons">
+										</div>
+										
+										<div class="qa-q-view-c-list" style="display:none;" id="c13427_list">
+										</div> <!-- END qa-c-list -->
+										
+										<input type="hidden" name="code" value="0-1516467866-0aaa129af60b5fe84106fb0d19817152ac51fc98">
+										<input type="hidden" name="qa_click" value="">
+									</form>
+									<div class="qa-c-form">
+									</div> <!-- END qa-c-form -->
+									
+								</div> <!-- END qa-q-view-main -->
+								<div class="qa-q-view-clear">
+								</div>
+							</div> <!-- END qa-q-view -->
+							
+						</div>
+						<div class="qa-part-a-list">
+							<h2 id="a_list_title">1 Answer</h2>
+							<div class="qa-a-list" id="a_list">
+								
+								<div class="qa-a-list-item  hentry answer answer-selected qa-a-list-item-selected" id="a13447">
+									<form method="post" action="../../13427/mixedfunctionspace-object-has-no-attribute-inside">
+										<div class="qa-voting qa-voting-net" id="voting_13447">
+											<div class="qa-vote-count qa-vote-count-net">
+												<span class="qa-netvote-count">
+													<span class="qa-netvote-count-data">0<span class="votes-up"><span class="value-title" title="0"></span></span><span class="votes-down"><span class="value-title" title="0"></span></span></span><span class="qa-netvote-count-pad"> votes</span>
+												</span>
+											</div>
+											<div class="qa-vote-clear">
+											</div>
+										</div>
+										<input type="hidden" name="code" value="0-1516467866-07dfa947bfecbd7488492aecad462e26a9a3cb01">
+									</form>
+									<div class="qa-a-item-main">
+										<form method="post" action="../../13427/mixedfunctionspace-object-has-no-attribute-inside">
+											<div class="qa-a-item-selected">
+												<div class="qa-a-selection">
+													<div class="qa-a-selected">&#160;</div>
+													<div class="qa-a-selected-text">Best answer</div>
+												</div>
+												<div class="qa-a-item-content">
+													<a name="13447"></a><div class="entry-content"><p>Hi, if you update your FEniCS version to (at least) 2016.2.0 or later then the construction is possible with</p>
+
+<pre><code>V = VectorElement("Lagrange", mesh.ufl_cell(), 1)
+W = MixedElement([V, V])
+Vcomplex = FunctionSpace(mesh, W, constrained_domain=PeriodicBoundary())
+
+print Vcomplex.dim(), FunctionSpace(mesh, W).dim() 
+</code></pre>
+</div>
+												</div>
+												<span class="qa-a-item-avatar-meta">
+													<span class="qa-a-item-avatar">
+														<a href="../../user/MiroK" class="qa-avatar-link"><img src="https://www.gravatar.com/avatar/f566be3274ec73e3a6dda27bca11631c?s=40" width="40" height="40" class="qa-avatar-image" alt=""></a>
+													</span>
+													<span class="qa-a-item-meta">
+														<a href="../../13427/mixedfunctionspace-object-has-no-attribute-inside?show=13447#a13447" class="qa-a-item-what">answered</a>
+														<span class="qa-a-item-when">
+															<span class="qa-a-item-when-data"><span class="published"><span class="value-title" title="2017-05-12T15:44:04+0000"></span>May 12, 2017</span></span>
+														</span>
+														<span class="qa-a-item-who">
+															<span class="qa-a-item-who-pad">by </span>
+															<span class="qa-a-item-who-data"><span class="vcard author"><a href="../../user/MiroK" class="qa-user-link url nickname">MiroK</a></span></span>
+															<span class="qa-a-item-who-title">FEniCS Expert</span>
+															<span class="qa-a-item-who-points">
+																<span class="qa-a-item-who-points-pad">(</span><span class="qa-a-item-who-points-data">80,920</span><span class="qa-a-item-who-points-pad"> points)</span>
+															</span>
+														</span>
+														<br>
+														<span class="qa-a-item-what">selected</span>
+														<span class="qa-a-item-when">
+															<span class="qa-a-item-when-data"><span class="updated"><span class="value-title" title="2017-05-24T14:15:26+0000"></span>May 24, 2017</span></span>
+														</span>
+														<span class="qa-a-item-who">
+															<span class="qa-a-item-who-pad">by </span><span class="qa-a-item-who-data"><a href="../../user/johannr" class="qa-user-link url nickname">johannr</a></span>
+														</span>
+													</span>
+												</span>
+											</div>
+											<div class="qa-a-item-buttons">
+												</div>
+											
+											<div class="qa-a-item-c-list" id="c13447_list">
+												<div class="qa-c-list-item  hentry comment" id="c13449">
+													<div class="qa-c-item-content">
+														<a name="13449"></a><div class="entry-content"><p>Thanks a lot. Do you know what are the new features of the newest version of fenics (May 12)?<br>
+Does it support complex numbers directly?</p>
+</div>
+													</div>
+													<div class="qa-c-item-footer">
+														<span class="qa-c-item-avatar-meta">
+															<span class="qa-c-item-meta">
+																<a href="../../13427/mixedfunctionspace-object-has-no-attribute-inside?show=13449#c13449" class="qa-c-item-what">commented</a>
+																<span class="qa-c-item-when">
+																	<span class="qa-c-item-when-data"><span class="published"><span class="value-title" title="2017-05-12T17:19:43+0000"></span>May 12, 2017</span></span>
+																</span>
+																<span class="qa-c-item-who">
+																	<span class="qa-c-item-who-pad">by </span>
+																	<span class="qa-c-item-who-data"><span class="vcard author"><a href="../../user/Ashkan" class="qa-user-link url nickname">Ashkan</a></span></span>
+																	<span class="qa-c-item-who-title">FEniCS Novice</span>
+																	<span class="qa-c-item-who-points">
+																		<span class="qa-c-item-who-points-pad">(</span><span class="qa-c-item-who-points-data">300</span><span class="qa-c-item-who-points-pad"> points)</span>
+																	</span>
+																</span>
+															</span>
+														</span>
+														<div class="qa-c-item-buttons">
+														</div>
+													</div>
+													<div class="qa-c-item-clear">
+													</div>
+												</div> <!-- END qa-c-item -->
+												<div class="qa-c-list-item  hentry comment" id="c13456">
+													<div class="qa-c-item-content">
+														<a name="13456"></a><div class="entry-content"><p>No, there is no support for complex numbers. For new features consult the <a rel="nofollow" href="https://bitbucket.org/fenics-project/dolfin/src/master/ChangeLog.rst?at=master&amp;fileviewer=file-view-default">ChangeLog</a>.</p>
+</div>
+													</div>
+													<div class="qa-c-item-footer">
+														<span class="qa-c-item-avatar-meta">
+															<span class="qa-c-item-avatar">
+																<a href="../../user/MiroK" class="qa-avatar-link"><img src="https://www.gravatar.com/avatar/f566be3274ec73e3a6dda27bca11631c?s=20" width="20" height="20" class="qa-avatar-image" alt=""></a>
+															</span>
+															<span class="qa-c-item-meta">
+																<a href="../../13427/mixedfunctionspace-object-has-no-attribute-inside?show=13456#c13456" class="qa-c-item-what">commented</a>
+																<span class="qa-c-item-when">
+																	<span class="qa-c-item-when-data"><span class="published"><span class="value-title" title="2017-05-13T09:41:52+0000"></span>May 13, 2017</span></span>
+																</span>
+																<span class="qa-c-item-who">
+																	<span class="qa-c-item-who-pad">by </span>
+																	<span class="qa-c-item-who-data"><span class="vcard author"><a href="../../user/MiroK" class="qa-user-link url nickname">MiroK</a></span></span>
+																	<span class="qa-c-item-who-title">FEniCS Expert</span>
+																	<span class="qa-c-item-who-points">
+																		<span class="qa-c-item-who-points-pad">(</span><span class="qa-c-item-who-points-data">80,920</span><span class="qa-c-item-who-points-pad"> points)</span>
+																	</span>
+																</span>
+															</span>
+														</span>
+														<div class="qa-c-item-buttons">
+														</div>
+													</div>
+													<div class="qa-c-item-clear">
+													</div>
+												</div> <!-- END qa-c-item -->
+											</div> <!-- END qa-c-list -->
+											
+											<input type="hidden" name="code" value="0-1516467866-6b76785d9c84cfc5cc35de0f47a77841b0b407ff">
+											<input type="hidden" name="qa_click" value="">
+										</form>
+										<div class="qa-c-form">
+										</div> <!-- END qa-c-form -->
+										
+									</div> <!-- END qa-a-item-main -->
+									<div class="qa-a-item-clear">
+									</div>
+								</div> <!-- END qa-a-list-item -->
+								
+							</div> <!-- END qa-a-list -->
+							
+						</div>
+					</div> <!-- END qa-main -->
+					
+				</div> <!-- END main-wrapper -->
+			</div> <!-- END main-shadow -->
+		</div> <!-- END body-wrapper -->
+		<!-- END footer-bottom-group -->
+		
+		<div style="position:absolute; left:-9999px; top:-9999px;">
+			<span id="qa-waiting-template" class="qa-waiting">...</span>
+		</div>
+	
+	
+
+</body><!-- Powered by Question2Answer - http://www.question2answer.org/ --></html>

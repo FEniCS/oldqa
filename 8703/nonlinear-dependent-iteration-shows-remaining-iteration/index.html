@@ -1,0 +1,595 @@
+<html><!-- Powered by Question2Answer - http://www.question2answer.org/ --><head>
+		<meta http-equiv="content-type" content="text/html; charset=utf-8">
+		<title>Nonlinear Time dependent fails after fist iteration. Shows -nan for remaining iteration - FEniCS Q&amp;A</title>
+		<meta name="description" content="Hi everyone, Am solving the following time dependent nonlinear coupled pdes using the automatic derivative for the  ... + f4 T_total = 1 t=dt while (t">
+		<meta name="keywords" content="nonlinear,time-dependent,mixed-spaces,jacobian,newton-solver">
+		<link rel="stylesheet" type="text/css" href="../../qa-theme/Snow/qa-styles.css">
+		<link rel="canonical" href="http://fenicsproject.org/qa/8703/nonlinear-dependent-iteration-shows-remaining-iteration">
+		<script type="text/x-mathjax-config">
+  MathJax.Hub.Config({
+    extensions: ["tex2jax.js"],
+    jax: ["input/TeX","output/HTML-CSS"],
+    tex2jax: {inlineMath: [["$","$"],["\\(","\\)"]]},
+    TeX: { extensions: ["AMSmath.js","AMSsymbols.js"]}
+  });
+</script>
+<script type="text/javascript" src="../../mathjax/MathJax.js"></script>
+		<script src="../../jquery-1.7.2.min.js" type="text/javascript"></script>
+		<script src="../../highlight.min.js"></script>
+<script type="text/javascript">
+$(function(){
+	$('.wmd-input').keypress(function(){
+		window.clearTimeout(hljs.Timeout);
+		hljs.Timeout = window.setTimeout(function() {
+			hljs.initHighlighting.called = false;
+			hljs.initHighlighting();
+		}, 500);
+	});
+	window.setTimeout(function() {
+		hljs.initHighlighting.called = false;
+		hljs.initHighlighting();
+	}, 500);
+});
+</script>
+
+
+	</head>
+	<body class="qa-template-question qa-body-js-off">
+		<div class="qa-body-wrapper">
+			
+			<div class="qa-header">
+				<div class="qa-logo">
+					<a href="../../" class="qa-logo-link" title="FEniCS Q&amp;A"><img src="../../qa-theme/fenics_qa.png" border="0" alt="FEniCS Q&amp;A"></a>
+				</div>
+				<div class="qa-header-clear">
+				</div>
+			</div> <!-- END qa-header -->
+			
+			<div class="qa-main-shadow">
+				
+				<div class="qa-main-wrapper">
+					
+					<div class="qa-sidepanel">
+						<div class="qa-sidebar">
+							This is a read only copy of the old FEniCS QA forum. Please visit the <a href="https://www.allanswered.com/community/s/fenics-project/">new QA forum</a> to ask questions
+						</div>
+						
+					</div>
+					
+					<div class="qa-main">
+						<h1>
+							<span class="entry-title">Nonlinear Time dependent fails after fist iteration. Shows -nan for remaining iteration</span>
+						</h1>
+						<div class="qa-part-q-view">
+							<div class="qa-q-view  hentry question" id="q8703">
+								<form method="post" action="../../8703/nonlinear-dependent-iteration-shows-remaining-iteration">
+									<div class="qa-q-view-stats">
+										<div class="qa-voting qa-voting-net" id="voting_8703">
+											<div class="qa-vote-count qa-vote-count-net">
+												<span class="qa-netvote-count">
+													<span class="qa-netvote-count-data">0<span class="votes-up"><span class="value-title" title="0"></span></span><span class="votes-down"><span class="value-title" title="0"></span></span></span><span class="qa-netvote-count-pad"> votes</span>
+												</span>
+											</div>
+											<div class="qa-vote-clear">
+											</div>
+										</div>
+									</div>
+									<input type="hidden" name="code" value="0-1516468188-8b2429bfbb241bcb7227348de50b549a3f618b83">
+								</form>
+								<div class="qa-q-view-main">
+									<form method="post" action="../../8703/nonlinear-dependent-iteration-shows-remaining-iteration">
+										<div class="qa-q-view-content">
+											<a name="8703"></a><div class="entry-content"><p>Hi everyone,<br>
+Am solving the following time dependent nonlinear coupled pdes using the automatic derivative for the jacobian, but after iteration zero, the rest is -nan and am not sure how to fix it. Below is complete code. Thanks to anyone that helps.</p>
+
+<pre><code>from dolfin import *
+
+
+class PeriodicBoundary(SubDomain):
+
+# left boundary is "target domain"
+def inside(self, x, on_boundary):
+    return bool(x[0]&lt; DOLFIN_EPS and x[0]&gt; - DOLFIN_EPS and on_boundary)
+
+# Map right boundary to left boundary
+def map(self, x, y):
+    y[0] = x[0] - 1.0
+    y[1] = x[1]
+
+pbc = PeriodicBoundary()
+
+mesh = RectangleMesh(Point(-1,-1),Point(1,1),20,20) #Domain[-1,1]*[-1,1]
+
+V1= VectorFunctionSpace(mesh, 'CG', degree=2, constrained_domain = pbc)
+
+V2=VectorFunctionSpace(mesh, 'CG', degree=2, constrained_domain= pbc)
+
+Q1 = FunctionSpace(mesh, 'CG', degree=1, constrained_domain = pbc )
+
+Q2 = FunctionSpace(mesh, 'CG', degree=1, constrained_domain = pbc)
+VQ = MixedFunctionSpace([V1,V2, Q1, Q2])
+
+
+# Define trial and test functions
+(U,u, phi,p ) = TrialFunctions(VQ)
+(m,h,q,r) = TestFunctions(VQ)
+
+
+ H= Function(VQ)  
+#  Dirichlet boundary condition
+ # Sub domain for Dirichlet boundary condition
+class Top(SubDomain):
+    def inside(self, x, on_boundary):
+       return (x[1]&gt;1 - DOLFIN_EPS and on_boundary)
+
+ class Bottom(SubDomain):
+    def inside(self, x, on_boundary):
+         return (x[1]&lt; -1 + DOLFIN_EPS and on_boundary)
+
+  UB= Constant((-1,0))
+  UT= Constant((1,0))
+ ub= Constant((-1,0))
+ ut= Constant((1,0))
+
+
+ top= Top()
+ bott = Bottom()
+
+ bcUB= DirichletBC(VQ.sub(0), UB  ,bott)
+ bcUT= DirichletBC(VQ.sub(0), UB  ,top)
+ bcub= DirichletBC(VQ.sub(1), ub  ,bott )
+bcut= DirichletBC(VQ.sub(1), ub  ,top )
+
+bcs = [bcUB,bcUT, bcub,bcut]
+
+
+ #constants
+ c = Constant (2/3)
+xi0= Constant(1)
+n = Constant(2)
+alpha = Constant(25)
+
+ # initial conditions
+ U_int = Expression(["x[1]", "x[1]"])   # U=u=y
+ u_int = Expression(["x[1]", "x[1]"])
+phi_int= Constant(0.01)
+p_int = Constant(0.0)
+
+ U00 = interpolate(U_int, V1)    # REPLACE H BY V1. SAME FOR THE REST
+ u00= interpolate(u_int,V2)
+phi00=interpolate(phi_int,Q1)
+p00 = interpolate(p_int, Q2)
+
+   U0 = U00       
+  u0 = u00      
+  phi0 = phi00  
+  p0 = p00       
+
+
+ k_phi = (phi/phi0)**n
+ eta = exp(-alpha*(phi-phi0))
+ xi = xi0* eta
+ dt=0.01
+
+
+
+ f1 = phi*q*dx - phi0*q*dx - dt*div((1-phi)*U)*q*dx  #=0
+
+f2 = inner(phi*(u-U), m)*dx  + k_phi * p*div(m)*dx # =0
+
+f3 = p*div(h)*dx + eta*inner(grad(U) + grad(U).T, grad(h))*dx - (xi*div(U)) *div(h)*dx +   c*(eta*div(U))*div(h)*dx   # =0
+
+ f4 = div(phi*u + (1-phi)*U)*r*dx    #=0
+
+ F = f1 + f2 + f3 + f4          
+
+
+  T_total = 1
+ t=dt
+ while (t&lt;=T_total):
+F1= action(F,H)
+# Automatic computation of the Jacobian using Gateaux derivative#
+Jac = derivative(F1,H)  
+
+# Automatic Defining the nonlinear problem with boundary conditions
+problem = NonlinearVariationalProblem(F1,H,bcs, Jac)
+# Creating automatic solver
+solver = NonlinearVariationalSolver(problem)
+solver.solve()
+
+#ALL_initial(0,0).assign(H)
+(US, uS, phiS, ps) = split(H)
+assigner = FunctionAssigner(Q1, VQ.sub(2))
+assigner.assign(phi0, phiS)
+t+=dt
+</code></pre>
+
+<h2>The error is as below</h2>
+
+<pre><code>Newton iteration 0: r (abs) = 1.265e+01 (tol = 1.000e-10) r (rel) = 1.000e+00 (tol = 1.000e-09)
+ Newton iteration 1: r (abs) = -nan (tol = 1.000e-10) r (rel) = -nan (tol = 1.000e-09)
+ Newton iteration 2: r (abs) = -nan (tol = 1.000e-10) r (rel) = -nan (tol = 1.000e-09)
+ ................................................................
+  ............................................................
+  Newton iteration 50: r (abs) = -nan (tol = 1.000e-10) r (rel) = -nan (tol = 1.000e-09)
+Traceback (most recent call last):
+  File "mat.py", line 125, in &lt;module&gt;
+    solver.solve()
+RuntimeError: 
+</code></pre>
+
+<p>*** -------------------------------------------------------------------------<br>
+    *** DOLFIN encountered an error. If you are not able to resolve this issue<br>
+     *** using the information listed below, you can ask for help at<br>
+    ***<br>
+***     fenics@fenicsproject.org</p>
+
+<hr>
+
+<p>*** Remember to include the error message listed below and, if possible,<br>
+*** include a <em>minimal</em> running example to reproduce the error.</p>
+
+<hr>
+
+<p>*** -------------------------------------------------------------------------<br>
+*** Error:   Unable to solve nonlinear system with NewtonSolver.<br>
+*** Reason:  Newton solver did not converge because maximum number of iterations reached.<br>
+*** Where:   This error was encountered inside NewtonSolver.cpp.<br>
+*** Process: 0</p>
+
+<hr>
+
+<p>*** DOLFIN version: 1.6.0<br>
+*** Git changeset:  unknown<br>
+*** -------------------------------------------------------------------------</p>
+</div>
+										</div>
+										<div class="qa-q-view-tags">
+											<ul class="qa-q-view-tag-list">
+												<li class="qa-q-view-tag-item"><a href="../../tag/nonlinear" rel="tag" class="qa-tag-link">nonlinear</a></li>
+												<li class="qa-q-view-tag-item"><a href="../../tag/time-dependent" rel="tag" class="qa-tag-link">time-dependent</a></li>
+												<li class="qa-q-view-tag-item"><a href="../../tag/mixed-spaces" rel="tag" class="qa-tag-link">mixed-spaces</a></li>
+												<li class="qa-q-view-tag-item"><a href="../../tag/jacobian" rel="tag" class="qa-tag-link">jacobian</a></li>
+												<li class="qa-q-view-tag-item"><a href="../../tag/newton-solver" rel="tag" class="qa-tag-link">newton-solver</a></li>
+											</ul>
+										</div>
+										<span class="qa-q-view-avatar-meta">
+											<span class="qa-q-view-meta">
+												<a href="../../8703/nonlinear-dependent-iteration-shows-remaining-iteration" class="qa-q-view-what">asked</a>
+												<span class="qa-q-view-when">
+													<span class="qa-q-view-when-data"><span class="published"><span class="value-title" title="2015-11-26T19:43:37+0000"></span>Nov 26, 2015</span></span>
+												</span>
+												<span class="qa-q-view-who">
+													<span class="qa-q-view-who-pad">by </span>
+													<span class="qa-q-view-who-data"><span class="vcard author"><a href="../../user/Vivian" class="qa-user-link url nickname">Vivian</a></span></span>
+													<span class="qa-q-view-who-title">FEniCS Novice</span>
+													<span class="qa-q-view-who-points">
+														<span class="qa-q-view-who-points-pad">(</span><span class="qa-q-view-who-points-data">550</span><span class="qa-q-view-who-points-pad"> points)</span>
+													</span>
+												</span>
+											</span>
+										</span>
+										<div class="qa-q-view-buttons">
+										</div>
+										
+										<div class="qa-q-view-c-list" style="display:none;" id="c8703_list">
+										</div> <!-- END qa-c-list -->
+										
+										<input type="hidden" name="code" value="0-1516468188-27e2664895c1de37fa2d096d7fbd704c35f0700b">
+										<input type="hidden" name="qa_click" value="">
+									</form>
+									<div class="qa-c-form">
+									</div> <!-- END qa-c-form -->
+									
+								</div> <!-- END qa-q-view-main -->
+								<div class="qa-q-view-clear">
+								</div>
+							</div> <!-- END qa-q-view -->
+							
+						</div>
+						<div class="qa-part-a-list">
+							<h2 id="a_list_title">2 Answers</h2>
+							<div class="qa-a-list" id="a_list">
+								
+								<div class="qa-a-list-item  hentry answer" id="a8728">
+									<form method="post" action="../../8703/nonlinear-dependent-iteration-shows-remaining-iteration">
+										<div class="qa-voting qa-voting-net" id="voting_8728">
+											<div class="qa-vote-count qa-vote-count-net">
+												<span class="qa-netvote-count">
+													<span class="qa-netvote-count-data">0<span class="votes-up"><span class="value-title" title="0"></span></span><span class="votes-down"><span class="value-title" title="0"></span></span></span><span class="qa-netvote-count-pad"> votes</span>
+												</span>
+											</div>
+											<div class="qa-vote-clear">
+											</div>
+										</div>
+										<input type="hidden" name="code" value="0-1516468188-8b2429bfbb241bcb7227348de50b549a3f618b83">
+									</form>
+									<div class="qa-a-item-main">
+										<form method="post" action="../../8703/nonlinear-dependent-iteration-shows-remaining-iteration">
+											<div class="qa-a-selection">
+											</div>
+											<div class="qa-a-item-content">
+												<a name="8728"></a><div class="entry-content"><p>Try this way: </p>
+
+<pre><code>Hu = Function(VQ)
+(U,u, phi,p) = split(Hu)
+</code></pre>
+
+<p>and</p>
+
+<pre><code>H = TrialFunction(VQ)
+Jac = derivative(F,Hu,H)
+</code></pre>
+
+<p><strong>EDIT:</strong></p>
+
+<pre><code>problem = NonlinearVariationalProblem(F,Hu,bcs, Jac)
+</code></pre>
+</div>
+											</div>
+											<span class="qa-a-item-avatar-meta">
+												<span class="qa-a-item-meta">
+													<a href="../../8703/nonlinear-dependent-iteration-shows-remaining-iteration?show=8728#a8728" class="qa-a-item-what">answered</a>
+													<span class="qa-a-item-when">
+														<span class="qa-a-item-when-data"><span class="published"><span class="value-title" title="2015-11-29T13:53:16+0000"></span>Nov 29, 2015</span></span>
+													</span>
+													<span class="qa-a-item-who">
+														<span class="qa-a-item-who-pad">by </span>
+														<span class="qa-a-item-who-data"><span class="vcard author"><a href="../../user/str" class="qa-user-link url nickname">str</a></span></span>
+														<span class="qa-a-item-who-title">FEniCS User</span>
+														<span class="qa-a-item-who-points">
+															<span class="qa-a-item-who-points-pad">(</span><span class="qa-a-item-who-points-data">1,600</span><span class="qa-a-item-who-points-pad"> points)</span>
+														</span>
+													</span>
+													<br>
+													<span class="qa-a-item-what">edited</span>
+													<span class="qa-a-item-when">
+														<span class="qa-a-item-when-data"><span class="updated"><span class="value-title" title="2015-11-30T15:29:18+0000"></span>Nov 30, 2015</span></span>
+													</span>
+													<span class="qa-a-item-who">
+														<span class="qa-a-item-who-pad">by </span><span class="qa-a-item-who-data"><a href="../../user/str" class="qa-user-link url nickname">str</a></span>
+													</span>
+												</span>
+											</span>
+											<div class="qa-a-item-buttons">
+												</div>
+											
+											<div class="qa-a-item-c-list" id="c8728_list">
+												<div class="qa-c-list-item  hentry comment" id="c8739">
+													<div class="qa-c-item-content">
+														<a name="8739"></a><div class="entry-content"><p>Thank you. I did as you said but I got the following error.</p>
+
+<pre><code> problem = NonlinearVariationalProblem(F,H,bcs, Jac)
+File "/usr/lib/python2.7/dist-packages/dolfin/fem/solving.py", line 132, in __init__
+u = _extract_u(u)
+File "/usr/lib/python2.7/dist-packages/dolfin/fem/solving.py", line 471, in _extract_u
+"Expecting second argument to be a Function")
+File "/usr/lib/python2.7/dist-packages/dolfin/cpp/common.py", line 2611, in dolfin_error
+return _common.dolfin_error(location, task, reason)
+RuntimeError: 
+
+*** -------------------------------------------------------------------------
+*** DOLFIN encountered an error. If you are not able to resolve this issue
+*** using the information listed below, you can ask for help at
+***
+***     fenics@fenicsproject.org
+***
+*** Remember to include the error message listed below and, if possible,
+*** include a *minimal* running example to reproduce the error.
+***
+*** -------------------------------------------------------------------------
+*** Error:   Unable to solve variational problem.
+*** Reason:  Expecting second argument to be a Function.
+*** Where:   This error was encountered inside solving.py.
+*** Process: 0
+*** 
+*** DOLFIN version: 1.6.0
+*** Git changeset:  unknown
+</code></pre>
+</div>
+													</div>
+													<div class="qa-c-item-footer">
+														<span class="qa-c-item-avatar-meta">
+															<span class="qa-c-item-meta">
+																<a href="../../8703/nonlinear-dependent-iteration-shows-remaining-iteration?show=8739#c8739" class="qa-c-item-what">commented</a>
+																<span class="qa-c-item-when">
+																	<span class="qa-c-item-when-data"><span class="published"><span class="value-title" title="2015-11-30T15:21:09+0000"></span>Nov 30, 2015</span></span>
+																</span>
+																<span class="qa-c-item-who">
+																	<span class="qa-c-item-who-pad">by </span>
+																	<span class="qa-c-item-who-data"><span class="vcard author"><a href="../../user/Vivian" class="qa-user-link url nickname">Vivian</a></span></span>
+																	<span class="qa-c-item-who-title">FEniCS Novice</span>
+																	<span class="qa-c-item-who-points">
+																		<span class="qa-c-item-who-points-pad">(</span><span class="qa-c-item-who-points-data">550</span><span class="qa-c-item-who-points-pad"> points)</span>
+																	</span>
+																</span>
+															</span>
+														</span>
+														<div class="qa-c-item-buttons">
+														</div>
+													</div>
+													<div class="qa-c-item-clear">
+													</div>
+												</div> <!-- END qa-c-item -->
+												<div class="qa-c-list-item  hentry comment" id="c8741">
+													<div class="qa-c-item-content">
+														<a name="8741"></a><div class="entry-content"><p>I edited my answer.</p>
+</div>
+													</div>
+													<div class="qa-c-item-footer">
+														<span class="qa-c-item-avatar-meta">
+															<span class="qa-c-item-meta">
+																<a href="../../8703/nonlinear-dependent-iteration-shows-remaining-iteration?show=8741#c8741" class="qa-c-item-what">commented</a>
+																<span class="qa-c-item-when">
+																	<span class="qa-c-item-when-data"><span class="published"><span class="value-title" title="2015-11-30T15:29:48+0000"></span>Nov 30, 2015</span></span>
+																</span>
+																<span class="qa-c-item-who">
+																	<span class="qa-c-item-who-pad">by </span>
+																	<span class="qa-c-item-who-data"><span class="vcard author"><a href="../../user/str" class="qa-user-link url nickname">str</a></span></span>
+																	<span class="qa-c-item-who-title">FEniCS User</span>
+																	<span class="qa-c-item-who-points">
+																		<span class="qa-c-item-who-points-pad">(</span><span class="qa-c-item-who-points-data">1,600</span><span class="qa-c-item-who-points-pad"> points)</span>
+																	</span>
+																</span>
+															</span>
+														</span>
+														<div class="qa-c-item-buttons">
+														</div>
+													</div>
+													<div class="qa-c-item-clear">
+													</div>
+												</div> <!-- END qa-c-item -->
+												<div class="qa-c-list-item  hentry comment" id="c8743">
+													<div class="qa-c-item-content">
+														<a name="8743"></a><div class="entry-content"><p>Thank you str but I still get the -nan after the first iteration when I use,</p>
+
+<pre><code>problem = NonlinearVariationalProblem(F,Hu,bcs, Jac)
+</code></pre>
+</div>
+													</div>
+													<div class="qa-c-item-footer">
+														<span class="qa-c-item-avatar-meta">
+															<span class="qa-c-item-meta">
+																<a href="../../8703/nonlinear-dependent-iteration-shows-remaining-iteration?show=8743#c8743" class="qa-c-item-what">commented</a>
+																<span class="qa-c-item-when">
+																	<span class="qa-c-item-when-data"><span class="published"><span class="value-title" title="2015-11-30T15:40:47+0000"></span>Nov 30, 2015</span></span>
+																</span>
+																<span class="qa-c-item-who">
+																	<span class="qa-c-item-who-pad">by </span>
+																	<span class="qa-c-item-who-data"><span class="vcard author"><a href="../../user/Vivian" class="qa-user-link url nickname">Vivian</a></span></span>
+																	<span class="qa-c-item-who-title">FEniCS Novice</span>
+																	<span class="qa-c-item-who-points">
+																		<span class="qa-c-item-who-points-pad">(</span><span class="qa-c-item-who-points-data">550</span><span class="qa-c-item-who-points-pad"> points)</span>
+																	</span>
+																</span>
+															</span>
+														</span>
+														<div class="qa-c-item-buttons">
+														</div>
+													</div>
+													<div class="qa-c-item-clear">
+													</div>
+												</div> <!-- END qa-c-item -->
+												<div class="qa-c-list-item  hentry comment" id="c11617">
+													<div class="qa-c-item-content">
+														<a name="11617"></a><div class="entry-content"><p>DId you find a solution to your problem? I am also getting nan after the first Newton iteration.</p>
+</div>
+													</div>
+													<div class="qa-c-item-footer">
+														<span class="qa-c-item-avatar-meta">
+															<span class="qa-c-item-avatar">
+																<a href="../../user/KristianE" class="qa-avatar-link"><img src="https://www.gravatar.com/avatar/8e8c30d82e263e44bd8fe50055a60421?s=20" width="20" height="20" class="qa-avatar-image" alt=""></a>
+															</span>
+															<span class="qa-c-item-meta">
+																<a href="../../8703/nonlinear-dependent-iteration-shows-remaining-iteration?show=11617#c11617" class="qa-c-item-what">commented</a>
+																<span class="qa-c-item-when">
+																	<span class="qa-c-item-when-data"><span class="published"><span class="value-title" title="2016-11-14T15:18:52+0000"></span>Nov 14, 2016</span></span>
+																</span>
+																<span class="qa-c-item-who">
+																	<span class="qa-c-item-who-pad">by </span>
+																	<span class="qa-c-item-who-data"><span class="vcard author"><a href="../../user/KristianE" class="qa-user-link url nickname">KristianE</a></span></span>
+																	<span class="qa-c-item-who-title">FEniCS Expert</span>
+																	<span class="qa-c-item-who-points">
+																		<span class="qa-c-item-who-points-pad">(</span><span class="qa-c-item-who-points-data">12,900</span><span class="qa-c-item-who-points-pad"> points)</span>
+																	</span>
+																</span>
+															</span>
+														</span>
+														<div class="qa-c-item-buttons">
+														</div>
+													</div>
+													<div class="qa-c-item-clear">
+													</div>
+												</div> <!-- END qa-c-item -->
+											</div> <!-- END qa-c-list -->
+											
+											<input type="hidden" name="code" value="0-1516468188-949e5ee927f5ebe1bdc3eaa382d58dfb4c723b4f">
+											<input type="hidden" name="qa_click" value="">
+										</form>
+										<div class="qa-c-form">
+										</div> <!-- END qa-c-form -->
+										
+									</div> <!-- END qa-a-item-main -->
+									<div class="qa-a-item-clear">
+									</div>
+								</div> <!-- END qa-a-list-item -->
+								
+								<div class="qa-a-list-item  hentry answer" id="a11623">
+									<form method="post" action="../../8703/nonlinear-dependent-iteration-shows-remaining-iteration">
+										<div class="qa-voting qa-voting-net" id="voting_11623">
+											<div class="qa-vote-count qa-vote-count-net">
+												<span class="qa-netvote-count">
+													<span class="qa-netvote-count-data">+1<span class="votes-up"><span class="value-title" title="1"></span></span><span class="votes-down"><span class="value-title" title="0"></span></span></span><span class="qa-netvote-count-pad"> vote</span>
+												</span>
+											</div>
+											<div class="qa-vote-clear">
+											</div>
+										</div>
+										<input type="hidden" name="code" value="0-1516468188-8b2429bfbb241bcb7227348de50b549a3f618b83">
+									</form>
+									<div class="qa-a-item-main">
+										<form method="post" action="../../8703/nonlinear-dependent-iteration-shows-remaining-iteration">
+											<div class="qa-a-selection">
+											</div>
+											<div class="qa-a-item-content">
+												<a name="11623"></a><div class="entry-content"><p>try to set a random initial guess</p>
+
+<pre><code>from numpy.random import rand
+H.vector().set_local(rand(H.vector().size()))
+H.vector().apply("")
+</code></pre>
+</div>
+											</div>
+											<span class="qa-a-item-avatar-meta">
+												<span class="qa-a-item-avatar">
+													<a href="../../user/KristianE" class="qa-avatar-link"><img src="https://www.gravatar.com/avatar/8e8c30d82e263e44bd8fe50055a60421?s=40" width="40" height="40" class="qa-avatar-image" alt=""></a>
+												</span>
+												<span class="qa-a-item-meta">
+													<a href="../../8703/nonlinear-dependent-iteration-shows-remaining-iteration?show=11623#a11623" class="qa-a-item-what">answered</a>
+													<span class="qa-a-item-when">
+														<span class="qa-a-item-when-data"><span class="published"><span class="value-title" title="2016-11-14T15:38:43+0000"></span>Nov 14, 2016</span></span>
+													</span>
+													<span class="qa-a-item-who">
+														<span class="qa-a-item-who-pad">by </span>
+														<span class="qa-a-item-who-data"><span class="vcard author"><a href="../../user/KristianE" class="qa-user-link url nickname">KristianE</a></span></span>
+														<span class="qa-a-item-who-title">FEniCS Expert</span>
+														<span class="qa-a-item-who-points">
+															<span class="qa-a-item-who-points-pad">(</span><span class="qa-a-item-who-points-data">12,900</span><span class="qa-a-item-who-points-pad"> points)</span>
+														</span>
+													</span>
+												</span>
+											</span>
+											<div class="qa-a-item-buttons">
+												</div>
+											
+											<div class="qa-a-item-c-list" style="display:none;" id="c11623_list">
+											</div> <!-- END qa-c-list -->
+											
+											<input type="hidden" name="code" value="0-1516468188-7fc170c8a72669cecc72e74796dd751b13c4d70f">
+											<input type="hidden" name="qa_click" value="">
+										</form>
+										<div class="qa-c-form">
+										</div> <!-- END qa-c-form -->
+										
+									</div> <!-- END qa-a-item-main -->
+									<div class="qa-a-item-clear">
+									</div>
+								</div> <!-- END qa-a-list-item -->
+								
+							</div> <!-- END qa-a-list -->
+							
+						</div>
+					</div> <!-- END qa-main -->
+					
+				</div> <!-- END main-wrapper -->
+			</div> <!-- END main-shadow -->
+		</div> <!-- END body-wrapper -->
+		<!-- END footer-bottom-group -->
+		
+		<div style="position:absolute; left:-9999px; top:-9999px;">
+			<span id="qa-waiting-template" class="qa-waiting">...</span>
+		</div>
+	
+	
+
+</body><!-- Powered by Question2Answer - http://www.question2answer.org/ --></html>

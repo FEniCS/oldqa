@@ -1,0 +1,570 @@
+<html><!-- Powered by Question2Answer - http://www.question2answer.org/ --><head>
+		<meta http-equiv="content-type" content="text/html; charset=utf-8">
+		<title>time-dependent Nonlinear Mixed Method fails to update solution after first solve - FEniCS Q&amp;A</title>
+		<meta name="description" content="I am attempting to solve a time-dependent nonlinear mixed formulation of a system of equations. For  ...  of the system of equations added) while t">
+		<meta name="keywords" content="nonlinear,mixed-formulation,mixed-spaces,time-dependent">
+		<link rel="stylesheet" type="text/css" href="../../qa-theme/Snow/qa-styles.css">
+		<link rel="canonical" href="http://fenicsproject.org/qa/7965/dependent-nonlinear-method-update-solution-after-first-solve">
+		<script type="text/x-mathjax-config">
+  MathJax.Hub.Config({
+    extensions: ["tex2jax.js"],
+    jax: ["input/TeX","output/HTML-CSS"],
+    tex2jax: {inlineMath: [["$","$"],["\\(","\\)"]]},
+    TeX: { extensions: ["AMSmath.js","AMSsymbols.js"]}
+  });
+</script>
+<script type="text/javascript" src="../../mathjax/MathJax.js"></script>
+		<script src="../../jquery-1.7.2.min.js" type="text/javascript"></script>
+		<script src="../../highlight.min.js"></script>
+<script type="text/javascript">
+$(function(){
+	$('.wmd-input').keypress(function(){
+		window.clearTimeout(hljs.Timeout);
+		hljs.Timeout = window.setTimeout(function() {
+			hljs.initHighlighting.called = false;
+			hljs.initHighlighting();
+		}, 500);
+	});
+	window.setTimeout(function() {
+		hljs.initHighlighting.called = false;
+		hljs.initHighlighting();
+	}, 500);
+});
+</script>
+
+
+	</head>
+	<body class="qa-template-question qa-body-js-off">
+		<div class="qa-body-wrapper">
+			
+			<div class="qa-header">
+				<div class="qa-logo">
+					<a href="../../" class="qa-logo-link" title="FEniCS Q&amp;A"><img src="../../qa-theme/fenics_qa.png" border="0" alt="FEniCS Q&amp;A"></a>
+				</div>
+				<div class="qa-header-clear">
+				</div>
+			</div> <!-- END qa-header -->
+			
+			<div class="qa-main-shadow">
+				
+				<div class="qa-main-wrapper">
+					
+					<div class="qa-sidepanel">
+						<div class="qa-sidebar">
+							This is a read only copy of the old FEniCS QA forum. Please visit the <a href="https://www.allanswered.com/community/s/fenics-project/">new QA forum</a> to ask questions
+						</div>
+						
+					</div>
+					
+					<div class="qa-main">
+						<h1>
+							<span class="entry-title">time-dependent Nonlinear Mixed Method fails to update solution after first solve</span>
+						</h1>
+						<div class="qa-part-q-view">
+							<div class="qa-q-view  hentry question" id="q7965">
+								<form method="post" action="../../7965/dependent-nonlinear-method-update-solution-after-first-solve">
+									<div class="qa-q-view-stats">
+										<div class="qa-voting qa-voting-net" id="voting_7965">
+											<div class="qa-vote-count qa-vote-count-net">
+												<span class="qa-netvote-count">
+													<span class="qa-netvote-count-data">0<span class="votes-up"><span class="value-title" title="0"></span></span><span class="votes-down"><span class="value-title" title="0"></span></span></span><span class="qa-netvote-count-pad"> votes</span>
+												</span>
+											</div>
+											<div class="qa-vote-clear">
+											</div>
+										</div>
+									</div>
+									<input type="hidden" name="code" value="0-1516468148-8c7d2b52798ac72784273cd8457a39f535e7a067">
+								</form>
+								<div class="qa-q-view-main">
+									<form method="post" action="../../7965/dependent-nonlinear-method-update-solution-after-first-solve">
+										<div class="qa-q-view-content">
+											<a name="7965"></a><div class="entry-content"><p>I am attempting to solve a time-dependent nonlinear mixed formulation of a system of equations. For some reason, after the first time step, all subsequent solutions are identical, even though it should be evolving in time. The mixed space is a scalar field (phi) and a vector field (u). The system has an initial condition for phi ('phi_k') and should evolve phi in time. The vector field u is fully determined at each time step, given the previous iteration for phi. <br>
+My scheme is essentially:</p>
+
+<pre><code>Vv = VectorFunctionSpace(mesh, "Lagrange", 2)
+Vf = FunctionSpace(mesh, "Lagrange", 1)
+VV = Vf*Vv
+
+# Dirichlet BC applied to one subspace
+bc = DirichletBC(VV.sub(1), u_0, boundary) 
+
+# Define functions
+(phi, u) = TrialFunctions(VV) #incremental phase, displacement
+(v,tau) = TestFunctions(VV)  
+w  = Function(VV)           # Solution from previous iteration
+F = (all terms of the system of equations added)
+
+while t &lt;= T:
+    R  = action(F, w) 
+    DR  = derivative(R,  w)   # Gateaux derivative 
+    problem = NonlinearVariationalProblem(R, w, bc, DR)
+    solver  = NonlinearVariationalSolver(problem)
+    solver.solve()
+    (phi_s,u_s) = split(w)      #the solutions
+
+    phi_k = project(phi_s, Vf)
+    t += dt
+</code></pre>
+
+<p>A minimal working model is below:</p>
+
+<pre><code>from dolfin import *
+import numpy as np
+
+##############################
+# Functions ##################
+##############################
+def boundary(x, on_boundary):
+    # define the Dirichlet boundary
+    return on_boundary
+
+##############################
+# System Params ##############
+##############################
+# Material/System Parameters
+kappa = 1.0
+chi = 1.0
+E , nu = 10000.0, 0.40 #J/m^3, unitless
+mu, lamb = Constant(E/(2*(1 + nu))), Constant(E*nu/((1 + nu)*(1 - 2*nu)))
+Ec = Constant(0.05*mu)
+
+# Optimization options for the form compiler
+parameters["form_compiler"]["cpp_optimize"] = True
+ffc_options = {"optimize": True, \
+               "eliminate_zeros": True, \
+               "precompute_basis_const": True, \
+               "precompute_ip_const": True}
+
+# Timing
+t = 0.0
+dt = 0.01
+T = 10*dt
+
+
+##############################
+# Mesh Params ################
+##############################
+# Create mesh and define function space
+nx = 100
+mesh = UnitSquareMesh(nx, nx)
+Vv = VectorFunctionSpace(mesh, "Lagrange", 2)
+Vf = FunctionSpace(mesh, "Lagrange", 1)
+VV = Vf*Vv
+
+# Dirichlet BC
+xc, yc = 0.5, 0.5
+U = 0.05 # =w/R
+u_0 = Expression(('U*sqrt( pow(x[0]-xc,2)+pow(x[1]-yc, 2) )*cos(atan2(x[1]-yc,x[0]-xc))' ,
+                  'U*sqrt( pow(x[0]-xc,2)+pow(x[1]-yc, 2) )*sin(atan2(x[1]-yc,x[0]-xc))'), U=U, xc=xc, yc=yc)
+#apply to second space (Vv)
+bc = DirichletBC(VV.sub(1), u_0, boundary) 
+
+
+##############################
+# Define variational problem #
+##############################
+# Define functions
+(phi, u) = TrialFunctions(VV) #incremental phase, displ
+(v,tau) = TestFunctions(VV) 
+w  = Function(VV)           # Solution from previous iteration
+
+# Initial condition for phase 
+class initialPhase(Expression):
+  def eval(self, value, x):
+    xslit = 0.5
+    yslit = 0.5
+    W,a = phase_size()
+    if (abs(x[0]-xslit) &lt;= W) and (abs(x[1]-yslit) &lt;= a):
+        value[0] = abs(x[0]-xslit)/W*0.95 +0.05 # linear/abs
+    elif (abs(x[0]-xslit) &lt;= W) and (abs(x[1]-yslit) &gt;= a) and ((abs(x[1]-yslit)-a)**2+(x[0]-xslit)**2 &lt;= W**2):
+        value[0] = sqrt( (abs(x[0]-xslit)/W)**2 + ((abs(x[1]-yslit)-a) /W)**2)*0.95 +0.05 #linear/abs
+    else:
+        value[0] = 1.0
+
+def phase_size():
+    W = 1.5 * 0.05 
+    a = 5 * 0.05
+    return W,a
+
+phik0 = initialPhase()
+# Projecting phi_k -- the initial condition for phi 
+phi_k = interpolate(phik0, Vf)
+
+
+# functions for variational problem
+d = u.geometric_dimension()
+epsilon = sym(nabla_grad(u))
+sigma = 2*mu*(epsilon) + lamb*tr(epsilon)*Identity(d)
+Es = 0.5*lamb*tr(epsilon)*tr(epsilon) + mu*inner(epsilon.T,epsilon)
+g = 4*phi_k**3 - 3*phi_k**4
+gprime = 12*(phi_k**2-phi_k**3)
+
+# Force balance (a(u,v) = L(v) = Integrate[f*v, dx] )
+au = -g*inner(sigma, sym(nabla_grad(tau)))*dx + gprime*inner(sigma, outer(grad(phi_k),tau) )*dx #using symmetry properties of sigma
+Lu = inner(Constant((0.0,0.0)),tau)*dx
+
+# dphi/dt
+print('Setting up Linear problem for Phi-- Implicit Euler')
+aphi = phi*v*dx + dt*chi*kappa* dot(nabla_grad(phi), nabla_grad(v)) *dx + dt*chi*( gprime *Es )*v*dx
+fphi = phi_k  + dt*chi*( gprime *(Ec) )
+Lphi = fphi*v*dx
+
+
+# Mixed Method
+amix = au + aphi
+Lmix = Lu + Lphi
+
+F = amix - Lmix
+
+ind = 0
+
+while t &lt;=T:
+    print 'time = ', t
+    R  = action(F, w) 
+    DR  = derivative(R,  w)   # Gateaux derivative 
+    problem = NonlinearVariationalProblem(R, w, bc, DR)
+    solver  = NonlinearVariationalSolver(problem)
+    solver.solve()
+    (phi_s,u_s) = split(w)
+
+    phi_k = project(phi_s, Vf)
+    t += dt
+    ind +=1
+
+# Plot the displacement solution
+plot(u_s, mode = "displacement", interactive = True)
+
+# Plot the phase solution
+plot(phi_s, title="phase", interactive = True)
+</code></pre>
+
+<p>Thanks to anyone who has ideas here!</p>
+</div>
+										</div>
+										<div class="qa-q-view-tags">
+											<ul class="qa-q-view-tag-list">
+												<li class="qa-q-view-tag-item"><a href="../../tag/nonlinear" rel="tag" class="qa-tag-link">nonlinear</a></li>
+												<li class="qa-q-view-tag-item"><a href="../../tag/mixed-formulation" rel="tag" class="qa-tag-link">mixed-formulation</a></li>
+												<li class="qa-q-view-tag-item"><a href="../../tag/mixed-spaces" rel="tag" class="qa-tag-link">mixed-spaces</a></li>
+												<li class="qa-q-view-tag-item"><a href="../../tag/time-dependent" rel="tag" class="qa-tag-link">time-dependent</a></li>
+											</ul>
+										</div>
+										<span class="qa-q-view-avatar-meta">
+											<span class="qa-q-view-avatar">
+												<a href="../../user/npmitchell" class="qa-avatar-link"><img src="../../?qa=image&amp;qa_blobid=9257140417293154692&amp;qa_size=50" width="41" height="50" class="qa-avatar-image" alt=""></a>
+											</span>
+											<span class="qa-q-view-meta">
+												<a href="../../7965/dependent-nonlinear-method-update-solution-after-first-solve" class="qa-q-view-what">asked</a>
+												<span class="qa-q-view-when">
+													<span class="qa-q-view-when-data"><span class="published"><span class="value-title" title="2015-08-29T22:33:32+0000"></span>Aug 30, 2015</span></span>
+												</span>
+												<span class="qa-q-view-who">
+													<span class="qa-q-view-who-pad">by </span>
+													<span class="qa-q-view-who-data"><span class="vcard author"><a href="../../user/npmitchell" class="qa-user-link url nickname">npmitchell</a></span></span>
+													<span class="qa-q-view-who-title">FEniCS Novice</span>
+													<span class="qa-q-view-who-points">
+														<span class="qa-q-view-who-points-pad">(</span><span class="qa-q-view-who-points-data">600</span><span class="qa-q-view-who-points-pad"> points)</span>
+													</span>
+												</span>
+												<br>
+												<span class="qa-q-view-what">edited</span>
+												<span class="qa-q-view-when">
+													<span class="qa-q-view-when-data"><span class="updated"><span class="value-title" title="2015-09-01T01:15:46+0000"></span>Sep 1, 2015</span></span>
+												</span>
+												<span class="qa-q-view-who">
+													<span class="qa-q-view-who-pad">by </span><span class="qa-q-view-who-data"><a href="../../user/npmitchell" class="qa-user-link url nickname">npmitchell</a></span>
+												</span>
+											</span>
+										</span>
+										<div class="qa-q-view-buttons">
+										</div>
+										
+										<div class="qa-q-view-c-list" id="c7965_list">
+											<div class="qa-c-list-item  hentry comment" id="c7981">
+												<div class="qa-c-item-content">
+													<a name="7981"></a><div class="entry-content"><p>Just a guess, but it seems that you are not updating <code>F</code> inside the time-loop. You define it once at the start, but then it does not get updated anymore inside the loop. What you are doing may work, if the forms are working with pointers on <code>phi_k</code>, unfortunately I am not sure about how this is implemented. Anyhow, I always define my variational probelem inside the loop. Hope this helps.</p>
+</div>
+												</div>
+												<div class="qa-c-item-footer">
+													<span class="qa-c-item-avatar-meta">
+														<span class="qa-c-item-meta">
+															<a href="../../7965/dependent-nonlinear-method-update-solution-after-first-solve?show=7981#c7981" class="qa-c-item-what">commented</a>
+															<span class="qa-c-item-when">
+																<span class="qa-c-item-when-data"><span class="published"><span class="value-title" title="2015-08-31T11:43:48+0000"></span>Aug 31, 2015</span></span>
+															</span>
+															<span class="qa-c-item-who">
+																<span class="qa-c-item-who-pad">by </span>
+																<span class="qa-c-item-who-data"><span class="vcard author"><a href="../../user/multigrid202" class="qa-user-link url nickname">multigrid202</a></span></span>
+																<span class="qa-c-item-who-title">FEniCS User</span>
+																<span class="qa-c-item-who-points">
+																	<span class="qa-c-item-who-points-pad">(</span><span class="qa-c-item-who-points-data">3,780</span><span class="qa-c-item-who-points-pad"> points)</span>
+																</span>
+															</span>
+														</span>
+													</span>
+													<div class="qa-c-item-buttons">
+													</div>
+												</div>
+												<div class="qa-c-item-clear">
+												</div>
+											</div> <!-- END qa-c-item -->
+											<div class="qa-c-list-item  hentry comment" id="c7990">
+												<div class="qa-c-item-content">
+													<a name="7990"></a><div class="entry-content"><p>Unfortunately, that does not work. Thanks for the suggestion, though.</p>
+</div>
+												</div>
+												<div class="qa-c-item-footer">
+													<span class="qa-c-item-avatar-meta">
+														<span class="qa-c-item-avatar">
+															<a href="../../user/npmitchell" class="qa-avatar-link"><img src="../../?qa=image&amp;qa_blobid=9257140417293154692&amp;qa_size=20" width="16" height="20" class="qa-avatar-image" alt=""></a>
+														</span>
+														<span class="qa-c-item-meta">
+															<a href="../../7965/dependent-nonlinear-method-update-solution-after-first-solve?show=7990#c7990" class="qa-c-item-what">commented</a>
+															<span class="qa-c-item-when">
+																<span class="qa-c-item-when-data"><span class="published"><span class="value-title" title="2015-09-01T01:17:24+0000"></span>Sep 1, 2015</span></span>
+															</span>
+															<span class="qa-c-item-who">
+																<span class="qa-c-item-who-pad">by </span>
+																<span class="qa-c-item-who-data"><span class="vcard author"><a href="../../user/npmitchell" class="qa-user-link url nickname">npmitchell</a></span></span>
+																<span class="qa-c-item-who-title">FEniCS Novice</span>
+																<span class="qa-c-item-who-points">
+																	<span class="qa-c-item-who-points-pad">(</span><span class="qa-c-item-who-points-data">600</span><span class="qa-c-item-who-points-pad"> points)</span>
+																</span>
+															</span>
+														</span>
+													</span>
+													<div class="qa-c-item-buttons">
+													</div>
+												</div>
+												<div class="qa-c-item-clear">
+												</div>
+											</div> <!-- END qa-c-item -->
+										</div> <!-- END qa-c-list -->
+										
+										<input type="hidden" name="code" value="0-1516468148-1877fa6b8750d3d77ff22bada04d23bbcd63b57c">
+										<input type="hidden" name="qa_click" value="">
+									</form>
+									<div class="qa-c-form">
+									</div> <!-- END qa-c-form -->
+									
+								</div> <!-- END qa-q-view-main -->
+								<div class="qa-q-view-clear">
+								</div>
+							</div> <!-- END qa-q-view -->
+							
+						</div>
+						<div class="qa-part-a-list">
+							<h2 id="a_list_title">3 Answers</h2>
+							<div class="qa-a-list" id="a_list">
+								
+								<div class="qa-a-list-item  hentry answer answer-selected qa-a-list-item-selected" id="a7997">
+									<form method="post" action="../../7965/dependent-nonlinear-method-update-solution-after-first-solve">
+										<div class="qa-voting qa-voting-net" id="voting_7997">
+											<div class="qa-vote-count qa-vote-count-net">
+												<span class="qa-netvote-count">
+													<span class="qa-netvote-count-data">0<span class="votes-up"><span class="value-title" title="0"></span></span><span class="votes-down"><span class="value-title" title="0"></span></span></span><span class="qa-netvote-count-pad"> votes</span>
+												</span>
+											</div>
+											<div class="qa-vote-clear">
+											</div>
+										</div>
+										<input type="hidden" name="code" value="0-1516468148-8c7d2b52798ac72784273cd8457a39f535e7a067">
+									</form>
+									<div class="qa-a-item-main">
+										<form method="post" action="../../7965/dependent-nonlinear-method-update-solution-after-first-solve">
+											<div class="qa-a-item-selected">
+												<div class="qa-a-selection">
+													<div class="qa-a-selected">&#160;</div>
+													<div class="qa-a-selected-text">Best answer</div>
+												</div>
+												<div class="qa-a-item-content">
+													<a name="7997"></a><div class="entry-content"><p>Magne Nordaas has the right idea, but we need to take the subspace of the mixed space for the degrees of freedom to match. Thanks Magne!</p>
+
+<pre><code>assigner = FunctionAssigner(Vf, VV.sub(0))
+assigner.assign(phi_k, phi_s)
+</code></pre>
+</div>
+												</div>
+												<span class="qa-a-item-avatar-meta">
+													<span class="qa-a-item-avatar">
+														<a href="../../user/npmitchell" class="qa-avatar-link"><img src="../../?qa=image&amp;qa_blobid=9257140417293154692&amp;qa_size=40" width="33" height="40" class="qa-avatar-image" alt=""></a>
+													</span>
+													<span class="qa-a-item-meta">
+														<a href="../../7965/dependent-nonlinear-method-update-solution-after-first-solve?show=7997#a7997" class="qa-a-item-what">answered</a>
+														<span class="qa-a-item-when">
+															<span class="qa-a-item-when-data"><span class="published"><span class="value-title" title="2015-09-01T18:03:56+0000"></span>Sep 1, 2015</span></span>
+														</span>
+														<span class="qa-a-item-who">
+															<span class="qa-a-item-who-pad">by </span>
+															<span class="qa-a-item-who-data"><span class="vcard author"><a href="../../user/npmitchell" class="qa-user-link url nickname">npmitchell</a></span></span>
+															<span class="qa-a-item-who-title">FEniCS Novice</span>
+															<span class="qa-a-item-who-points">
+																<span class="qa-a-item-who-points-pad">(</span><span class="qa-a-item-who-points-data">600</span><span class="qa-a-item-who-points-pad"> points)</span>
+															</span>
+														</span>
+													</span>
+												</span>
+											</div>
+											<div class="qa-a-item-buttons">
+												</div>
+											
+											<div class="qa-a-item-c-list" style="display:none;" id="c7997_list">
+											</div> <!-- END qa-c-list -->
+											
+											<input type="hidden" name="code" value="0-1516468148-b10edce8ca96d72356f01c889ff04d9fac9192f0">
+											<input type="hidden" name="qa_click" value="">
+										</form>
+										<div class="qa-c-form">
+										</div> <!-- END qa-c-form -->
+										
+									</div> <!-- END qa-a-item-main -->
+									<div class="qa-a-item-clear">
+									</div>
+								</div> <!-- END qa-a-list-item -->
+								
+								<div class="qa-a-list-item  hentry answer" id="a7991">
+									<form method="post" action="../../7965/dependent-nonlinear-method-update-solution-after-first-solve">
+										<div class="qa-voting qa-voting-net" id="voting_7991">
+											<div class="qa-vote-count qa-vote-count-net">
+												<span class="qa-netvote-count">
+													<span class="qa-netvote-count-data">0<span class="votes-up"><span class="value-title" title="0"></span></span><span class="votes-down"><span class="value-title" title="0"></span></span></span><span class="qa-netvote-count-pad"> votes</span>
+												</span>
+											</div>
+											<div class="qa-vote-clear">
+											</div>
+										</div>
+										<input type="hidden" name="code" value="0-1516468148-8c7d2b52798ac72784273cd8457a39f535e7a067">
+									</form>
+									<div class="qa-a-item-main">
+										<form method="post" action="../../7965/dependent-nonlinear-method-update-solution-after-first-solve">
+											<div class="qa-a-selection">
+											</div>
+											<div class="qa-a-item-content">
+												<a name="7991"></a><div class="entry-content"><p>This seems to also work, it seems:</p>
+
+<pre><code>phi_s, u_s = w.split()
+phi_sV = interpolate(phi_s,Vf)
+phi_k.vector()[:] = phi_sV.vector()
+</code></pre>
+</div>
+											</div>
+											<span class="qa-a-item-avatar-meta">
+												<span class="qa-a-item-avatar">
+													<a href="../../user/npmitchell" class="qa-avatar-link"><img src="../../?qa=image&amp;qa_blobid=9257140417293154692&amp;qa_size=40" width="33" height="40" class="qa-avatar-image" alt=""></a>
+												</span>
+												<span class="qa-a-item-meta">
+													<a href="../../7965/dependent-nonlinear-method-update-solution-after-first-solve?show=7991#a7991" class="qa-a-item-what">answered</a>
+													<span class="qa-a-item-when">
+														<span class="qa-a-item-when-data"><span class="published"><span class="value-title" title="2015-09-01T01:19:08+0000"></span>Sep 1, 2015</span></span>
+													</span>
+													<span class="qa-a-item-who">
+														<span class="qa-a-item-who-pad">by </span>
+														<span class="qa-a-item-who-data"><span class="vcard author"><a href="../../user/npmitchell" class="qa-user-link url nickname">npmitchell</a></span></span>
+														<span class="qa-a-item-who-title">FEniCS Novice</span>
+														<span class="qa-a-item-who-points">
+															<span class="qa-a-item-who-points-pad">(</span><span class="qa-a-item-who-points-data">600</span><span class="qa-a-item-who-points-pad"> points)</span>
+														</span>
+													</span>
+													<br>
+													<span class="qa-a-item-what">edited</span>
+													<span class="qa-a-item-when">
+														<span class="qa-a-item-when-data"><span class="updated"><span class="value-title" title="2015-09-02T19:11:19+0000"></span>Sep 2, 2015</span></span>
+													</span>
+													<span class="qa-a-item-who">
+														<span class="qa-a-item-who-pad">by </span><span class="qa-a-item-who-data"><a href="../../user/npmitchell" class="qa-user-link url nickname">npmitchell</a></span>
+													</span>
+												</span>
+											</span>
+											<div class="qa-a-item-buttons">
+												</div>
+											
+											<div class="qa-a-item-c-list" style="display:none;" id="c7991_list">
+											</div> <!-- END qa-c-list -->
+											
+											<input type="hidden" name="code" value="0-1516468148-cd2c398f58741e75bf213973724e58c897a5f203">
+											<input type="hidden" name="qa_click" value="">
+										</form>
+										<div class="qa-c-form">
+										</div> <!-- END qa-c-form -->
+										
+									</div> <!-- END qa-a-item-main -->
+									<div class="qa-a-item-clear">
+									</div>
+								</div> <!-- END qa-a-list-item -->
+								
+								<div class="qa-a-list-item  hentry answer" id="a7992">
+									<form method="post" action="../../7965/dependent-nonlinear-method-update-solution-after-first-solve">
+										<div class="qa-voting qa-voting-net" id="voting_7992">
+											<div class="qa-vote-count qa-vote-count-net">
+												<span class="qa-netvote-count">
+													<span class="qa-netvote-count-data">+1<span class="votes-up"><span class="value-title" title="1"></span></span><span class="votes-down"><span class="value-title" title="0"></span></span></span><span class="qa-netvote-count-pad"> vote</span>
+												</span>
+											</div>
+											<div class="qa-vote-clear">
+											</div>
+										</div>
+										<input type="hidden" name="code" value="0-1516468148-8c7d2b52798ac72784273cd8457a39f535e7a067">
+									</form>
+									<div class="qa-a-item-main">
+										<form method="post" action="../../7965/dependent-nonlinear-method-update-solution-after-first-solve">
+											<div class="qa-a-selection">
+											</div>
+											<div class="qa-a-item-content">
+												<a name="7992"></a><div class="entry-content"><p>Use FunctionAssigner to update phi_k inside the time loop.</p>
+
+<pre><code>assigner = FunctionAssigner(Vf, VV)
+assigner.assign(phi_k, phi_s)
+</code></pre>
+</div>
+											</div>
+											<span class="qa-a-item-avatar-meta">
+												<span class="qa-a-item-meta">
+													<a href="../../7965/dependent-nonlinear-method-update-solution-after-first-solve?show=7992#a7992" class="qa-a-item-what">answered</a>
+													<span class="qa-a-item-when">
+														<span class="qa-a-item-when-data"><span class="published"><span class="value-title" title="2015-09-01T05:42:09+0000"></span>Sep 1, 2015</span></span>
+													</span>
+													<span class="qa-a-item-who">
+														<span class="qa-a-item-who-pad">by </span>
+														<span class="qa-a-item-who-data"><span class="vcard author"><a href="../../user/Magne+Nordaas" class="qa-user-link url nickname">Magne Nordaas</a></span></span>
+														<span class="qa-a-item-who-title">FEniCS Expert</span>
+														<span class="qa-a-item-who-points">
+															<span class="qa-a-item-who-points-pad">(</span><span class="qa-a-item-who-points-data">13,820</span><span class="qa-a-item-who-points-pad"> points)</span>
+														</span>
+													</span>
+												</span>
+											</span>
+											<div class="qa-a-item-buttons">
+												</div>
+											
+											<div class="qa-a-item-c-list" style="display:none;" id="c7992_list">
+											</div> <!-- END qa-c-list -->
+											
+											<input type="hidden" name="code" value="0-1516468148-bd88824be16184c9638f2d8b5889ea8871526d24">
+											<input type="hidden" name="qa_click" value="">
+										</form>
+										<div class="qa-c-form">
+										</div> <!-- END qa-c-form -->
+										
+									</div> <!-- END qa-a-item-main -->
+									<div class="qa-a-item-clear">
+									</div>
+								</div> <!-- END qa-a-list-item -->
+								
+							</div> <!-- END qa-a-list -->
+							
+						</div>
+					</div> <!-- END qa-main -->
+					
+				</div> <!-- END main-wrapper -->
+			</div> <!-- END main-shadow -->
+		</div> <!-- END body-wrapper -->
+		<!-- END footer-bottom-group -->
+		
+		<div style="position:absolute; left:-9999px; top:-9999px;">
+			<span id="qa-waiting-template" class="qa-waiting">...</span>
+		</div>
+	
+	
+
+</body><!-- Powered by Question2Answer - http://www.question2answer.org/ --></html>

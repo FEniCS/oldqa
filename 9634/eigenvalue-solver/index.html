@@ -1,0 +1,298 @@
+<html><!-- Powered by Question2Answer - http://www.question2answer.org/ --><head>
+		<meta http-equiv="content-type" content="text/html; charset=utf-8">
+		<title>Eigenvalue solver - FEniCS Q&amp;A</title>
+		<meta name="description" content="Hi, I'm using the SLEPc eigenvalue solver with a mass term of 300 (see below). When I use a coarse  ... ) psi.vector()[:] = rx plot(psi) interactive()">
+		<meta name="keywords" content="slepceigensolver">
+		<link rel="stylesheet" type="text/css" href="../../qa-theme/Snow/qa-styles.css">
+		<link rel="canonical" href="http://fenicsproject.org/qa/9634/eigenvalue-solver">
+		<script type="text/x-mathjax-config">
+  MathJax.Hub.Config({
+    extensions: ["tex2jax.js"],
+    jax: ["input/TeX","output/HTML-CSS"],
+    tex2jax: {inlineMath: [["$","$"],["\\(","\\)"]]},
+    TeX: { extensions: ["AMSmath.js","AMSsymbols.js"]}
+  });
+</script>
+<script type="text/javascript" src="../../mathjax/MathJax.js"></script>
+		<script src="../../jquery-1.7.2.min.js" type="text/javascript"></script>
+		<script src="../../highlight.min.js"></script>
+<script type="text/javascript">
+$(function(){
+	$('.wmd-input').keypress(function(){
+		window.clearTimeout(hljs.Timeout);
+		hljs.Timeout = window.setTimeout(function() {
+			hljs.initHighlighting.called = false;
+			hljs.initHighlighting();
+		}, 500);
+	});
+	window.setTimeout(function() {
+		hljs.initHighlighting.called = false;
+		hljs.initHighlighting();
+	}, 500);
+});
+</script>
+
+
+	</head>
+	<body class="qa-template-question qa-body-js-off">
+		<div class="qa-body-wrapper">
+			
+			<div class="qa-header">
+				<div class="qa-logo">
+					<a href="../../" class="qa-logo-link" title="FEniCS Q&amp;A"><img src="../../qa-theme/fenics_qa.png" border="0" alt="FEniCS Q&amp;A"></a>
+				</div>
+				<div class="qa-header-clear">
+				</div>
+			</div> <!-- END qa-header -->
+			
+			<div class="qa-main-shadow">
+				
+				<div class="qa-main-wrapper">
+					
+					<div class="qa-sidepanel">
+						<div class="qa-sidebar">
+							This is a read only copy of the old FEniCS QA forum. Please visit the <a href="https://www.allanswered.com/community/s/fenics-project/">new QA forum</a> to ask questions
+						</div>
+						
+					</div>
+					
+					<div class="qa-main">
+						<h1>
+							<span class="entry-title">Eigenvalue solver</span>
+						</h1>
+						<div class="qa-part-q-view">
+							<div class="qa-q-view  hentry question" id="q9634">
+								<form method="post" action="../../9634/eigenvalue-solver">
+									<div class="qa-q-view-stats">
+										<div class="qa-voting qa-voting-net" id="voting_9634">
+											<div class="qa-vote-count qa-vote-count-net">
+												<span class="qa-netvote-count">
+													<span class="qa-netvote-count-data">0<span class="votes-up"><span class="value-title" title="0"></span></span><span class="votes-down"><span class="value-title" title="0"></span></span></span><span class="qa-netvote-count-pad"> votes</span>
+												</span>
+											</div>
+											<div class="qa-vote-clear">
+											</div>
+										</div>
+									</div>
+									<input type="hidden" name="code" value="0-1516468230-fb4786dd1d9b51f1a7f80bba55678a8f7423a9f5">
+								</form>
+								<div class="qa-q-view-main">
+									<form method="post" action="../../9634/eigenvalue-solver">
+										<div class="qa-q-view-content">
+											<a name="9634"></a><div class="entry-content"><p>Hi,</p>
+
+<p>I'm using the SLEPc eigenvalue solver with a mass term of 300 (see below). When I use a coarse mesh, it produces a qualitatively incorrect eigenvector. When I change n (mesh points) to 100, it produces a correct eigenvector.</p>
+
+<p>My question: Is there any option I can use to obtain a qualitatively correct eigenvector with a 10x10 mesh?</p>
+
+<p>Thanks</p>
+
+<pre><code>from dolfin import *
+
+n = 10
+
+mesh = UnitSquareMesh(n, n)
+V = FunctionSpace(mesh, 'CG', 1)
+psi = Function(V)
+
+def u0_boundary(x,on_boundary):
+    return on_boundary
+bc = DirichletBC(V,Constant(0.0),u0_boundary)
+
+u = TrialFunction(V)
+v = TestFunction(V)
+
+a = inner(Constant(300.0)*grad(u), grad(v))*dx + inner(u, v)*dx
+m = inner(u, v)*dx
+L = Constant(0.)*v*dx
+
+A, M, _ = PETScMatrix(), PETScMatrix(), PETScVector()
+
+assemble_system(a,L,bc,A_tensor=A,b_tensor=_)
+assemble_system(m,L,A_tensor=M,b_tensor=_)
+
+eigensolver = SLEPcEigenSolver(A,M)
+eigensolver.parameters['spectrum'] = 'smallest real'
+eigensolver.parameters['tolerance'] = 1.e-14
+eigensolver.parameters['problem_type'] = 'gen_hermitian'
+
+eigensolver.solve(5)
+
+r, c, rx, cx = eigensolver.get_eigenpair(0)
+print "%d:  %g" % (0, r)
+psi.vector()[:] = rx
+
+plot(psi)
+interactive()
+</code></pre>
+</div>
+										</div>
+										<div class="qa-q-view-tags">
+											<ul class="qa-q-view-tag-list">
+												<li class="qa-q-view-tag-item"><a href="../../tag/slepceigensolver" rel="tag" class="qa-tag-link">slepceigensolver</a></li>
+											</ul>
+										</div>
+										<span class="qa-q-view-avatar-meta">
+											<span class="qa-q-view-meta">
+												<a href="../../9634/eigenvalue-solver" class="qa-q-view-what">asked</a>
+												<span class="qa-q-view-when">
+													<span class="qa-q-view-when-data"><span class="published"><span class="value-title" title="2016-03-21T23:02:23+0000"></span>Mar 22, 2016</span></span>
+												</span>
+												<span class="qa-q-view-who">
+													<span class="qa-q-view-who-pad">by </span>
+													<span class="qa-q-view-who-data"><span class="vcard author"><a href="../../user/sixtysymbols" class="qa-user-link url nickname">sixtysymbols</a></span></span>
+													<span class="qa-q-view-who-title">FEniCS User</span>
+													<span class="qa-q-view-who-points">
+														<span class="qa-q-view-who-points-pad">(</span><span class="qa-q-view-who-points-data">2,280</span><span class="qa-q-view-who-points-pad"> points)</span>
+													</span>
+												</span>
+												<br>
+												<span class="qa-q-view-what">edited</span>
+												<span class="qa-q-view-when">
+													<span class="qa-q-view-when-data"><span class="updated"><span class="value-title" title="2016-03-22T00:50:25+0000"></span>Mar 22, 2016</span></span>
+												</span>
+												<span class="qa-q-view-who">
+													<span class="qa-q-view-who-pad">by </span><span class="qa-q-view-who-data"><a href="../../user/sixtysymbols" class="qa-user-link url nickname">sixtysymbols</a></span>
+												</span>
+											</span>
+										</span>
+										<div class="qa-q-view-buttons">
+										</div>
+										
+										<div class="qa-q-view-c-list" style="display:none;" id="c9634_list">
+										</div> <!-- END qa-c-list -->
+										
+										<input type="hidden" name="code" value="0-1516468230-b00987aded82dc97d39e5f2a99b4a49b26102a97">
+										<input type="hidden" name="qa_click" value="">
+									</form>
+									<div class="qa-c-form">
+									</div> <!-- END qa-c-form -->
+									
+								</div> <!-- END qa-q-view-main -->
+								<div class="qa-q-view-clear">
+								</div>
+							</div> <!-- END qa-q-view -->
+							
+						</div>
+						<div class="qa-part-a-list">
+							<h2 id="a_list_title">1 Answer</h2>
+							<div class="qa-a-list" id="a_list">
+								
+								<div class="qa-a-list-item  hentry answer" id="a9638">
+									<form method="post" action="../../9634/eigenvalue-solver">
+										<div class="qa-voting qa-voting-net" id="voting_9638">
+											<div class="qa-vote-count qa-vote-count-net">
+												<span class="qa-netvote-count">
+													<span class="qa-netvote-count-data">0<span class="votes-up"><span class="value-title" title="0"></span></span><span class="votes-down"><span class="value-title" title="0"></span></span></span><span class="qa-netvote-count-pad"> votes</span>
+												</span>
+											</div>
+											<div class="qa-vote-clear">
+											</div>
+										</div>
+										<input type="hidden" name="code" value="0-1516468230-fb4786dd1d9b51f1a7f80bba55678a8f7423a9f5">
+									</form>
+									<div class="qa-a-item-main">
+										<form method="post" action="../../9634/eigenvalue-solver">
+											<div class="qa-a-selection">
+											</div>
+											<div class="qa-a-item-content">
+												<a name="9638"></a><div class="entry-content"><p>Hi, I set up the problem to look for eigenvalues closest to the smallest eigenvalue from the fine-grid solution. </p>
+
+<pre><code>from dolfin import *
+
+n = 10
+
+mesh = UnitSquareMesh(n, n)
+V = FunctionSpace(mesh, 'CG', 1)
+psi = Function(V)
+
+def u0_boundary(x,on_boundary):
+    return on_boundary
+bc = DirichletBC(V,Constant(0.0),u0_boundary)
+
+u = TrialFunction(V)
+v = TestFunction(V)
+
+a = inner(Constant(300.)*grad(u), grad(v))*dx + inner(u, v)*dx
+m = inner(u, v)*dx
+L = Constant(0.)*v*dx
+
+A, M, _ = PETScMatrix(), PETScMatrix(), PETScVector()
+
+assemble_system(a,L,bc,A_tensor=A,b_tensor=_)
+assemble_system(m,L,A_tensor=M,b_tensor=_)
+
+eigensolver = SLEPcEigenSolver(A,M)
+eigensolver.parameters['spectrum'] = 'target real'
+eigensolver.parameters['tolerance'] = 1.e-14
+eigensolver.parameters['problem_type'] = 'gen_hermitian'
+eigensolver.parameters['spectral_transform'] = 'shift-and-invert'
+eigensolver.parameters['spectral_shift'] = 5924.   # Fine grid lambda_min
+
+eigensolver.solve(5)
+
+assert eigensolver.get_number_converged() &gt; 0
+r, c, rx, cx = eigensolver.get_eigenpair(0)
+print "%d:  %g" % (0, r)
+psi.vector()[:] = rx
+
+plot(psi)
+interactive()
+</code></pre>
+
+<p>The coarse-grid and fine-grid eigenvectors are quite similar. The error is mainly near the boundary.</p>
+</div>
+											</div>
+											<span class="qa-a-item-avatar-meta">
+												<span class="qa-a-item-avatar">
+													<a href="../../user/MiroK" class="qa-avatar-link"><img src="https://www.gravatar.com/avatar/f566be3274ec73e3a6dda27bca11631c?s=40" width="40" height="40" class="qa-avatar-image" alt=""></a>
+												</span>
+												<span class="qa-a-item-meta">
+													<a href="../../9634/eigenvalue-solver?show=9638#a9638" class="qa-a-item-what">answered</a>
+													<span class="qa-a-item-when">
+														<span class="qa-a-item-when-data"><span class="published"><span class="value-title" title="2016-03-22T10:23:49+0000"></span>Mar 22, 2016</span></span>
+													</span>
+													<span class="qa-a-item-who">
+														<span class="qa-a-item-who-pad">by </span>
+														<span class="qa-a-item-who-data"><span class="vcard author"><a href="../../user/MiroK" class="qa-user-link url nickname">MiroK</a></span></span>
+														<span class="qa-a-item-who-title">FEniCS Expert</span>
+														<span class="qa-a-item-who-points">
+															<span class="qa-a-item-who-points-pad">(</span><span class="qa-a-item-who-points-data">80,920</span><span class="qa-a-item-who-points-pad"> points)</span>
+														</span>
+													</span>
+												</span>
+											</span>
+											<div class="qa-a-item-buttons">
+												</div>
+											
+											<div class="qa-a-item-c-list" style="display:none;" id="c9638_list">
+											</div> <!-- END qa-c-list -->
+											
+											<input type="hidden" name="code" value="0-1516468230-78496a7ea1437e5f98b8b2e4567fe8e6dde0bb09">
+											<input type="hidden" name="qa_click" value="">
+										</form>
+										<div class="qa-c-form">
+										</div> <!-- END qa-c-form -->
+										
+									</div> <!-- END qa-a-item-main -->
+									<div class="qa-a-item-clear">
+									</div>
+								</div> <!-- END qa-a-list-item -->
+								
+							</div> <!-- END qa-a-list -->
+							
+						</div>
+					</div> <!-- END qa-main -->
+					
+				</div> <!-- END main-wrapper -->
+			</div> <!-- END main-shadow -->
+		</div> <!-- END body-wrapper -->
+		<!-- END footer-bottom-group -->
+		
+		<div style="position:absolute; left:-9999px; top:-9999px;">
+			<span id="qa-waiting-template" class="qa-waiting">...</span>
+		</div>
+	
+	
+
+</body><!-- Powered by Question2Answer - http://www.question2answer.org/ --></html>

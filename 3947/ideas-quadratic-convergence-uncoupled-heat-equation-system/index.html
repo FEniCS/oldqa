@@ -1,0 +1,354 @@
+<html><!-- Powered by Question2Answer - http://www.question2answer.org/ --><head>
+		<meta http-equiv="content-type" content="text/html; charset=utf-8">
+		<title>Any ideas why we don't get quadratic convergence for this uncoupled Heat Equation system? - FEniCS Q&amp;A</title>
+		<meta name="description" content="The MMS works great for 2D but fails to show quadratic convergence in 1D - wondering why? #Testing MMS  ...  = [bcs_a, bcs_b] # Solve problem while t">
+		<link rel="stylesheet" type="text/css" href="../../qa-theme/Snow/qa-styles.css">
+		<link rel="canonical" href="http://fenicsproject.org/qa/3947/ideas-quadratic-convergence-uncoupled-heat-equation-system">
+		<script type="text/x-mathjax-config">
+  MathJax.Hub.Config({
+    extensions: ["tex2jax.js"],
+    jax: ["input/TeX","output/HTML-CSS"],
+    tex2jax: {inlineMath: [["$","$"],["\\(","\\)"]]},
+    TeX: { extensions: ["AMSmath.js","AMSsymbols.js"]}
+  });
+</script>
+<script type="text/javascript" src="../../mathjax/MathJax.js"></script>
+		<script src="../../jquery-1.7.2.min.js" type="text/javascript"></script>
+		<script src="../../highlight.min.js"></script>
+<script type="text/javascript">
+$(function(){
+	$('.wmd-input').keypress(function(){
+		window.clearTimeout(hljs.Timeout);
+		hljs.Timeout = window.setTimeout(function() {
+			hljs.initHighlighting.called = false;
+			hljs.initHighlighting();
+		}, 500);
+	});
+	window.setTimeout(function() {
+		hljs.initHighlighting.called = false;
+		hljs.initHighlighting();
+	}, 500);
+});
+</script>
+
+
+	</head>
+	<body class="qa-template-question qa-body-js-off">
+		<div class="qa-body-wrapper">
+			
+			<div class="qa-header">
+				<div class="qa-logo">
+					<a href="../../" class="qa-logo-link" title="FEniCS Q&amp;A"><img src="../../qa-theme/fenics_qa.png" border="0" alt="FEniCS Q&amp;A"></a>
+				</div>
+				<div class="qa-header-clear">
+				</div>
+			</div> <!-- END qa-header -->
+			
+			<div class="qa-main-shadow">
+				
+				<div class="qa-main-wrapper">
+					
+					<div class="qa-sidepanel">
+						<div class="qa-sidebar">
+							This is a read only copy of the old FEniCS QA forum. Please visit the <a href="https://www.allanswered.com/community/s/fenics-project/">new QA forum</a> to ask questions
+						</div>
+						
+					</div>
+					
+					<div class="qa-main">
+						<h1>
+							<span class="entry-title">Any ideas why we don't get quadratic convergence for this uncoupled Heat Equation system?</span>
+						</h1>
+						<div class="qa-part-q-view">
+							<div class="qa-q-view  hentry question" id="q3947">
+								<form method="post" action="../../3947/ideas-quadratic-convergence-uncoupled-heat-equation-system">
+									<div class="qa-q-view-stats">
+										<div class="qa-voting qa-voting-net" id="voting_3947">
+											<div class="qa-vote-count qa-vote-count-net">
+												<span class="qa-netvote-count">
+													<span class="qa-netvote-count-data">0<span class="votes-up"><span class="value-title" title="0"></span></span><span class="votes-down"><span class="value-title" title="0"></span></span></span><span class="qa-netvote-count-pad"> votes</span>
+												</span>
+											</div>
+											<div class="qa-vote-clear">
+											</div>
+										</div>
+									</div>
+									<input type="hidden" name="code" value="0-1516467994-a719cea8968293e5ba1764f1c6520190fb9e5808">
+								</form>
+								<div class="qa-q-view-main">
+									<form method="post" action="../../3947/ideas-quadratic-convergence-uncoupled-heat-equation-system">
+										<div class="qa-q-view-content">
+											<a name="3947"></a><div class="entry-content"><p>The MMS works great for 2D but fails to show quadratic convergence in 1D - wondering why?</p>
+
+<pre><code>#Testing MMS on Heat Equation system - works well (in 2-D)!
+</code></pre>
+
+<p>from dolfin import *</p>
+
+<p>from math import log</p>
+
+<p>def Heat(n):<br>
+    #Define mesh and geometry<br>
+    #mesh = Rectangle(0,0,5,5,n,n)<br>
+    mesh = Interval(n,0,1)</p>
+
+<pre><code># Define function spaces
+V = FunctionSpace(mesh, "CG" , 1) 
+Y = MixedFunctionSpace([V, V])
+
+# Time variables
+dt = Constant(0.02); t = float(dt); T = 0.09
+
+
+#a_expr = "1 + x[0]*x[0] + A*x[1]*x[1] + B*t" #exact solution 2D
+#b_expr = "1 + x[0]*x[0] + A*x[1]*x[1] + B*t"
+
+a_expr = "1 + A*x[1]*x[1] + B*t" #exact solution 1D
+b_expr = "1 + A*x[1]*x[1] + B*t"
+
+aexact = Expression(a_expr, A=3.0, B=1.2, t=0)
+bexact = Expression(b_expr, A=3.0, B=1.2, t=0)
+
+abexact = Expression((a_expr,b_expr), A=3.0, B=1.2, t=0)
+
+#f = Constant(1.2 - 2. - 2*3.0) #MMS Source term 2D
+
+f = Constant(1.2 - 2*3.0) #MMS Source term 1D
+
+
+# Previous solution
+gamma0 = interpolate(abexact,Y)
+(alpha0,beta0) = split(gamma0)
+
+
+#Define Function and TestFunctions
+gamma = Function(Y); (alpha, beta) = split(gamma) #current solution
+(v, w) = split(TestFunction(Y))
+
+
+# Define variational form
+F = (alpha*v + dt*inner(grad(alpha),grad(v)) - alpha0*v - dt*f*v + beta*w + dt*inner(grad(beta),grad(w)) - beta0*w - dt*f*w)*dx #uncoupled system 
+
+
+#Boundary Conditions
+bcs_a = DirichletBC(Y.sub(0), aexact, DomainBoundary())
+bcs_b = DirichletBC(Y.sub(1), bexact, DomainBoundary())
+bcs = [bcs_a, bcs_b]
+
+
+# Solve problem
+while t &lt;= T:
+    aexact.t = t
+    bexact.t = t
+    solve(F == 0 , gamma, bcs=bcs)
+    gamma0.assign(gamma)
+    t += float(dt)
+
+alpha, beta = gamma.split()
+error1  = errornorm(alpha,aexact,"L2",mesh = mesh)
+error2  = errornorm(beta,bexact,"L2",mesh = mesh)
+
+
+return error1
+</code></pre>
+
+<p>Err = [0,0]<br>
+Err[0] = Heat(50)<br>
+Err[1] = Heat(100)</p>
+
+<p>print "errors:(%s,%s)" % (Err[0],Err[1])</p>
+
+<p>print (log(Err[0]/Err[1],2))#, log(Err[1]/Err[2],2))</p>
+</div>
+										</div>
+										<span class="qa-q-view-avatar-meta">
+											<span class="qa-q-view-meta">
+												<a href="../../3947/ideas-quadratic-convergence-uncoupled-heat-equation-system" class="qa-q-view-what">asked</a>
+												<span class="qa-q-view-when">
+													<span class="qa-q-view-when-data"><span class="published"><span class="value-title" title="2014-06-23T17:08:02+0000"></span>Jun 23, 2014</span></span>
+												</span>
+												<span class="qa-q-view-who">
+													<span class="qa-q-view-who-pad">by </span>
+													<span class="qa-q-view-who-data"><span class="vcard author"><a href="../../user/Mike+Osorio" class="qa-user-link url nickname">Mike Osorio</a></span></span>
+													<span class="qa-q-view-who-title">FEniCS Novice</span>
+													<span class="qa-q-view-who-points">
+														<span class="qa-q-view-who-points-pad">(</span><span class="qa-q-view-who-points-data">140</span><span class="qa-q-view-who-points-pad"> points)</span>
+													</span>
+												</span>
+											</span>
+										</span>
+										<div class="qa-q-view-buttons">
+										</div>
+										
+										<div class="qa-q-view-c-list" id="c3947_list">
+											<div class="qa-c-list-item  hentry comment" id="c3954">
+												<div class="qa-c-item-content">
+													<a name="3954"></a><div class="entry-content"><p>Please fix the code formatting, and post complete (but simple) code.</p>
+</div>
+												</div>
+												<div class="qa-c-item-footer">
+													<span class="qa-c-item-avatar-meta">
+														<span class="qa-c-item-meta">
+															<a href="../../3947/ideas-quadratic-convergence-uncoupled-heat-equation-system?show=3954#c3954" class="qa-c-item-what">commented</a>
+															<span class="qa-c-item-when">
+																<span class="qa-c-item-when-data"><span class="published"><span class="value-title" title="2014-06-23T20:54:16+0000"></span>Jun 23, 2014</span></span>
+															</span>
+															<span class="qa-c-item-who">
+																<span class="qa-c-item-who-pad">by </span>
+																<span class="qa-c-item-who-data"><span class="vcard author"><a href="../../user/Garth+N.+Wells" class="qa-user-link url nickname">Garth N. Wells</a></span></span>
+																<span class="qa-c-item-who-title">FEniCS Expert</span>
+																<span class="qa-c-item-who-points">
+																	<span class="qa-c-item-who-points-pad">(</span><span class="qa-c-item-who-points-data">35,930</span><span class="qa-c-item-who-points-pad"> points)</span>
+																</span>
+															</span>
+														</span>
+													</span>
+													<div class="qa-c-item-buttons">
+													</div>
+												</div>
+												<div class="qa-c-item-clear">
+												</div>
+											</div> <!-- END qa-c-item -->
+											<div class="qa-c-list-item  hentry comment" id="c3970">
+												<div class="qa-c-item-content">
+													<a name="3970"></a><div class="entry-content"><blockquote>
+  <p>Hi Garth. Thanks for the quick response. It is greatly appreciated. Managed to fix the Heat equations system but here is the actual problem we were looking to solve - however it still does not converge quadratically. We are sure the variational form is correct so it seems something is wrong updating the solutions in time/imposing BCs/splitting functions...</p>
+</blockquote>
+
+<pre><code>#Solving Non-linear Schrodinger equation
+from dolfin import *
+from math import log
+
+
+def GPE(n):
+  # Define mesh and geometry
+  mesh = Interval(n,0,1)
+
+  # Define function spaces
+  V = FunctionSpace(mesh, "CG" , 1) #where alpha,beta lives
+  Y = MixedFunctionSpace([V, V])
+
+  # Time variables
+  dt = Constant(0.02); T = 0.09; t = float(dt)
+
+  g_real = "(C*cos(B*x[0] + (A*A - B*B)*t))/cosh(A*x[0] - 2*A*B*t)"
+  g_imag = "(C*sin(B*x[0] + (A*A - B*B)*t))/cosh(A*x[0] - 2*A*B*t)"
+
+  gr = Expression(g_real, t=0, A = 1.0, B = 0.5, C = sqrt(2.0))
+  gi = Expression(g_imag, t=0, A = 1.0, B = 0.5, C = sqrt(2.0))
+
+  gri = Expression((g_real,g_imag), t=0, A = 1.0, B = 0.5, C = sqrt(2.0))
+
+
+  #Previous solution
+  gamma0 = interpolate(gri,Y)
+  (alpha0,beta0) = split(gamma0)
+
+
+  #Define Function and TestFunctions
+  gamma = Function(Y); (alpha, beta) = split(gamma) #current solution
+  (v, w) = split(TestFunction(Y))
+
+
+  #'Practice' Constant
+  K = Constant(1.0)
+
+  #Define Trap Potential as harmonic
+  P = Constant(0.0)
+
+
+  # Define variational form
+  F = (alpha*v + beta*w + dt*(inner(grad(alpha),grad(w)) - inner(grad(beta),grad(v))) + dt*P*(alpha*w - beta*v) - dt*K*(alpha**2 + beta**2)*(alpha*w - beta*v) - (beta0*w + alpha0*v))*dx
+
+
+  #Boundary Conditions
+  bcs_a = DirichletBC(Y.sub(0), gr, DomainBoundary())
+  bcs_b = DirichletBC(Y.sub(1), gi, DomainBoundary())
+  bcs = [bcs_a, bcs_b]
+
+
+  # Solve problem
+  while t &lt;= T:
+  gr.t = t 
+  gi.t = t 
+  solve(F == 0 , gamma, bcs=bcs)
+  gamma0.assign(gamma)
+  t += float(dt)
+
+  alpha, beta = gamma.split()
+  error1  = errornorm(alpha,gr,"L2",mesh = mesh)
+  error2  = errornorm(beta,gi,"L2",mesh = mesh)
+
+return error1
+
+
+Err = [0,0,0]
+Err[0] = GPE(50)
+Err[1] = GPE(100)
+Err[2] = GPE(200)
+
+
+print "errors:(%s,%s,%s)" % (Err[0],Err[1],Err[2])
+
+print (log(Err[0]/Err[1],2), log(Err[1]/Err[2],2))
+</code></pre>
+</div>
+												</div>
+												<div class="qa-c-item-footer">
+													<span class="qa-c-item-avatar-meta">
+														<span class="qa-c-item-meta">
+															<a href="../../3947/ideas-quadratic-convergence-uncoupled-heat-equation-system?show=3970#c3970" class="qa-c-item-what">commented</a>
+															<span class="qa-c-item-when">
+																<span class="qa-c-item-when-data"><span class="published"><span class="value-title" title="2014-06-24T16:23:52+0000"></span>Jun 24, 2014</span></span>
+															</span>
+															<span class="qa-c-item-who">
+																<span class="qa-c-item-who-pad">by </span>
+																<span class="qa-c-item-who-data"><span class="vcard author"><a href="../../user/Mike+Osorio" class="qa-user-link url nickname">Mike Osorio</a></span></span>
+																<span class="qa-c-item-who-title">FEniCS Novice</span>
+																<span class="qa-c-item-who-points">
+																	<span class="qa-c-item-who-points-pad">(</span><span class="qa-c-item-who-points-data">140</span><span class="qa-c-item-who-points-pad"> points)</span>
+																</span>
+															</span>
+														</span>
+													</span>
+													<div class="qa-c-item-buttons">
+													</div>
+												</div>
+												<div class="qa-c-item-clear">
+												</div>
+											</div> <!-- END qa-c-item -->
+										</div> <!-- END qa-c-list -->
+										
+										<input type="hidden" name="code" value="0-1516467994-ba618307fd0df55c91f177b9c62f41918fb6c2d6">
+										<input type="hidden" name="qa_click" value="">
+									</form>
+									<div class="qa-c-form">
+									</div> <!-- END qa-c-form -->
+									
+								</div> <!-- END qa-q-view-main -->
+								<div class="qa-q-view-clear">
+								</div>
+							</div> <!-- END qa-q-view -->
+							
+						</div>
+						<div class="qa-part-a-list">
+							<h2 id="a_list_title" style="display:none;"></h2>
+							<div class="qa-a-list" id="a_list">
+								
+							</div> <!-- END qa-a-list -->
+							
+						</div>
+					</div> <!-- END qa-main -->
+					
+				</div> <!-- END main-wrapper -->
+			</div> <!-- END main-shadow -->
+		</div> <!-- END body-wrapper -->
+		<!-- END footer-bottom-group -->
+		
+		<div style="position:absolute; left:-9999px; top:-9999px;">
+			<span id="qa-waiting-template" class="qa-waiting">...</span>
+		</div>
+	
+	
+
+</body><!-- Powered by Question2Answer - http://www.question2answer.org/ --></html>

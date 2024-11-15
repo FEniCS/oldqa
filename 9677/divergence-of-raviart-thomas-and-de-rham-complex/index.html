@@ -1,0 +1,314 @@
+<html><!-- Powered by Question2Answer - http://www.question2answer.org/ --><head>
+		<meta http-equiv="content-type" content="text/html; charset=utf-8">
+		<title>Divergence of Raviart-Thomas and de Rham complex - FEniCS Q&amp;A</title>
+		<meta name="description" content="Dear all, I am setting up a solver and at a certain point I need to have a divergence free  ...  define an exact stream function psi_exact_str = 'x[1]">
+		<meta name="keywords" content="raviart-thomas">
+		<link rel="stylesheet" type="text/css" href="../../qa-theme/Snow/qa-styles.css">
+		<link rel="canonical" href="http://fenicsproject.org/qa/9677/divergence-of-raviart-thomas-and-de-rham-complex">
+		<script type="text/x-mathjax-config">
+  MathJax.Hub.Config({
+    extensions: ["tex2jax.js"],
+    jax: ["input/TeX","output/HTML-CSS"],
+    tex2jax: {inlineMath: [["$","$"],["\\(","\\)"]]},
+    TeX: { extensions: ["AMSmath.js","AMSsymbols.js"]}
+  });
+</script>
+<script type="text/javascript" src="../../mathjax/MathJax.js"></script>
+		<script src="../../jquery-1.7.2.min.js" type="text/javascript"></script>
+		<script src="../../highlight.min.js"></script>
+<script type="text/javascript">
+$(function(){
+	$('.wmd-input').keypress(function(){
+		window.clearTimeout(hljs.Timeout);
+		hljs.Timeout = window.setTimeout(function() {
+			hljs.initHighlighting.called = false;
+			hljs.initHighlighting();
+		}, 500);
+	});
+	window.setTimeout(function() {
+		hljs.initHighlighting.called = false;
+		hljs.initHighlighting();
+	}, 500);
+});
+</script>
+
+
+	</head>
+	<body class="qa-template-question qa-body-js-off">
+		<div class="qa-body-wrapper">
+			
+			<div class="qa-header">
+				<div class="qa-logo">
+					<a href="../../" class="qa-logo-link" title="FEniCS Q&amp;A"><img src="../../qa-theme/fenics_qa.png" border="0" alt="FEniCS Q&amp;A"></a>
+				</div>
+				<div class="qa-header-clear">
+				</div>
+			</div> <!-- END qa-header -->
+			
+			<div class="qa-main-shadow">
+				
+				<div class="qa-main-wrapper">
+					
+					<div class="qa-sidepanel">
+						<div class="qa-sidebar">
+							This is a read only copy of the old FEniCS QA forum. Please visit the <a href="https://www.allanswered.com/community/s/fenics-project/">new QA forum</a> to ask questions
+						</div>
+						
+					</div>
+					
+					<div class="qa-main">
+						<h1>
+							<span class="entry-title">Divergence of Raviart-Thomas and de Rham complex</span>
+						</h1>
+						<div class="qa-part-q-view">
+							<div class="qa-q-view  hentry question" id="q9677">
+								<form method="post" action="../../9677/divergence-of-raviart-thomas-and-de-rham-complex">
+									<div class="qa-q-view-stats">
+										<div class="qa-voting qa-voting-net" id="voting_9677">
+											<div class="qa-vote-count qa-vote-count-net">
+												<span class="qa-netvote-count">
+													<span class="qa-netvote-count-data">+2<span class="votes-up"><span class="value-title" title="2"></span></span><span class="votes-down"><span class="value-title" title="0"></span></span></span><span class="qa-netvote-count-pad"> votes</span>
+												</span>
+											</div>
+											<div class="qa-vote-clear">
+											</div>
+										</div>
+									</div>
+									<input type="hidden" name="code" value="0-1516468232-63a1d0084d5d293d644526df44bce2393ef43643">
+								</form>
+								<div class="qa-q-view-main">
+									<form method="post" action="../../9677/divergence-of-raviart-thomas-and-de-rham-complex">
+										<div class="qa-q-view-content">
+											<a name="9677"></a><div class="entry-content"><p>Dear all,</p>
+
+<p>I am setting up a solver and at a certain point I need to have a divergence free vector field. I can get a divergence free vector field (up to machine precision) if I adequately select my function spaces. I start with a stream function (psi) discretized with CG (continuous Lagrange interpolants) and compute my vector field (u) as:</p>
+
+<p>u = curl psi</p>
+
+<p>If u is discretized by Raviart-Thomas (RT) elements, the curl of elements of CG are mapped to elements of RT. This should be exact (up to machine precision) and therefore the divergence of my velocity field should be zero (up to machine precision).</p>
+
+<p>I have tried this but I am unable to reproduce it.</p>
+
+<p>I have set up a small code in which I compute the velocity from a stream function and then its divergence. I do this for different number of elements and polynomial degree of the basis functions. As you can see, the error goes up quite quickly.</p>
+
+<p>Is there a problem in the implementation of RT elements?</p>
+
+<pre><code>import dolfin
+import numpy
+import pylab
+
+# define an exact stream function
+psi_exact_str = 'x[1]&lt;=pi ? epsilon*cos(x[0])-(1.0/(cosh((x[1]-0.5*pi)/delta)*cosh((x[1]-0.5*pi)/delta)))/delta : epsilon*cos(x[0]) + (1.0/(cosh((1.5*pi-x[1])/delta)*cosh((1.5*pi-x[1])/delta)))/delta'   
+epsilon = 0.05
+delta = numpy.pi/15.0
+
+psi_exact = dolfin.Expression(psi_exact_str,epsilon=epsilon,delta=delta)
+
+# define the number of elements and polynomial degree of basis functions
+n_elements = [5,10,20,40,80]
+
+pp = numpy.arange(1,5)
+
+# define the mesh
+xBounds = numpy.array([0.,2.0*numpy.pi])
+yBounds = numpy.array([0.,2.0*numpy.pi])
+
+div_max = numpy.zeros([len(pp),len(n_elements)])
+
+for kp,p in enumerate(pp):
+    for kn,n in enumerate(n_elements):
+        print 'p = ' + str(p) + '   k = ' + str(n)
+        mesh = dolfin.RectangleMesh(dolfin.Point(xBounds[0],yBounds[0],0.0),dolfin.Point(xBounds[1],yBounds[1],0.0),n,n,'crossed')
+
+        # define the function spaces
+        U = dolfin.FunctionSpace(mesh,'RT',p)      # velocity
+        PSI = dolfin.FunctionSpace(mesh,'CG',p)    # stream function
+        P = dolfin.FunctionSpace(mesh,'DG',p-1)    # divergence of velocity
+
+
+        # compute the finite element approximation of the analytical stream function
+        psi_h = dolfin.project(psi_exact,PSI,solver_type='lu')
+
+        # initialize the velocity and its divergence
+        u_h = dolfin.Function(U)
+        p_h = dolfin.Function(P)
+
+
+        # compute the velocity 
+        u_h.assign(dolfin.project(dolfin.curl(psi_h),U,solver_type='lu'))
+
+        # compute the divergence 
+        p_h.assign(dolfin.project(dolfin.div(u_h),P,solver_type='lu'))
+
+
+        # get the maximum value of the divergence
+        div_max[kp,kn] = numpy.abs(p_h.vector().array()).max()
+
+
+
+pylab.semilogy(pp,div_max)
+pylab.legend(n_elements,loc=4)
+pylab.xlabel('p')
+pylab.show()
+</code></pre>
+</div>
+										</div>
+										<div class="qa-q-view-tags">
+											<ul class="qa-q-view-tag-list">
+												<li class="qa-q-view-tag-item"><a href="../../tag/raviart-thomas" rel="tag" class="qa-tag-link">raviart-thomas</a></li>
+											</ul>
+										</div>
+										<span class="qa-q-view-avatar-meta">
+											<span class="qa-q-view-meta">
+												<a href="../../9677/divergence-of-raviart-thomas-and-de-rham-complex" class="qa-q-view-what">asked</a>
+												<span class="qa-q-view-when">
+													<span class="qa-q-view-when-data"><span class="published"><span class="value-title" title="2016-03-24T16:17:38+0000"></span>Mar 24, 2016</span></span>
+												</span>
+												<span class="qa-q-view-who">
+													<span class="qa-q-view-who-pad">by </span>
+													<span class="qa-q-view-who-data"><span class="vcard author"><a href="../../user/apalha" class="qa-user-link url nickname">apalha</a></span></span>
+													<span class="qa-q-view-who-title">FEniCS Novice</span>
+													<span class="qa-q-view-who-points">
+														<span class="qa-q-view-who-points-pad">(</span><span class="qa-q-view-who-points-data">440</span><span class="qa-q-view-who-points-pad"> points)</span>
+													</span>
+												</span>
+											</span>
+										</span>
+										<div class="qa-q-view-buttons">
+										</div>
+										
+										<div class="qa-q-view-c-list" style="display:none;" id="c9677_list">
+										</div> <!-- END qa-c-list -->
+										
+										<input type="hidden" name="code" value="0-1516468232-217e8fd3b01cdb2b9265b72b5eded9b449aa852d">
+										<input type="hidden" name="qa_click" value="">
+									</form>
+									<div class="qa-c-form">
+									</div> <!-- END qa-c-form -->
+									
+								</div> <!-- END qa-q-view-main -->
+								<div class="qa-q-view-clear">
+								</div>
+							</div> <!-- END qa-q-view -->
+							
+						</div>
+						<div class="qa-part-a-list">
+							<h2 id="a_list_title">1 Answer</h2>
+							<div class="qa-a-list" id="a_list">
+								
+								<div class="qa-a-list-item  hentry answer" id="a12036">
+									<form method="post" action="../../9677/divergence-of-raviart-thomas-and-de-rham-complex">
+										<div class="qa-voting qa-voting-net" id="voting_12036">
+											<div class="qa-vote-count qa-vote-count-net">
+												<span class="qa-netvote-count">
+													<span class="qa-netvote-count-data">0<span class="votes-up"><span class="value-title" title="0"></span></span><span class="votes-down"><span class="value-title" title="0"></span></span></span><span class="qa-netvote-count-pad"> votes</span>
+												</span>
+											</div>
+											<div class="qa-vote-clear">
+											</div>
+										</div>
+										<input type="hidden" name="code" value="0-1516468232-63a1d0084d5d293d644526df44bce2393ef43643">
+									</form>
+									<div class="qa-a-item-main">
+										<form method="post" action="../../9677/divergence-of-raviart-thomas-and-de-rham-complex">
+											<div class="qa-a-selection">
+											</div>
+											<div class="qa-a-item-content">
+												<a name="12036"></a><div class="entry-content"><p>Maybe it's too late, but your function psi does not vanish at the boundary. Then $ div rot \psi \neq \theta$. Another problem is that you are assuming that <br>
+div (project curl(u))=div(curl(project(u))) <br>
+and I am not quite sure about that. </p>
+</div>
+											</div>
+											<span class="qa-a-item-avatar-meta">
+												<span class="qa-a-item-meta">
+													<a href="../../9677/divergence-of-raviart-thomas-and-de-rham-complex?show=12036#a12036" class="qa-a-item-what">answered</a>
+													<span class="qa-a-item-when">
+														<span class="qa-a-item-when-data"><span class="published"><span class="value-title" title="2016-12-31T01:30:09+0000"></span>Dec 31, 2016</span></span>
+													</span>
+													<span class="qa-a-item-who">
+														<span class="qa-a-item-who-pad">by </span>
+														<span class="qa-a-item-who-data"><span class="vcard author"><a href="../../user/HugoDiaz" class="qa-user-link url nickname">HugoDiaz</a></span></span>
+														<span class="qa-a-item-who-title">FEniCS Novice</span>
+														<span class="qa-a-item-who-points">
+															<span class="qa-a-item-who-points-pad">(</span><span class="qa-a-item-who-points-data">140</span><span class="qa-a-item-who-points-pad"> points)</span>
+														</span>
+													</span>
+												</span>
+											</span>
+											<div class="qa-a-item-buttons">
+												</div>
+											
+											<div class="qa-a-item-c-list" id="c12036_list">
+												<div class="qa-c-list-item  hentry comment" id="c12038">
+													<div class="qa-c-item-content">
+														<a name="12038"></a><div class="entry-content"><p>Thank you for your comment.</p>
+
+<p>I do not agree with you on both points.</p>
+
+<p>1.An example that contradicts your statement is: \psi(x,y) = 1. Another example is \psi(x,y) = x. div rot \psi = 0 is an identity, regardless of psi vanishing at the boundary or not. It is valid on simply connected domains.</p>
+
+<p>2.div (project curl(u))=div(curl(project(u))) </p>
+
+<p>I agree with what you state if u is a general function but not in the case I present.</p>
+
+<p>In the case I present u \in CG_p. Therefore (and this is the reason why RT elements have been constructed) curl u \in RT_{p-1} (may be p, depending on how RT is defined). This means:</p>
+
+<p>a) project(u) = u<br>
+b) project(curl u) = curl u (or at least is should be)</p>
+
+<p>Another property is that if q \in RT_{p-1} then div q \in DG_{p-1}.</p>
+</div>
+													</div>
+													<div class="qa-c-item-footer">
+														<span class="qa-c-item-avatar-meta">
+															<span class="qa-c-item-meta">
+																<a href="../../9677/divergence-of-raviart-thomas-and-de-rham-complex?show=12038#c12038" class="qa-c-item-what">commented</a>
+																<span class="qa-c-item-when">
+																	<span class="qa-c-item-when-data"><span class="published"><span class="value-title" title="2017-01-02T12:55:31+0000"></span>Jan 2, 2017</span></span>
+																</span>
+																<span class="qa-c-item-who">
+																	<span class="qa-c-item-who-pad">by </span>
+																	<span class="qa-c-item-who-data"><span class="vcard author"><a href="../../user/apalha" class="qa-user-link url nickname">apalha</a></span></span>
+																	<span class="qa-c-item-who-title">FEniCS Novice</span>
+																	<span class="qa-c-item-who-points">
+																		<span class="qa-c-item-who-points-pad">(</span><span class="qa-c-item-who-points-data">440</span><span class="qa-c-item-who-points-pad"> points)</span>
+																	</span>
+																</span>
+															</span>
+														</span>
+														<div class="qa-c-item-buttons">
+														</div>
+													</div>
+													<div class="qa-c-item-clear">
+													</div>
+												</div> <!-- END qa-c-item -->
+											</div> <!-- END qa-c-list -->
+											
+											<input type="hidden" name="code" value="0-1516468232-6b0290844d6cf8293b7c510ebab3109b443fda86">
+											<input type="hidden" name="qa_click" value="">
+										</form>
+										<div class="qa-c-form">
+										</div> <!-- END qa-c-form -->
+										
+									</div> <!-- END qa-a-item-main -->
+									<div class="qa-a-item-clear">
+									</div>
+								</div> <!-- END qa-a-list-item -->
+								
+							</div> <!-- END qa-a-list -->
+							
+						</div>
+					</div> <!-- END qa-main -->
+					
+				</div> <!-- END main-wrapper -->
+			</div> <!-- END main-shadow -->
+		</div> <!-- END body-wrapper -->
+		<!-- END footer-bottom-group -->
+		
+		<div style="position:absolute; left:-9999px; top:-9999px;">
+			<span id="qa-waiting-template" class="qa-waiting">...</span>
+		</div>
+	
+	
+
+</body><!-- Powered by Question2Answer - http://www.question2answer.org/ --></html>

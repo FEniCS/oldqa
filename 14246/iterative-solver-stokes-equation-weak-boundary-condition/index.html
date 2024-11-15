@@ -1,0 +1,247 @@
+<html><!-- Powered by Question2Answer - http://www.question2answer.org/ --><head>
+		<meta http-equiv="content-type" content="text/html; charset=utf-8">
+		<title>Iterative solver for 2D Stokes equation with weak boundary condition - FEniCS Q&amp;A</title>
+		<meta name="description" content='I have a simple Stokes equation with a weak boundary condition on the pressure on one frontier. The  ... = Mesh("Mesh2D.xml") File("maillage2D.pvd")'>
+		<meta name="keywords" content="stokes,iterative,preconditioner,boundary-conditions,pressure">
+		<link rel="stylesheet" type="text/css" href="../../qa-theme/Snow/qa-styles.css">
+		<link rel="canonical" href="http://fenicsproject.org/qa/14246/iterative-solver-stokes-equation-weak-boundary-condition">
+		<script type="text/x-mathjax-config">
+  MathJax.Hub.Config({
+    extensions: ["tex2jax.js"],
+    jax: ["input/TeX","output/HTML-CSS"],
+    tex2jax: {inlineMath: [["$","$"],["\\(","\\)"]]},
+    TeX: { extensions: ["AMSmath.js","AMSsymbols.js"]}
+  });
+</script>
+<script type="text/javascript" src="../../mathjax/MathJax.js"></script>
+		<script src="../../jquery-1.7.2.min.js" type="text/javascript"></script>
+		<script src="../../highlight.min.js"></script>
+<script type="text/javascript">
+$(function(){
+	$('.wmd-input').keypress(function(){
+		window.clearTimeout(hljs.Timeout);
+		hljs.Timeout = window.setTimeout(function() {
+			hljs.initHighlighting.called = false;
+			hljs.initHighlighting();
+		}, 500);
+	});
+	window.setTimeout(function() {
+		hljs.initHighlighting.called = false;
+		hljs.initHighlighting();
+	}, 500);
+});
+</script>
+
+
+	</head>
+	<body class="qa-template-question qa-body-js-off">
+		<div class="qa-body-wrapper">
+			
+			<div class="qa-header">
+				<div class="qa-logo">
+					<a href="../../" class="qa-logo-link" title="FEniCS Q&amp;A"><img src="../../qa-theme/fenics_qa.png" border="0" alt="FEniCS Q&amp;A"></a>
+				</div>
+				<div class="qa-header-clear">
+				</div>
+			</div> <!-- END qa-header -->
+			
+			<div class="qa-main-shadow">
+				
+				<div class="qa-main-wrapper">
+					
+					<div class="qa-sidepanel">
+						<div class="qa-sidebar">
+							This is a read only copy of the old FEniCS QA forum. Please visit the <a href="https://www.allanswered.com/community/s/fenics-project/">new QA forum</a> to ask questions
+						</div>
+						
+					</div>
+					
+					<div class="qa-main">
+						<h1>
+							<span class="entry-title">Iterative solver for 2D Stokes equation with weak boundary condition</span>
+						</h1>
+						<div class="qa-part-q-view">
+							<div class="qa-q-view  hentry question" id="q14246">
+								<form method="post" action="../../14246/iterative-solver-stokes-equation-weak-boundary-condition">
+									<div class="qa-q-view-stats">
+										<div class="qa-voting qa-voting-net" id="voting_14246">
+											<div class="qa-vote-count qa-vote-count-net">
+												<span class="qa-netvote-count">
+													<span class="qa-netvote-count-data">0<span class="votes-up"><span class="value-title" title="0"></span></span><span class="votes-down"><span class="value-title" title="0"></span></span></span><span class="qa-netvote-count-pad"> votes</span>
+												</span>
+											</div>
+											<div class="qa-vote-clear">
+											</div>
+										</div>
+									</div>
+									<input type="hidden" name="code" value="0-1516466512-520984366787431f57b6e1f09dc75e6a2ab7275d">
+								</form>
+								<div class="qa-q-view-main">
+									<form method="post" action="../../14246/iterative-solver-stokes-equation-weak-boundary-condition">
+										<div class="qa-q-view-content">
+											<a name="14246"></a><div class="entry-content"><p>I have a simple Stokes equation with a weak boundary condition on the pressure on one frontier. The code runs and results are satisfying when using a direct solver but when using an iterative solver (I took the example demo_stokes-iterative.py that runs on many other geometries) it does not converge anymore.</p>
+
+<p>mesh = Mesh("Mesh2D.xml")<br>
+File("maillage2D.pvd")&lt;&lt;mesh</p>
+
+<h2>Define function spaces</h2>
+
+<p>V1 = FiniteElement("Lagrange",mesh.ufl_cell(),2)<br>
+V2 = FiniteElement("Lagrange",mesh.ufl_cell(),2)<br>
+P = FiniteElement("Lagrange",mesh.ufl_cell(),1)<br>
+M = MixedElement([[V1,V2], P])<br>
+W = FunctionSpace(mesh, M)</p>
+
+<p>Np = 10<br>
+Lp = 2.5<br>
+Rp = 0.5<br>
+Lr = 8<br>
+Rr = 4</p>
+
+<p>P0 = -1.<br>
+nu=1.<br>
+tol = 1e-6</p>
+
+<h2>Boundaries</h2>
+
+<p>def b1(x, on_boundary): return on_boundary and near(x[1], -Rp, tol)<br>
+def b2(x, on_boundary): return on_boundary and near(x[0], Lp, tol) and (x[1]&lt;=-Rp)<br>
+def b3(x,on_boundary): return on_boundary and near(x[1], -Rr,tol)<br>
+def b4(x, on_boundary): return on_boundary and near(x[0], Lp+Lr, tol)<br>
+def b5(x,on_boundary): return on_boundary and near(x[1], Rr, tol)<br>
+def b6(x,on_boundary): return on_boundary and near(x[0],Lp,tol) and (x[1]&gt;=Rp)<br>
+def b7(x, on_boundary): return on_boundary and near(x[1], Rp, tol)<br>
+def b8(x,on_boundary): return on_boundary and near (x[0], 0, tol)<br>
+def bound(x,on_boundary): return on_boundary</p>
+
+<h2>No-slip boundary condition for velocity</h2>
+
+<p>noslip = project(Constant((0.0, 0.0)), W.sub(0).collapse())<br>
+bc1 = DirichletBC(W.sub(0), noslip, b1)<br>
+bc7 =  DirichletBC(W.sub(0), noslip, b7) </p>
+
+<h2>slip boundary condition for velocity u.n = 0</h2>
+
+<p>slip = project(Constant(0.), W.sub(0).sub(0).collapse())<br>
+bc2 = DirichletBC(W.sub(0).sub(0), slip, b2)<br>
+bc6 = DirichletBC(W.sub(0).sub(0),slip, b6)</p>
+
+<h2>collect boundary conditions</h2>
+
+<p>bcs = [bc1,bc2,bc6,bc7]</p>
+
+<p>class fsi_boundary(SubDomain):<br>
+    def inside(self, x,on_boundary):<br>
+        return on_boundary and near(x[0], 0, tol)</p>
+
+<h2>define measure dsS</h2>
+
+<p>fsimarkers = FacetFunction("size_t", mesh)<br>
+fsimarkers.set_all(0)<br>
+fsibound = fsi_boundary()<br>
+fsibound.mark(fsimarkers, 8)<br>
+dsS = Measure('ds', domain=mesh, subdomain_data = fsimarkers)</p>
+
+<h2>Define variational problem</h2>
+
+<p>normal = project(Constant((1.,0.)), W.sub(0).collapse())<br>
+(u, p) = TrialFunctions(W)<br>
+(v, q) = TestFunctions(W)<br>
+w= Function(W)<br>
+f = Constant((0.0, 0.0))<br>
+a = nu<em>inner(sym(grad(u)), sym(grad(v)))</em>dx - p<em>div(v)</em>dx + q<em>div(u)</em>dx<br>
+L = inner(f, v)<em>dx + Constant(P0)</em> dot(v,normal)*dsS(8)</p>
+
+<h2>Form for use in constructing preconditioner matrix</h2>
+
+<p>b = inner(sym(grad(u)), sym(grad(v)))<em>dx +p</em>q*dx</p>
+
+<h2>Assemble system</h2>
+
+<p>A, bb = assemble_system(a, L, bcs)</p>
+
+<h2>Assemble preconditioner system</h2>
+
+<p>P, btmp = assemble_system(b, L, bcs)</p>
+
+<h2>Create Krylov solver and AMG preconditioner</h2>
+
+<p>solver = KrylovSolver(krylov_method, "amg")</p>
+
+<h2>Associate operator (A) and preconditioner matrix (P)</h2>
+
+<p>solver.set_operators(A, P)</p>
+
+<h2>Solve</h2>
+
+<p>solver.solve(w.vector(), bb)</p>
+
+<h2>Get sub-functions</h2>
+
+<p>u, p = w.split(True)</p>
+</div>
+										</div>
+										<div class="qa-q-view-tags">
+											<ul class="qa-q-view-tag-list">
+												<li class="qa-q-view-tag-item"><a href="../../tag/stokes" rel="tag" class="qa-tag-link">stokes</a></li>
+												<li class="qa-q-view-tag-item"><a href="../../tag/iterative" rel="tag" class="qa-tag-link">iterative</a></li>
+												<li class="qa-q-view-tag-item"><a href="../../tag/preconditioner" rel="tag" class="qa-tag-link">preconditioner</a></li>
+												<li class="qa-q-view-tag-item"><a href="../../tag/boundary-conditions" rel="tag" class="qa-tag-link">boundary-conditions</a></li>
+												<li class="qa-q-view-tag-item"><a href="../../tag/pressure" rel="tag" class="qa-tag-link">pressure</a></li>
+											</ul>
+										</div>
+										<span class="qa-q-view-avatar-meta">
+											<span class="qa-q-view-meta">
+												<a href="../../14246/iterative-solver-stokes-equation-weak-boundary-condition" class="qa-q-view-what">asked</a>
+												<span class="qa-q-view-when">
+													<span class="qa-q-view-when-data"><span class="published"><span class="value-title" title="2017-07-06T13:40:39+0000"></span>Jul 6, 2017</span></span>
+												</span>
+												<span class="qa-q-view-who">
+													<span class="qa-q-view-who-pad">by </span>
+													<span class="qa-q-view-who-data"><span class="vcard author"><a href="../../user/jfromdalembert" class="qa-user-link url nickname">jfromdalembert</a></span></span>
+													<span class="qa-q-view-who-title">FEniCS Novice</span>
+													<span class="qa-q-view-who-points">
+														<span class="qa-q-view-who-points-pad">(</span><span class="qa-q-view-who-points-data">120</span><span class="qa-q-view-who-points-pad"> points)</span>
+													</span>
+												</span>
+											</span>
+										</span>
+										<div class="qa-q-view-buttons">
+										</div>
+										
+										<div class="qa-q-view-c-list" style="display:none;" id="c14246_list">
+										</div> <!-- END qa-c-list -->
+										
+										<input type="hidden" name="code" value="0-1516466512-dc8bbe6947023e49925c1292217a431cea001127">
+										<input type="hidden" name="qa_click" value="">
+									</form>
+									<div class="qa-c-form">
+									</div> <!-- END qa-c-form -->
+									
+								</div> <!-- END qa-q-view-main -->
+								<div class="qa-q-view-clear">
+								</div>
+							</div> <!-- END qa-q-view -->
+							
+						</div>
+						<div class="qa-part-a-list">
+							<h2 id="a_list_title" style="display:none;"></h2>
+							<div class="qa-a-list" id="a_list">
+								
+							</div> <!-- END qa-a-list -->
+							
+						</div>
+					</div> <!-- END qa-main -->
+					
+				</div> <!-- END main-wrapper -->
+			</div> <!-- END main-shadow -->
+		</div> <!-- END body-wrapper -->
+		<!-- END footer-bottom-group -->
+		
+		<div style="position:absolute; left:-9999px; top:-9999px;">
+			<span id="qa-waiting-template" class="qa-waiting">...</span>
+		</div>
+	
+	
+
+</body><!-- Powered by Question2Answer - http://www.question2answer.org/ --></html>

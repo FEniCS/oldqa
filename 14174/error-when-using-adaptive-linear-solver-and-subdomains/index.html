@@ -1,0 +1,468 @@
+<html><!-- Powered by Question2Answer - http://www.question2answer.org/ --><head>
+		<meta http-equiv="content-type" content="text/html; charset=utf-8">
+		<title>Error when using adaptive linear solver and subdomains - FEniCS Q&amp;A</title>
+		<meta name="description" content="Hi, I am trying to use the adaptive linear solver to adapt the mesh for a heat conduction problem ... 5, title='Heat flow vector field') interactive()">
+		<meta name="keywords" content="adaptivity,heat-equation,linear-solver,adaptivelinearsolver">
+		<link rel="stylesheet" type="text/css" href="../../qa-theme/Snow/qa-styles.css">
+		<link rel="canonical" href="http://fenicsproject.org/qa/14174/error-when-using-adaptive-linear-solver-and-subdomains">
+		<script type="text/x-mathjax-config">
+  MathJax.Hub.Config({
+    extensions: ["tex2jax.js"],
+    jax: ["input/TeX","output/HTML-CSS"],
+    tex2jax: {inlineMath: [["$","$"],["\\(","\\)"]]},
+    TeX: { extensions: ["AMSmath.js","AMSsymbols.js"]}
+  });
+</script>
+<script type="text/javascript" src="../../mathjax/MathJax.js"></script>
+		<script src="../../jquery-1.7.2.min.js" type="text/javascript"></script>
+		<script src="../../highlight.min.js"></script>
+<script type="text/javascript">
+$(function(){
+	$('.wmd-input').keypress(function(){
+		window.clearTimeout(hljs.Timeout);
+		hljs.Timeout = window.setTimeout(function() {
+			hljs.initHighlighting.called = false;
+			hljs.initHighlighting();
+		}, 500);
+	});
+	window.setTimeout(function() {
+		hljs.initHighlighting.called = false;
+		hljs.initHighlighting();
+	}, 500);
+});
+</script>
+
+
+	</head>
+	<body class="qa-template-question qa-body-js-off">
+		<div class="qa-body-wrapper">
+			
+			<div class="qa-header">
+				<div class="qa-logo">
+					<a href="../../" class="qa-logo-link" title="FEniCS Q&amp;A"><img src="../../qa-theme/fenics_qa.png" border="0" alt="FEniCS Q&amp;A"></a>
+				</div>
+				<div class="qa-header-clear">
+				</div>
+			</div> <!-- END qa-header -->
+			
+			<div class="qa-main-shadow">
+				
+				<div class="qa-main-wrapper">
+					
+					<div class="qa-sidepanel">
+						<div class="qa-sidebar">
+							This is a read only copy of the old FEniCS QA forum. Please visit the <a href="https://www.allanswered.com/community/s/fenics-project/">new QA forum</a> to ask questions
+						</div>
+						
+					</div>
+					
+					<div class="qa-main">
+						<h1>
+							<span class="entry-title">Error when using adaptive linear solver and subdomains</span>
+						</h1>
+						<div class="qa-part-q-view">
+							<div class="qa-q-view  hentry question" id="q14174">
+								<form method="post" action="../../14174/error-when-using-adaptive-linear-solver-and-subdomains">
+									<div class="qa-q-view-stats">
+										<div class="qa-voting qa-voting-net" id="voting_14174">
+											<div class="qa-vote-count qa-vote-count-net">
+												<span class="qa-netvote-count">
+													<span class="qa-netvote-count-data">+1<span class="votes-up"><span class="value-title" title="1"></span></span><span class="votes-down"><span class="value-title" title="0"></span></span></span><span class="qa-netvote-count-pad"> vote</span>
+												</span>
+											</div>
+											<div class="qa-vote-clear">
+											</div>
+										</div>
+									</div>
+									<input type="hidden" name="code" value="0-1516466510-c44498a9c154b4b3e78a66786fba03adaf3eade1">
+								</form>
+								<div class="qa-q-view-main">
+									<form method="post" action="../../14174/error-when-using-adaptive-linear-solver-and-subdomains">
+										<div class="qa-q-view-content">
+											<a name="14174"></a><div class="entry-content"><p>Hi, I am trying to use the adaptive linear solver to adapt the mesh for a heat conduction problem. For the problem I am using a python class that uses subdomains from mshr to have non uniform material properties (thermal conductivities). </p>
+
+<p>When I run the problem with an adaptive tolerance of 1.0e-3 the code runs but when I run it with a lower tolerance like 1.0e-5 and the mesh is being subdivided I get the following error:</p>
+
+<pre><code>Generating forms required for error control, this may take some time...
+Solving variational problem adaptively
+Adaptive iteration 0
+  Solving linear variational problem.
+  Value of goal functional is -0.759127.
+  Solving linear variational problem.
+  Number of cells increased from 1100 to 1187 (7.9% increase).
+  Interpolate from parent to child
+Adaptive iteration 1
+  Solving linear variational problem.
+Traceback (most recent call last):
+  File "exp.py", line 102, in &lt;module&gt;
+    solver.solve(tol)
+  File "/usr/lib/python2.7/dist-packages/dolfin/fem/adaptivesolving.py", line 81, in solve
+    cpp.AdaptiveLinearVariationalSolver.solve(self, tol)
+  File "exp.py", line 76, in eval_cell
+    if markers[cell.index] == 0:
+  File "/usr/lib/python2.7/dist-packages/dolfin/cpp/mesh.py", line 4472, in __getitem__
+    raise IndexError("index out of range")
+IndexError: index out of range
+Aborted (core dumped)
+</code></pre>
+
+<p>The code is shown below:</p>
+
+<pre><code>from fenics import *
+from mshr import * #library for meshing
+import math as m   #Import like this to prevent overiding of fenics' UFL math functions
+
+# Use compiler optimizations
+parameters["form_compiler"]["cpp_optimize"] = True
+# Allow approximating values for points that may be generated outside
+# of domain (because of numerical inaccuracies)
+parameters["allow_extrapolation"]  = True
+# Choose refinement algorithm (needed for solver to choose right refinement algorithm)
+parameters["refinement_algorithm"] = "plaza_with_parent_facets"
+
+R_inner  =  0.009525
+R_2      =  0.025
+R_outer  =  0.06
+h_p   =  0.50
+h_2   =  0.30
+T_g   = -70.0 #degrees C
+T_inf =  20.0 #degrees C
+#Conduction values
+k_1  =  16.3
+k_2  =  0.25
+#Convection values
+h_a    =  10.0  #Free convection
+h_g    =  500.0 #Forced convection
+
+#Generate mesh with sub-domains
+domain = Rectangle(Point(R_inner,0.0), Point(R_outer,h_p/2.0))
+h = h_2/2.0
+pipe_vertices = [Point(R_inner,0.0), Point(R_2,0.0), Point(R_2,h), Point(R_inner,h)]
+pipe   = Polygon(pipe_vertices)
+domain.set_subdomain(1, pipe)
+meshResolution = 30
+mesh = generate_mesh(domain, meshResolution)
+
+# Define boundaries
+tol = 1.0e-2
+class insideEdge(SubDomain):
+    def inside(self, x, on_boundary):
+        return near(x[0], R_inner)
+
+class outsideEdge(SubDomain):
+    def inside(self, x, on_boundary):
+        return near(x[0], R_outer)
+
+insideEdge  = insideEdge()
+outsideEdge = outsideEdge()
+
+boundaries = FacetFunction('size_t', mesh)
+boundaries.set_all(0)
+insideEdge.mark(boundaries, 1)
+outsideEdge.mark(boundaries, 2)
+ds = Measure('ds')[boundaries]
+
+# Define function space
+V = FunctionSpace(mesh, 'P', 1)
+
+# Define subdomain markers
+markers = MeshFunction('size_t', mesh, 2, mesh.domains())
+
+# Define thermal conductivity
+class Thermal_Conductivity(Expression):
+    def __init__(self, mesh, **kwargs):
+        self.markers = markers
+    def eval_cell(self, values, x, cell):
+        if markers[cell.index] == 0:
+            values[0] = k_1
+        else:
+            values[0] = k_2
+
+k = Thermal_Conductivity(mesh, degree=1)
+
+# Define variational problem
+h_g = Constant(h_g)
+T_g = Constant(T_g)
+h_a = Constant(h_a)
+T_inf = Constant(T_inf)
+T = TrialFunction(V)
+q = TestFunction(V)
+a = k*inner(grad(T), grad(q))*dx() + h_g*T*q*ds(1) + h_a*T*q*ds(2)
+L = h_g*T_g*q*ds(1) + h_a*T_inf*q*ds(2)
+
+
+# Compute solution (adaptive)
+T   = Function(V)
+M   = T*dx()
+tol = 1.0e-5
+problem = LinearVariationalProblem(a,L,T)
+solver  = AdaptiveLinearVariationalSolver(problem,M)
+solver.solve(tol)
+solver.summary()
+plot(mesh.root_node(), title='Original coarse mesh')
+plot(mesh.leaf_node(), title='Fine mesh')
+plot(T.root_node(), title='Temperature distribution (coarse)')
+plot(T.leaf_node(), title='Temperature distribution (fine)')
+
+# Plot heat flow
+plot(-k*grad(T.leaf_node()), scale=1.5, title='Heat flow vector field')
+interactive()
+</code></pre>
+</div>
+										</div>
+										<div class="qa-q-view-tags">
+											<ul class="qa-q-view-tag-list">
+												<li class="qa-q-view-tag-item"><a href="../../tag/adaptivity" rel="tag" class="qa-tag-link">adaptivity</a></li>
+												<li class="qa-q-view-tag-item"><a href="../../tag/heat-equation" rel="tag" class="qa-tag-link">heat-equation</a></li>
+												<li class="qa-q-view-tag-item"><a href="../../tag/linear-solver" rel="tag" class="qa-tag-link">linear-solver</a></li>
+												<li class="qa-q-view-tag-item"><a href="../../tag/adaptivelinearsolver" rel="tag" class="qa-tag-link">adaptivelinearsolver</a></li>
+											</ul>
+										</div>
+										<span class="qa-q-view-avatar-meta">
+											<span class="qa-q-view-meta">
+												<a href="../../14174/error-when-using-adaptive-linear-solver-and-subdomains" class="qa-q-view-what">asked</a>
+												<span class="qa-q-view-when">
+													<span class="qa-q-view-when-data"><span class="published"><span class="value-title" title="2017-07-01T00:34:01+0000"></span>Jul 1, 2017</span></span>
+												</span>
+												<span class="qa-q-view-who">
+													<span class="qa-q-view-who-pad">by </span>
+													<span class="qa-q-view-who-data"><span class="vcard author"><a href="../../user/alexmm" class="qa-user-link url nickname">alexmm</a></span></span>
+													<span class="qa-q-view-who-title">FEniCS User</span>
+													<span class="qa-q-view-who-points">
+														<span class="qa-q-view-who-points-pad">(</span><span class="qa-q-view-who-points-data">4,240</span><span class="qa-q-view-who-points-pad"> points)</span>
+													</span>
+												</span>
+											</span>
+										</span>
+										<div class="qa-q-view-buttons">
+										</div>
+										
+										<div class="qa-q-view-c-list" style="display:none;" id="c14174_list">
+										</div> <!-- END qa-c-list -->
+										
+										<input type="hidden" name="code" value="0-1516466510-0a71f575a69947d14c5ef97e8fba6c0e912fddf3">
+										<input type="hidden" name="qa_click" value="">
+									</form>
+									<div class="qa-c-form">
+									</div> <!-- END qa-c-form -->
+									
+								</div> <!-- END qa-q-view-main -->
+								<div class="qa-q-view-clear">
+								</div>
+							</div> <!-- END qa-q-view -->
+							
+						</div>
+						<div class="qa-part-a-list">
+							<h2 id="a_list_title">1 Answer</h2>
+							<div class="qa-a-list" id="a_list">
+								
+								<div class="qa-a-list-item  hentry answer answer-selected qa-a-list-item-selected" id="a14204">
+									<form method="post" action="../../14174/error-when-using-adaptive-linear-solver-and-subdomains">
+										<div class="qa-voting qa-voting-net" id="voting_14204">
+											<div class="qa-vote-count qa-vote-count-net">
+												<span class="qa-netvote-count">
+													<span class="qa-netvote-count-data">0<span class="votes-up"><span class="value-title" title="0"></span></span><span class="votes-down"><span class="value-title" title="0"></span></span></span><span class="qa-netvote-count-pad"> votes</span>
+												</span>
+											</div>
+											<div class="qa-vote-clear">
+											</div>
+										</div>
+										<input type="hidden" name="code" value="0-1516466510-c44498a9c154b4b3e78a66786fba03adaf3eade1">
+									</form>
+									<div class="qa-a-item-main">
+										<form method="post" action="../../14174/error-when-using-adaptive-linear-solver-and-subdomains">
+											<div class="qa-a-item-selected">
+												<div class="qa-a-selection">
+													<div class="qa-a-selected">&#160;</div>
+													<div class="qa-a-selected-text">Best answer</div>
+												</div>
+												<div class="qa-a-item-content">
+													<a name="14204"></a><div class="entry-content"><p>When running the Adaptive linear solver, the markers used in <code>Thermal_Conductivity</code> has to be updated at every solve call. In stead consider doing something like this: </p>
+
+<pre><code>V0 = FunctionSpace(mesh, "DG", 0)            
+k = interpolate(Thermal_Conductivity(mesh, degree=1), V0)  
+</code></pre>
+
+<p>By the way  <code>Thermal_Conductivity</code> takes and argument <code>mesh</code> which is not used, but instead it sets <code>self.markers</code> which is defined in the line above this class. I guess what you meant to do was something like the following:</p>
+
+<pre><code>class Thermal_Conductivity(Expression):
+    def __init__(self, markers, **kwargs):
+        self.markers = markers
+    def eval_cell(self, values, x, cell):
+        if self.markers[cell.index] == 0:
+            values[0] = k_1
+        else:
+            values[0] = k_2
+
+V0 = FunctionSpace(mesh, "DG", 0)            
+k = interpolate(Thermal_Conductivity(markers, degree=1), V0)
+</code></pre>
+
+<p>To make the plot work in the final line you can do e.g</p>
+
+<pre><code>mesh_leaf = mesh.leaf_node()
+V_leaf = FunctionSpace(mesh_leaf, "DG", 0)
+markers_leaf = MeshFunction("size_t", mesh_leaf, 2, mesh_leaf.domains())
+k_leaf = interpolate(Thermal_Conductivity(markers_leaf, degree=1), V_leaf)
+plot(-k_leaf*grad(T.leaf_node()), scale=1.5, title='Heat flow vector field')
+</code></pre>
+</div>
+												</div>
+												<span class="qa-a-item-avatar-meta">
+													<span class="qa-a-item-meta">
+														<a href="../../14174/error-when-using-adaptive-linear-solver-and-subdomains?show=14204#a14204" class="qa-a-item-what">answered</a>
+														<span class="qa-a-item-when">
+															<span class="qa-a-item-when-data"><span class="published"><span class="value-title" title="2017-07-03T21:55:45+0000"></span>Jul 3, 2017</span></span>
+														</span>
+														<span class="qa-a-item-who">
+															<span class="qa-a-item-who-pad">by </span>
+															<span class="qa-a-item-who-data"><span class="vcard author"><a href="../../user/finsberg" class="qa-user-link url nickname">finsberg</a></span></span>
+															<span class="qa-a-item-who-title">FEniCS User</span>
+															<span class="qa-a-item-who-points">
+																<span class="qa-a-item-who-points-pad">(</span><span class="qa-a-item-who-points-data">2,360</span><span class="qa-a-item-who-points-pad"> points)</span>
+															</span>
+														</span>
+														<br>
+														<span class="qa-a-item-what">selected</span>
+														<span class="qa-a-item-when">
+															<span class="qa-a-item-when-data"><span class="updated"><span class="value-title" title="2017-07-03T23:39:55+0000"></span>Jul 4, 2017</span></span>
+														</span>
+														<span class="qa-a-item-who">
+															<span class="qa-a-item-who-pad">by </span><span class="qa-a-item-who-data"><a href="../../user/alexmm" class="qa-user-link url nickname">alexmm</a></span>
+														</span>
+													</span>
+												</span>
+											</div>
+											<div class="qa-a-item-buttons">
+												</div>
+											
+											<div class="qa-a-item-c-list" id="c14204_list">
+												<div class="qa-c-list-item  hentry comment" id="c14206">
+													<div class="qa-c-item-content">
+														<a name="14206"></a><div class="entry-content"><p>Excellent that's what I was looking for. I was actually also trying to plot the material properties and ended up using DG elements for that as well. The code can use different domains now. For the final plot however I get the following error:</p>
+
+<pre><code>Traceback (most recent call last):
+  File "insulatedConnector.py", line 174, in &lt;module&gt;
+    k_leaf = interpolate(Thermal_Conductivity(markers_leaf, degree=1), V_leaf)
+  File "/usr/lib/python2.7/dist-packages/dolfin/fem/interpolation.py", line 66, in interpolate
+    Pv.interpolate(v)
+  File "insulatedConnector.py", line 120, in eval_cell
+    if markers[cell.index] == 0:
+  File "/usr/lib/python2.7/dist-packages/dolfin/cpp/mesh.py", line 4472, in __getitem__
+    raise IndexError("index out of range")
+IndexError: index out of range
+Aborted (core dumped)
+</code></pre>
+
+<p>Do you know what this this might be caused by?</p>
+</div>
+													</div>
+													<div class="qa-c-item-footer">
+														<span class="qa-c-item-avatar-meta">
+															<span class="qa-c-item-meta">
+																<a href="../../14174/error-when-using-adaptive-linear-solver-and-subdomains?show=14206#c14206" class="qa-c-item-what">commented</a>
+																<span class="qa-c-item-when">
+																	<span class="qa-c-item-when-data"><span class="published"><span class="value-title" title="2017-07-03T23:27:19+0000"></span>Jul 4, 2017</span></span>
+																</span>
+																<span class="qa-c-item-who">
+																	<span class="qa-c-item-who-pad">by </span>
+																	<span class="qa-c-item-who-data"><span class="vcard author"><a href="../../user/alexmm" class="qa-user-link url nickname">alexmm</a></span></span>
+																	<span class="qa-c-item-who-title">FEniCS User</span>
+																	<span class="qa-c-item-who-points">
+																		<span class="qa-c-item-who-points-pad">(</span><span class="qa-c-item-who-points-data">4,240</span><span class="qa-c-item-who-points-pad"> points)</span>
+																	</span>
+																</span>
+															</span>
+														</span>
+														<div class="qa-c-item-buttons">
+														</div>
+													</div>
+													<div class="qa-c-item-clear">
+													</div>
+												</div> <!-- END qa-c-item -->
+												<div class="qa-c-list-item  hentry comment" id="c14208">
+													<div class="qa-c-item-content">
+														<a name="14208"></a><div class="entry-content"><p>Did you make the changes I proposed in the definition of <code>Thermal_Conductivity</code>? In <code>eval_cell</code> there should be <code>self.markers</code> and not <code>markers</code>.</p>
+</div>
+													</div>
+													<div class="qa-c-item-footer">
+														<span class="qa-c-item-avatar-meta">
+															<span class="qa-c-item-meta">
+																<a href="../../14174/error-when-using-adaptive-linear-solver-and-subdomains?show=14208#c14208" class="qa-c-item-what">commented</a>
+																<span class="qa-c-item-when">
+																	<span class="qa-c-item-when-data"><span class="published"><span class="value-title" title="2017-07-04T05:32:36+0000"></span>Jul 4, 2017</span></span>
+																</span>
+																<span class="qa-c-item-who">
+																	<span class="qa-c-item-who-pad">by </span>
+																	<span class="qa-c-item-who-data"><span class="vcard author"><a href="../../user/finsberg" class="qa-user-link url nickname">finsberg</a></span></span>
+																	<span class="qa-c-item-who-title">FEniCS User</span>
+																	<span class="qa-c-item-who-points">
+																		<span class="qa-c-item-who-points-pad">(</span><span class="qa-c-item-who-points-data">2,360</span><span class="qa-c-item-who-points-pad"> points)</span>
+																	</span>
+																</span>
+															</span>
+														</span>
+														<div class="qa-c-item-buttons">
+														</div>
+													</div>
+													<div class="qa-c-item-clear">
+													</div>
+												</div> <!-- END qa-c-item -->
+												<div class="qa-c-list-item  hentry comment" id="c14210">
+													<div class="qa-c-item-content">
+														<a name="14210"></a><div class="entry-content"><p>I didn't change the second <code>markers</code> to <code>self.markers</code> it works now thank you</p>
+</div>
+													</div>
+													<div class="qa-c-item-footer">
+														<span class="qa-c-item-avatar-meta">
+															<span class="qa-c-item-meta">
+																<a href="../../14174/error-when-using-adaptive-linear-solver-and-subdomains?show=14210#c14210" class="qa-c-item-what">commented</a>
+																<span class="qa-c-item-when">
+																	<span class="qa-c-item-when-data"><span class="published"><span class="value-title" title="2017-07-04T11:09:45+0000"></span>Jul 4, 2017</span></span>
+																</span>
+																<span class="qa-c-item-who">
+																	<span class="qa-c-item-who-pad">by </span>
+																	<span class="qa-c-item-who-data"><span class="vcard author"><a href="../../user/alexmm" class="qa-user-link url nickname">alexmm</a></span></span>
+																	<span class="qa-c-item-who-title">FEniCS User</span>
+																	<span class="qa-c-item-who-points">
+																		<span class="qa-c-item-who-points-pad">(</span><span class="qa-c-item-who-points-data">4,240</span><span class="qa-c-item-who-points-pad"> points)</span>
+																	</span>
+																</span>
+															</span>
+														</span>
+														<div class="qa-c-item-buttons">
+														</div>
+													</div>
+													<div class="qa-c-item-clear">
+													</div>
+												</div> <!-- END qa-c-item -->
+											</div> <!-- END qa-c-list -->
+											
+											<input type="hidden" name="code" value="0-1516466510-3be633988ba9e60c151669763fe145b2a82f85f5">
+											<input type="hidden" name="qa_click" value="">
+										</form>
+										<div class="qa-c-form">
+										</div> <!-- END qa-c-form -->
+										
+									</div> <!-- END qa-a-item-main -->
+									<div class="qa-a-item-clear">
+									</div>
+								</div> <!-- END qa-a-list-item -->
+								
+							</div> <!-- END qa-a-list -->
+							
+						</div>
+					</div> <!-- END qa-main -->
+					
+				</div> <!-- END main-wrapper -->
+			</div> <!-- END main-shadow -->
+		</div> <!-- END body-wrapper -->
+		<!-- END footer-bottom-group -->
+		
+		<div style="position:absolute; left:-9999px; top:-9999px;">
+			<span id="qa-waiting-template" class="qa-waiting">...</span>
+		</div>
+	
+	
+
+</body><!-- Powered by Question2Answer - http://www.question2answer.org/ --></html>

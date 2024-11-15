@@ -1,0 +1,328 @@
+<html><!-- Powered by Question2Answer - http://www.question2answer.org/ --><head>
+		<meta http-equiv="content-type" content="text/html; charset=utf-8">
+		<title>Excessive memory usage of a simple 3D Poisson with Fenics 1.6 - FEniCS Q&amp;A</title>
+		<meta name="description" content="Dear all, I am running the simplest possible 3D problem, a scalar Poisson, with Fenics  ...  gmres_params['monitor_convergence'] = True solver.solve()">
+		<meta name="keywords" content="out_of_memory,160release,memory,options">
+		<link rel="stylesheet" type="text/css" href="../../qa-theme/Snow/qa-styles.css">
+		<link rel="canonical" href="http://fenicsproject.org/qa/8492/excessive-memory-usage-of-a-simple-3d-poisson-with-fenics-1-6">
+		<script type="text/x-mathjax-config">
+  MathJax.Hub.Config({
+    extensions: ["tex2jax.js"],
+    jax: ["input/TeX","output/HTML-CSS"],
+    tex2jax: {inlineMath: [["$","$"],["\\(","\\)"]]},
+    TeX: { extensions: ["AMSmath.js","AMSsymbols.js"]}
+  });
+</script>
+<script type="text/javascript" src="../../mathjax/MathJax.js"></script>
+		<script src="../../jquery-1.7.2.min.js" type="text/javascript"></script>
+		<script src="../../highlight.min.js"></script>
+<script type="text/javascript">
+$(function(){
+	$('.wmd-input').keypress(function(){
+		window.clearTimeout(hljs.Timeout);
+		hljs.Timeout = window.setTimeout(function() {
+			hljs.initHighlighting.called = false;
+			hljs.initHighlighting();
+		}, 500);
+	});
+	window.setTimeout(function() {
+		hljs.initHighlighting.called = false;
+		hljs.initHighlighting();
+	}, 500);
+});
+</script>
+
+
+	</head>
+	<body class="qa-template-question qa-body-js-off">
+		<div class="qa-body-wrapper">
+			
+			<div class="qa-header">
+				<div class="qa-logo">
+					<a href="../../" class="qa-logo-link" title="FEniCS Q&amp;A"><img src="../../qa-theme/fenics_qa.png" border="0" alt="FEniCS Q&amp;A"></a>
+				</div>
+				<div class="qa-header-clear">
+				</div>
+			</div> <!-- END qa-header -->
+			
+			<div class="qa-main-shadow">
+				
+				<div class="qa-main-wrapper">
+					
+					<div class="qa-sidepanel">
+						<div class="qa-sidebar">
+							This is a read only copy of the old FEniCS QA forum. Please visit the <a href="https://www.allanswered.com/community/s/fenics-project/">new QA forum</a> to ask questions
+						</div>
+						
+					</div>
+					
+					<div class="qa-main">
+						<h1>
+							<span class="entry-title">Excessive memory usage of a simple 3D Poisson with Fenics 1.6</span>
+						</h1>
+						<div class="qa-part-q-view">
+							<div class="qa-q-view  hentry question" id="q8492">
+								<form method="post" action="../../8492/excessive-memory-usage-of-a-simple-3d-poisson-with-fenics-1-6">
+									<div class="qa-q-view-stats">
+										<div class="qa-voting qa-voting-net" id="voting_8492">
+											<div class="qa-vote-count qa-vote-count-net">
+												<span class="qa-netvote-count">
+													<span class="qa-netvote-count-data">+3<span class="votes-up"><span class="value-title" title="3"></span></span><span class="votes-down"><span class="value-title" title="0"></span></span></span><span class="qa-netvote-count-pad"> votes</span>
+												</span>
+											</div>
+											<div class="qa-vote-clear">
+											</div>
+										</div>
+									</div>
+									<input type="hidden" name="code" value="0-1516468176-b8eeacca413cba59c5a80db49ce8f6665218e1d5">
+								</form>
+								<div class="qa-q-view-main">
+									<form method="post" action="../../8492/excessive-memory-usage-of-a-simple-3d-poisson-with-fenics-1-6">
+										<div class="qa-q-view-content">
+											<a name="8492"></a><div class="entry-content"><p>Dear all,</p>
+
+<p>I am running the simplest possible 3D problem, a scalar Poisson, with Fenics 1.6. I have used a grid of 200x200x200 P1 tetrahedra. I am using GMRES with incomplete Cholesky preconditioner to solve the system. Incomplete Cholesky should consume (worst case scenario) the same amount of memory as the sparse matrix. The mesh should consume about 1GB and the matrix maximum around 2.5 GB. In total around 6GB. However, when building the dofmap from UFC</p>
+
+<blockquote>
+  <p>Elapsed wall, usr, sys time: 11.3979, 10.67, 0.73 (Init dofmap from<br>
+  UFC dofmap)</p>
+</blockquote>
+
+<p>The memory consumption goes up to 20GB. Is it supposed to? I tried to deactivate some options for example <br>
+a) parameters["mesh_partitioner"] = "None"<br>
+b) parameters["dof_ordering_library"] = "Boost"<br>
+c) parameters["reorder_of_serial"] = False</p>
+
+<p>in the hope that I will turn of all reordering and mesh partitioning stuff that consume time and possibly increase memory. Options a) and b) did not help and Option c) helped but then the whole thing got stack at</p>
+
+<blockquote>
+  <p>Elapsed wall, usr, sys time: 476.788, 48.82, 380.86 (Boost graph<br>
+  coloring (from dolfin::Graph))</p>
+</blockquote>
+
+<pre><code>from dolfin import *
+
+info(parameters, True)
+set_log_level(DEBUG)
+list_krylov_solver_preconditioners()
+parameters["mesh_partitioner"] = "None"
+parameters["num_threads"]      = 1
+parameters["dof_ordering_library"]      = "Boost"
+parameters["reorder_dofs_serial"]       = False
+
+mesh = UnitCubeMesh(200, 200, 200)
+V = FunctionSpace(mesh, 'Lagrange', 1)
+
+u0 = Expression('1 + x[0]*x[0] + 2*x[1]*x[1]+x[2]*x[2]')
+
+def u0_boundary(x, on_boundary):
+    return on_boundary
+
+bc = DirichletBC(V, u0, u0_boundary)
+
+# Define variational problem
+u = TrialFunction(V)
+v = TestFunction(V)
+f = Constant(-6.0) 
+
+
+a = inner(grad(u), grad(v))*dx
+
+L = f*v*dx
+
+
+u = Function(V)
+problem = LinearVariationalProblem(a, L, u, bc)
+solver  = LinearVariationalSolver(problem)
+solver.parameters['linear_solver']  = "gmres"
+
+solver.parameters['preconditioner'] = "icc"
+gmres_params = solver.parameters["krylov_solver"]
+gmres_params['relative_tolerance'] = 1.0e-6
+gmres_params['maximum_iterations'] = 1000
+gmres_params['monitor_convergence'] = True
+
+solver.solve()
+</code></pre>
+</div>
+										</div>
+										<div class="qa-q-view-tags">
+											<ul class="qa-q-view-tag-list">
+												<li class="qa-q-view-tag-item"><a href="../../tag/out_of_memory" rel="tag" class="qa-tag-link">out_of_memory</a></li>
+												<li class="qa-q-view-tag-item"><a href="../../tag/160release" rel="tag" class="qa-tag-link">160release</a></li>
+												<li class="qa-q-view-tag-item"><a href="../../tag/memory" rel="tag" class="qa-tag-link">memory</a></li>
+												<li class="qa-q-view-tag-item"><a href="../../tag/options" rel="tag" class="qa-tag-link">options</a></li>
+											</ul>
+										</div>
+										<span class="qa-q-view-avatar-meta">
+											<span class="qa-q-view-meta">
+												<a href="../../8492/excessive-memory-usage-of-a-simple-3d-poisson-with-fenics-1-6" class="qa-q-view-what">asked</a>
+												<span class="qa-q-view-when">
+													<span class="qa-q-view-when-data"><span class="published"><span class="value-title" title="2015-11-07T20:25:42+0000"></span>Nov 7, 2015</span></span>
+												</span>
+												<span class="qa-q-view-who">
+													<span class="qa-q-view-who-pad">by </span>
+													<span class="qa-q-view-who-data"><span class="vcard author"><a href="../../user/Panos" class="qa-user-link url nickname">Panos</a></span></span>
+													<span class="qa-q-view-who-title">FEniCS Novice</span>
+													<span class="qa-q-view-who-points">
+														<span class="qa-q-view-who-points-pad">(</span><span class="qa-q-view-who-points-data">190</span><span class="qa-q-view-who-points-pad"> points)</span>
+													</span>
+												</span>
+											</span>
+										</span>
+										<div class="qa-q-view-buttons">
+										</div>
+										
+										<div class="qa-q-view-c-list" style="display:none;" id="c8492_list">
+										</div> <!-- END qa-c-list -->
+										
+										<input type="hidden" name="code" value="0-1516468176-6f47c1fc932d92b35ffd8cbdfd265c5f59511624">
+										<input type="hidden" name="qa_click" value="">
+									</form>
+									<div class="qa-c-form">
+									</div> <!-- END qa-c-form -->
+									
+								</div> <!-- END qa-q-view-main -->
+								<div class="qa-q-view-clear">
+								</div>
+							</div> <!-- END qa-q-view -->
+							
+						</div>
+						<div class="qa-part-a-list">
+							<h2 id="a_list_title">2 Answers</h2>
+							<div class="qa-a-list" id="a_list">
+								
+								<div class="qa-a-list-item  hentry answer" id="a8544">
+									<form method="post" action="../../8492/excessive-memory-usage-of-a-simple-3d-poisson-with-fenics-1-6">
+										<div class="qa-voting qa-voting-net" id="voting_8544">
+											<div class="qa-vote-count qa-vote-count-net">
+												<span class="qa-netvote-count">
+													<span class="qa-netvote-count-data">0<span class="votes-up"><span class="value-title" title="0"></span></span><span class="votes-down"><span class="value-title" title="0"></span></span></span><span class="qa-netvote-count-pad"> votes</span>
+												</span>
+											</div>
+											<div class="qa-vote-clear">
+											</div>
+										</div>
+										<input type="hidden" name="code" value="0-1516468176-b8eeacca413cba59c5a80db49ce8f6665218e1d5">
+									</form>
+									<div class="qa-a-item-main">
+										<form method="post" action="../../8492/excessive-memory-usage-of-a-simple-3d-poisson-with-fenics-1-6">
+											<div class="qa-a-selection">
+											</div>
+											<div class="qa-a-item-content">
+												<a name="8544"></a><div class="entry-content"><p>Hello everybody,<br>
+Was anybody able to verify the same problem? Can somebody confirm. I have observed that issue on both Linux and OSX platforms. </p>
+</div>
+											</div>
+											<span class="qa-a-item-avatar-meta">
+												<span class="qa-a-item-meta">
+													<a href="../../8492/excessive-memory-usage-of-a-simple-3d-poisson-with-fenics-1-6?show=8544#a8544" class="qa-a-item-what">answered</a>
+													<span class="qa-a-item-when">
+														<span class="qa-a-item-when-data"><span class="published"><span class="value-title" title="2015-11-13T17:47:00+0000"></span>Nov 13, 2015</span></span>
+													</span>
+													<span class="qa-a-item-who">
+														<span class="qa-a-item-who-pad">by </span>
+														<span class="qa-a-item-who-data"><span class="vcard author"><a href="../../user/Panos" class="qa-user-link url nickname">Panos</a></span></span>
+														<span class="qa-a-item-who-title">FEniCS Novice</span>
+														<span class="qa-a-item-who-points">
+															<span class="qa-a-item-who-points-pad">(</span><span class="qa-a-item-who-points-data">190</span><span class="qa-a-item-who-points-pad"> points)</span>
+														</span>
+													</span>
+												</span>
+											</span>
+											<div class="qa-a-item-buttons">
+												</div>
+											
+											<div class="qa-a-item-c-list" style="display:none;" id="c8544_list">
+											</div> <!-- END qa-c-list -->
+											
+											<input type="hidden" name="code" value="0-1516468176-2e54e4b6e562f0be42a0827981ef95f3f1740f29">
+											<input type="hidden" name="qa_click" value="">
+										</form>
+										<div class="qa-c-form">
+										</div> <!-- END qa-c-form -->
+										
+									</div> <!-- END qa-a-item-main -->
+									<div class="qa-a-item-clear">
+									</div>
+								</div> <!-- END qa-a-list-item -->
+								
+								<div class="qa-a-list-item  hentry answer" id="a8545">
+									<form method="post" action="../../8492/excessive-memory-usage-of-a-simple-3d-poisson-with-fenics-1-6">
+										<div class="qa-voting qa-voting-net" id="voting_8545">
+											<div class="qa-vote-count qa-vote-count-net">
+												<span class="qa-netvote-count">
+													<span class="qa-netvote-count-data">0<span class="votes-up"><span class="value-title" title="0"></span></span><span class="votes-down"><span class="value-title" title="0"></span></span></span><span class="qa-netvote-count-pad"> votes</span>
+												</span>
+											</div>
+											<div class="qa-vote-clear">
+											</div>
+										</div>
+										<input type="hidden" name="code" value="0-1516468176-b8eeacca413cba59c5a80db49ce8f6665218e1d5">
+									</form>
+									<div class="qa-a-item-main">
+										<form method="post" action="../../8492/excessive-memory-usage-of-a-simple-3d-poisson-with-fenics-1-6">
+											<div class="qa-a-selection">
+											</div>
+											<div class="qa-a-item-content">
+												<a name="8545"></a><div class="entry-content"><p>Hi, I have Ubuntu 14.04 running FEniCS 1.6. I can confirm. The 16GB of RAM quickly run out but still the problem is solved after 5 min. However, FEniCS is swapping at some point. I also removed some of your options and I used the default ones. More precisely I removed </p>
+
+<pre><code>parameters["mesh_partitioner"] = "None"
+parameters["num_threads"]      = 1
+parameters["dof_ordering_library"]      = "Boost"
+parameters["reorder_dofs_serial"]       = False
+</code></pre>
+
+<p>but the problem persists. I do not know if any options helps. We have to wait for the developers to give a hint.</p>
+</div>
+											</div>
+											<span class="qa-a-item-avatar-meta">
+												<span class="qa-a-item-meta">
+													<a href="../../8492/excessive-memory-usage-of-a-simple-3d-poisson-with-fenics-1-6?show=8545#a8545" class="qa-a-item-what">answered</a>
+													<span class="qa-a-item-when">
+														<span class="qa-a-item-when-data"><span class="published"><span class="value-title" title="2015-11-13T17:59:02+0000"></span>Nov 13, 2015</span></span>
+													</span>
+													<span class="qa-a-item-who">
+														<span class="qa-a-item-who-pad">by </span>
+														<span class="qa-a-item-who-data"><span class="vcard author"><a href="../../user/archwndas" class="qa-user-link url nickname">archwndas</a></span></span>
+														<span class="qa-a-item-who-title">FEniCS Novice</span>
+														<span class="qa-a-item-who-points">
+															<span class="qa-a-item-who-points-pad">(</span><span class="qa-a-item-who-points-data">150</span><span class="qa-a-item-who-points-pad"> points)</span>
+														</span>
+													</span>
+												</span>
+											</span>
+											<div class="qa-a-item-buttons">
+												</div>
+											
+											<div class="qa-a-item-c-list" style="display:none;" id="c8545_list">
+											</div> <!-- END qa-c-list -->
+											
+											<input type="hidden" name="code" value="0-1516468176-15f4c96b928477a31d6588d23952fa7d78adb15e">
+											<input type="hidden" name="qa_click" value="">
+										</form>
+										<div class="qa-c-form">
+										</div> <!-- END qa-c-form -->
+										
+									</div> <!-- END qa-a-item-main -->
+									<div class="qa-a-item-clear">
+									</div>
+								</div> <!-- END qa-a-list-item -->
+								
+							</div> <!-- END qa-a-list -->
+							
+						</div>
+					</div> <!-- END qa-main -->
+					
+				</div> <!-- END main-wrapper -->
+			</div> <!-- END main-shadow -->
+		</div> <!-- END body-wrapper -->
+		<!-- END footer-bottom-group -->
+		
+		<div style="position:absolute; left:-9999px; top:-9999px;">
+			<span id="qa-waiting-template" class="qa-waiting">...</span>
+		</div>
+	
+	
+
+</body><!-- Powered by Question2Answer - http://www.question2answer.org/ --></html>

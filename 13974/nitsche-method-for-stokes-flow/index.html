@@ -1,0 +1,717 @@
+<html><!-- Powered by Question2Answer - http://www.question2answer.org/ --><head>
+		<meta http-equiv="content-type" content="text/html; charset=utf-8">
+		<title>Nitsche method for Stokes flow. - FEniCS Q&amp;A</title>
+		<meta name="description" content="Hello everybody. I am trying to simulate fluid flow around an object using the incompressible Stokes flow equations. I want  ... [0]-5)**2+(x[1]-5)**2">
+		<meta name="keywords" content="stokes,nitsche,dirichlet,boundary-conditions">
+		<link rel="stylesheet" type="text/css" href="../../qa-theme/Snow/qa-styles.css">
+		<link rel="canonical" href="http://fenicsproject.org/qa/13974/nitsche-method-for-stokes-flow">
+		<script type="text/x-mathjax-config">
+  MathJax.Hub.Config({
+    extensions: ["tex2jax.js"],
+    jax: ["input/TeX","output/HTML-CSS"],
+    tex2jax: {inlineMath: [["$","$"],["\\(","\\)"]]},
+    TeX: { extensions: ["AMSmath.js","AMSsymbols.js"]}
+  });
+</script>
+<script type="text/javascript" src="../../mathjax/MathJax.js"></script>
+		<script src="../../jquery-1.7.2.min.js" type="text/javascript"></script>
+		<script src="../../highlight.min.js"></script>
+<script type="text/javascript">
+$(function(){
+	$('.wmd-input').keypress(function(){
+		window.clearTimeout(hljs.Timeout);
+		hljs.Timeout = window.setTimeout(function() {
+			hljs.initHighlighting.called = false;
+			hljs.initHighlighting();
+		}, 500);
+	});
+	window.setTimeout(function() {
+		hljs.initHighlighting.called = false;
+		hljs.initHighlighting();
+	}, 500);
+});
+</script>
+
+
+	</head>
+	<body class="qa-template-question qa-body-js-off">
+		<div class="qa-body-wrapper">
+			
+			<div class="qa-header">
+				<div class="qa-logo">
+					<a href="../../" class="qa-logo-link" title="FEniCS Q&amp;A"><img src="../../qa-theme/fenics_qa.png" border="0" alt="FEniCS Q&amp;A"></a>
+				</div>
+				<div class="qa-header-clear">
+				</div>
+			</div> <!-- END qa-header -->
+			
+			<div class="qa-main-shadow">
+				
+				<div class="qa-main-wrapper">
+					
+					<div class="qa-sidepanel">
+						<div class="qa-sidebar">
+							This is a read only copy of the old FEniCS QA forum. Please visit the <a href="https://www.allanswered.com/community/s/fenics-project/">new QA forum</a> to ask questions
+						</div>
+						
+					</div>
+					
+					<div class="qa-main">
+						<h1>
+							<span class="entry-title">Nitsche method for Stokes flow.</span>
+						</h1>
+						<div class="qa-part-q-view">
+							<div class="qa-q-view  hentry question" id="q13974">
+								<form method="post" action="../../13974/nitsche-method-for-stokes-flow">
+									<div class="qa-q-view-stats">
+										<div class="qa-voting qa-voting-net" id="voting_13974">
+											<div class="qa-vote-count qa-vote-count-net">
+												<span class="qa-netvote-count">
+													<span class="qa-netvote-count-data">+3<span class="votes-up"><span class="value-title" title="3"></span></span><span class="votes-down"><span class="value-title" title="0"></span></span></span><span class="qa-netvote-count-pad"> votes</span>
+												</span>
+											</div>
+											<div class="qa-vote-clear">
+											</div>
+										</div>
+									</div>
+									<input type="hidden" name="code" value="0-1516466501-4f844c4d1cac96dc73ae4ae39edd99e55fba927d">
+								</form>
+								<div class="qa-q-view-main">
+									<form method="post" action="../../13974/nitsche-method-for-stokes-flow">
+										<div class="qa-q-view-content">
+											<a name="13974"></a><div class="entry-content"><p>Hello everybody. I am trying to simulate fluid flow around an object using the incompressible Stokes flow equations. I want to define a free-slip boundary condition around an "obstacle" with a curved surface in the middle of the domain, and to do that I'm trying to use the Nitsche method. Here is a <a rel="nofollow" href="http://math.aalto.fi/~rstenber/Publications/Venice95.pdf">paper</a> describing the Nitsche method (the relevant material is on pages 5-6). And <a rel="nofollow" href="https://github.com/MiroK/fenics-nitsche/blob/master/stokes/stokes_freeslip.py">here</a> somebody actually implemented the Nitsche method in FEniCS, but I am unable to run it with my current version (2016.2). I tried to structure my own program using this person's implementation.</p>
+
+<p>So here's the problem. I am trying to benchmark my program using an <a rel="nofollow" href="http://www-mdp.eng.cam.ac.uk/web/library/enginfo/aerothermal_dvd_only/aero/fprops/poten/node37.html">analytical solution</a>, but my simulation results are nowhere close. In fact, the simulation results seem to better match the case where a no-slip boundary condition is applied around the "obstacle" in the middle of the domain. I am unable to figure out where the discrepancy is coming from. Does anybody have experience with fluid mechanics who can help me out?</p>
+
+<p>I'll post my code below, but here are some relevant details:</p>
+
+<ul>
+<li><p>The domain under consideration is pretty simple. It's just a 10 x 10 square with a circular hole in the center, and the radius of the hole is 1. I want to apply a free-slip boundary condition around this hole so that the velocity normal to the surface is zero.</p></li>
+<li><p>I'm using Taylor-Hood elements, so the problem is defined in a mixed function space with quadratic interpolation for velocity and linear interpolation for pressure.</p></li>
+<li><p>For Dirichlet boundary conditions, I have imposed free slip on the top and bottom edges of the domain. On the left and right edges, I have set the velocity as <code>Constant((1,0))</code>.</p></li>
+</ul>
+
+<p>And here is the full code:</p>
+
+<pre><code># import Python modules
+from __future__ import division
+from fenics import *
+
+# suppress FEniCS output to screen
+set_log_active(False)
+
+# load mesh
+mesh = Mesh()
+hdf5 = HDF5File(mpi_comm_world(),"mesh/cylinder.h5","r")
+hdf5.read(mesh,"mesh",False)
+hdf5.close()
+
+# define function spaces
+P1 = FiniteElement("CG", mesh.ufl_cell(), 1) # first order scalar finite element
+P2 = VectorElement("CG", mesh.ufl_cell(), 2) # second order vector finite element
+V = FunctionSpace(mesh, MixedElement([P2,P1])) # mixed finite element
+
+# classes for domain edge boundaries
+class left_edge(SubDomain):
+    def inside(self, x, on_boundary): return near(x[0],0) and on_boundary
+class right_edge(SubDomain):
+    def inside(self, x, on_boundary): return near(x[0],10) and on_boundary
+class bottom_edge(SubDomain):
+    def inside(self, x, on_boundary): return near(x[1],0) and on_boundary
+class top_edge(SubDomain):
+    def inside(self, x, on_boundary): return near(x[1],10) and on_boundary
+class hole_edge(SubDomain):
+    def inside(self, x, on_boundary): return ((x[0]-5)**2+(x[1]-5)**2 &lt;= 1.1) and on_boundary
+
+left = left_edge()
+right = right_edge()
+bottom = bottom_edge()
+top = top_edge()
+hole = hole_edge()
+
+# mark boundaries as "ds"
+boundaries = FacetFunction("size_t",mesh,0)
+left.mark(boundaries, 1)
+right.mark(boundaries, 2)
+bottom.mark(boundaries, 3)
+top.mark(boundaries, 4)
+hole.mark(boundaries, 5)
+ds = Measure("ds",subdomain_data=boundaries)
+
+# Dirichlet BC's
+free_slip_top = DirichletBC(V.sub(0).sub(1), Constant(0), top)
+free_slip_bottom = DirichletBC(V.sub(0).sub(1), Constant(0), bottom)
+flow_left = DirichletBC(V.sub(0), Constant((1,0)), left)
+flow_right = DirichletBC(V.sub(0), Constant((1,0)), right)
+BC = [free_slip_top, free_slip_bottom, flow_left, flow_right]
+
+# symmetric gradient operator
+def D(x):
+    return sym(nabla_grad(x))
+
+# linear viscosity
+eta = Constant(1)
+
+# stress
+def sig(x,y):
+    return 2*eta*D(x) - y*Identity(2)
+
+# trial and test functions for velocity and pressure
+u, p = TrialFunctions(V) # trial functions in (P2, P1) space
+v, q = TestFunctions(V) # test functions in (P2, P1) space
+
+# loading terms
+f = Constant((0, 0))
+g = Constant(0)
+
+# penalty terms
+h = CellSize(mesh)
+beta = Constant(10)
+
+# variational form
+n = FacetNormal(mesh) # normal vector
+t = dot(sig(u,p),n) # traction
+s = dot(sig(v,q),n) # traction
+
+# stokes flow main terms
+a = (2*eta*inner(D(v),D(u)) - p*div(v) + q*div(u))*dx
+L = inner(f,v)*dx
+
+# nitsche terms
+a += (
+    - inner(dot(t,n),dot(v,n))
+    - inner(dot(s,n),dot(u,n))
+    + beta/h*inner(dot(u,n),dot(v,n))
+    )*ds(5)
+L += -inner(g,inner(s,n))*ds(5)
+
+# solve the variational form
+w = Function(V)
+solve(a==L, w, BC)
+u, p = w.split(deepcopy=True)
+
+# store data
+hdf5 = HDF5File(mpi_comm_world(),"output/data.h5","w")
+hdf5.write(mesh,"mesh")
+hdf5.write(u,"velocity")
+hdf5.write(p,"pressure")
+hdf5.close()
+</code></pre>
+
+<p>Thank you in advance.</p>
+</div>
+										</div>
+										<div class="qa-q-view-tags">
+											<ul class="qa-q-view-tag-list">
+												<li class="qa-q-view-tag-item"><a href="../../tag/stokes" rel="tag" class="qa-tag-link">stokes</a></li>
+												<li class="qa-q-view-tag-item"><a href="../../tag/nitsche" rel="tag" class="qa-tag-link">nitsche</a></li>
+												<li class="qa-q-view-tag-item"><a href="../../tag/dirichlet" rel="tag" class="qa-tag-link">dirichlet</a></li>
+												<li class="qa-q-view-tag-item"><a href="../../tag/boundary-conditions" rel="tag" class="qa-tag-link">boundary-conditions</a></li>
+											</ul>
+										</div>
+										<span class="qa-q-view-avatar-meta">
+											<span class="qa-q-view-meta">
+												<a href="../../13974/nitsche-method-for-stokes-flow" class="qa-q-view-what">asked</a>
+												<span class="qa-q-view-when">
+													<span class="qa-q-view-when-data"><span class="published"><span class="value-title" title="2017-06-15T00:19:33+0000"></span>Jun 15, 2017</span></span>
+												</span>
+												<span class="qa-q-view-who">
+													<span class="qa-q-view-who-pad">by </span>
+													<span class="qa-q-view-who-data"><span class="vcard author"><a href="../../user/jimmy" class="qa-user-link url nickname">jimmy</a></span></span>
+													<span class="qa-q-view-who-title">FEniCS Novice</span>
+													<span class="qa-q-view-who-points">
+														<span class="qa-q-view-who-points-pad">(</span><span class="qa-q-view-who-points-data">730</span><span class="qa-q-view-who-points-pad"> points)</span>
+													</span>
+												</span>
+												<br>
+												<span class="qa-q-view-what">retagged</span>
+												<span class="qa-q-view-when">
+													<span class="qa-q-view-when-data"><span class="updated"><span class="value-title" title="2017-06-15T14:53:06+0000"></span>Jun 15, 2017</span></span>
+												</span>
+												<span class="qa-q-view-who">
+													<span class="qa-q-view-who-pad">by </span><span class="qa-q-view-who-data"><a href="../../user/jimmy" class="qa-user-link url nickname">jimmy</a></span>
+												</span>
+											</span>
+										</span>
+										<div class="qa-q-view-buttons">
+										</div>
+										
+										<div class="qa-q-view-c-list" id="c13974_list">
+											<div class="qa-c-list-item  hentry comment" id="c13976">
+												<div class="qa-c-item-content">
+													<a name="13976"></a><div class="entry-content"><p>Did you check whether the facets are all marked right? If the 1.1 tolerance is too high for your particular mesh you may find a whole layer of element boundaries and mess up your weak constraints. EDIT: sorry, I overlooked that you check for on_boundary. My comment is probably not helpful then. </p>
+</div>
+												</div>
+												<div class="qa-c-item-footer">
+													<span class="qa-c-item-avatar-meta">
+														<span class="qa-c-item-meta">
+															<a href="../../13974/nitsche-method-for-stokes-flow?show=13976#c13976" class="qa-c-item-what">commented</a>
+															<span class="qa-c-item-when">
+																<span class="qa-c-item-when-data"><span class="published"><span class="value-title" title="2017-06-15T07:13:35+0000"></span>Jun 15, 2017</span></span>
+															</span>
+															<span class="qa-c-item-who">
+																<span class="qa-c-item-who-pad">by </span>
+																<span class="qa-c-item-who-data"><span class="vcard author"><a href="../../user/Christian+Waluga" class="qa-user-link url nickname">Christian Waluga</a></span></span>
+																<span class="qa-c-item-who-title">FEniCS Expert</span>
+																<span class="qa-c-item-who-points">
+																	<span class="qa-c-item-who-points-pad">(</span><span class="qa-c-item-who-points-data">12,310</span><span class="qa-c-item-who-points-pad"> points)</span>
+																</span>
+															</span>
+														</span>
+													</span>
+													<div class="qa-c-item-buttons">
+													</div>
+												</div>
+												<div class="qa-c-item-clear">
+												</div>
+											</div> <!-- END qa-c-item -->
+										</div> <!-- END qa-c-list -->
+										
+										<input type="hidden" name="code" value="0-1516466501-a5db836fc466def4f4a888a35969354366f5388e">
+										<input type="hidden" name="qa_click" value="">
+									</form>
+									<div class="qa-c-form">
+									</div> <!-- END qa-c-form -->
+									
+								</div> <!-- END qa-q-view-main -->
+								<div class="qa-q-view-clear">
+								</div>
+							</div> <!-- END qa-q-view -->
+							
+						</div>
+						<div class="qa-part-a-list">
+							<h2 id="a_list_title">2 Answers</h2>
+							<div class="qa-a-list" id="a_list">
+								
+								<div class="qa-a-list-item  hentry answer" id="a13984">
+									<form method="post" action="../../13974/nitsche-method-for-stokes-flow">
+										<div class="qa-voting qa-voting-net" id="voting_13984">
+											<div class="qa-vote-count qa-vote-count-net">
+												<span class="qa-netvote-count">
+													<span class="qa-netvote-count-data">+2<span class="votes-up"><span class="value-title" title="2"></span></span><span class="votes-down"><span class="value-title" title="0"></span></span></span><span class="qa-netvote-count-pad"> votes</span>
+												</span>
+											</div>
+											<div class="qa-vote-clear">
+											</div>
+										</div>
+										<input type="hidden" name="code" value="0-1516466501-4f844c4d1cac96dc73ae4ae39edd99e55fba927d">
+									</form>
+									<div class="qa-a-item-main">
+										<form method="post" action="../../13974/nitsche-method-for-stokes-flow">
+											<div class="qa-a-selection">
+											</div>
+											<div class="qa-a-item-content">
+												<a name="13984"></a><div class="entry-content"><p>First you should note that your system is singular.</p>
+
+<p>Since you are prescribing the normal component of the velocity field on <em>all</em> boundaries of the mesh, then the pressure is defined up to a constant.</p>
+
+<p>Krylov methods may be able to handle this singular system, provided the right hand side is orthogonal to the null space of the operator). <br>
+On the other hand, direct solver (like the one I'm expecting dolfin is using as default) may return the wrong solution.</p>
+
+<p>Possible walkaround are:</p>
+
+<ol>
+<li><p>Prescribe a <em>natural</em> (i.e. <em>do nothing</em>) boundary condition on the outflow boundary.</p></li>
+<li><p>Add a lagrangian multiplier <code>lmbda</code> in <code>FunctionSpace(mesh, 'R', 0)</code> and modify the weak form to impose a zero-mean pressure.</p></li>
+<li><p>(Mathematically hugly, but ok in practice) Define a pointwise boundary condition for the pressure, so that you fix the value of the pressure at an arbitrary degree of freedom.</p></li>
+</ol>
+
+<p>Let me know if this help.</p>
+
+<p>Umbe</p>
+</div>
+											</div>
+											<span class="qa-a-item-avatar-meta">
+												<span class="qa-a-item-meta">
+													<a href="../../13974/nitsche-method-for-stokes-flow?show=13984#a13984" class="qa-a-item-what">answered</a>
+													<span class="qa-a-item-when">
+														<span class="qa-a-item-when-data"><span class="published"><span class="value-title" title="2017-06-15T16:46:14+0000"></span>Jun 15, 2017</span></span>
+													</span>
+													<span class="qa-a-item-who">
+														<span class="qa-a-item-who-pad">by </span>
+														<span class="qa-a-item-who-data"><span class="vcard author"><a href="../../user/umberto" class="qa-user-link url nickname">umberto</a></span></span>
+														<span class="qa-a-item-who-title">FEniCS User</span>
+														<span class="qa-a-item-who-points">
+															<span class="qa-a-item-who-points-pad">(</span><span class="qa-a-item-who-points-data">6,440</span><span class="qa-a-item-who-points-pad"> points)</span>
+														</span>
+													</span>
+												</span>
+											</span>
+											<div class="qa-a-item-buttons">
+												</div>
+											
+											<div class="qa-a-item-c-list" id="c13984_list">
+												<div class="qa-c-list-item  hentry comment" id="c13986">
+													<div class="qa-c-item-content">
+														<a name="13986"></a><div class="entry-content"><p>Thanks for the response Umbe. Unfortunately, workarounds 1 and 3 did not work for me. The velocity solution did not change when I fixed the pressure at a point. I am also not certain how to impose the zero-mean constraint in the variational form. Here is the method I have tried:</p>
+
+<p>Function spaces:</p>
+
+<pre><code>P1 = FiniteElement("CG", mesh.ufl_cell(), 1)
+P2 = VectorElement("CG", mesh.ufl_cell(), 2)
+R0 = FiniteElement("R", mesh.ufl_cell(), 0)
+V = FunctionSpace(mesh, MixedElement([P2,P1,R0]))
+</code></pre>
+
+<p>Trial and test functions:</p>
+
+<pre><code>u, p, rho = TrialFunctions(V) # trial functions in (P2, P1) space
+v, q, lam = TestFunctions(V) # test functions in (P2, P1) space
+</code></pre>
+
+<p>Variational form:</p>
+
+<pre><code># main terms
+a = (2*eta*inner(D(v),D(u)) - p*div(v) + q*div(u))*dx
+L = inner(f,v)*dx
+
+# lagrange terms
+a += (p*lam + rho*q)*dx
+
+# nitsche terms
+a += (
+    - inner(dot(t,n),dot(v,n))
+    - inner(dot(s,n),dot(u,n))
+    + beta/h*inner(dot(u,n),dot(v,n))
+        )*ds(5)
+L += -inner(g,inner(s,n))*ds(5)
+</code></pre>
+
+<p>Is this correct?<br>
+Thanks again for your help. </p>
+</div>
+													</div>
+													<div class="qa-c-item-footer">
+														<span class="qa-c-item-avatar-meta">
+															<span class="qa-c-item-meta">
+																<a href="../../13974/nitsche-method-for-stokes-flow?show=13986#c13986" class="qa-c-item-what">commented</a>
+																<span class="qa-c-item-when">
+																	<span class="qa-c-item-when-data"><span class="published"><span class="value-title" title="2017-06-15T18:00:48+0000"></span>Jun 15, 2017</span></span>
+																</span>
+																<span class="qa-c-item-who">
+																	<span class="qa-c-item-who-pad">by </span>
+																	<span class="qa-c-item-who-data"><span class="vcard author"><a href="../../user/jimmy" class="qa-user-link url nickname">jimmy</a></span></span>
+																	<span class="qa-c-item-who-title">FEniCS Novice</span>
+																	<span class="qa-c-item-who-points">
+																		<span class="qa-c-item-who-points-pad">(</span><span class="qa-c-item-who-points-data">730</span><span class="qa-c-item-who-points-pad"> points)</span>
+																	</span>
+																</span>
+															</span>
+														</span>
+														<div class="qa-c-item-buttons">
+														</div>
+													</div>
+													<div class="qa-c-item-clear">
+													</div>
+												</div> <!-- END qa-c-item -->
+												<div class="qa-c-list-item  hentry comment" id="c14019">
+													<div class="qa-c-item-content">
+														<a name="14019"></a><div class="entry-content"><p>Jimmy, "workaround" 1 should definitely work. Just set a zero Neumann BC for<br>
+the traction  (<code>dot(n, sigma) = 0</code>) at, for instance, the right boundary. To<br>
+do this, simply delete the Dirichlet BC defined on that boundary. This BC fixes the<br>
+pressure (integral of the pressure over that boundary is zero)  and gives you a physically meaningful solution.<br>
+I just ran your code and the velocity field looks rather good? (It won't change that much when you<br>
+use the Neumann BC). There is definitely "slip" along the cylinder.</p>
+</div>
+													</div>
+													<div class="qa-c-item-footer">
+														<span class="qa-c-item-avatar-meta">
+															<span class="qa-c-item-meta">
+																<a href="../../13974/nitsche-method-for-stokes-flow?show=14019#c14019" class="qa-c-item-what">commented</a>
+																<span class="qa-c-item-when">
+																	<span class="qa-c-item-when-data"><span class="published"><span class="value-title" title="2017-06-16T23:47:20+0000"></span>Jun 17, 2017</span></span>
+																</span>
+																<span class="qa-c-item-who">
+																	<span class="qa-c-item-who-pad">by </span>
+																	<span class="qa-c-item-who-data"><span class="vcard author"><a href="../../user/dajuno" class="qa-user-link url nickname">dajuno</a></span></span>
+																	<span class="qa-c-item-who-title">FEniCS User</span>
+																	<span class="qa-c-item-who-points">
+																		<span class="qa-c-item-who-points-pad">(</span><span class="qa-c-item-who-points-data">4,140</span><span class="qa-c-item-who-points-pad"> points)</span>
+																	</span>
+																</span>
+															</span>
+														</span>
+														<div class="qa-c-item-buttons">
+														</div>
+													</div>
+													<div class="qa-c-item-clear">
+													</div>
+												</div> <!-- END qa-c-item -->
+												<div class="qa-c-list-item  hentry comment" id="c14035">
+													<div class="qa-c-item-content">
+														<a name="14035"></a><div class="entry-content"><p>I did get a velocity solution when using workaround 1, however it does not seem to match the analytical solution that I posted for free-slip around the cylinder. I do not think that the free-slip boundary condition is being correctly applied to the cylinder in the middle of the domain, and that is the reason I said the workaround did not work.</p>
+</div>
+													</div>
+													<div class="qa-c-item-footer">
+														<span class="qa-c-item-avatar-meta">
+															<span class="qa-c-item-meta">
+																<a href="../../13974/nitsche-method-for-stokes-flow?show=14035#c14035" class="qa-c-item-what">commented</a>
+																<span class="qa-c-item-when">
+																	<span class="qa-c-item-when-data"><span class="published"><span class="value-title" title="2017-06-18T19:52:07+0000"></span>Jun 18, 2017</span></span>
+																</span>
+																<span class="qa-c-item-who">
+																	<span class="qa-c-item-who-pad">by </span>
+																	<span class="qa-c-item-who-data"><span class="vcard author"><a href="../../user/jimmy" class="qa-user-link url nickname">jimmy</a></span></span>
+																	<span class="qa-c-item-who-title">FEniCS Novice</span>
+																	<span class="qa-c-item-who-points">
+																		<span class="qa-c-item-who-points-pad">(</span><span class="qa-c-item-who-points-data">730</span><span class="qa-c-item-who-points-pad"> points)</span>
+																	</span>
+																</span>
+															</span>
+														</span>
+														<div class="qa-c-item-buttons">
+														</div>
+													</div>
+													<div class="qa-c-item-clear">
+													</div>
+												</div> <!-- END qa-c-item -->
+											</div> <!-- END qa-c-list -->
+											
+											<input type="hidden" name="code" value="0-1516466501-ff320a90dc8f93505683282af17ccfdb2a49b0cc">
+											<input type="hidden" name="qa_click" value="">
+										</form>
+										<div class="qa-c-form">
+										</div> <!-- END qa-c-form -->
+										
+									</div> <!-- END qa-a-item-main -->
+									<div class="qa-a-item-clear">
+									</div>
+								</div> <!-- END qa-a-list-item -->
+								
+								<div class="qa-a-list-item  hentry answer" id="a13987">
+									<form method="post" action="../../13974/nitsche-method-for-stokes-flow">
+										<div class="qa-voting qa-voting-net" id="voting_13987">
+											<div class="qa-vote-count qa-vote-count-net">
+												<span class="qa-netvote-count">
+													<span class="qa-netvote-count-data">0<span class="votes-up"><span class="value-title" title="0"></span></span><span class="votes-down"><span class="value-title" title="0"></span></span></span><span class="qa-netvote-count-pad"> votes</span>
+												</span>
+											</div>
+											<div class="qa-vote-clear">
+											</div>
+										</div>
+										<input type="hidden" name="code" value="0-1516466501-4f844c4d1cac96dc73ae4ae39edd99e55fba927d">
+									</form>
+									<div class="qa-a-item-main">
+										<form method="post" action="../../13974/nitsche-method-for-stokes-flow">
+											<div class="qa-a-selection">
+											</div>
+											<div class="qa-a-item-content">
+												<a name="13987"></a><div class="entry-content"><p>The solution given in your link is for potential flow (incompressible, inviscid and irrotational flow)which can approximate a very high Reynolds number (Re) flow but can't take into account skin friction and flow separation. The Stokes flow approximation is for very low Re number flows.</p>
+
+<p>What I would suggest to solve in fenics is the potential flow equation (section 3.6.2):</p>
+
+<p><a rel="nofollow" href="http://web.mit.edu/2.20/www/lectures/2016/Lecture_9_2016.pdf">http://web.mit.edu/2.20/www/lectures/2016/Lecture_9_2016.pdf</a></p>
+
+<p>This equation has the same analytic solutions that are shown in your link</p>
+
+<p>What you have to do is solve a Poisson equation:</p>
+
+<p><a rel="nofollow" href="https://fenicsproject.org/olddocs/dolfin/1.5.0/python/demo/documented/poisson/python/documentation.html">https://fenicsproject.org/olddocs/dolfin/1.5.0/python/demo/documented/poisson/python/documentation.html</a></p>
+
+<p>And take the gradient of the solution to get the velocity field (pg 5):</p>
+
+<p><a rel="nofollow" href="http://people.cs.uchicago.edu/~ridg/FEniCScourses/chiphoecrse.pdf">http://people.cs.uchicago.edu/~ridg/FEniCScourses/chiphoecrse.pdf</a></p>
+</div>
+											</div>
+											<span class="qa-a-item-avatar-meta">
+												<span class="qa-a-item-meta">
+													<a href="../../13974/nitsche-method-for-stokes-flow?show=13987#a13987" class="qa-a-item-what">answered</a>
+													<span class="qa-a-item-when">
+														<span class="qa-a-item-when-data"><span class="published"><span class="value-title" title="2017-06-15T18:08:48+0000"></span>Jun 15, 2017</span></span>
+													</span>
+													<span class="qa-a-item-who">
+														<span class="qa-a-item-who-pad">by </span>
+														<span class="qa-a-item-who-data"><span class="vcard author"><a href="../../user/alexmm" class="qa-user-link url nickname">alexmm</a></span></span>
+														<span class="qa-a-item-who-title">FEniCS User</span>
+														<span class="qa-a-item-who-points">
+															<span class="qa-a-item-who-points-pad">(</span><span class="qa-a-item-who-points-data">4,240</span><span class="qa-a-item-who-points-pad"> points)</span>
+														</span>
+													</span>
+													<br>
+													<span class="qa-a-item-what">edited</span>
+													<span class="qa-a-item-when">
+														<span class="qa-a-item-when-data"><span class="updated"><span class="value-title" title="2017-06-15T18:56:43+0000"></span>Jun 15, 2017</span></span>
+													</span>
+													<span class="qa-a-item-who">
+														<span class="qa-a-item-who-pad">by </span><span class="qa-a-item-who-data"><a href="../../user/alexmm" class="qa-user-link url nickname">alexmm</a></span>
+													</span>
+												</span>
+											</span>
+											<div class="qa-a-item-buttons">
+												</div>
+											
+											<div class="qa-a-item-c-list" id="c13987_list">
+												<div class="qa-c-list-item  hentry comment" id="c13988">
+													<div class="qa-c-item-content">
+														<a name="13988"></a><div class="entry-content"><p>Thanks for the response alexmm. Ultimately I need to solve fluid flow problems using the Stokes equations. Eventually I plan on solving more complicated problems than the one that I posted (i.e., with different domain geometries and a nonlinear fluid viscosity), and that problem I posted was more or less a benchmark. The main goal right now is to implement the Nitsche method properly. Maybe I need to find a better benchmark problem...</p>
+</div>
+													</div>
+													<div class="qa-c-item-footer">
+														<span class="qa-c-item-avatar-meta">
+															<span class="qa-c-item-meta">
+																<a href="../../13974/nitsche-method-for-stokes-flow?show=13988#c13988" class="qa-c-item-what">commented</a>
+																<span class="qa-c-item-when">
+																	<span class="qa-c-item-when-data"><span class="published"><span class="value-title" title="2017-06-15T19:04:18+0000"></span>Jun 15, 2017</span></span>
+																</span>
+																<span class="qa-c-item-who">
+																	<span class="qa-c-item-who-pad">by </span>
+																	<span class="qa-c-item-who-data"><span class="vcard author"><a href="../../user/jimmy" class="qa-user-link url nickname">jimmy</a></span></span>
+																	<span class="qa-c-item-who-title">FEniCS Novice</span>
+																	<span class="qa-c-item-who-points">
+																		<span class="qa-c-item-who-points-pad">(</span><span class="qa-c-item-who-points-data">730</span><span class="qa-c-item-who-points-pad"> points)</span>
+																	</span>
+																</span>
+															</span>
+														</span>
+														<div class="qa-c-item-buttons">
+														</div>
+													</div>
+													<div class="qa-c-item-clear">
+													</div>
+												</div> <!-- END qa-c-item -->
+												<div class="qa-c-list-item  hentry comment" id="c13989">
+													<div class="qa-c-item-content">
+														<a name="13989"></a><div class="entry-content"><p>In that case you can benchmark using the Stokes solution for flow around a cylinder:</p>
+
+<p><a rel="nofollow" href="http://www.lmm.jussieu.fr/~lagree/COURS/M2MHP/petitRe.pdf">http://www.lmm.jussieu.fr/~lagree/COURS/M2MHP/petitRe.pdf</a></p>
+
+<p>You can get a quantitative measure of the accuracy of your solution by computing the drag on the cylinder and checking that against the analytic solution for the drag</p>
+</div>
+													</div>
+													<div class="qa-c-item-footer">
+														<span class="qa-c-item-avatar-meta">
+															<span class="qa-c-item-meta">
+																<a href="../../13974/nitsche-method-for-stokes-flow?show=13989#c13989" class="qa-c-item-what">commented</a>
+																<span class="qa-c-item-when">
+																	<span class="qa-c-item-when-data"><span class="published"><span class="value-title" title="2017-06-15T19:20:40+0000"></span>Jun 15, 2017</span></span>
+																</span>
+																<span class="qa-c-item-who">
+																	<span class="qa-c-item-who-pad">by </span>
+																	<span class="qa-c-item-who-data"><span class="vcard author"><a href="../../user/alexmm" class="qa-user-link url nickname">alexmm</a></span></span>
+																	<span class="qa-c-item-who-title">FEniCS User</span>
+																	<span class="qa-c-item-who-points">
+																		<span class="qa-c-item-who-points-pad">(</span><span class="qa-c-item-who-points-data">4,240</span><span class="qa-c-item-who-points-pad"> points)</span>
+																	</span>
+																</span>
+															</span>
+														</span>
+														<div class="qa-c-item-buttons">
+														</div>
+													</div>
+													<div class="qa-c-item-clear">
+													</div>
+												</div> <!-- END qa-c-item -->
+												<div class="qa-c-list-item  hentry comment" id="c13990">
+													<div class="qa-c-item-content">
+														<a name="13990"></a><div class="entry-content"><p>It seems this paper covers the solution for the no-slip boundary condition, however I am trying to model free-slip. Along the boundary of the circular obstacle, I want to enforce $\boldsymbol{u} \cdot \boldsymbol{\hat{n}}=0$ rather than $\boldsymbol{u} = \boldsymbol{0}$.</p>
+</div>
+													</div>
+													<div class="qa-c-item-footer">
+														<span class="qa-c-item-avatar-meta">
+															<span class="qa-c-item-meta">
+																<a href="../../13974/nitsche-method-for-stokes-flow?show=13990#c13990" class="qa-c-item-what">commented</a>
+																<span class="qa-c-item-when">
+																	<span class="qa-c-item-when-data"><span class="published"><span class="value-title" title="2017-06-15T21:42:26+0000"></span>Jun 15, 2017</span></span>
+																</span>
+																<span class="qa-c-item-who">
+																	<span class="qa-c-item-who-pad">by </span>
+																	<span class="qa-c-item-who-data"><span class="vcard author"><a href="../../user/jimmy" class="qa-user-link url nickname">jimmy</a></span></span>
+																	<span class="qa-c-item-who-title">FEniCS Novice</span>
+																	<span class="qa-c-item-who-points">
+																		<span class="qa-c-item-who-points-pad">(</span><span class="qa-c-item-who-points-data">730</span><span class="qa-c-item-who-points-pad"> points)</span>
+																	</span>
+																</span>
+															</span>
+														</span>
+														<div class="qa-c-item-buttons">
+														</div>
+													</div>
+													<div class="qa-c-item-clear">
+													</div>
+												</div> <!-- END qa-c-item -->
+												<div class="qa-c-list-item  hentry comment" id="c13991">
+													<div class="qa-c-item-content">
+														<a name="13991"></a><div class="entry-content"><p>May I ask what the application is? Usually Stokes problems use a no-slip boundary condition</p>
+</div>
+													</div>
+													<div class="qa-c-item-footer">
+														<span class="qa-c-item-avatar-meta">
+															<span class="qa-c-item-meta">
+																<a href="../../13974/nitsche-method-for-stokes-flow?show=13991#c13991" class="qa-c-item-what">commented</a>
+																<span class="qa-c-item-when">
+																	<span class="qa-c-item-when-data"><span class="published"><span class="value-title" title="2017-06-15T22:00:24+0000"></span>Jun 16, 2017</span></span>
+																</span>
+																<span class="qa-c-item-who">
+																	<span class="qa-c-item-who-pad">by </span>
+																	<span class="qa-c-item-who-data"><span class="vcard author"><a href="../../user/alexmm" class="qa-user-link url nickname">alexmm</a></span></span>
+																	<span class="qa-c-item-who-title">FEniCS User</span>
+																	<span class="qa-c-item-who-points">
+																		<span class="qa-c-item-who-points-pad">(</span><span class="qa-c-item-who-points-data">4,240</span><span class="qa-c-item-who-points-pad"> points)</span>
+																	</span>
+																</span>
+															</span>
+														</span>
+														<div class="qa-c-item-buttons">
+														</div>
+													</div>
+													<div class="qa-c-item-clear">
+													</div>
+												</div> <!-- END qa-c-item -->
+												<div class="qa-c-list-item  hentry comment" id="c13992">
+													<div class="qa-c-item-content">
+														<a name="13992"></a><div class="entry-content"><p>The application is glacier dynamics - I'm using the Stokes equations to model the creeping flow of glaciers. Up till now, I've been modeling glacier flow over a flat, frictionless ground line. So basically, the bottom of the domain is treated as a free-slip surface (similar to the "rollers" boundary condition in an elasticity problem). But in the near future I want to model free slip over arbitrarily shaped (e.g., curved or slanted) ground lines.</p>
+</div>
+													</div>
+													<div class="qa-c-item-footer">
+														<span class="qa-c-item-avatar-meta">
+															<span class="qa-c-item-meta">
+																<a href="../../13974/nitsche-method-for-stokes-flow?show=13992#c13992" class="qa-c-item-what">commented</a>
+																<span class="qa-c-item-when">
+																	<span class="qa-c-item-when-data"><span class="published"><span class="value-title" title="2017-06-15T22:30:18+0000"></span>Jun 16, 2017</span></span>
+																</span>
+																<span class="qa-c-item-who">
+																	<span class="qa-c-item-who-pad">by </span>
+																	<span class="qa-c-item-who-data"><span class="vcard author"><a href="../../user/jimmy" class="qa-user-link url nickname">jimmy</a></span></span>
+																	<span class="qa-c-item-who-title">FEniCS Novice</span>
+																	<span class="qa-c-item-who-points">
+																		<span class="qa-c-item-who-points-pad">(</span><span class="qa-c-item-who-points-data">730</span><span class="qa-c-item-who-points-pad"> points)</span>
+																	</span>
+																</span>
+															</span>
+														</span>
+														<div class="qa-c-item-buttons">
+														</div>
+													</div>
+													<div class="qa-c-item-clear">
+													</div>
+												</div> <!-- END qa-c-item -->
+											</div> <!-- END qa-c-list -->
+											
+											<input type="hidden" name="code" value="0-1516466501-da05dfd23f23342364f06e5b8888341dffc0d977">
+											<input type="hidden" name="qa_click" value="">
+										</form>
+										<div class="qa-c-form">
+										</div> <!-- END qa-c-form -->
+										
+									</div> <!-- END qa-a-item-main -->
+									<div class="qa-a-item-clear">
+									</div>
+								</div> <!-- END qa-a-list-item -->
+								
+							</div> <!-- END qa-a-list -->
+							
+						</div>
+					</div> <!-- END qa-main -->
+					
+				</div> <!-- END main-wrapper -->
+			</div> <!-- END main-shadow -->
+		</div> <!-- END body-wrapper -->
+		<!-- END footer-bottom-group -->
+		
+		<div style="position:absolute; left:-9999px; top:-9999px;">
+			<span id="qa-waiting-template" class="qa-waiting">...</span>
+		</div>
+	
+	
+
+</body><!-- Powered by Question2Answer - http://www.question2answer.org/ --></html>

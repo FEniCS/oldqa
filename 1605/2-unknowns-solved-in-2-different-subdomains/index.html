@@ -1,0 +1,665 @@
+<html><!-- Powered by Question2Answer - http://www.question2answer.org/ --><head>
+		<meta http-equiv="content-type" content="text/html; charset=utf-8">
+		<title>2 unknowns solved in 2 different subdomains - FEniCS Q&amp;A</title>
+		<meta name="description" content="Hi everyone, I have a problem with 2 unknowns (C_0 and C_1) and a domain from x = 0 to  ...  twice for the cell level or something like that. Thanks!">
+		<meta name="keywords" content="coupled-equations,solve-on-subdomain">
+		<link rel="stylesheet" type="text/css" href="../../qa-theme/Snow/qa-styles.css">
+		<link rel="canonical" href="http://fenicsproject.org/qa/1605/2-unknowns-solved-in-2-different-subdomains">
+		<script type="text/x-mathjax-config">
+  MathJax.Hub.Config({
+    extensions: ["tex2jax.js"],
+    jax: ["input/TeX","output/HTML-CSS"],
+    tex2jax: {inlineMath: [["$","$"],["\\(","\\)"]]},
+    TeX: { extensions: ["AMSmath.js","AMSsymbols.js"]}
+  });
+</script>
+<script type="text/javascript" src="../../mathjax/MathJax.js"></script>
+		<script src="../../jquery-1.7.2.min.js" type="text/javascript"></script>
+		<script src="../../highlight.min.js"></script>
+<script type="text/javascript">
+$(function(){
+	$('.wmd-input').keypress(function(){
+		window.clearTimeout(hljs.Timeout);
+		hljs.Timeout = window.setTimeout(function() {
+			hljs.initHighlighting.called = false;
+			hljs.initHighlighting();
+		}, 500);
+	});
+	window.setTimeout(function() {
+		hljs.initHighlighting.called = false;
+		hljs.initHighlighting();
+	}, 500);
+});
+</script>
+
+
+	</head>
+	<body class="qa-template-question qa-body-js-off">
+		<div class="qa-body-wrapper">
+			
+			<div class="qa-header">
+				<div class="qa-logo">
+					<a href="../../" class="qa-logo-link" title="FEniCS Q&amp;A"><img src="../../qa-theme/fenics_qa.png" border="0" alt="FEniCS Q&amp;A"></a>
+				</div>
+				<div class="qa-header-clear">
+				</div>
+			</div> <!-- END qa-header -->
+			
+			<div class="qa-main-shadow">
+				
+				<div class="qa-main-wrapper">
+					
+					<div class="qa-sidepanel">
+						<div class="qa-sidebar">
+							This is a read only copy of the old FEniCS QA forum. Please visit the <a href="https://www.allanswered.com/community/s/fenics-project/">new QA forum</a> to ask questions
+						</div>
+						
+					</div>
+					
+					<div class="qa-main">
+						<h1>
+							<span class="entry-title">2 unknowns solved in 2 different subdomains</span>
+						</h1>
+						<div class="qa-part-q-view">
+							<div class="qa-q-view  hentry question" id="q1605">
+								<form method="post" action="../../1605/2-unknowns-solved-in-2-different-subdomains">
+									<div class="qa-q-view-stats">
+										<div class="qa-voting qa-voting-net" id="voting_1605">
+											<div class="qa-vote-count qa-vote-count-net">
+												<span class="qa-netvote-count">
+													<span class="qa-netvote-count-data">+1<span class="votes-up"><span class="value-title" title="1"></span></span><span class="votes-down"><span class="value-title" title="0"></span></span></span><span class="qa-netvote-count-pad"> vote</span>
+												</span>
+											</div>
+											<div class="qa-vote-clear">
+											</div>
+										</div>
+									</div>
+									<input type="hidden" name="code" value="0-1516467893-a8dad422ac1879bc860c2b86474f136c91222925">
+								</form>
+								<div class="qa-q-view-main">
+									<form method="post" action="../../1605/2-unknowns-solved-in-2-different-subdomains">
+										<div class="qa-q-view-content">
+											<a name="1605"></a><div class="entry-content"><p>Hi everyone,<br>
+I have a problem with 2 unknowns (C_0 and C_1) and a domain from x = 0 to 200. I want to split the domain into two subdomains and solve <em>only</em> one of the variables on each:<br>
+C_0 on omega0 -&gt; x=0 to 100<br>
+C_1 on omega1 -&gt; x = 100 to 200 <br>
+Ideally, I don't even want C_0 defined on omega1, nor C_1 on omega0. </p>
+
+<p>I read through <a rel="nofollow" href="http://fenicsproject.org/documentation/tutorial/materials.html">http://fenicsproject.org/documentation/tutorial/materials.html</a><br>
+and <br>
+<a rel="nofollow" href="http://fenicsproject.org/qa/544/solving-pde-on-submesh">http://fenicsproject.org/qa/544/solving-pde-on-submesh</a></p>
+
+<p>and came up with the following code:</p>
+
+<pre><code>from dolfin import *
+
+code = '''
+class MyFunc : public Expression
+{
+public:
+
+  MyFunc() : Expression()
+  {}
+
+double C_0_0, C_1_0;
+void eval(Array&lt;double&gt;&amp; values, const Array&lt;double&gt;&amp; x) const
+  {
+    values[0] = C_0_0;
+    values[1] = C_1_0;
+  }
+std::size_t value_rank() const
+    { return 1;    }
+std::size_t value_dimension(std::size_t i) const
+    { return 2; }  
+
+};'''
+
+
+set_log_level(PROGRESS)
+
+mesh = IntervalMesh(40, 0.0, 200)
+
+class Omega0(SubDomain):
+    def inside(self, x, on_boundary):
+        return True if x[0] &lt;= 100 else False
+
+class Omega1(SubDomain):
+    def inside(self, x, on_boundary):
+        return True if x[0] &gt;= 100 else False
+
+# Mark subdomains with numbers 0 and 1
+subdomain0 = Omega0()
+subdomain1 = Omega1()
+
+subdomains = CellFunction('size_t', mesh)
+
+subdomain0.mark(subdomains, 1)
+subdomain1.mark(subdomains, 2) 
+
+V1 = FunctionSpace(mesh, "Lagrange",1)
+V = MixedFunctionSpace([V1, V1])
+
+dU = TrialFunction(V)
+
+test_C_0, test_C_1 = TestFunctions(V)
+U = Function(V)
+fcns = split(U)
+C_0 = fcns[0]
+C_1 = fcns[1]
+
+
+
+##~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ Domain marking ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~##
+left, right, interface= compile_subdomains([
+    "(std::abs( x[0])                    &lt; DOLFIN_EPS) &amp;&amp; on_boundary",
+    "(std::abs( x[0] - width )           &lt; DOLFIN_EPS) &amp;&amp; on_boundary",
+    "(std::abs( x[0] - location ) &lt; DOLFIN_EPS)"])
+right.width = 200
+interface.location = 100
+
+dx = Measure('dx')[subdomains]
+
+bcs = [
+
+    DirichletBC(V.sub(0), .5, left),
+    DirichletBC(V.sub(1), .3, left),
+
+    DirichletBC(V.sub(0), .4, interface),
+    DirichletBC(V.sub(1), .4, interface),
+
+    DirichletBC(V.sub(0), .2, right),
+    DirichletBC(V.sub(1), .4, right),
+
+    ]
+
+F_C_0 = inner(grad(C_0), grad(test_C_0) )*( dx(1))
+F_C_1 = inner(grad(C_1), grad(test_C_1) )*( dx(2) )
+
+F = F_C_0 + F_C_1
+
+
+# ~~~~~~~~~~~~~~~~ Solver ~~~~~~~~~~~~~~~~~~~ #
+
+
+f = Expression(code,
+    C_0_0 = .5, C_1_0 = .3)
+U.interpolate(f)
+
+Jac = derivative(F, U, dU)
+problem = NonlinearVariationalProblem(F,U, bcs, Jac)
+solver = NonlinearVariationalSolver(problem)
+
+solver.solve()
+
+plot(U.split()[0])
+plot(U.split()[1])
+interactive()
+</code></pre>
+
+<p>It seems to work (in that the plots show separate ranges for C_0 and C_1), but I think, judging from the PETSc output, that both variables are being defined on the whole mesh and they are just set to zero or something on the other subdomain. </p>
+
+<p>Is there a better way to do this? I tried a subMesh model based on the second hyperlink above but got an error about some data structure being defined twice for the cell level or something like that.<br>
+Thanks!</p>
+</div>
+										</div>
+										<div class="qa-q-view-tags">
+											<ul class="qa-q-view-tag-list">
+												<li class="qa-q-view-tag-item"><a href="../../tag/coupled-equations" rel="tag" class="qa-tag-link">coupled-equations</a></li>
+												<li class="qa-q-view-tag-item"><a href="../../tag/solve-on-subdomain" rel="tag" class="qa-tag-link">solve-on-subdomain</a></li>
+											</ul>
+										</div>
+										<span class="qa-q-view-avatar-meta">
+											<span class="qa-q-view-avatar">
+												<a href="../../user/mwelland" class="qa-avatar-link"><img src="https://www.gravatar.com/avatar/af936799ea3fe5bd1cb6abb922ebbe83?s=50" width="50" height="50" class="qa-avatar-image" alt=""></a>
+											</span>
+											<span class="qa-q-view-meta">
+												<a href="../../1605/2-unknowns-solved-in-2-different-subdomains" class="qa-q-view-what">asked</a>
+												<span class="qa-q-view-when">
+													<span class="qa-q-view-when-data"><span class="published"><span class="value-title" title="2013-11-06T20:45:03+0000"></span>Nov 6, 2013</span></span>
+												</span>
+												<span class="qa-q-view-who">
+													<span class="qa-q-view-who-pad">by </span>
+													<span class="qa-q-view-who-data"><span class="vcard author"><a href="../../user/mwelland" class="qa-user-link url nickname">mwelland</a></span></span>
+													<span class="qa-q-view-who-title">FEniCS User</span>
+													<span class="qa-q-view-who-points">
+														<span class="qa-q-view-who-points-pad">(</span><span class="qa-q-view-who-points-data">8,410</span><span class="qa-q-view-who-points-pad"> points)</span>
+													</span>
+												</span>
+											</span>
+										</span>
+										<div class="qa-q-view-buttons">
+										</div>
+										
+										<div class="qa-q-view-c-list" id="c1605_list">
+											<div class="qa-c-list-item  hentry comment" id="c1606">
+												<div class="qa-c-item-content">
+													<a name="1606"></a><div class="entry-content"><p>Here is my code with the submesh concept in case it is useful:</p>
+
+<pre><code> from dolfin import *
+
+
+code = '''
+class MyFunc : public Expression
+{
+public:
+
+  MyFunc() : Expression()
+  {}
+
+double C_0_0, C_1_0;
+void eval(Array&lt;double&gt;&amp; values, const Array&lt;double&gt;&amp; x) const
+  {
+    values[0] = C_0_0;
+    values[1] = C_1_0;
+  }
+std::size_t value_rank() const
+    { return 1;    }
+std::size_t value_dimension(std::size_t i) const
+    { return 2; }  
+
+};'''
+
+
+mesh = IntervalMesh(40, 0.0, 200)
+
+class Omega0(SubDomain):
+    def inside(self, x, on_boundary):
+        return True if x[0] &lt;= 100 else False
+
+class Omega1(SubDomain):
+    def inside(self, x, on_boundary):
+        return True if x[0] &gt;= 100 else False
+
+subdomain0 = Omega0()
+subdomain1 = Omega1()
+
+subdomains = CellFunction('size_t', mesh)
+
+subdomain0.mark(subdomains, 0)
+subdomain1.mark(subdomains, 1) 
+
+submesh_0 = SubMesh(mesh, subdomains, 0)
+submesh_0_domain = CellFunction('size_t', submesh_0)
+submesh_0_domain.set_all(0)
+dx_submesh_0 = Measure('dx')[submesh_0_domain]
+
+V1_submesh = FunctionSpace(submesh_0, "Lagrange", 1)
+V1 = FunctionSpace(mesh, "Lagrange",1)
+V = MixedFunctionSpace([V1_submesh, V1])
+
+dU = TrialFunction(V)
+
+test_C_0, test_C_1 = TestFunctions(V)
+U = Function(V)
+fcns = split(U)
+C_0 = fcns[0]
+C_1 = fcns[1]
+
+
+
+##~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ Domain marking ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~##
+left, right, interface= compile_subdomains([
+    "(std::abs( x[0])                    &lt; DOLFIN_EPS) &amp;&amp; on_boundary",
+    "(std::abs( x[0] - width )           &lt; DOLFIN_EPS) &amp;&amp; on_boundary",
+    "(std::abs( x[0] - location ) &lt; DOLFIN_EPS)"])
+right.width = 200
+interface.location = 100
+
+dx = Measure('dx')[subdomains]
+
+
+bcs = [
+
+    DirichletBC(V.sub(0), .5, left),
+    DirichletBC(V.sub(1), .3, left),
+
+    DirichletBC(V.sub(0), .4, interface),
+
+    DirichletBC(V.sub(0), .2, right),
+    #DirichletBC(V.sub(1), .4, right),
+
+    ]
+
+F_C_0 = inner(grad(C_0), grad(test_C_0) )*( dx_submesh_0(0) )
+F_C_1 = inner(grad(C_1), grad(test_C_1) )*( dx(2) )
+
+F = F_C_0 + F_C_1
+
+
+# ~~~~~~~~~~~~~~~~ Solver ~~~~~~~~~~~~~~~~~~~ #
+
+
+f = Expression(code,
+    C_0_0 = .5, C_1_0 = .3)
+U.interpolate(f)
+
+Jac = derivative(F, U, dU)
+problem = NonlinearVariationalProblem(F,U, bcs, Jac)
+solver = NonlinearVariationalSolver(problem)
+
+solver.solve()
+
+plot(U.split()[0])
+plot(U.split()[1])
+interactive()
+</code></pre>
+
+<p>Which dies with the message: 'ufl.log.UFLException: Found two domain data objects for same domain type 'cell', only one is allowed.'</p>
+</div>
+												</div>
+												<div class="qa-c-item-footer">
+													<span class="qa-c-item-avatar-meta">
+														<span class="qa-c-item-avatar">
+															<a href="../../user/mwelland" class="qa-avatar-link"><img src="https://www.gravatar.com/avatar/af936799ea3fe5bd1cb6abb922ebbe83?s=20" width="20" height="20" class="qa-avatar-image" alt=""></a>
+														</span>
+														<span class="qa-c-item-meta">
+															<a href="../../1605/2-unknowns-solved-in-2-different-subdomains?show=1606#c1606" class="qa-c-item-what">commented</a>
+															<span class="qa-c-item-when">
+																<span class="qa-c-item-when-data"><span class="published"><span class="value-title" title="2013-11-06T21:16:53+0000"></span>Nov 6, 2013</span></span>
+															</span>
+															<span class="qa-c-item-who">
+																<span class="qa-c-item-who-pad">by </span>
+																<span class="qa-c-item-who-data"><span class="vcard author"><a href="../../user/mwelland" class="qa-user-link url nickname">mwelland</a></span></span>
+																<span class="qa-c-item-who-title">FEniCS User</span>
+																<span class="qa-c-item-who-points">
+																	<span class="qa-c-item-who-points-pad">(</span><span class="qa-c-item-who-points-data">8,410</span><span class="qa-c-item-who-points-pad"> points)</span>
+																</span>
+															</span>
+															<br>
+															<span class="qa-c-item-what">edited</span>
+															<span class="qa-c-item-when">
+																<span class="qa-c-item-when-data"><span class="updated"><span class="value-title" title="2013-11-06T21:22:25+0000"></span>Nov 6, 2013</span></span>
+															</span>
+															<span class="qa-c-item-who">
+																<span class="qa-c-item-who-pad">by </span><span class="qa-c-item-who-data"><a href="../../user/mwelland" class="qa-user-link url nickname">mwelland</a></span>
+															</span>
+														</span>
+													</span>
+													<div class="qa-c-item-buttons">
+													</div>
+												</div>
+												<div class="qa-c-item-clear">
+												</div>
+											</div> <!-- END qa-c-item -->
+											<div class="qa-c-list-item  hentry comment" id="c1614">
+												<div class="qa-c-item-content">
+													<a name="1614"></a><div class="entry-content"><p>Update:</p>
+
+<p>I found this link too:<br>
+<a rel="nofollow" href="https://answers.launchpad.net/fenics/+question/188087">https://answers.launchpad.net/fenics/+question/188087</a></p>
+
+<p>Somebody please correct me if I'm wrong, but my current impression is that there isn't a neat way to use completely separated domains (not yet anyway), and so the problem comes down to what to do with the variables on the domains for which they are not defined. (C_0 on omega1 for example). From playing around, it looks like some issues associated with, viz empty lines in the system matrix as described in the link above, have already been addressed.   </p>
+
+<p>My actual problem is non-linear and contains a logarithm of C_0 and C_1 in the flux term. I found these terms were causing problem which were alleviated by using the snes solver instead of the NonlinearVariationalSolver, which I guess includes some techniques by default to avoid error of this sort. </p>
+</div>
+												</div>
+												<div class="qa-c-item-footer">
+													<span class="qa-c-item-avatar-meta">
+														<span class="qa-c-item-avatar">
+															<a href="../../user/mwelland" class="qa-avatar-link"><img src="https://www.gravatar.com/avatar/af936799ea3fe5bd1cb6abb922ebbe83?s=20" width="20" height="20" class="qa-avatar-image" alt=""></a>
+														</span>
+														<span class="qa-c-item-meta">
+															<a href="../../1605/2-unknowns-solved-in-2-different-subdomains?show=1614#c1614" class="qa-c-item-what">commented</a>
+															<span class="qa-c-item-when">
+																<span class="qa-c-item-when-data"><span class="published"><span class="value-title" title="2013-11-07T16:16:42+0000"></span>Nov 7, 2013</span></span>
+															</span>
+															<span class="qa-c-item-who">
+																<span class="qa-c-item-who-pad">by </span>
+																<span class="qa-c-item-who-data"><span class="vcard author"><a href="../../user/mwelland" class="qa-user-link url nickname">mwelland</a></span></span>
+																<span class="qa-c-item-who-title">FEniCS User</span>
+																<span class="qa-c-item-who-points">
+																	<span class="qa-c-item-who-points-pad">(</span><span class="qa-c-item-who-points-data">8,410</span><span class="qa-c-item-who-points-pad"> points)</span>
+																</span>
+															</span>
+														</span>
+													</span>
+													<div class="qa-c-item-buttons">
+													</div>
+												</div>
+												<div class="qa-c-item-clear">
+												</div>
+											</div> <!-- END qa-c-item -->
+											<div class="qa-c-list-item  hentry comment" id="c3230">
+												<div class="qa-c-item-content">
+													<a name="3230"></a><div class="entry-content"><p>Hey, did you continue working on this problem? I want to do something similar and, as you pointed out, defining and solving the two equations over the whole domain would be quite some additional work...</p>
+</div>
+												</div>
+												<div class="qa-c-item-footer">
+													<span class="qa-c-item-avatar-meta">
+														<span class="qa-c-item-meta">
+															<a href="../../1605/2-unknowns-solved-in-2-different-subdomains?show=3230#c3230" class="qa-c-item-what">commented</a>
+															<span class="qa-c-item-when">
+																<span class="qa-c-item-when-data"><span class="published"><span class="value-title" title="2014-04-10T13:23:03+0000"></span>Apr 10, 2014</span></span>
+															</span>
+															<span class="qa-c-item-who">
+																<span class="qa-c-item-who-pad">by </span>
+																<span class="qa-c-item-who-data"><span class="vcard author"><a href="../../user/bobby53" class="qa-user-link url nickname">bobby53</a></span></span>
+																<span class="qa-c-item-who-title">FEniCS User</span>
+																<span class="qa-c-item-who-points">
+																	<span class="qa-c-item-who-points-pad">(</span><span class="qa-c-item-who-points-data">1,260</span><span class="qa-c-item-who-points-pad"> points)</span>
+																</span>
+															</span>
+														</span>
+													</span>
+													<div class="qa-c-item-buttons">
+													</div>
+												</div>
+												<div class="qa-c-item-clear">
+												</div>
+											</div> <!-- END qa-c-item -->
+											<div class="qa-c-list-item  hentry comment" id="c3236">
+												<div class="qa-c-item-content">
+													<a name="3236"></a><div class="entry-content"><p>Hi Bobby, </p>
+
+<p>Haven't looked at it in a while, but no, I don't think I found a better way. As I remember I started running into huge ill-conditioning problems (makes sense), so I had to use the PETSc solver with these options:</p>
+
+<p>--petsc.ksp_type preonly --petsc.pc_type lu --petsc.pc_factor_shift_type NONZERO </p>
+
+<p>the first two of which were to get it to use a direct solver, and the last one to make the entries that you are not defining anything for non-zero. <br>
+Good luck and let me know if you come up with something better!</p>
+</div>
+												</div>
+												<div class="qa-c-item-footer">
+													<span class="qa-c-item-avatar-meta">
+														<span class="qa-c-item-avatar">
+															<a href="../../user/mwelland" class="qa-avatar-link"><img src="https://www.gravatar.com/avatar/af936799ea3fe5bd1cb6abb922ebbe83?s=20" width="20" height="20" class="qa-avatar-image" alt=""></a>
+														</span>
+														<span class="qa-c-item-meta">
+															<a href="../../1605/2-unknowns-solved-in-2-different-subdomains?show=3236#c3236" class="qa-c-item-what">commented</a>
+															<span class="qa-c-item-when">
+																<span class="qa-c-item-when-data"><span class="published"><span class="value-title" title="2014-04-10T22:17:54+0000"></span>Apr 11, 2014</span></span>
+															</span>
+															<span class="qa-c-item-who">
+																<span class="qa-c-item-who-pad">by </span>
+																<span class="qa-c-item-who-data"><span class="vcard author"><a href="../../user/mwelland" class="qa-user-link url nickname">mwelland</a></span></span>
+																<span class="qa-c-item-who-title">FEniCS User</span>
+																<span class="qa-c-item-who-points">
+																	<span class="qa-c-item-who-points-pad">(</span><span class="qa-c-item-who-points-data">8,410</span><span class="qa-c-item-who-points-pad"> points)</span>
+																</span>
+															</span>
+														</span>
+													</span>
+													<div class="qa-c-item-buttons">
+													</div>
+												</div>
+												<div class="qa-c-item-clear">
+												</div>
+											</div> <!-- END qa-c-item -->
+										</div> <!-- END qa-c-list -->
+										
+										<input type="hidden" name="code" value="0-1516467893-e2b4c0c4c7ebe8153d096e9df5338e0f150fb8e8">
+										<input type="hidden" name="qa_click" value="">
+									</form>
+									<div class="qa-c-form">
+									</div> <!-- END qa-c-form -->
+									
+								</div> <!-- END qa-q-view-main -->
+								<div class="qa-q-view-clear">
+								</div>
+							</div> <!-- END qa-q-view -->
+							
+						</div>
+						<div class="qa-part-a-list">
+							<h2 id="a_list_title">1 Answer</h2>
+							<div class="qa-a-list" id="a_list">
+								
+								<div class="qa-a-list-item  hentry answer answer-selected qa-a-list-item-selected" id="a1632">
+									<form method="post" action="../../1605/2-unknowns-solved-in-2-different-subdomains">
+										<div class="qa-voting qa-voting-net" id="voting_1632">
+											<div class="qa-vote-count qa-vote-count-net">
+												<span class="qa-netvote-count">
+													<span class="qa-netvote-count-data">0<span class="votes-up"><span class="value-title" title="0"></span></span><span class="votes-down"><span class="value-title" title="0"></span></span></span><span class="qa-netvote-count-pad"> votes</span>
+												</span>
+											</div>
+											<div class="qa-vote-clear">
+											</div>
+										</div>
+										<input type="hidden" name="code" value="0-1516467893-a8dad422ac1879bc860c2b86474f136c91222925">
+									</form>
+									<div class="qa-a-item-main">
+										<form method="post" action="../../1605/2-unknowns-solved-in-2-different-subdomains">
+											<div class="qa-a-item-selected">
+												<div class="qa-a-selection">
+													<div class="qa-a-selected">&#160;</div>
+													<div class="qa-a-selected-text">Best answer</div>
+												</div>
+												<div class="qa-a-item-content">
+													<a name="1632"></a><div class="entry-content"><p>The usual approach is to restrict fields by applying <code>DirichletBC</code> to spare DOFs. This is, of course, inefficient (but working) workaround.</p>
+
+<p>You may also like to check experimental <code>Restriction</code> functionality. See <code>restriction</code> demo in development version. But I'm affraid that this does not alllow you to mix different domains in one form and will raise </p>
+
+<pre><code>ufl.log.UFLException: Found two domain data objects for same domain type 'cell', only one is allowed.
+</code></pre>
+
+<p>or something related. This will be fixed in a future but requires vast amount of work.</p>
+</div>
+												</div>
+												<span class="qa-a-item-avatar-meta">
+													<span class="qa-a-item-avatar">
+														<a href="../../user/Jan+Blechta" class="qa-avatar-link"><img src="https://www.gravatar.com/avatar/dc6f8dce77e4a0bd5adc7ff31ab83741?s=40" width="40" height="40" class="qa-avatar-image" alt=""></a>
+													</span>
+													<span class="qa-a-item-meta">
+														<a href="../../1605/2-unknowns-solved-in-2-different-subdomains?show=1632#a1632" class="qa-a-item-what">answered</a>
+														<span class="qa-a-item-when">
+															<span class="qa-a-item-when-data"><span class="published"><span class="value-title" title="2013-11-09T14:44:34+0000"></span>Nov 9, 2013</span></span>
+														</span>
+														<span class="qa-a-item-who">
+															<span class="qa-a-item-who-pad">by </span>
+															<span class="qa-a-item-who-data"><span class="vcard author"><a href="../../user/Jan+Blechta" class="qa-user-link url nickname">Jan Blechta</a></span></span>
+															<span class="qa-a-item-who-title">FEniCS Expert</span>
+															<span class="qa-a-item-who-points">
+																<span class="qa-a-item-who-points-pad">(</span><span class="qa-a-item-who-points-data">51,420</span><span class="qa-a-item-who-points-pad"> points)</span>
+															</span>
+														</span>
+														<br>
+														<span class="qa-a-item-what">selected</span>
+														<span class="qa-a-item-when">
+															<span class="qa-a-item-when-data"><span class="updated"><span class="value-title" title="2013-11-11T15:16:40+0000"></span>Nov 11, 2013</span></span>
+														</span>
+														<span class="qa-a-item-who">
+															<span class="qa-a-item-who-pad">by </span><span class="qa-a-item-who-data"><a href="../../user/mwelland" class="qa-user-link url nickname">mwelland</a></span>
+														</span>
+													</span>
+												</span>
+											</div>
+											<div class="qa-a-item-buttons">
+												</div>
+											
+											<div class="qa-a-item-c-list" id="c1632_list">
+												<div class="qa-c-list-item  hentry comment" id="c1649">
+													<div class="qa-c-item-content">
+														<a name="1649"></a><div class="entry-content"><p>Thanks Jan, I tried fixing the other DOFs but found that in doing so, continuity is imposed in the variable between the desired and undesired domains, implying the dirichlet condition also applies at the boundary (which is definitely not desired!). </p>
+</div>
+													</div>
+													<div class="qa-c-item-footer">
+														<span class="qa-c-item-avatar-meta">
+															<span class="qa-c-item-avatar">
+																<a href="../../user/mwelland" class="qa-avatar-link"><img src="https://www.gravatar.com/avatar/af936799ea3fe5bd1cb6abb922ebbe83?s=20" width="20" height="20" class="qa-avatar-image" alt=""></a>
+															</span>
+															<span class="qa-c-item-meta">
+																<a href="../../1605/2-unknowns-solved-in-2-different-subdomains?show=1649#c1649" class="qa-c-item-what">commented</a>
+																<span class="qa-c-item-when">
+																	<span class="qa-c-item-when-data"><span class="published"><span class="value-title" title="2013-11-11T15:16:35+0000"></span>Nov 11, 2013</span></span>
+																</span>
+																<span class="qa-c-item-who">
+																	<span class="qa-c-item-who-pad">by </span>
+																	<span class="qa-c-item-who-data"><span class="vcard author"><a href="../../user/mwelland" class="qa-user-link url nickname">mwelland</a></span></span>
+																	<span class="qa-c-item-who-title">FEniCS User</span>
+																	<span class="qa-c-item-who-points">
+																		<span class="qa-c-item-who-points-pad">(</span><span class="qa-c-item-who-points-data">8,410</span><span class="qa-c-item-who-points-pad"> points)</span>
+																	</span>
+																</span>
+															</span>
+														</span>
+														<div class="qa-c-item-buttons">
+														</div>
+													</div>
+													<div class="qa-c-item-clear">
+													</div>
+												</div> <!-- END qa-c-item -->
+												<div class="qa-c-list-item  hentry comment" id="c1654">
+													<div class="qa-c-item-content">
+														<a name="1654"></a><div class="entry-content"><p>This is a tricky business sometimes. You may utilize</p>
+
+<pre><code> DirichetBC(..., points_of_restricted_dofs, method="pointwise")
+</code></pre>
+
+<p>and you need to search for points to be restricted and create <code>SubDomain</code> <code>points_of_restricted_dofs</code> which can be very tricky thing. But there are tools in DOLFIN to do this.</p>
+</div>
+													</div>
+													<div class="qa-c-item-footer">
+														<span class="qa-c-item-avatar-meta">
+															<span class="qa-c-item-avatar">
+																<a href="../../user/Jan+Blechta" class="qa-avatar-link"><img src="https://www.gravatar.com/avatar/dc6f8dce77e4a0bd5adc7ff31ab83741?s=20" width="20" height="20" class="qa-avatar-image" alt=""></a>
+															</span>
+															<span class="qa-c-item-meta">
+																<a href="../../1605/2-unknowns-solved-in-2-different-subdomains?show=1654#c1654" class="qa-c-item-what">commented</a>
+																<span class="qa-c-item-when">
+																	<span class="qa-c-item-when-data"><span class="published"><span class="value-title" title="2013-11-11T18:27:36+0000"></span>Nov 11, 2013</span></span>
+																</span>
+																<span class="qa-c-item-who">
+																	<span class="qa-c-item-who-pad">by </span>
+																	<span class="qa-c-item-who-data"><span class="vcard author"><a href="../../user/Jan+Blechta" class="qa-user-link url nickname">Jan Blechta</a></span></span>
+																	<span class="qa-c-item-who-title">FEniCS Expert</span>
+																	<span class="qa-c-item-who-points">
+																		<span class="qa-c-item-who-points-pad">(</span><span class="qa-c-item-who-points-data">51,420</span><span class="qa-c-item-who-points-pad"> points)</span>
+																	</span>
+																</span>
+															</span>
+														</span>
+														<div class="qa-c-item-buttons">
+														</div>
+													</div>
+													<div class="qa-c-item-clear">
+													</div>
+												</div> <!-- END qa-c-item -->
+											</div> <!-- END qa-c-list -->
+											
+											<input type="hidden" name="code" value="0-1516467893-e7316836679ed74747623a4c5148327842d34fa6">
+											<input type="hidden" name="qa_click" value="">
+										</form>
+										<div class="qa-c-form">
+										</div> <!-- END qa-c-form -->
+										
+									</div> <!-- END qa-a-item-main -->
+									<div class="qa-a-item-clear">
+									</div>
+								</div> <!-- END qa-a-list-item -->
+								
+							</div> <!-- END qa-a-list -->
+							
+						</div>
+					</div> <!-- END qa-main -->
+					
+				</div> <!-- END main-wrapper -->
+			</div> <!-- END main-shadow -->
+		</div> <!-- END body-wrapper -->
+		<!-- END footer-bottom-group -->
+		
+		<div style="position:absolute; left:-9999px; top:-9999px;">
+			<span id="qa-waiting-template" class="qa-waiting">...</span>
+		</div>
+	
+	
+
+</body><!-- Powered by Question2Answer - http://www.question2answer.org/ --></html>

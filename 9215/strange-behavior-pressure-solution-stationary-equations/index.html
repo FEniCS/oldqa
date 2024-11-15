@@ -1,0 +1,421 @@
+<html><!-- Powered by Question2Answer - http://www.question2answer.org/ --><head>
+		<meta http-equiv="content-type" content="text/html; charset=utf-8">
+		<title>Strange Behavior of Pressure Solution to Stationary NS-equations - FEniCS Q&amp;A</title>
+		<meta name="description" content="Hi all, I'm attempting to compute solutions to the 2D stationary NS equations in a unit square. I  ... ) plot(u) plot(p) plot(mesh) interactive()">
+		<meta name="keywords" content="stationary,navier-stokes,pressure">
+		<link rel="stylesheet" type="text/css" href="../../qa-theme/Snow/qa-styles.css">
+		<link rel="canonical" href="http://fenicsproject.org/qa/9215/strange-behavior-pressure-solution-stationary-equations">
+		<script type="text/x-mathjax-config">
+  MathJax.Hub.Config({
+    extensions: ["tex2jax.js"],
+    jax: ["input/TeX","output/HTML-CSS"],
+    tex2jax: {inlineMath: [["$","$"],["\\(","\\)"]]},
+    TeX: { extensions: ["AMSmath.js","AMSsymbols.js"]}
+  });
+</script>
+<script type="text/javascript" src="../../mathjax/MathJax.js"></script>
+		<script src="../../jquery-1.7.2.min.js" type="text/javascript"></script>
+		<script src="../../highlight.min.js"></script>
+<script type="text/javascript">
+$(function(){
+	$('.wmd-input').keypress(function(){
+		window.clearTimeout(hljs.Timeout);
+		hljs.Timeout = window.setTimeout(function() {
+			hljs.initHighlighting.called = false;
+			hljs.initHighlighting();
+		}, 500);
+	});
+	window.setTimeout(function() {
+		hljs.initHighlighting.called = false;
+		hljs.initHighlighting();
+	}, 500);
+});
+</script>
+
+
+	</head>
+	<body class="qa-template-question qa-body-js-off">
+		<div class="qa-body-wrapper">
+			
+			<div class="qa-header">
+				<div class="qa-logo">
+					<a href="../../" class="qa-logo-link" title="FEniCS Q&amp;A"><img src="../../qa-theme/fenics_qa.png" border="0" alt="FEniCS Q&amp;A"></a>
+				</div>
+				<div class="qa-header-clear">
+				</div>
+			</div> <!-- END qa-header -->
+			
+			<div class="qa-main-shadow">
+				
+				<div class="qa-main-wrapper">
+					
+					<div class="qa-sidepanel">
+						<div class="qa-sidebar">
+							This is a read only copy of the old FEniCS QA forum. Please visit the <a href="https://www.allanswered.com/community/s/fenics-project/">new QA forum</a> to ask questions
+						</div>
+						
+					</div>
+					
+					<div class="qa-main">
+						<h1>
+							<span class="entry-title">Strange Behavior of Pressure Solution to Stationary NS-equations</span>
+						</h1>
+						<div class="qa-part-q-view">
+							<div class="qa-q-view  hentry question" id="q9215">
+								<form method="post" action="../../9215/strange-behavior-pressure-solution-stationary-equations">
+									<div class="qa-q-view-stats">
+										<div class="qa-voting qa-voting-net" id="voting_9215">
+											<div class="qa-vote-count qa-vote-count-net">
+												<span class="qa-netvote-count">
+													<span class="qa-netvote-count-data">0<span class="votes-up"><span class="value-title" title="0"></span></span><span class="votes-down"><span class="value-title" title="0"></span></span></span><span class="qa-netvote-count-pad"> votes</span>
+												</span>
+											</div>
+											<div class="qa-vote-clear">
+											</div>
+										</div>
+									</div>
+									<input type="hidden" name="code" value="0-1516468213-8cb724ab95a790654fa40f7bffb866bc086af287">
+								</form>
+								<div class="qa-q-view-main">
+									<form method="post" action="../../9215/strange-behavior-pressure-solution-stationary-equations">
+										<div class="qa-q-view-content">
+											<a name="9215"></a><div class="entry-content"><p>Hi all,</p>
+
+<p>I'm attempting to compute solutions to the 2D stationary NS equations in a unit square. I prescribe no-slip BC on the top and bottom walls, and periodic BC on the left/right walls. To drive the fluid, I prescribe a pressure drop from the left to right. (p = 1 on the left side, p = 0 on the right). When I plot the computed solution, I get strange results for the computed pressure.</p>
+
+<p>For UnitSquareMesh(16,16), I get pressure values that are O(10^3). Mesh refinement brings the value down; for instance, on UnitSquareMesh(64,64) I get ~O(10^2). But, further mesh refinement (UnitSquareMesh(128,128)) computes pressure to be O(10^5). What is strange to me is that: </p>
+
+<p>(i) I'm in a low Re regime--I have viscosity set to 1 .<br>
+(ii) No matter how fine or coarse the mesh, I still get the expected "Poiseuille flow" i.e. a parabolic wavefront.<br>
+(iii) With the exact same problem setup, solving the Stokes equation (i.e. dropping the convective term and solving a linear system) always gives me (essentially) the same pressure values, no matter how fine the mesh. </p>
+
+<p>Can anyone help me explain this behavior? Attached below is my code (modulo defining domain subboundaries). Any help is much appreciated.</p>
+
+<pre><code>#Create no-slip BC for velocity and pressure BCs
+no_slip = Constant((0.0, 0.0))
+p_right = Constant(0.0)
+p_left = Constant(1.0)
+bc0 = DirichletBC(W.sub(0), noslip, dbc)
+bcs = [bc0]
+
+# Define new measures for exterior boundaries
+n = FacetNormal(mesh)
+ds = Measure("ds")[boundaries]
+
+# set parameter values -- viscosity
+nu = 1.0
+
+# Define variational problem
+(v, q) = TestFunctions(W)
+w = Function(W)
+u, p = split(w)
+
+F = nu*inner(grad(u), grad(v))*dx + div(v)*p*dx + q*div(u)*dx + dot(grad(u)*u, v)*dx \
+    + p_left*dot(v,n)*ds(1) + p_right*dot(v,n)*ds(2)
+
+solve(F == 0, w, bcs)
+
+u, p = split(w)
+plot(u)
+plot(p)
+plot(mesh)
+</code></pre>
+
+<p>interactive()</p>
+</div>
+										</div>
+										<div class="qa-q-view-tags">
+											<ul class="qa-q-view-tag-list">
+												<li class="qa-q-view-tag-item"><a href="../../tag/stationary" rel="tag" class="qa-tag-link">stationary</a></li>
+												<li class="qa-q-view-tag-item"><a href="../../tag/navier-stokes" rel="tag" class="qa-tag-link">navier-stokes</a></li>
+												<li class="qa-q-view-tag-item"><a href="../../tag/pressure" rel="tag" class="qa-tag-link">pressure</a></li>
+											</ul>
+										</div>
+										<span class="qa-q-view-avatar-meta">
+											<span class="qa-q-view-meta">
+												<a href="../../9215/strange-behavior-pressure-solution-stationary-equations" class="qa-q-view-what">asked</a>
+												<span class="qa-q-view-when">
+													<span class="qa-q-view-when-data"><span class="published"><span class="value-title" title="2016-02-05T00:39:47+0000"></span>Feb 5, 2016</span></span>
+												</span>
+												<span class="qa-q-view-who">
+													<span class="qa-q-view-who-pad">by </span>
+													<span class="qa-q-view-who-data"><span class="vcard author"><a href="../../user/carney340" class="qa-user-link url nickname">carney340</a></span></span>
+													<span class="qa-q-view-who-title">FEniCS Novice</span>
+													<span class="qa-q-view-who-points">
+														<span class="qa-q-view-who-points-pad">(</span><span class="qa-q-view-who-points-data">160</span><span class="qa-q-view-who-points-pad"> points)</span>
+													</span>
+												</span>
+											</span>
+										</span>
+										<div class="qa-q-view-buttons">
+										</div>
+										
+										<div class="qa-q-view-c-list" style="display:none;" id="c9215_list">
+										</div> <!-- END qa-c-list -->
+										
+										<input type="hidden" name="code" value="0-1516468213-5ae1b7441736aa4236707558e1d36abc76a8d980">
+										<input type="hidden" name="qa_click" value="">
+									</form>
+									<div class="qa-c-form">
+									</div> <!-- END qa-c-form -->
+									
+								</div> <!-- END qa-q-view-main -->
+								<div class="qa-q-view-clear">
+								</div>
+							</div> <!-- END qa-q-view -->
+							
+						</div>
+						<div class="qa-part-a-list">
+							<h2 id="a_list_title">1 Answer</h2>
+							<div class="qa-a-list" id="a_list">
+								
+								<div class="qa-a-list-item  hentry answer" id="a9247">
+									<form method="post" action="../../9215/strange-behavior-pressure-solution-stationary-equations">
+										<div class="qa-voting qa-voting-net" id="voting_9247">
+											<div class="qa-vote-count qa-vote-count-net">
+												<span class="qa-netvote-count">
+													<span class="qa-netvote-count-data">0<span class="votes-up"><span class="value-title" title="0"></span></span><span class="votes-down"><span class="value-title" title="0"></span></span></span><span class="qa-netvote-count-pad"> votes</span>
+												</span>
+											</div>
+											<div class="qa-vote-clear">
+											</div>
+										</div>
+										<input type="hidden" name="code" value="0-1516468213-8cb724ab95a790654fa40f7bffb866bc086af287">
+									</form>
+									<div class="qa-a-item-main">
+										<form method="post" action="../../9215/strange-behavior-pressure-solution-stationary-equations">
+											<div class="qa-a-selection">
+											</div>
+											<div class="qa-a-item-content">
+												<a name="9247"></a><div class="entry-content"><p>Hi,</p>
+
+<p>Since you are imposing Dirichlet boundary conditions on the top and the bottom walls and periodic boundary conditions on the right and left walls, the pressure is defined up to an arbitrary constant (Only $\nabla p$ and not $p$ appears in the N-S equations).</p>
+
+<p>To fix the constant value for the pressure you can:</p>
+
+<ul>
+<li><p>Use a lagragian multiplier to enforce $\int_\Omega p = 0$.</p></li>
+<li><p>Use a pointwise dirichlet condition to enforce p = 0 at a particular point at the domain.</p>
+
+<p>def origin(x,on_boundary):<br>
+      return x[0] &lt; dl.DOLFIN_EPS and x[1] &lt; dl.DOLFIN_EPS <br>
+bc_pressure_at_point = dl.DirichletBC(W.sub(1), dl.Constant(0), origin, 'pointwise')</p></li>
+</ul>
+</div>
+											</div>
+											<span class="qa-a-item-avatar-meta">
+												<span class="qa-a-item-meta">
+													<a href="../../9215/strange-behavior-pressure-solution-stationary-equations?show=9247#a9247" class="qa-a-item-what">answered</a>
+													<span class="qa-a-item-when">
+														<span class="qa-a-item-when-data"><span class="published"><span class="value-title" title="2016-02-08T22:47:26+0000"></span>Feb 8, 2016</span></span>
+													</span>
+													<span class="qa-a-item-who">
+														<span class="qa-a-item-who-pad">by </span>
+														<span class="qa-a-item-who-data"><span class="vcard author"><a href="../../user/umberto" class="qa-user-link url nickname">umberto</a></span></span>
+														<span class="qa-a-item-who-title">FEniCS User</span>
+														<span class="qa-a-item-who-points">
+															<span class="qa-a-item-who-points-pad">(</span><span class="qa-a-item-who-points-data">6,440</span><span class="qa-a-item-who-points-pad"> points)</span>
+														</span>
+													</span>
+												</span>
+											</span>
+											<div class="qa-a-item-buttons">
+												</div>
+											
+											<div class="qa-a-item-c-list" id="c9247_list">
+												<div class="qa-c-list-item  hentry comment" id="c9249">
+													<div class="qa-c-item-content">
+														<a name="9249"></a><div class="entry-content"><p>This is true--the pressure that appears in the N-S equations is only defined up to a constant. However, by enforcing that pressure on the left wall must be 1.0, and pressure on the right wall must be 0.0, does that not have the effect of your second suggestion? Enforcing the pressure on an entire boundary certainly enforces it at a point.</p>
+
+<p>Using a Lagrange multiplier to ensure mean zero pressure is something I will try though. Thanks for the input.</p>
+
+<p>Regards,<br>
+-Sean</p>
+</div>
+													</div>
+													<div class="qa-c-item-footer">
+														<span class="qa-c-item-avatar-meta">
+															<span class="qa-c-item-meta">
+																<a href="../../9215/strange-behavior-pressure-solution-stationary-equations?show=9249#c9249" class="qa-c-item-what">commented</a>
+																<span class="qa-c-item-when">
+																	<span class="qa-c-item-when-data"><span class="published"><span class="value-title" title="2016-02-09T00:53:27+0000"></span>Feb 9, 2016</span></span>
+																</span>
+																<span class="qa-c-item-who">
+																	<span class="qa-c-item-who-pad">by </span>
+																	<span class="qa-c-item-who-data"><span class="vcard author"><a href="../../user/carney340" class="qa-user-link url nickname">carney340</a></span></span>
+																	<span class="qa-c-item-who-title">FEniCS Novice</span>
+																	<span class="qa-c-item-who-points">
+																		<span class="qa-c-item-who-points-pad">(</span><span class="qa-c-item-who-points-data">160</span><span class="qa-c-item-who-points-pad"> points)</span>
+																	</span>
+																</span>
+															</span>
+														</span>
+														<div class="qa-c-item-buttons">
+														</div>
+													</div>
+													<div class="qa-c-item-clear">
+													</div>
+												</div> <!-- END qa-c-item -->
+												<div class="qa-c-list-item  hentry comment" id="c9259">
+													<div class="qa-c-item-content">
+														<a name="9259"></a><div class="entry-content"><p>Hi,</p>
+
+<p>Since you imposed periodic boundary condition, you don't have boundary integral</p>
+
+<p>$$ \int_\partial\Omega -p \cdot \mathbf{n} + \boldsymbol{\sigma}_n. $$ </p>
+
+<p>Therefore the integrals:</p>
+
+<pre><code>+ p_left*dot(v,n)*ds(1) + p_right*dot(v,n)*ds(2)
+</code></pre>
+
+<p>are not forcing p to be equal to 1 on the left boundary and 0 on the right boundary in the momentum equation.</p>
+
+<p>You are simply imposing a concentrated (dirach delta) source on the periodic boundary.</p>
+</div>
+													</div>
+													<div class="qa-c-item-footer">
+														<span class="qa-c-item-avatar-meta">
+															<span class="qa-c-item-meta">
+																<a href="../../9215/strange-behavior-pressure-solution-stationary-equations?show=9259#c9259" class="qa-c-item-what">commented</a>
+																<span class="qa-c-item-when">
+																	<span class="qa-c-item-when-data"><span class="published"><span class="value-title" title="2016-02-09T17:30:39+0000"></span>Feb 9, 2016</span></span>
+																</span>
+																<span class="qa-c-item-who">
+																	<span class="qa-c-item-who-pad">by </span>
+																	<span class="qa-c-item-who-data"><span class="vcard author"><a href="../../user/umberto" class="qa-user-link url nickname">umberto</a></span></span>
+																	<span class="qa-c-item-who-title">FEniCS User</span>
+																	<span class="qa-c-item-who-points">
+																		<span class="qa-c-item-who-points-pad">(</span><span class="qa-c-item-who-points-data">6,440</span><span class="qa-c-item-who-points-pad"> points)</span>
+																	</span>
+																</span>
+															</span>
+														</span>
+														<div class="qa-c-item-buttons">
+														</div>
+													</div>
+													<div class="qa-c-item-clear">
+													</div>
+												</div> <!-- END qa-c-item -->
+												<div class="qa-c-list-item  hentry comment" id="c9264">
+													<div class="qa-c-item-content">
+														<a name="9264"></a><div class="entry-content"><p>Well I want to impose periodicity on the velocity, not the pressure. From a mathematical point of view, prescribing $$p = p_{left}$$ on $$(x=0) \times [0,1]$$ and $$p = p_{right}$$ on $$ (x=1) \times [0,1]$$ means that when you integrate by parts the term</p>
+
+<p>$$ \int_{\Omega} \nabla p \cdot v dx$$</p>
+
+<p>you get </p>
+
+<p>$$ - \int_{\Omega} p \nabla \cdot v dx + \int_{\Gamma_{in}} p_{left}v\cdot n \,\,\,ds + \int_{\Gamma_{out}} p_{right} v\cdot n\,\,\, ds $$</p>
+
+<p>where $$\partial \Omega = \Gamma_{rigid} \cup \Gamma_{in} \cup \Gamma_{out}$$, and the boundary integrals over $$\Gamma_{rigid}$$ vanish as a consequence of the no slip condition.</p>
+
+<p>Does this make sense? I have a feeling the problem with my code is that when I define my function spaces:</p>
+
+<pre><code>V = VectorFunctionSpace(mesh, "CG", 2, constrained_domain=PeriodicBoundary())
+Q = FunctionSpace(mesh, "CG", 1, constrained_domain= PeriodicBoundary())
+W = V * Q
+</code></pre>
+
+<p>I get an error if I don't include the constrained_domain = PeriodicBoundary() on the pressure space, Q. Is there any way to define my mixed function space without making both of them periodic?</p>
+
+<p>Best,<br>
+-Sean</p>
+</div>
+													</div>
+													<div class="qa-c-item-footer">
+														<span class="qa-c-item-avatar-meta">
+															<span class="qa-c-item-meta">
+																<a href="../../9215/strange-behavior-pressure-solution-stationary-equations?show=9264#c9264" class="qa-c-item-what">commented</a>
+																<span class="qa-c-item-when">
+																	<span class="qa-c-item-when-data"><span class="published"><span class="value-title" title="2016-02-10T06:12:19+0000"></span>Feb 10, 2016</span></span>
+																</span>
+																<span class="qa-c-item-who">
+																	<span class="qa-c-item-who-pad">by </span>
+																	<span class="qa-c-item-who-data"><span class="vcard author"><a href="../../user/carney340" class="qa-user-link url nickname">carney340</a></span></span>
+																	<span class="qa-c-item-who-title">FEniCS Novice</span>
+																	<span class="qa-c-item-who-points">
+																		<span class="qa-c-item-who-points-pad">(</span><span class="qa-c-item-who-points-data">160</span><span class="qa-c-item-who-points-pad"> points)</span>
+																	</span>
+																</span>
+															</span>
+														</span>
+														<div class="qa-c-item-buttons">
+														</div>
+													</div>
+													<div class="qa-c-item-clear">
+													</div>
+												</div> <!-- END qa-c-item -->
+												<div class="qa-c-list-item  hentry comment" id="c9277">
+													<div class="qa-c-item-content">
+														<a name="9277"></a><div class="entry-content"><p>Hi Sean,</p>
+
+<p>The problem is that after you define a periodic boundary you have</p>
+
+<p>$$ \partial \Omega = \Gamma_{rigid}, $$</p>
+
+<p>And therefore:</p>
+
+<p>$$ \int_\Omega \nabla p \cdot v = - \int_\Omega  p \nabla \cdot v + \int_{\Gamma_{rigid}} p n \cdot v. $$</p>
+
+<p>This shows why the two boundary integral you wrote play the role of concentrated forces in the momentum equation, but do not set the value for the pressure at $\Gamma_{in}$ or $\Gamma_{out}$.</p>
+
+<p>Hope this explains better my previous point.</p>
+
+<p>Best,</p>
+
+<p>Umbe</p>
+</div>
+													</div>
+													<div class="qa-c-item-footer">
+														<span class="qa-c-item-avatar-meta">
+															<span class="qa-c-item-meta">
+																<a href="../../9215/strange-behavior-pressure-solution-stationary-equations?show=9277#c9277" class="qa-c-item-what">commented</a>
+																<span class="qa-c-item-when">
+																	<span class="qa-c-item-when-data"><span class="published"><span class="value-title" title="2016-02-10T18:11:07+0000"></span>Feb 10, 2016</span></span>
+																</span>
+																<span class="qa-c-item-who">
+																	<span class="qa-c-item-who-pad">by </span>
+																	<span class="qa-c-item-who-data"><span class="vcard author"><a href="../../user/umberto" class="qa-user-link url nickname">umberto</a></span></span>
+																	<span class="qa-c-item-who-title">FEniCS User</span>
+																	<span class="qa-c-item-who-points">
+																		<span class="qa-c-item-who-points-pad">(</span><span class="qa-c-item-who-points-data">6,440</span><span class="qa-c-item-who-points-pad"> points)</span>
+																	</span>
+																</span>
+															</span>
+														</span>
+														<div class="qa-c-item-buttons">
+														</div>
+													</div>
+													<div class="qa-c-item-clear">
+													</div>
+												</div> <!-- END qa-c-item -->
+											</div> <!-- END qa-c-list -->
+											
+											<input type="hidden" name="code" value="0-1516468213-d25ead2e733ef9e0892a5575408f3877f46c6d4e">
+											<input type="hidden" name="qa_click" value="">
+										</form>
+										<div class="qa-c-form">
+										</div> <!-- END qa-c-form -->
+										
+									</div> <!-- END qa-a-item-main -->
+									<div class="qa-a-item-clear">
+									</div>
+								</div> <!-- END qa-a-list-item -->
+								
+							</div> <!-- END qa-a-list -->
+							
+						</div>
+					</div> <!-- END qa-main -->
+					
+				</div> <!-- END main-wrapper -->
+			</div> <!-- END main-shadow -->
+		</div> <!-- END body-wrapper -->
+		<!-- END footer-bottom-group -->
+		
+		<div style="position:absolute; left:-9999px; top:-9999px;">
+			<span id="qa-waiting-template" class="qa-waiting">...</span>
+		</div>
+	
+	
+
+</body><!-- Powered by Question2Answer - http://www.question2answer.org/ --></html>

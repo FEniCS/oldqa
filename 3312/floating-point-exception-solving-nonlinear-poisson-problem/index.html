@@ -1,0 +1,258 @@
+<html><!-- Powered by Question2Answer - http://www.question2answer.org/ --><head>
+		<meta http-equiv="content-type" content="text/html; charset=utf-8">
+		<title>Floating point exception! Solving nonlinear Poisson problem with sqrt - FEniCS Q&amp;A</title>
+		<meta name="description" content="Hi, I have the problem following nonlinear problems discussed here http://fenicsproject.org/ ... relaxation_parameter'] = 1.0 solver.solve()">
+		<link rel="stylesheet" type="text/css" href="../../qa-theme/Snow/qa-styles.css">
+		<link rel="canonical" href="http://fenicsproject.org/qa/3312/floating-point-exception-solving-nonlinear-poisson-problem">
+		<script type="text/x-mathjax-config">
+  MathJax.Hub.Config({
+    extensions: ["tex2jax.js"],
+    jax: ["input/TeX","output/HTML-CSS"],
+    tex2jax: {inlineMath: [["$","$"],["\\(","\\)"]]},
+    TeX: { extensions: ["AMSmath.js","AMSsymbols.js"]}
+  });
+</script>
+<script type="text/javascript" src="../../mathjax/MathJax.js"></script>
+		<script src="../../jquery-1.7.2.min.js" type="text/javascript"></script>
+		<script src="../../highlight.min.js"></script>
+<script type="text/javascript">
+$(function(){
+	$('.wmd-input').keypress(function(){
+		window.clearTimeout(hljs.Timeout);
+		hljs.Timeout = window.setTimeout(function() {
+			hljs.initHighlighting.called = false;
+			hljs.initHighlighting();
+		}, 500);
+	});
+	window.setTimeout(function() {
+		hljs.initHighlighting.called = false;
+		hljs.initHighlighting();
+	}, 500);
+});
+</script>
+
+
+	</head>
+	<body class="qa-template-question qa-body-js-off">
+		<div class="qa-body-wrapper">
+			
+			<div class="qa-header">
+				<div class="qa-logo">
+					<a href="../../" class="qa-logo-link" title="FEniCS Q&amp;A"><img src="../../qa-theme/fenics_qa.png" border="0" alt="FEniCS Q&amp;A"></a>
+				</div>
+				<div class="qa-header-clear">
+				</div>
+			</div> <!-- END qa-header -->
+			
+			<div class="qa-main-shadow">
+				
+				<div class="qa-main-wrapper">
+					
+					<div class="qa-sidepanel">
+						<div class="qa-sidebar">
+							This is a read only copy of the old FEniCS QA forum. Please visit the <a href="https://www.allanswered.com/community/s/fenics-project/">new QA forum</a> to ask questions
+						</div>
+						
+					</div>
+					
+					<div class="qa-main">
+						<h1>
+							<span class="entry-title">Floating point exception! Solving nonlinear Poisson problem with sqrt</span>
+						</h1>
+						<div class="qa-part-q-view">
+							<div class="qa-q-view  hentry question" id="q3312">
+								<form method="post" action="../../3312/floating-point-exception-solving-nonlinear-poisson-problem">
+									<div class="qa-q-view-stats">
+										<div class="qa-voting qa-voting-net" id="voting_3312">
+											<div class="qa-vote-count qa-vote-count-net">
+												<span class="qa-netvote-count">
+													<span class="qa-netvote-count-data">+1<span class="votes-up"><span class="value-title" title="1"></span></span><span class="votes-down"><span class="value-title" title="0"></span></span></span><span class="qa-netvote-count-pad"> vote</span>
+												</span>
+											</div>
+											<div class="qa-vote-clear">
+											</div>
+										</div>
+									</div>
+									<input type="hidden" name="code" value="0-1516467965-85917c8d34da1a0d06b83252a319c79803a22985">
+								</form>
+								<div class="qa-q-view-main">
+									<form method="post" action="../../3312/floating-point-exception-solving-nonlinear-poisson-problem">
+										<div class="qa-q-view-content">
+											<a name="3312"></a><div class="entry-content"><p>Hi,<br>
+I have the problem following nonlinear problems discussed here<br>
+<a rel="nofollow" href="http://fenicsproject.org/documentation/tutorial/nonlinear.html">http://fenicsproject.org/documentation/tutorial/nonlinear.html</a></p>
+
+<p>I changed the problem slightly to input sqrt(inner(nabla_grad(u_), nabla_grad(u_))) into the nonlinear function. This is euclidean norm of u_ and I need to work with such nonlinearities. As soon as I try to solve equation with this setting I obtain </p>
+
+<p>[0]PETSC ERROR: Floating point exception!<br>
+[0]PETSC ERROR: Infinite or not-a-number generated in norm!</p>
+
+<p>I think there should be no such error since inner(nabla_grad(u_), nabla_grad(u_)) should be non negative number. Moreover if I add some small number to it and compute sqrt(0.0001+inner(nabla_grad(u_), nabla_grad(u_))) it does then converge.</p>
+
+<p>Please could you help me what I am doing wrong?</p>
+
+<p>Thank you,<br>
+Vojtech.</p>
+
+<p>Complete code:</p>
+
+<pre><code>from dolfin import *
+import numpy
+
+mesh = dolfin.UnitSquareMesh(50, 50)
+tol = 1E-14
+def left_boundary(x, on_boundary):
+    return on_boundary and abs(x[0]) &lt; tol
+
+def right_boundary(x, on_boundary):
+    return on_boundary and abs(x[0]-1) &lt; tol
+
+V = FunctionSpace(mesh, 'Lagrange', 1)
+Gamma_0 = DirichletBC(V, Constant(0.0), left_boundary)
+Gamma_1 = DirichletBC(V, Constant(1.0), right_boundary)
+bcs = [Gamma_0, Gamma_1]
+
+def q(u):#fenics examples
+    m=2
+    return (1+u)**m
+
+du = TrialFunction(V)
+u_ = Function(V)     # most recently computed solution
+v  = TestFunction(V)
+
+F  = inner(q(sqrt(inner(nabla_grad(u_), nabla_grad(u_))))*nabla_grad(u_), nabla_grad(v))*dx
+#F  = inner(q(sqrt(0.0001+inner(nabla_grad(u_), nabla_grad(u_))))*nabla_grad(u_), nabla_grad(v))*dx#works well
+#F  = inner(q(u_)*nabla_grad(u_), nabla_grad(v))*dx #works well
+J  = derivative(F, u_, du)  # Gateaux derivative in dir. of du
+
+
+problem = NonlinearVariationalProblem(F, u_, bcs, J)
+solver  = NonlinearVariationalSolver(problem)
+
+prm = solver.parameters
+prm['newton_solver']['absolute_tolerance'] = 1E-8
+prm['newton_solver']['relative_tolerance'] = 1E-7
+prm['newton_solver']['maximum_iterations'] = 25
+prm['newton_solver']['relaxation_parameter'] = 1.0
+
+solver.solve()
+</code></pre>
+</div>
+										</div>
+										<span class="qa-q-view-avatar-meta">
+											<span class="qa-q-view-meta">
+												<a href="../../3312/floating-point-exception-solving-nonlinear-poisson-problem" class="qa-q-view-what">asked</a>
+												<span class="qa-q-view-when">
+													<span class="qa-q-view-when-data"><span class="published"><span class="value-title" title="2014-04-16T16:27:09+0000"></span>Apr 16, 2014</span></span>
+												</span>
+												<span class="qa-q-view-who">
+													<span class="qa-q-view-who-pad">by </span>
+													<span class="qa-q-view-who-data"><span class="vcard author"><a href="../../user/kulvv1am" class="qa-user-link url nickname">kulvv1am</a></span></span>
+													<span class="qa-q-view-who-title">FEniCS Novice</span>
+													<span class="qa-q-view-who-points">
+														<span class="qa-q-view-who-points-pad">(</span><span class="qa-q-view-who-points-data">270</span><span class="qa-q-view-who-points-pad"> points)</span>
+													</span>
+												</span>
+											</span>
+										</span>
+										<div class="qa-q-view-buttons">
+										</div>
+										
+										<div class="qa-q-view-c-list" style="display:none;" id="c3312_list">
+										</div> <!-- END qa-c-list -->
+										
+										<input type="hidden" name="code" value="0-1516467965-13f378a131e8723633b18a3175f8c317b897213c">
+										<input type="hidden" name="qa_click" value="">
+									</form>
+									<div class="qa-c-form">
+									</div> <!-- END qa-c-form -->
+									
+								</div> <!-- END qa-q-view-main -->
+								<div class="qa-q-view-clear">
+								</div>
+							</div> <!-- END qa-q-view -->
+							
+						</div>
+						<div class="qa-part-a-list">
+							<h2 id="a_list_title">1 Answer</h2>
+							<div class="qa-a-list" id="a_list">
+								
+								<div class="qa-a-list-item  hentry answer" id="a3358">
+									<form method="post" action="../../3312/floating-point-exception-solving-nonlinear-poisson-problem">
+										<div class="qa-voting qa-voting-net" id="voting_3358">
+											<div class="qa-vote-count qa-vote-count-net">
+												<span class="qa-netvote-count">
+													<span class="qa-netvote-count-data">+2<span class="votes-up"><span class="value-title" title="2"></span></span><span class="votes-down"><span class="value-title" title="0"></span></span></span><span class="qa-netvote-count-pad"> votes</span>
+												</span>
+											</div>
+											<div class="qa-vote-clear">
+											</div>
+										</div>
+										<input type="hidden" name="code" value="0-1516467965-85917c8d34da1a0d06b83252a319c79803a22985">
+									</form>
+									<div class="qa-a-item-main">
+										<form method="post" action="../../3312/floating-point-exception-solving-nonlinear-poisson-problem">
+											<div class="qa-a-selection">
+											</div>
+											<div class="qa-a-item-content">
+												<a name="3358"></a><div class="entry-content"><p>The problem is that the operator F is non-differentiable if "nabla_grad(u_)" is 0, which is the case for your initial guess of u_. Hence the first Newton-step is not well-defined and you get nans in your result.</p>
+
+<p>The solution is to use an initial guess with a non-zero gradient. Try</p>
+
+<pre><code>u_ = interpolate(Expression("x[0]"), V)
+</code></pre>
+</div>
+											</div>
+											<span class="qa-a-item-avatar-meta">
+												<span class="qa-a-item-avatar">
+													<a href="../../user/simon_funke" class="qa-avatar-link"><img src="https://www.gravatar.com/avatar/3f5c486079726d30e286665941d53c56?s=40" width="40" height="40" class="qa-avatar-image" alt=""></a>
+												</span>
+												<span class="qa-a-item-meta">
+													<a href="../../3312/floating-point-exception-solving-nonlinear-poisson-problem?show=3358#a3358" class="qa-a-item-what">answered</a>
+													<span class="qa-a-item-when">
+														<span class="qa-a-item-when-data"><span class="published"><span class="value-title" title="2014-04-23T13:40:25+0000"></span>Apr 23, 2014</span></span>
+													</span>
+													<span class="qa-a-item-who">
+														<span class="qa-a-item-who-pad">by </span>
+														<span class="qa-a-item-who-data"><span class="vcard author"><a href="../../user/simon_funke" class="qa-user-link url nickname">simon_funke</a></span></span>
+														<span class="qa-a-item-who-title">FEniCS Novice</span>
+														<span class="qa-a-item-who-points">
+															<span class="qa-a-item-who-points-pad">(</span><span class="qa-a-item-who-points-data">690</span><span class="qa-a-item-who-points-pad"> points)</span>
+														</span>
+													</span>
+												</span>
+											</span>
+											<div class="qa-a-item-buttons">
+												</div>
+											
+											<div class="qa-a-item-c-list" style="display:none;" id="c3358_list">
+											</div> <!-- END qa-c-list -->
+											
+											<input type="hidden" name="code" value="0-1516467965-f6a4d28e9457f08d1646db8c516bbcc6dc887f7a">
+											<input type="hidden" name="qa_click" value="">
+										</form>
+										<div class="qa-c-form">
+										</div> <!-- END qa-c-form -->
+										
+									</div> <!-- END qa-a-item-main -->
+									<div class="qa-a-item-clear">
+									</div>
+								</div> <!-- END qa-a-list-item -->
+								
+							</div> <!-- END qa-a-list -->
+							
+						</div>
+					</div> <!-- END qa-main -->
+					
+				</div> <!-- END main-wrapper -->
+			</div> <!-- END main-shadow -->
+		</div> <!-- END body-wrapper -->
+		<!-- END footer-bottom-group -->
+		
+		<div style="position:absolute; left:-9999px; top:-9999px;">
+			<span id="qa-waiting-template" class="qa-waiting">...</span>
+		</div>
+	
+	
+
+</body><!-- Powered by Question2Answer - http://www.question2answer.org/ --></html>

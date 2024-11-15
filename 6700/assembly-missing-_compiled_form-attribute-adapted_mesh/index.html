@@ -1,0 +1,218 @@
+<html><!-- Powered by Question2Answer - http://www.question2answer.org/ --><head>
+		<meta http-equiv="content-type" content="text/html; charset=utf-8">
+		<title>Assembly fails due to missing  _compiled_form attribute after calling adapt(form,adapted_mesh) - FEniCS Q&amp;A</title>
+		<meta name="description" content="This can be seen as a follow-up to [this resolved bug][1]. When I try to assemble ... -project/dolfin/issue/391/adapt-form-adapted_mesh-doesnt-seem-to">
+		<meta name="keywords" content="assemble,adapt,bilinear-form">
+		<link rel="stylesheet" type="text/css" href="../../qa-theme/Snow/qa-styles.css">
+		<link rel="canonical" href="http://fenicsproject.org/qa/6700/assembly-missing-_compiled_form-attribute-adapted_mesh">
+		<script type="text/x-mathjax-config">
+  MathJax.Hub.Config({
+    extensions: ["tex2jax.js"],
+    jax: ["input/TeX","output/HTML-CSS"],
+    tex2jax: {inlineMath: [["$","$"],["\\(","\\)"]]},
+    TeX: { extensions: ["AMSmath.js","AMSsymbols.js"]}
+  });
+</script>
+<script type="text/javascript" src="../../mathjax/MathJax.js"></script>
+		<script src="../../jquery-1.7.2.min.js" type="text/javascript"></script>
+		<script src="../../highlight.min.js"></script>
+<script type="text/javascript">
+$(function(){
+	$('.wmd-input').keypress(function(){
+		window.clearTimeout(hljs.Timeout);
+		hljs.Timeout = window.setTimeout(function() {
+			hljs.initHighlighting.called = false;
+			hljs.initHighlighting();
+		}, 500);
+	});
+	window.setTimeout(function() {
+		hljs.initHighlighting.called = false;
+		hljs.initHighlighting();
+	}, 500);
+});
+</script>
+
+
+	</head>
+	<body class="qa-template-question qa-body-js-off">
+		<div class="qa-body-wrapper">
+			
+			<div class="qa-header">
+				<div class="qa-logo">
+					<a href="../../" class="qa-logo-link" title="FEniCS Q&amp;A"><img src="../../qa-theme/fenics_qa.png" border="0" alt="FEniCS Q&amp;A"></a>
+				</div>
+				<div class="qa-header-clear">
+				</div>
+			</div> <!-- END qa-header -->
+			
+			<div class="qa-main-shadow">
+				
+				<div class="qa-main-wrapper">
+					
+					<div class="qa-sidepanel">
+						<div class="qa-sidebar">
+							This is a read only copy of the old FEniCS QA forum. Please visit the <a href="https://www.allanswered.com/community/s/fenics-project/">new QA forum</a> to ask questions
+						</div>
+						
+					</div>
+					
+					<div class="qa-main">
+						<h1>
+							<span class="entry-title">Assembly fails due to missing  _compiled_form attribute after calling adapt(form,adapted_mesh)</span>
+						</h1>
+						<div class="qa-part-q-view">
+							<div class="qa-q-view  hentry question" id="q6700">
+								<form method="post" action="../../6700/assembly-missing-_compiled_form-attribute-adapted_mesh">
+									<div class="qa-q-view-stats">
+										<div class="qa-voting qa-voting-net" id="voting_6700">
+											<div class="qa-vote-count qa-vote-count-net">
+												<span class="qa-netvote-count">
+													<span class="qa-netvote-count-data">+1<span class="votes-up"><span class="value-title" title="1"></span></span><span class="votes-down"><span class="value-title" title="0"></span></span></span><span class="qa-netvote-count-pad"> vote</span>
+												</span>
+											</div>
+											<div class="qa-vote-clear">
+											</div>
+										</div>
+									</div>
+									<input type="hidden" name="code" value="0-1516468084-9a9b8f0637680b93f338e99f6b0cac983fa66b83">
+								</form>
+								<div class="qa-q-view-main">
+									<form method="post" action="../../6700/assembly-missing-_compiled_form-attribute-adapted_mesh">
+										<div class="qa-q-view-content">
+											<a name="6700"></a><div class="entry-content"><p>This can be seen as a follow-up to <a rel="nofollow" href="https://bitbucket.org/fenics-project/dolfin/issue/391/adapt-form-adapted_mesh-doesnt-seem-to">this resolved bug</a>. When I try to assemble a form after adapting it to a new mesh, I get an error message:</p>
+
+<pre><code>from dolfin import *
+
+mesh = UnitSquareMesh(32, 32)
+V = FunctionSpace(mesh, "Lagrange", 1)
+
+U = Function(V)
+U.interpolate(Constant(1.0))
+F = U*dx
+
+assemble(F) # works
+adapted_mesh = adapt(mesh)
+adapted_form = adapt(Form(F), adapted_mesh)
+assemble(adapted_form) # raises error
+</code></pre>
+
+<p>Running the above code yields the message</p>
+
+<blockquote>
+  <p>TypeError: Expected a dolfin form to have a _compiled_form attribute.</p>
+</blockquote>
+
+<p>I also accounted the problem when I tried to assemble a bilinear form which was returned by LinearVariationalProblem.bilinear_form(). The following is a slight modification of the classic Poisson demo which raises same error as above: </p>
+
+<pre><code>from dolfin import *
+mesh = UnitSquareMesh(32, 32)
+V = FunctionSpace(mesh, "Lagrange", 1)
+
+u = TrialFunction(V)
+v = TestFunction(V)
+f = Expression("1.0")
+a = inner(grad(u), grad(v))*dx
+L = f*v*dx
+
+u = Function(V)
+A = assemble(a) # works
+problem = LinearVariationalProblem(a,L,u)
+A = assemble(problem.bilinear_form()) # raises error
+</code></pre>
+
+<p>It seems that the _compiled_form attribute (which is created when the ufl.form is passed to assemble or explicitly converted to a dolfin.Form using Form(ufl.form)) somehow gets lost in these examples.</p>
+</div>
+										</div>
+										<div class="qa-q-view-tags">
+											<ul class="qa-q-view-tag-list">
+												<li class="qa-q-view-tag-item"><a href="../../tag/assemble" rel="tag" class="qa-tag-link">assemble</a></li>
+												<li class="qa-q-view-tag-item"><a href="../../tag/adapt" rel="tag" class="qa-tag-link">adapt</a></li>
+												<li class="qa-q-view-tag-item"><a href="../../tag/bilinear-form" rel="tag" class="qa-tag-link">bilinear-form</a></li>
+											</ul>
+										</div>
+										<span class="qa-q-view-avatar-meta">
+											<span class="qa-q-view-avatar">
+												<a href="../../user/Gregor+Mitscha-Baude" class="qa-avatar-link"><img src="../../?qa=image&amp;qa_blobid=3856551404141824203&amp;qa_size=50" width="41" height="50" class="qa-avatar-image" alt=""></a>
+											</span>
+											<span class="qa-q-view-meta">
+												<a href="../../6700/assembly-missing-_compiled_form-attribute-adapted_mesh" class="qa-q-view-what">asked</a>
+												<span class="qa-q-view-when">
+													<span class="qa-q-view-when-data"><span class="published"><span class="value-title" title="2015-03-04T19:33:50+0000"></span>Mar 4, 2015</span></span>
+												</span>
+												<span class="qa-q-view-who">
+													<span class="qa-q-view-who-pad">by </span>
+													<span class="qa-q-view-who-data"><span class="vcard author"><a href="../../user/Gregor+Mitscha-Baude" class="qa-user-link url nickname">Gregor Mitscha-Baude</a></span></span>
+													<span class="qa-q-view-who-title">FEniCS User</span>
+													<span class="qa-q-view-who-points">
+														<span class="qa-q-view-who-points-pad">(</span><span class="qa-q-view-who-points-data">2,280</span><span class="qa-q-view-who-points-pad"> points)</span>
+													</span>
+												</span>
+											</span>
+										</span>
+										<div class="qa-q-view-buttons">
+										</div>
+										
+										<div class="qa-q-view-c-list" id="c6700_list">
+											<div class="qa-c-list-item  hentry comment" id="c10298">
+												<div class="qa-c-item-content">
+													<a name="10298"></a><div class="entry-content"><p>Same error occurs when trying to assemble NonlinearVariationalProblem.residual_form().</p>
+</div>
+												</div>
+												<div class="qa-c-item-footer">
+													<span class="qa-c-item-avatar-meta">
+														<span class="qa-c-item-meta">
+															<a href="../../6700/assembly-missing-_compiled_form-attribute-adapted_mesh?show=10298#c10298" class="qa-c-item-what">commented</a>
+															<span class="qa-c-item-when">
+																<span class="qa-c-item-when-data"><span class="published"><span class="value-title" title="2016-06-07T16:41:30+0000"></span>Jun 7, 2016</span></span>
+															</span>
+															<span class="qa-c-item-who">
+																<span class="qa-c-item-who-pad">by </span>
+																<span class="qa-c-item-who-data"><span class="vcard author"><a href="../../user/jbcolli2" class="qa-user-link url nickname">jbcolli2</a></span></span>
+																<span class="qa-c-item-who-title">FEniCS Novice</span>
+																<span class="qa-c-item-who-points">
+																	<span class="qa-c-item-who-points-pad">(</span><span class="qa-c-item-who-points-data">210</span><span class="qa-c-item-who-points-pad"> points)</span>
+																</span>
+															</span>
+														</span>
+													</span>
+													<div class="qa-c-item-buttons">
+													</div>
+												</div>
+												<div class="qa-c-item-clear">
+												</div>
+											</div> <!-- END qa-c-item -->
+										</div> <!-- END qa-c-list -->
+										
+										<input type="hidden" name="code" value="0-1516468084-9274460cb9777b0e3fbaa6e90bd04c7734b77a35">
+										<input type="hidden" name="qa_click" value="">
+									</form>
+									<div class="qa-c-form">
+									</div> <!-- END qa-c-form -->
+									
+								</div> <!-- END qa-q-view-main -->
+								<div class="qa-q-view-clear">
+								</div>
+							</div> <!-- END qa-q-view -->
+							
+						</div>
+						<div class="qa-part-a-list">
+							<h2 id="a_list_title" style="display:none;"></h2>
+							<div class="qa-a-list" id="a_list">
+								
+							</div> <!-- END qa-a-list -->
+							
+						</div>
+					</div> <!-- END qa-main -->
+					
+				</div> <!-- END main-wrapper -->
+			</div> <!-- END main-shadow -->
+		</div> <!-- END body-wrapper -->
+		<!-- END footer-bottom-group -->
+		
+		<div style="position:absolute; left:-9999px; top:-9999px;">
+			<span id="qa-waiting-template" class="qa-waiting">...</span>
+		</div>
+	
+	
+
+</body><!-- Powered by Question2Answer - http://www.question2answer.org/ --></html>

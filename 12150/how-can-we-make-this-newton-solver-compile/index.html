@@ -1,0 +1,346 @@
+<html><!-- Powered by Question2Answer - http://www.question2answer.org/ --><head>
+		<meta http-equiv="content-type" content="text/html; charset=utf-8">
+		<title>How can we make this Newton solver compile? - FEniCS Q&amp;A</title>
+		<meta name="description" content="I am trying to solve a nonlinear variational problem using the Newton solver, but I keep  ... functional differentiation, but the code is not working.">
+		<meta name="keywords" content="newton-solver,error,convergence">
+		<link rel="stylesheet" type="text/css" href="../../qa-theme/Snow/qa-styles.css">
+		<link rel="canonical" href="http://fenicsproject.org/qa/12150/how-can-we-make-this-newton-solver-compile">
+		<script type="text/x-mathjax-config">
+  MathJax.Hub.Config({
+    extensions: ["tex2jax.js"],
+    jax: ["input/TeX","output/HTML-CSS"],
+    tex2jax: {inlineMath: [["$","$"],["\\(","\\)"]]},
+    TeX: { extensions: ["AMSmath.js","AMSsymbols.js"]}
+  });
+</script>
+<script type="text/javascript" src="../../mathjax/MathJax.js"></script>
+		<script src="../../jquery-1.7.2.min.js" type="text/javascript"></script>
+		<script src="../../highlight.min.js"></script>
+<script type="text/javascript">
+$(function(){
+	$('.wmd-input').keypress(function(){
+		window.clearTimeout(hljs.Timeout);
+		hljs.Timeout = window.setTimeout(function() {
+			hljs.initHighlighting.called = false;
+			hljs.initHighlighting();
+		}, 500);
+	});
+	window.setTimeout(function() {
+		hljs.initHighlighting.called = false;
+		hljs.initHighlighting();
+	}, 500);
+});
+</script>
+
+
+	</head>
+	<body class="qa-template-question qa-body-js-off">
+		<div class="qa-body-wrapper">
+			
+			<div class="qa-header">
+				<div class="qa-logo">
+					<a href="../../" class="qa-logo-link" title="FEniCS Q&amp;A"><img src="../../qa-theme/fenics_qa.png" border="0" alt="FEniCS Q&amp;A"></a>
+				</div>
+				<div class="qa-header-clear">
+				</div>
+			</div> <!-- END qa-header -->
+			
+			<div class="qa-main-shadow">
+				
+				<div class="qa-main-wrapper">
+					
+					<div class="qa-sidepanel">
+						<div class="qa-sidebar">
+							This is a read only copy of the old FEniCS QA forum. Please visit the <a href="https://www.allanswered.com/community/s/fenics-project/">new QA forum</a> to ask questions
+						</div>
+						
+					</div>
+					
+					<div class="qa-main">
+						<h1>
+							<span class="entry-title">How can we make this Newton solver compile?</span>
+						</h1>
+						<div class="qa-part-q-view">
+							<div class="qa-q-view  hentry question" id="q12150">
+								<form method="post" action="../../12150/how-can-we-make-this-newton-solver-compile">
+									<div class="qa-q-view-stats">
+										<div class="qa-voting qa-voting-net" id="voting_12150">
+											<div class="qa-vote-count qa-vote-count-net">
+												<span class="qa-netvote-count">
+													<span class="qa-netvote-count-data">0<span class="votes-up"><span class="value-title" title="0"></span></span><span class="votes-down"><span class="value-title" title="0"></span></span></span><span class="qa-netvote-count-pad"> votes</span>
+												</span>
+											</div>
+											<div class="qa-vote-clear">
+											</div>
+										</div>
+									</div>
+									<input type="hidden" name="code" value="0-1516467809-8c0a7ee63cde43592792fc8f22a50706412eb605">
+								</form>
+								<div class="qa-q-view-main">
+									<form method="post" action="../../12150/how-can-we-make-this-newton-solver-compile">
+										<div class="qa-q-view-content">
+											<a name="12150"></a><div class="entry-content"><p>I am trying to solve a nonlinear variational problem using the Newton solver, but I keep getting the following error:</p>
+
+<blockquote>
+  <p>RuntimeError: </p>
+  
+  <p>*** Error: Unable to perform just-in-time compilation of form.</p>
+  
+  <p>*** Reason:  ffc.jit failed with message: <br>
+  ArityMismatch: Multiplying expressions with overlapping form argument number 0, argument is v_0.</p>
+</blockquote>
+
+<p>Here is the relevant code:</p>
+
+<pre><code>from fenics import *
+import numpy as np
+
+# Parameters
+c = 1.25
+l = 5.0 
+P_surf = 0.0 
+sigma_0 = 3.0 
+gamma = 0.65 
+P0 = sigma_0*gamma 
+Kv = 10.0 
+cm = 5.0 
+# Derivative of pressure at the bottom surface.
+der_p_bottom = 0.0
+# Derivative of displacement at the top surface.
+der_w_top = cm*gamma*sigma_0
+
+# The initial time.
+t = 0.0
+# The final time
+T = 2.0
+# The number of time steps to take.
+num_steps = 40
+# The step size
+dt = (T-t)/num_steps
+# Width of the porous medium (y-axis length).
+width = 3.0
+# Thickness of the porous medium (z-axis length).
+thickness = 2.0
+
+# Create mesh and define function space.
+# Mesh for the 2-D case.
+mesh = RectangleMesh(Point(0.0,0.0),Point(l,width),100,10)
+# Use a scalar-valued element for pressure.
+P1 = FiniteElement('P', triangle, 1)
+# Use a vector-valued element for displacement.
+P2 = VectorElement('P', triangle, 1)
+# Create a mixed element to solve the system using the fully-implicit method.
+element = MixedElement(P1, P2)
+# Create the function space corresponding to this mixed element.
+V = FunctionSpace(mesh,element)
+
+# Define boundary conditions for pressure.
+upper_boundary = 'on_boundary &amp;&amp; near(x[0],0)'
+
+# An expression for the derivative of P at the bottom surface.
+der_p_D = Expression('near(x[0],l) ? der_p_bottom : 0.0',degree = 1, \
+    der_p_bottom=der_p_bottom, l=l)
+
+# Set the pressure at the porous medium's top to 0 (first subsystem of V).
+bc_p = DirichletBC(V.sub(0),Constant(P_surf),upper_boundary)
+
+# Define boundary conditions for displacements.
+bottom_boundary = 'on_boundary &amp;&amp; near(x[0],%s)'%(l)
+
+der_w_D = Expression(('near(x[0],0.0) ? der_w_top : 0.0','0.0'),degree=0, \
+    der_w_top=der_w_top)
+
+# Set the displacement at the porous medium's bottom to 0 (first dimension of
+# the second subsystem of the FunctionSpace V).
+bc_w = DirichletBC(V.sub(1).sub(0),Constant(0.0),bottom_boundary)
+
+# Combine the Dirichlet boundary conditions.
+bc = [bc_p, bc_w]
+
+# Create the test functions.
+v = TestFunction(V)
+(v_1, v_2) = split(v)
+
+# Define the initial conditions and previous time step values.
+# The previous step's solution.
+u_n = Function(V)
+# Split the mixed function.
+(p_n, w_n) = split(u_n)
+# Create and assign the initial conditions.
+u_init = Constant((P0,0.0,0.0))
+u_n.interpolate(u_init)
+# Create the current solution.
+u_ = Function(V)
+(p_, w_) = split(u_)
+
+# Define the variational problem.
+# Fluid Diffusion Equation
+Eq1 = dot(p_,v_1)*dx  - dot(p_n,v_1)*dx \
+    +c*dt*inner(grad(p_),grad(v_1))*dx \
+    -c*dt*der_p_D*v_1*ds
+
+# Force Equilibrium Equation
+Eq2 = inner(grad(w_),grad(v_2))*dx \
+    -dot(der_w_D,v_2)*ds \
+    +cm*dot(grad(p_),v_2)*dx
+
+# Add the equations to make a monolithic scheme.
+F = Eq1 + Eq2
+
+# Create the progress bar.
+progress = Progress('Time-stepping')
+set_log_level(PROGRESS)
+
+# Provide the Jacobian form.
+J = derivative(F,u_,v)
+# Create the Newton solver.
+problem = NonlinearVariationalProblem(F, u_, bc, J)
+solver = NonlinearVariationalSolver(problem)
+prm = solver.parameters.newton_solver
+prm.error_on_nonconvergence = False
+
+# Form and solve the linear system.
+for n in range(num_steps):
+
+    # Update current time.
+    t += dt
+
+    # Solve the variational problem.
+    solver.solve() # for use with the NonlinearVariationalProblem structure.
+
+    # Update the previous solution.
+    u_n.assign(u_)
+
+    # Update the progress bar.
+    progress.update(t/T)
+</code></pre>
+
+<p>The error occurs at:</p>
+
+<pre><code>problem = NonlinearVariationalProblem(F, u_, bc, J)
+</code></pre>
+
+<p>Any thoughts on why this happens? I have searched through the documentation, and I saw that UFL supports automatic functional differentiation, but the code is not working.</p>
+</div>
+										</div>
+										<div class="qa-q-view-tags">
+											<ul class="qa-q-view-tag-list">
+												<li class="qa-q-view-tag-item"><a href="../../tag/newton-solver" rel="tag" class="qa-tag-link">newton-solver</a></li>
+												<li class="qa-q-view-tag-item"><a href="../../tag/error" rel="tag" class="qa-tag-link">error</a></li>
+												<li class="qa-q-view-tag-item"><a href="../../tag/convergence" rel="tag" class="qa-tag-link">convergence</a></li>
+											</ul>
+										</div>
+										<span class="qa-q-view-avatar-meta">
+											<span class="qa-q-view-meta">
+												<a href="../../12150/how-can-we-make-this-newton-solver-compile" class="qa-q-view-what">asked</a>
+												<span class="qa-q-view-when">
+													<span class="qa-q-view-when-data"><span class="published"><span class="value-title" title="2017-01-14T08:58:49+0000"></span>Jan 14, 2017</span></span>
+												</span>
+												<span class="qa-q-view-who">
+													<span class="qa-q-view-who-pad">by </span>
+													<span class="qa-q-view-who-data"><span class="vcard author"><a href="../../user/SM" class="qa-user-link url nickname">SM</a></span></span>
+													<span class="qa-q-view-who-title">FEniCS Novice</span>
+													<span class="qa-q-view-who-points">
+														<span class="qa-q-view-who-points-pad">(</span><span class="qa-q-view-who-points-data">630</span><span class="qa-q-view-who-points-pad"> points)</span>
+													</span>
+												</span>
+											</span>
+										</span>
+										<div class="qa-q-view-buttons">
+										</div>
+										
+										<div class="qa-q-view-c-list" style="display:none;" id="c12150_list">
+										</div> <!-- END qa-c-list -->
+										
+										<input type="hidden" name="code" value="0-1516467809-4b8db32dcc491fed63a4c387e019c75e96826b64">
+										<input type="hidden" name="qa_click" value="">
+									</form>
+									<div class="qa-c-form">
+									</div> <!-- END qa-c-form -->
+									
+								</div> <!-- END qa-q-view-main -->
+								<div class="qa-q-view-clear">
+								</div>
+							</div> <!-- END qa-q-view -->
+							
+						</div>
+						<div class="qa-part-a-list">
+							<h2 id="a_list_title">1 Answer</h2>
+							<div class="qa-a-list" id="a_list">
+								
+								<div class="qa-a-list-item  hentry answer" id="a12156">
+									<form method="post" action="../../12150/how-can-we-make-this-newton-solver-compile">
+										<div class="qa-voting qa-voting-net" id="voting_12156">
+											<div class="qa-vote-count qa-vote-count-net">
+												<span class="qa-netvote-count">
+													<span class="qa-netvote-count-data">0<span class="votes-up"><span class="value-title" title="0"></span></span><span class="votes-down"><span class="value-title" title="0"></span></span></span><span class="qa-netvote-count-pad"> votes</span>
+												</span>
+											</div>
+											<div class="qa-vote-clear">
+											</div>
+										</div>
+										<input type="hidden" name="code" value="0-1516467809-8c0a7ee63cde43592792fc8f22a50706412eb605">
+									</form>
+									<div class="qa-a-item-main">
+										<form method="post" action="../../12150/how-can-we-make-this-newton-solver-compile">
+											<div class="qa-a-selection">
+											</div>
+											<div class="qa-a-item-content">
+												<a name="12156"></a><div class="entry-content"><p>Found the issue. The code to compute the Jacobian was the following:</p>
+
+<pre><code>J = derivative(F,u_)
+</code></pre>
+
+<p>Then the code worked.</p>
+</div>
+											</div>
+											<span class="qa-a-item-avatar-meta">
+												<span class="qa-a-item-meta">
+													<a href="../../12150/how-can-we-make-this-newton-solver-compile?show=12156#a12156" class="qa-a-item-what">answered</a>
+													<span class="qa-a-item-when">
+														<span class="qa-a-item-when-data"><span class="published"><span class="value-title" title="2017-01-15T03:00:30+0000"></span>Jan 15, 2017</span></span>
+													</span>
+													<span class="qa-a-item-who">
+														<span class="qa-a-item-who-pad">by </span>
+														<span class="qa-a-item-who-data"><span class="vcard author"><a href="../../user/SM" class="qa-user-link url nickname">SM</a></span></span>
+														<span class="qa-a-item-who-title">FEniCS Novice</span>
+														<span class="qa-a-item-who-points">
+															<span class="qa-a-item-who-points-pad">(</span><span class="qa-a-item-who-points-data">630</span><span class="qa-a-item-who-points-pad"> points)</span>
+														</span>
+													</span>
+												</span>
+											</span>
+											<div class="qa-a-item-buttons">
+												</div>
+											
+											<div class="qa-a-item-c-list" style="display:none;" id="c12156_list">
+											</div> <!-- END qa-c-list -->
+											
+											<input type="hidden" name="code" value="0-1516467809-3ebf485d0627f61bb4b7a0a00021d0bc17f8465b">
+											<input type="hidden" name="qa_click" value="">
+										</form>
+										<div class="qa-c-form">
+										</div> <!-- END qa-c-form -->
+										
+									</div> <!-- END qa-a-item-main -->
+									<div class="qa-a-item-clear">
+									</div>
+								</div> <!-- END qa-a-list-item -->
+								
+							</div> <!-- END qa-a-list -->
+							
+						</div>
+					</div> <!-- END qa-main -->
+					
+				</div> <!-- END main-wrapper -->
+			</div> <!-- END main-shadow -->
+		</div> <!-- END body-wrapper -->
+		<!-- END footer-bottom-group -->
+		
+		<div style="position:absolute; left:-9999px; top:-9999px;">
+			<span id="qa-waiting-template" class="qa-waiting">...</span>
+		</div>
+	
+	
+
+</body><!-- Powered by Question2Answer - http://www.question2answer.org/ --></html>

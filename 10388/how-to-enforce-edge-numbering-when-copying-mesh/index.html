@@ -1,0 +1,196 @@
+<html><!-- Powered by Question2Answer - http://www.question2answer.org/ --><head>
+		<meta http-equiv="content-type" content="text/html; charset=utf-8">
+		<title>How to enforce edge numbering when copying mesh? - FEniCS Q&amp;A</title>
+		<meta name="description" content="I am trying to create a Domain Decomposition preconditioner that requires the solution of subdomain problems. ... )) print mpirank, c.index(), cell_fs">
+		<link rel="stylesheet" type="text/css" href="../../qa-theme/Snow/qa-styles.css">
+		<link rel="canonical" href="http://fenicsproject.org/qa/10388/how-to-enforce-edge-numbering-when-copying-mesh">
+		<script type="text/x-mathjax-config">
+  MathJax.Hub.Config({
+    extensions: ["tex2jax.js"],
+    jax: ["input/TeX","output/HTML-CSS"],
+    tex2jax: {inlineMath: [["$","$"],["\\(","\\)"]]},
+    TeX: { extensions: ["AMSmath.js","AMSsymbols.js"]}
+  });
+</script>
+<script type="text/javascript" src="../../mathjax/MathJax.js"></script>
+		<script src="../../jquery-1.7.2.min.js" type="text/javascript"></script>
+		<script src="../../highlight.min.js"></script>
+<script type="text/javascript">
+$(function(){
+	$('.wmd-input').keypress(function(){
+		window.clearTimeout(hljs.Timeout);
+		hljs.Timeout = window.setTimeout(function() {
+			hljs.initHighlighting.called = false;
+			hljs.initHighlighting();
+		}, 500);
+	});
+	window.setTimeout(function() {
+		hljs.initHighlighting.called = false;
+		hljs.initHighlighting();
+	}, 500);
+});
+</script>
+
+
+	</head>
+	<body class="qa-template-question qa-body-js-off">
+		<div class="qa-body-wrapper">
+			
+			<div class="qa-header">
+				<div class="qa-logo">
+					<a href="../../" class="qa-logo-link" title="FEniCS Q&amp;A"><img src="../../qa-theme/fenics_qa.png" border="0" alt="FEniCS Q&amp;A"></a>
+				</div>
+				<div class="qa-header-clear">
+				</div>
+			</div> <!-- END qa-header -->
+			
+			<div class="qa-main-shadow">
+				
+				<div class="qa-main-wrapper">
+					
+					<div class="qa-sidepanel">
+						<div class="qa-sidebar">
+							This is a read only copy of the old FEniCS QA forum. Please visit the <a href="https://www.allanswered.com/community/s/fenics-project/">new QA forum</a> to ask questions
+						</div>
+						
+					</div>
+					
+					<div class="qa-main">
+						<h1>
+							<span class="entry-title">How to enforce edge numbering when copying mesh?</span>
+						</h1>
+						<div class="qa-part-q-view">
+							<div class="qa-q-view  hentry question" id="q10388">
+								<form method="post" action="../../10388/how-to-enforce-edge-numbering-when-copying-mesh">
+									<div class="qa-q-view-stats">
+										<div class="qa-voting qa-voting-net" id="voting_10388">
+											<div class="qa-vote-count qa-vote-count-net">
+												<span class="qa-netvote-count">
+													<span class="qa-netvote-count-data">+1<span class="votes-up"><span class="value-title" title="1"></span></span><span class="votes-down"><span class="value-title" title="0"></span></span></span><span class="qa-netvote-count-pad"> vote</span>
+												</span>
+											</div>
+											<div class="qa-vote-clear">
+											</div>
+										</div>
+									</div>
+									<input type="hidden" name="code" value="0-1516467056-7fa0538faa73977551a672114615309cf40e8e00">
+								</form>
+								<div class="qa-q-view-main">
+									<form method="post" action="../../10388/how-to-enforce-edge-numbering-when-copying-mesh">
+										<div class="qa-q-view-content">
+											<a name="10388"></a><div class="entry-content"><p>I am trying to create a Domain Decomposition preconditioner that requires the solution of subdomain problems.  In order to accomplish this I have made local copies of the mesh on each processor.  To do this, I copy the local vertices and cells with the same ordering as the local parts of the global mesh, into a local mesh using MeshEditor().</p>
+
+<p>I was under the impression that if the vertices for each cell are ordered the same between two meshes, that the edge ordering would also be identical based on the numbering conventions outlined in section 16.5 of the FEniCS book.  This turns out to be not true.</p>
+
+<p>Why do these turn out to be different? and how can I enforce the edges to have the same ordering</p>
+
+<p>Here is a code which recreates the problem, the printout shows that the local and global cell-edge connectivities differ.</p>
+
+<pre><code>from dolfin import *
+
+comm = mpi_comm_world()
+mpirank = MPI.rank(comm)
+mpisize = MPI.size(comm)
+
+ny = 5
+mesh = UnitSquareMesh(ny-1, ny-1)
+
+
+meshtopo = mesh.topology()
+cell_ghost_offset = meshtopo.ghost_offset(2)
+vertex_ghost_offset = meshtopo.ghost_offset(0)
+
+mesh_local = Mesh(mpi_comm_self())
+mesh_editor = MeshEditor()
+mesh_editor.open(mesh_local, 2, 2)
+mesh_editor.init_vertices(vertex_ghost_offset)
+mesh_editor.init_cells(cell_ghost_offset) 
+
+print 'global mesh connectivity'
+used_verts = []
+for c in cells(mesh):
+    cell_vs = []
+    cell_fs = []
+    for f in facets(c):
+        cell_fs.append(f.index())
+    print mpirank, c.index(), cell_fs
+    for v in vertices(c):
+        cell_vs.append(v.index())
+        if v.index() not in used_verts:
+            mesh_editor.add_vertex(v.index(), \
+                                   Vertex(mesh, v.index()).x(0), \
+                                   Vertex(mesh, v.index()).x(1))
+
+            used_verts.append(v.index())
+
+    mesh_editor.add_cell(c.index(), cell_vs[0], cell_vs[1], cell_vs[2])
+
+mesh_editor.close()
+
+
+comm.barrier()
+
+print 'local mesh connectivity'
+for c in cells(mesh_local):
+    cell_fs = []
+    for f in facets(c):
+        cell_fs.append(f.index())
+    print mpirank, c.index(), cell_fs
+</code></pre>
+</div>
+										</div>
+										<span class="qa-q-view-avatar-meta">
+											<span class="qa-q-view-meta">
+												<a href="../../10388/how-to-enforce-edge-numbering-when-copying-mesh" class="qa-q-view-what">asked</a>
+												<span class="qa-q-view-when">
+													<span class="qa-q-view-when-data"><span class="published"><span class="value-title" title="2016-06-16T17:38:08+0000"></span>Jun 16, 2016</span></span>
+												</span>
+												<span class="qa-q-view-who">
+													<span class="qa-q-view-who-pad">by </span>
+													<span class="qa-q-view-who-data"><span class="vcard author"><a href="../../user/brk888" class="qa-user-link url nickname">brk888</a></span></span>
+													<span class="qa-q-view-who-title">FEniCS Novice</span>
+													<span class="qa-q-view-who-points">
+														<span class="qa-q-view-who-points-pad">(</span><span class="qa-q-view-who-points-data">990</span><span class="qa-q-view-who-points-pad"> points)</span>
+													</span>
+												</span>
+											</span>
+										</span>
+										<div class="qa-q-view-buttons">
+										</div>
+										
+										<div class="qa-q-view-c-list" style="display:none;" id="c10388_list">
+										</div> <!-- END qa-c-list -->
+										
+										<input type="hidden" name="code" value="0-1516467056-d543c53ac2bfddc475c2c1c964b8951644152963">
+										<input type="hidden" name="qa_click" value="">
+									</form>
+									<div class="qa-c-form">
+									</div> <!-- END qa-c-form -->
+									
+								</div> <!-- END qa-q-view-main -->
+								<div class="qa-q-view-clear">
+								</div>
+							</div> <!-- END qa-q-view -->
+							
+						</div>
+						<div class="qa-part-a-list">
+							<h2 id="a_list_title" style="display:none;"></h2>
+							<div class="qa-a-list" id="a_list">
+								
+							</div> <!-- END qa-a-list -->
+							
+						</div>
+					</div> <!-- END qa-main -->
+					
+				</div> <!-- END main-wrapper -->
+			</div> <!-- END main-shadow -->
+		</div> <!-- END body-wrapper -->
+		<!-- END footer-bottom-group -->
+		
+		<div style="position:absolute; left:-9999px; top:-9999px;">
+			<span id="qa-waiting-template" class="qa-waiting">...</span>
+		</div>
+	
+	
+
+</body><!-- Powered by Question2Answer - http://www.question2answer.org/ --></html>

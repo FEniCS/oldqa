@@ -1,0 +1,503 @@
+<html><!-- Powered by Question2Answer - http://www.question2answer.org/ --><head>
+		<meta http-equiv="content-type" content="text/html; charset=utf-8">
+		<title>Issues with `set_local` in Crouzeix-Raviart FEM - FEniCS Q&amp;A</title>
+		<meta name="description" content="I have found a somewhat unexpected behavior of dolfin that occurs when I manually set the nodal values of the ...  [2]: http://i.imgur.com/02OHTiv.png">
+		<meta name="keywords" content="vectorfunctionspace,functionspace,boundary-cells,boundaries">
+		<link rel="stylesheet" type="text/css" href="../../qa-theme/Snow/qa-styles.css">
+		<link rel="canonical" href="http://fenicsproject.org/qa/6124/issues-with-set_local-in-crouzeix-raviart-fem">
+		<script type="text/x-mathjax-config">
+  MathJax.Hub.Config({
+    extensions: ["tex2jax.js"],
+    jax: ["input/TeX","output/HTML-CSS"],
+    tex2jax: {inlineMath: [["$","$"],["\\(","\\)"]]},
+    TeX: { extensions: ["AMSmath.js","AMSsymbols.js"]}
+  });
+</script>
+<script type="text/javascript" src="../../mathjax/MathJax.js"></script>
+		<script src="../../jquery-1.7.2.min.js" type="text/javascript"></script>
+		<script src="../../highlight.min.js"></script>
+<script type="text/javascript">
+$(function(){
+	$('.wmd-input').keypress(function(){
+		window.clearTimeout(hljs.Timeout);
+		hljs.Timeout = window.setTimeout(function() {
+			hljs.initHighlighting.called = false;
+			hljs.initHighlighting();
+		}, 500);
+	});
+	window.setTimeout(function() {
+		hljs.initHighlighting.called = false;
+		hljs.initHighlighting();
+	}, 500);
+});
+</script>
+
+
+	</head>
+	<body class="qa-template-question qa-body-js-off">
+		<div class="qa-body-wrapper">
+			
+			<div class="qa-header">
+				<div class="qa-logo">
+					<a href="../../" class="qa-logo-link" title="FEniCS Q&amp;A"><img src="../../qa-theme/fenics_qa.png" border="0" alt="FEniCS Q&amp;A"></a>
+				</div>
+				<div class="qa-header-clear">
+				</div>
+			</div> <!-- END qa-header -->
+			
+			<div class="qa-main-shadow">
+				
+				<div class="qa-main-wrapper">
+					
+					<div class="qa-sidepanel">
+						<div class="qa-sidebar">
+							This is a read only copy of the old FEniCS QA forum. Please visit the <a href="https://www.allanswered.com/community/s/fenics-project/">new QA forum</a> to ask questions
+						</div>
+						
+					</div>
+					
+					<div class="qa-main">
+						<h1>
+							<span class="entry-title">Issues with `set_local` in Crouzeix-Raviart FEM</span>
+						</h1>
+						<div class="qa-part-q-view">
+							<div class="qa-q-view  hentry question" id="q6124">
+								<form method="post" action="../../6124/issues-with-set_local-in-crouzeix-raviart-fem">
+									<div class="qa-q-view-stats">
+										<div class="qa-voting qa-voting-net" id="voting_6124">
+											<div class="qa-vote-count qa-vote-count-net">
+												<span class="qa-netvote-count">
+													<span class="qa-netvote-count-data">+3<span class="votes-up"><span class="value-title" title="3"></span></span><span class="votes-down"><span class="value-title" title="0"></span></span></span><span class="qa-netvote-count-pad"> votes</span>
+												</span>
+											</div>
+											<div class="qa-vote-clear">
+											</div>
+										</div>
+									</div>
+									<input type="hidden" name="code" value="0-1516468058-e2a5b568121386a7c484abf9e5d609eee5373cce">
+								</form>
+								<div class="qa-q-view-main">
+									<form method="post" action="../../6124/issues-with-set_local-in-crouzeix-raviart-fem">
+										<div class="qa-q-view-content">
+											<a name="6124"></a><div class="entry-content"><p>I have found a somewhat unexpected behavior of dolfin that occurs when I manually set the nodal values of the boundaries of a <code>CR</code> FE space. See the pictures and the code example attached.</p>
+
+<p>More precisely, I proceed as follows:</p>
+
+<ul>
+<li>setup the space <code>V</code> </li>
+<li>extract the <code>dofs</code> associated with the boundary of the mesh</li>
+<li>setup a vector of ones of the size <code>V.dim()</code></li>
+<li>set the boundary dofs to <code>-1</code></li>
+<li>assign this vector to the nodal values of a function <code>v</code> in <code>V</code></li>
+<li>plot the results</li>
+</ul>
+
+<p>Obviously, for <code>CR</code> the lower boundary is not set, while the values just below upper boundary are doubled.</p>
+
+<p>For a <code>CG</code> space everything is as expected.</p>
+
+<p>Any ideas on that??</p>
+
+<p>Here are the pics:<br>
+1. for <code>V</code> is <code>CG</code> or order <code>2</code><br>
+<img src="http://i.imgur.com/fj0627P.png" alt="enter image description here"><br>
+2. for <code>V</code> is <code>CR</code> <br>
+<img src="http://i.imgur.com/02OHTiv.png" alt="enter image description here"><br>
+And here is the code:</p>
+
+<pre><code>import dolfin
+import numpy as np
+
+N = 4
+mesh = dolfin.UnitSquareMesh(N, N, 'crossed')
+scheme = 'CR'  # 'TH' or 'CR'
+if scheme == 'TH':
+    V = dolfin.VectorFunctionSpace(mesh, "CG", 2)
+elif scheme == 'CR':
+    V = dolfin.VectorFunctionSpace(mesh, "CR", 1)
+
+
+# define the boundary
+def topleftbotright(x, on_boundary):
+    return (np.fabs(x[1] - 1.0) &lt; dolfin.DOLFIN_EPS
+            or np.fabs(x[0] - 1.0) &lt; dolfin.DOLFIN_EPS
+            or np.fabs(x[1]) &lt; dolfin.DOLFIN_EPS
+            or np.fabs(x[0]) &lt; dolfin.DOLFIN_EPS)
+
+noslip = dolfin.Constant((0.0, 0.0))
+bc = dolfin.DirichletBC(V, noslip, topleftbotright)
+
+bcdict = bc.get_boundary_values()
+bcinds = bcdict.keys()
+
+innerinds = np.setdiff1d(range(V.dim()), bcinds)
+bcinds = np.setdiff1d(range(V.dim()), innerinds)
+
+# vector of -1
+vvec = np.zeros((V.dim(), 1)) - 1
+# set inner nodes to 1
+vvec[innerinds, 0] = 1
+# assign to function
+v = dolfin.Function(V)
+v.vector().set_local(vvec)
+
+dolfin.plot(v)
+dolfin.interactive(True)
+</code></pre>
+
+<p>"""</p>
+</div>
+										</div>
+										<div class="qa-q-view-tags">
+											<ul class="qa-q-view-tag-list">
+												<li class="qa-q-view-tag-item"><a href="../../tag/vectorfunctionspace" rel="tag" class="qa-tag-link">vectorfunctionspace</a></li>
+												<li class="qa-q-view-tag-item"><a href="../../tag/functionspace" rel="tag" class="qa-tag-link">functionspace</a></li>
+												<li class="qa-q-view-tag-item"><a href="../../tag/boundary-cells" rel="tag" class="qa-tag-link">boundary-cells</a></li>
+												<li class="qa-q-view-tag-item"><a href="../../tag/boundaries" rel="tag" class="qa-tag-link">boundaries</a></li>
+											</ul>
+										</div>
+										<span class="qa-q-view-avatar-meta">
+											<span class="qa-q-view-avatar">
+												<a href="../../user/Jan" class="qa-avatar-link"><img src="https://www.gravatar.com/avatar/c71e1343e533ab01bcce8649718574fa?s=50" width="50" height="50" class="qa-avatar-image" alt=""></a>
+											</span>
+											<span class="qa-q-view-meta">
+												<a href="../../6124/issues-with-set_local-in-crouzeix-raviart-fem" class="qa-q-view-what">asked</a>
+												<span class="qa-q-view-when">
+													<span class="qa-q-view-when-data"><span class="published"><span class="value-title" title="2014-12-01T08:20:07+0000"></span>Dec 1, 2014</span></span>
+												</span>
+												<span class="qa-q-view-who">
+													<span class="qa-q-view-who-pad">by </span>
+													<span class="qa-q-view-who-data"><span class="vcard author"><a href="../../user/Jan" class="qa-user-link url nickname">Jan</a></span></span>
+													<span class="qa-q-view-who-title">FEniCS User</span>
+													<span class="qa-q-view-who-points">
+														<span class="qa-q-view-who-points-pad">(</span><span class="qa-q-view-who-points-data">8,290</span><span class="qa-q-view-who-points-pad"> points)</span>
+													</span>
+												</span>
+											</span>
+										</span>
+										<div class="qa-q-view-buttons">
+										</div>
+										
+										<div class="qa-q-view-c-list" style="display:none;" id="c6124_list">
+										</div> <!-- END qa-c-list -->
+										
+										<input type="hidden" name="code" value="0-1516468058-277374fa04e8d4bbe92d001b9cb740bf9607f0b1">
+										<input type="hidden" name="qa_click" value="">
+									</form>
+									<div class="qa-c-form">
+									</div> <!-- END qa-c-form -->
+									
+								</div> <!-- END qa-q-view-main -->
+								<div class="qa-q-view-clear">
+								</div>
+							</div> <!-- END qa-q-view -->
+							
+						</div>
+						<div class="qa-part-a-list">
+							<h2 id="a_list_title">1 Answer</h2>
+							<div class="qa-a-list" id="a_list">
+								
+								<div class="qa-a-list-item  hentry answer answer-selected qa-a-list-item-selected" id="a6126">
+									<form method="post" action="../../6124/issues-with-set_local-in-crouzeix-raviart-fem">
+										<div class="qa-voting qa-voting-net" id="voting_6126">
+											<div class="qa-vote-count qa-vote-count-net">
+												<span class="qa-netvote-count">
+													<span class="qa-netvote-count-data">+3<span class="votes-up"><span class="value-title" title="3"></span></span><span class="votes-down"><span class="value-title" title="0"></span></span></span><span class="qa-netvote-count-pad"> votes</span>
+												</span>
+											</div>
+											<div class="qa-vote-clear">
+											</div>
+										</div>
+										<input type="hidden" name="code" value="0-1516468058-e2a5b568121386a7c484abf9e5d609eee5373cce">
+									</form>
+									<div class="qa-a-item-main">
+										<form method="post" action="../../6124/issues-with-set_local-in-crouzeix-raviart-fem">
+											<div class="qa-a-item-selected">
+												<div class="qa-a-selection">
+													<div class="qa-a-selected">&#160;</div>
+													<div class="qa-a-selected-text">Best answer</div>
+												</div>
+												<div class="qa-a-item-content">
+													<a name="6126"></a><div class="entry-content"><p>Hi, could you test your code with the snippet below where the plotting is done by matplotlib so that we know that what you observe is not due to effects of DOLFIN plotting a non-CG function? With DOLFIN 1.4.0+ I got plots that look <a rel="nofollow" href="https://github.com/MiroK/fenics-qa/blob/master/figure_1.png">correct</a>.</p>
+
+<pre><code># Evaluate CR at midpoints
+mesh.init(1, 2)
+midpoints = np.array([np.array([facet.midpoint().x(), facet.midpoint().y()])
+                      for facet in dolfin.facets(mesh) if facet.exterior()])
+U = np.zeros(len(midpoints))
+V = np.zeros_like(U)
+for i, mp in enumerate(midpoints):
+    U[i], V[i] = v(mp) 
+
+import matplotlib.tri as tri
+import matplotlib.pyplot as plt
+
+# Data for mesh
+mesh_coordinates = mesh.coordinates().reshape((-1, 2))
+triangles = np.asarray([cell.entities(0) for cell in dolfin.cells(mesh)])
+triangulation = tri.Triangulation(mesh_coordinates[:, 0],
+                                  mesh_coordinates[:, 1],
+                                  triangles)
+
+plt.figure()
+plt.triplot(triangulation, color='b')
+plt.quiver(midpoints[:, 0], midpoints[:, 1], U, V)
+plt.xlim([-0.2, 1.2])
+plt.ylim([-0.2, 1.2])
+plt.show()
+</code></pre>
+</div>
+												</div>
+												<span class="qa-a-item-avatar-meta">
+													<span class="qa-a-item-avatar">
+														<a href="../../user/MiroK" class="qa-avatar-link"><img src="https://www.gravatar.com/avatar/f566be3274ec73e3a6dda27bca11631c?s=40" width="40" height="40" class="qa-avatar-image" alt=""></a>
+													</span>
+													<span class="qa-a-item-meta">
+														<a href="../../6124/issues-with-set_local-in-crouzeix-raviart-fem?show=6126#a6126" class="qa-a-item-what">answered</a>
+														<span class="qa-a-item-when">
+															<span class="qa-a-item-when-data"><span class="published"><span class="value-title" title="2014-12-01T21:52:04+0000"></span>Dec 1, 2014</span></span>
+														</span>
+														<span class="qa-a-item-who">
+															<span class="qa-a-item-who-pad">by </span>
+															<span class="qa-a-item-who-data"><span class="vcard author"><a href="../../user/MiroK" class="qa-user-link url nickname">MiroK</a></span></span>
+															<span class="qa-a-item-who-title">FEniCS Expert</span>
+															<span class="qa-a-item-who-points">
+																<span class="qa-a-item-who-points-pad">(</span><span class="qa-a-item-who-points-data">80,920</span><span class="qa-a-item-who-points-pad"> points)</span>
+															</span>
+														</span>
+														<br>
+														<span class="qa-a-item-what">selected</span>
+														<span class="qa-a-item-when">
+															<span class="qa-a-item-when-data"><span class="updated"><span class="value-title" title="2014-12-02T12:09:51+0000"></span>Dec 2, 2014</span></span>
+														</span>
+														<span class="qa-a-item-who">
+															<span class="qa-a-item-who-pad">by </span><span class="qa-a-item-who-data"><a href="../../user/Jan" class="qa-user-link url nickname">Jan</a></span>
+														</span>
+													</span>
+												</span>
+											</div>
+											<div class="qa-a-item-buttons">
+												</div>
+											
+											<div class="qa-a-item-c-list" id="c6126_list">
+												<div class="qa-c-list-item  hentry comment" id="c6128">
+													<div class="qa-c-item-content">
+														<a name="6128"></a><div class="entry-content"><p>Thank you for this insight. Although this means I still have not found the bug in my code.</p>
+</div>
+													</div>
+													<div class="qa-c-item-footer">
+														<span class="qa-c-item-avatar-meta">
+															<span class="qa-c-item-avatar">
+																<a href="../../user/Jan" class="qa-avatar-link"><img src="https://www.gravatar.com/avatar/c71e1343e533ab01bcce8649718574fa?s=20" width="20" height="20" class="qa-avatar-image" alt=""></a>
+															</span>
+															<span class="qa-c-item-meta">
+																<a href="../../6124/issues-with-set_local-in-crouzeix-raviart-fem?show=6128#c6128" class="qa-c-item-what">commented</a>
+																<span class="qa-c-item-when">
+																	<span class="qa-c-item-when-data"><span class="published"><span class="value-title" title="2014-12-02T12:13:31+0000"></span>Dec 2, 2014</span></span>
+																</span>
+																<span class="qa-c-item-who">
+																	<span class="qa-c-item-who-pad">by </span>
+																	<span class="qa-c-item-who-data"><span class="vcard author"><a href="../../user/Jan" class="qa-user-link url nickname">Jan</a></span></span>
+																	<span class="qa-c-item-who-title">FEniCS User</span>
+																	<span class="qa-c-item-who-points">
+																		<span class="qa-c-item-who-points-pad">(</span><span class="qa-c-item-who-points-data">8,290</span><span class="qa-c-item-who-points-pad"> points)</span>
+																	</span>
+																</span>
+															</span>
+														</span>
+														<div class="qa-c-item-buttons">
+														</div>
+													</div>
+													<div class="qa-c-item-clear">
+													</div>
+												</div> <!-- END qa-c-item -->
+												<div class="qa-c-list-item  hentry comment" id="c10248">
+													<div class="qa-c-item-content">
+														<a name="10248"></a><div class="entry-content"><p>Hi,<br>
+I changed the above code to plot the whole vector field and it is working but how can I show the values of the vectors? can the norm be plotted together with this quiver plot?</p>
+
+<hr>
+
+<h2>code for reference</h2>
+
+<pre><code>import matplotlib.pyplot as plt
+import matplotlib.tri as tri
+from dolfin import *
+import numpy as np
+from scipy import pi, linspace, loadtxt, meshgrid, exp, cos, sqrt, power
+
+#--------------------------------------------------------------------------------------------
+# System size definition 
+# system = (x1, x1+Lx) x (y1, y1+Ly)
+Lx = 1.0; Ly = 1.0
+x1 = -0.5; y1 = -0.5
+xend=x1+Lx
+yend=y1+Ly
+
+#--------------------------------------------------------------------------------------------
+#--------------------------------------------------------------------------------------------
+# Create mesh and define function space
+dx0 = dx1 = 0.05
+nx = int(Lx/dx0) 
+ny = int(Ly/dx1)
+mesh = RectangleMesh(Point(x1, y1), Point(x1+Lx, y1+Ly), nx, ny,"right/left")
+V = FunctionSpace(mesh, 'Lagrange', 1)
+VV = VectorFunctionSpace(mesh, 'Lagrange', 1)
+
+icx = Expression("x[1]")
+icy = Expression("-x[0]")
+icex = Expression(("icx" , "icy"), icx=icx, icy=icy)
+ic = interpolate(icex, VV)
+
+
+
+#------------------------- MIROK    
+
+# Evaluate CR at midpoints
+mesh.init(1, 2)
+midpoints = np.array([np.array([cell.midpoint().x(), cell.midpoint().y()])
+                  for cell in cells(mesh) ])
+U = np.zeros(len(midpoints))
+V = np.zeros_like(U)
+for i, mp in enumerate(midpoints):
+     U[i], V[i] = ic(mp) 
+
+
+# Data for mesh
+mesh_coordinates = mesh.coordinates().reshape((-1, 2))
+triangles = np.asarray([cell.entities(0) for cell in dolfin.cells(mesh)])
+triangulation = tri.Triangulation(mesh_coordinates[:, 0],
+                              mesh_coordinates[:, 1],
+                              triangles)
+
+plt.figure()
+plt.triplot(triangulation, color='b')
+plt.quiver(midpoints[:, 0], midpoints[:, 1], U, V)
+plt.xlim([-0.6, 0.6])
+plt.ylim([-0.6, 0.6])
+plt.show()
+</code></pre>
+
+<h2>result</h2>
+
+<p><img src="http://s33.postimg.org/lj0np62qn/figure_1.png" alt=""></p>
+</div>
+													</div>
+													<div class="qa-c-item-footer">
+														<span class="qa-c-item-avatar-meta">
+															<span class="qa-c-item-avatar">
+																<a href="../../user/debsankar" class="qa-avatar-link"><img src="../../?qa=image&amp;qa_blobid=554051891172534921&amp;qa_size=20" width="16" height="20" class="qa-avatar-image" alt=""></a>
+															</span>
+															<span class="qa-c-item-meta">
+																<a href="../../6124/issues-with-set_local-in-crouzeix-raviart-fem?show=10248#c10248" class="qa-c-item-what">commented</a>
+																<span class="qa-c-item-when">
+																	<span class="qa-c-item-when-data"><span class="published"><span class="value-title" title="2016-06-03T08:18:09+0000"></span>Jun 3, 2016</span></span>
+																</span>
+																<span class="qa-c-item-who">
+																	<span class="qa-c-item-who-pad">by </span>
+																	<span class="qa-c-item-who-data"><span class="vcard author"><a href="../../user/debsankar" class="qa-user-link url nickname">debsankar</a></span></span>
+																	<span class="qa-c-item-who-title">FEniCS Novice</span>
+																	<span class="qa-c-item-who-points">
+																		<span class="qa-c-item-who-points-pad">(</span><span class="qa-c-item-who-points-data">520</span><span class="qa-c-item-who-points-pad"> points)</span>
+																	</span>
+																</span>
+															</span>
+														</span>
+														<div class="qa-c-item-buttons">
+														</div>
+													</div>
+													<div class="qa-c-item-clear">
+													</div>
+												</div> <!-- END qa-c-item -->
+												<div class="qa-c-list-item  hentry comment" id="c10250">
+													<div class="qa-c-item-content">
+														<a name="10250"></a><div class="entry-content"><p>Hi debsankar. You should make this a new question... </p>
+</div>
+													</div>
+													<div class="qa-c-item-footer">
+														<span class="qa-c-item-avatar-meta">
+															<span class="qa-c-item-avatar">
+																<a href="../../user/Jan" class="qa-avatar-link"><img src="https://www.gravatar.com/avatar/c71e1343e533ab01bcce8649718574fa?s=20" width="20" height="20" class="qa-avatar-image" alt=""></a>
+															</span>
+															<span class="qa-c-item-meta">
+																<a href="../../6124/issues-with-set_local-in-crouzeix-raviart-fem?show=10250#c10250" class="qa-c-item-what">commented</a>
+																<span class="qa-c-item-when">
+																	<span class="qa-c-item-when-data"><span class="published"><span class="value-title" title="2016-06-03T08:21:51+0000"></span>Jun 3, 2016</span></span>
+																</span>
+																<span class="qa-c-item-who">
+																	<span class="qa-c-item-who-pad">by </span>
+																	<span class="qa-c-item-who-data"><span class="vcard author"><a href="../../user/Jan" class="qa-user-link url nickname">Jan</a></span></span>
+																	<span class="qa-c-item-who-title">FEniCS User</span>
+																	<span class="qa-c-item-who-points">
+																		<span class="qa-c-item-who-points-pad">(</span><span class="qa-c-item-who-points-data">8,290</span><span class="qa-c-item-who-points-pad"> points)</span>
+																	</span>
+																</span>
+															</span>
+														</span>
+														<div class="qa-c-item-buttons">
+														</div>
+													</div>
+													<div class="qa-c-item-clear">
+													</div>
+												</div> <!-- END qa-c-item -->
+												<div class="qa-c-list-item  hentry comment" id="c10251">
+													<div class="qa-c-item-content">
+														<a name="10251"></a><div class="entry-content"><p>Yes, sorry, I did not realize there is an option 'ask related question' .  </p>
+</div>
+													</div>
+													<div class="qa-c-item-footer">
+														<span class="qa-c-item-avatar-meta">
+															<span class="qa-c-item-avatar">
+																<a href="../../user/debsankar" class="qa-avatar-link"><img src="../../?qa=image&amp;qa_blobid=554051891172534921&amp;qa_size=20" width="16" height="20" class="qa-avatar-image" alt=""></a>
+															</span>
+															<span class="qa-c-item-meta">
+																<a href="../../6124/issues-with-set_local-in-crouzeix-raviart-fem?show=10251#c10251" class="qa-c-item-what">commented</a>
+																<span class="qa-c-item-when">
+																	<span class="qa-c-item-when-data"><span class="published"><span class="value-title" title="2016-06-03T08:47:26+0000"></span>Jun 3, 2016</span></span>
+																</span>
+																<span class="qa-c-item-who">
+																	<span class="qa-c-item-who-pad">by </span>
+																	<span class="qa-c-item-who-data"><span class="vcard author"><a href="../../user/debsankar" class="qa-user-link url nickname">debsankar</a></span></span>
+																	<span class="qa-c-item-who-title">FEniCS Novice</span>
+																	<span class="qa-c-item-who-points">
+																		<span class="qa-c-item-who-points-pad">(</span><span class="qa-c-item-who-points-data">520</span><span class="qa-c-item-who-points-pad"> points)</span>
+																	</span>
+																</span>
+															</span>
+														</span>
+														<div class="qa-c-item-buttons">
+														</div>
+													</div>
+													<div class="qa-c-item-clear">
+													</div>
+												</div> <!-- END qa-c-item -->
+											</div> <!-- END qa-c-list -->
+											
+											<input type="hidden" name="code" value="0-1516468058-85beea629acb064d8e43f7311f4f5d5ba827f883">
+											<input type="hidden" name="qa_click" value="">
+										</form>
+										<div class="qa-c-form">
+										</div> <!-- END qa-c-form -->
+										
+									</div> <!-- END qa-a-item-main -->
+									<div class="qa-a-item-clear">
+									</div>
+								</div> <!-- END qa-a-list-item -->
+								
+							</div> <!-- END qa-a-list -->
+							
+						</div>
+					</div> <!-- END qa-main -->
+					
+				</div> <!-- END main-wrapper -->
+			</div> <!-- END main-shadow -->
+		</div> <!-- END body-wrapper -->
+		<!-- END footer-bottom-group -->
+		
+		<div style="position:absolute; left:-9999px; top:-9999px;">
+			<span id="qa-waiting-template" class="qa-waiting">...</span>
+		</div>
+	
+	
+
+</body><!-- Powered by Question2Answer - http://www.question2answer.org/ --></html>

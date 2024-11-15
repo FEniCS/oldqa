@@ -1,0 +1,362 @@
+<html><!-- Powered by Question2Answer - http://www.question2answer.org/ --><head>
+		<meta http-equiv="content-type" content="text/html; charset=utf-8">
+		<title>Laplace problem with discontinous parameter produces a big error at the discontinuity - FEniCS Q&amp;A</title>
+		<meta name="description" content="I am trying to solve the Laplace problem with a discontinous parameter. The problem is given by: $$ \ ...  = True, wireframe = True, axes = True)">
+		<meta name="keywords" content="laplace,problem,discontinuous,dg0">
+		<link rel="stylesheet" type="text/css" href="../../qa-theme/Snow/qa-styles.css">
+		<link rel="canonical" href="http://fenicsproject.org/qa/1709/laplace-problem-discontinous-parameter-produces-discontinuity">
+		<script type="text/x-mathjax-config">
+  MathJax.Hub.Config({
+    extensions: ["tex2jax.js"],
+    jax: ["input/TeX","output/HTML-CSS"],
+    tex2jax: {inlineMath: [["$","$"],["\\(","\\)"]]},
+    TeX: { extensions: ["AMSmath.js","AMSsymbols.js"]}
+  });
+</script>
+<script type="text/javascript" src="../../mathjax/MathJax.js"></script>
+		<script src="../../jquery-1.7.2.min.js" type="text/javascript"></script>
+		<script src="../../highlight.min.js"></script>
+<script type="text/javascript">
+$(function(){
+	$('.wmd-input').keypress(function(){
+		window.clearTimeout(hljs.Timeout);
+		hljs.Timeout = window.setTimeout(function() {
+			hljs.initHighlighting.called = false;
+			hljs.initHighlighting();
+		}, 500);
+	});
+	window.setTimeout(function() {
+		hljs.initHighlighting.called = false;
+		hljs.initHighlighting();
+	}, 500);
+});
+</script>
+
+
+	</head>
+	<body class="qa-template-question qa-body-js-off">
+		<div class="qa-body-wrapper">
+			
+			<div class="qa-header">
+				<div class="qa-logo">
+					<a href="../../" class="qa-logo-link" title="FEniCS Q&amp;A"><img src="../../qa-theme/fenics_qa.png" border="0" alt="FEniCS Q&amp;A"></a>
+				</div>
+				<div class="qa-header-clear">
+				</div>
+			</div> <!-- END qa-header -->
+			
+			<div class="qa-main-shadow">
+				
+				<div class="qa-main-wrapper">
+					
+					<div class="qa-sidepanel">
+						<div class="qa-sidebar">
+							This is a read only copy of the old FEniCS QA forum. Please visit the <a href="https://www.allanswered.com/community/s/fenics-project/">new QA forum</a> to ask questions
+						</div>
+						
+					</div>
+					
+					<div class="qa-main">
+						<h1>
+							<span class="entry-title">Laplace problem with discontinous parameter produces a big error at the discontinuity</span>
+						</h1>
+						<div class="qa-part-q-view">
+							<div class="qa-q-view  hentry question" id="q1709">
+								<form method="post" action="../../1709/laplace-problem-discontinous-parameter-produces-discontinuity">
+									<div class="qa-q-view-stats">
+										<div class="qa-voting qa-voting-net" id="voting_1709">
+											<div class="qa-vote-count qa-vote-count-net">
+												<span class="qa-netvote-count">
+													<span class="qa-netvote-count-data">+2<span class="votes-up"><span class="value-title" title="2"></span></span><span class="votes-down"><span class="value-title" title="0"></span></span></span><span class="qa-netvote-count-pad"> votes</span>
+												</span>
+											</div>
+											<div class="qa-vote-clear">
+											</div>
+										</div>
+									</div>
+									<input type="hidden" name="code" value="0-1516467897-2b47f129dc68184f662116cd2e97dc3d0f95264d">
+								</form>
+								<div class="qa-q-view-main">
+									<form method="post" action="../../1709/laplace-problem-discontinous-parameter-produces-discontinuity">
+										<div class="qa-q-view-content">
+											<a name="1709"></a><div class="entry-content"><p>I am trying to solve the Laplace problem with a discontinous parameter. The problem is given by:<br>
+$$ \Omega_1 = { (x,y) \in [0,1]^{2} : y &lt;= 1 - x} $$<br>
+$$ \Omega_1 = {(x,y) \in [0,1]^{2} : y &gt; 1 - x} $$<br>
+$$- div(k*\nabla T) = 0$$<br>
+with $ k =  5 $ in $ \Omega_{1}$ and  $ k = 1 $ in $ \Omega_{2}$.</p>
+
+<p>By chosing appropriate DB-conditions, the problem has a analytical solution (see the code for the boundary conditions and the analytical solution).</p>
+
+<p>My code is nearly the same as for the example from the Fenics tutorial, chapter "Handling domains with different materials", but when I examine the difference of the analytical solution and the numerical approximation, I have a huge error near the line $ y = 1 - x$ where the discontinuity of the parameter is.</p>
+
+<p>Is there anything wrong with my code? <br>
+Thanks for helping me out.</p>
+
+<p>Code:</p>
+
+<pre><code>from dolfin import *
+
+nx = 64 
+ny = 64
+k1 = 5.0
+k2 = 1.0
+mesh = UnitSquareMesh(nx,ny,"right") 
+
+# Define the two subdomains
+class Omega1(SubDomain):
+    def inside(self, x, on_boundary):
+        return True if x[1] &lt;= 1 - x[0] else False
+
+class Omega2(SubDomain):
+    def inside(self, x, on_boundary):
+        return True if x[1] &gt; 1 - x[0] else False
+
+omega1 = Omega1()
+omega2 = Omega2()
+
+
+# Initialize mesh function for interior domains
+domains = CellFunction("size_t", mesh)
+omega1.mark(domains, 0)
+omega2.mark(domains, 1)
+
+
+#plot(mesh, interactive = True)
+
+class AnalyticalSolution(Expression):
+    def eval(self, value, x):
+        if x[1] &lt;= 1 - x[0]:
+            value[0] = ( -k1 * pow(x[0],2) + k1 * pow(x[1],2) + (1 - k2 + k1) * x[0] + ( k2 - k1 ) * x[1] )
+        elif x[1] &gt; 1 - x[0]:
+            value[0] = ( -k2 * pow(x[0],2) + k2 * pow(x[1],2) + x[0] )
+
+sol = AnalyticalSolution()
+
+plot(sol, mesh, interactive  = True, wireframe = True)
+
+# Boundaries
+class Bottom(SubDomain):
+    def inside(self, x, on_boundary):
+        return near(x[1],0) and on_boundary
+
+class Top(SubDomain):
+    def inside(self, x, on_boundary):
+        return near(x[1],1) and on_boundary
+
+class Left(SubDomain):
+    def inside(self, x, on_boundary):
+        return near(x[0],0) and on_boundary
+
+class Right(SubDomain):
+    def inside(self, x, on_boundary):
+        return near(x[0],1) and on_boundary
+
+bottom = Bottom()
+top = Top()
+left = Left()
+right = Right()
+
+# Functionspace for non-continous right hand side
+V0 = FunctionSpace(mesh, "DG", 0)
+k = Function(V0)
+
+# Initialize coeffizient k
+# values of k in the two subdomains
+k_values = [k1, k2] 
+for cell_no in range(len(domains.array())):
+    subdomain_no = domains.array()[cell_no]
+    k.vector()[cell_no] = k_values[subdomain_no]
+
+plot(k, interactive = True, wireframe = True, axes = True)
+
+# Functionspace for continous but not C1 solution
+V1 = FunctionSpace(mesh, "CG", 1)
+
+# Dirichlet boundary conditions
+# bottom
+dbbot = DirichletBC(V1, Expression("-a * pow(x[0],2) + (1 - b + a) * x[0]", a = k1, b = k2), bottom)
+# top
+dbtop = DirichletBC(V1, Expression("-b * pow(x[0],2) + b + x[0]", b = k2), top)
+# left
+dbleft = DirichletBC(V1, Expression("a * pow(x[1],2) + (b-a) * x[1]", a = k1, b = k2),  left)
+# right
+dbright = DirichletBC(V1, Expression("-b + b * pow(x[1],2) +1 ", b = k2), right)
+
+db = [dbbot, dbtop, dbleft, dbright]
+
+# Define trial- and testfunctions, homogeneous right hand side
+u = TrialFunction(V1)
+v = TestFunction(V1)
+x = Function(V1)
+f = Constant('0')
+
+# Define variational forms
+a = k * inner(nabla_grad(u),nabla_grad(v)) * dx
+L = f * v * dx
+
+problem = LinearVariationalProblem(a, L, x, db)
+solver = LinearVariationalSolver(problem)
+solver.solve()
+
+plot(x, interactive = True, wireframe = True, axes = True)
+
+Verr = FunctionSpace(mesh, "CG", 4)
+isol = interpolate(sol, Verr)
+ix = interpolate(x,Verr)
+diff = project(isol-ix, Verr)
+plot(diff, interactive = True, wireframe = True, axes = True)
+</code></pre>
+</div>
+										</div>
+										<div class="qa-q-view-tags">
+											<ul class="qa-q-view-tag-list">
+												<li class="qa-q-view-tag-item"><a href="../../tag/laplace" rel="tag" class="qa-tag-link">laplace</a></li>
+												<li class="qa-q-view-tag-item"><a href="../../tag/problem" rel="tag" class="qa-tag-link">problem</a></li>
+												<li class="qa-q-view-tag-item"><a href="../../tag/discontinuous" rel="tag" class="qa-tag-link">discontinuous</a></li>
+												<li class="qa-q-view-tag-item"><a href="../../tag/dg0" rel="tag" class="qa-tag-link">dg0</a></li>
+											</ul>
+										</div>
+										<span class="qa-q-view-avatar-meta">
+											<span class="qa-q-view-meta">
+												<a href="../../1709/laplace-problem-discontinous-parameter-produces-discontinuity" class="qa-q-view-what">asked</a>
+												<span class="qa-q-view-when">
+													<span class="qa-q-view-when-data"><span class="published"><span class="value-title" title="2013-11-17T17:53:49+0000"></span>Nov 17, 2013</span></span>
+												</span>
+												<span class="qa-q-view-who">
+													<span class="qa-q-view-who-pad">by </span>
+													<span class="qa-q-view-who-data"><span class="vcard author"><a href="../../user/soply" class="qa-user-link url nickname">soply</a></span></span>
+													<span class="qa-q-view-who-title">FEniCS Novice</span>
+													<span class="qa-q-view-who-points">
+														<span class="qa-q-view-who-points-pad">(</span><span class="qa-q-view-who-points-data">400</span><span class="qa-q-view-who-points-pad"> points)</span>
+													</span>
+												</span>
+												<br>
+												<span class="qa-q-view-what">edited</span>
+												<span class="qa-q-view-when">
+													<span class="qa-q-view-when-data"><span class="updated"><span class="value-title" title="2013-11-18T00:26:55+0000"></span>Nov 18, 2013</span></span>
+												</span>
+												<span class="qa-q-view-who">
+													<span class="qa-q-view-who-pad">by </span><span class="qa-q-view-who-data"><a href="../../user/soply" class="qa-user-link url nickname">soply</a></span>
+												</span>
+											</span>
+										</span>
+										<div class="qa-q-view-buttons">
+										</div>
+										
+										<div class="qa-q-view-c-list" id="c1709_list">
+											<div class="qa-c-list-item  hentry comment" id="c1805">
+												<div class="qa-c-item-content">
+													<a name="1805"></a><div class="entry-content"><p>As far as I can see your mesh does not align with the discontinuity of your coefficient. Have you tried</p>
+
+<pre><code>mesh = UnitSquareMesh(nx,ny,"left") 
+</code></pre>
+
+<p>or, alternatively,</p>
+
+<pre><code>mesh = UnitSquareMesh(nx,ny,"crossed") 
+</code></pre>
+
+<p>instead? Also, did you double-check that your exact solution is correct?</p>
+</div>
+												</div>
+												<div class="qa-c-item-footer">
+													<span class="qa-c-item-avatar-meta">
+														<span class="qa-c-item-meta">
+															<a href="../../1709/laplace-problem-discontinous-parameter-produces-discontinuity?show=1805#c1805" class="qa-c-item-what">commented</a>
+															<span class="qa-c-item-when">
+																<span class="qa-c-item-when-data"><span class="published"><span class="value-title" title="2013-11-26T21:02:05+0000"></span>Nov 26, 2013</span></span>
+															</span>
+															<span class="qa-c-item-who">
+																<span class="qa-c-item-who-pad">by </span>
+																<span class="qa-c-item-who-data"><span class="vcard author"><a href="../../user/Christian+Waluga" class="qa-user-link url nickname">Christian Waluga</a></span></span>
+																<span class="qa-c-item-who-title">FEniCS Expert</span>
+																<span class="qa-c-item-who-points">
+																	<span class="qa-c-item-who-points-pad">(</span><span class="qa-c-item-who-points-data">12,310</span><span class="qa-c-item-who-points-pad"> points)</span>
+																</span>
+															</span>
+														</span>
+													</span>
+													<div class="qa-c-item-buttons">
+													</div>
+												</div>
+												<div class="qa-c-item-clear">
+												</div>
+											</div> <!-- END qa-c-item -->
+											<div class="qa-c-list-item  hentry comment" id="c1829">
+												<div class="qa-c-item-content">
+													<a name="1829"></a><div class="entry-content"><p>Thanks for your answer. The problem with this example is, that $ k \nabla T$ is not continuous along the line $y = 1 -   x$. If I try to turn the dgl into its weak formulation, I have to consider integrals along the discontinuity line $y = 1 - x$ (which I didn't). So,  even for a mesh where the discontinuity is along some edges of cells like for, there is a big error, because the variational formulation doesn't match the strong formulation.</p>
+
+<p>My aim was to analzye how to implement weak discontinuities using fenics, when the discontinuity is not aligned with some edges of some cells of the mesh. If I use a correct test problem in $[0,1]^2$ with the discontinuity along $ y = 1 - x$ and use the mesh </p>
+
+<pre><code>mesh = UnitSquareMesh(nx,ny,"left")
+</code></pre>
+
+<p>(the discontinuity is along some edges), everything works fine and I get a solution with a small enough error. If  I use</p>
+
+<pre><code>mesh = UnitSquareMesh(nx,ny,"right")
+</code></pre>
+
+<p>I get a big error. <br>
+I tried to use the PUM  library and XFEM to solve this issue, but I guess PUM is only for solutions with strong discontinuities (only Heaviside-functions are used as the enrichment functions). So I guess PUM won't work for a problem like this. </p>
+
+<p>I'm still watching for a solution for problems like this. So if you have any idea, let me know.</p>
+</div>
+												</div>
+												<div class="qa-c-item-footer">
+													<span class="qa-c-item-avatar-meta">
+														<span class="qa-c-item-meta">
+															<a href="../../1709/laplace-problem-discontinous-parameter-produces-discontinuity?show=1829#c1829" class="qa-c-item-what">commented</a>
+															<span class="qa-c-item-when">
+																<span class="qa-c-item-when-data"><span class="published"><span class="value-title" title="2013-11-29T10:31:19+0000"></span>Nov 29, 2013</span></span>
+															</span>
+															<span class="qa-c-item-who">
+																<span class="qa-c-item-who-pad">by </span>
+																<span class="qa-c-item-who-data"><span class="vcard author"><a href="../../user/soply" class="qa-user-link url nickname">soply</a></span></span>
+																<span class="qa-c-item-who-title">FEniCS Novice</span>
+																<span class="qa-c-item-who-points">
+																	<span class="qa-c-item-who-points-pad">(</span><span class="qa-c-item-who-points-data">400</span><span class="qa-c-item-who-points-pad"> points)</span>
+																</span>
+															</span>
+														</span>
+													</span>
+													<div class="qa-c-item-buttons">
+													</div>
+												</div>
+												<div class="qa-c-item-clear">
+												</div>
+											</div> <!-- END qa-c-item -->
+										</div> <!-- END qa-c-list -->
+										
+										<input type="hidden" name="code" value="0-1516467897-6056071ce1340912f1bdbfade009144c6f0ea264">
+										<input type="hidden" name="qa_click" value="">
+									</form>
+									<div class="qa-c-form">
+									</div> <!-- END qa-c-form -->
+									
+								</div> <!-- END qa-q-view-main -->
+								<div class="qa-q-view-clear">
+								</div>
+							</div> <!-- END qa-q-view -->
+							
+						</div>
+						<div class="qa-part-a-list">
+							<h2 id="a_list_title" style="display:none;"></h2>
+							<div class="qa-a-list" id="a_list">
+								
+							</div> <!-- END qa-a-list -->
+							
+						</div>
+					</div> <!-- END qa-main -->
+					
+				</div> <!-- END main-wrapper -->
+			</div> <!-- END main-shadow -->
+		</div> <!-- END body-wrapper -->
+		<!-- END footer-bottom-group -->
+		
+		<div style="position:absolute; left:-9999px; top:-9999px;">
+			<span id="qa-waiting-template" class="qa-waiting">...</span>
+		</div>
+	
+	
+
+</body><!-- Powered by Question2Answer - http://www.question2answer.org/ --></html>

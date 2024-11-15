@@ -1,0 +1,295 @@
+<html><!-- Powered by Question2Answer - http://www.question2answer.org/ --><head>
+		<meta http-equiv="content-type" content="text/html; charset=utf-8">
+		<title>Problem in running d6_p2D - FEniCS Q&amp;A</title>
+		<meta name="description" content="sir, I paste here the whole code, but why is it not running? please help &quot;&quot;&quot; FEniCS tutorial demo program: Poisson  ... .2E r=%.2f' % (h[i], Ei, r)">
+		<link rel="stylesheet" type="text/css" href="../../qa-theme/Snow/qa-styles.css">
+		<link rel="canonical" href="http://fenicsproject.org/qa/8933/problem-in-running-d6_p2d">
+		<script type="text/x-mathjax-config">
+  MathJax.Hub.Config({
+    extensions: ["tex2jax.js"],
+    jax: ["input/TeX","output/HTML-CSS"],
+    tex2jax: {inlineMath: [["$","$"],["\\(","\\)"]]},
+    TeX: { extensions: ["AMSmath.js","AMSsymbols.js"]}
+  });
+</script>
+<script type="text/javascript" src="../../mathjax/MathJax.js"></script>
+		<script src="../../jquery-1.7.2.min.js" type="text/javascript"></script>
+		<script src="../../highlight.min.js"></script>
+<script type="text/javascript">
+$(function(){
+	$('.wmd-input').keypress(function(){
+		window.clearTimeout(hljs.Timeout);
+		hljs.Timeout = window.setTimeout(function() {
+			hljs.initHighlighting.called = false;
+			hljs.initHighlighting();
+		}, 500);
+	});
+	window.setTimeout(function() {
+		hljs.initHighlighting.called = false;
+		hljs.initHighlighting();
+	}, 500);
+});
+</script>
+
+
+	</head>
+	<body class="qa-template-question qa-body-js-off">
+		<div class="qa-body-wrapper">
+			
+			<div class="qa-header">
+				<div class="qa-logo">
+					<a href="../../" class="qa-logo-link" title="FEniCS Q&amp;A"><img src="../../qa-theme/fenics_qa.png" border="0" alt="FEniCS Q&amp;A"></a>
+				</div>
+				<div class="qa-header-clear">
+				</div>
+			</div> <!-- END qa-header -->
+			
+			<div class="qa-main-shadow">
+				
+				<div class="qa-main-wrapper">
+					
+					<div class="qa-sidepanel">
+						<div class="qa-sidebar">
+							This is a read only copy of the old FEniCS QA forum. Please visit the <a href="https://www.allanswered.com/community/s/fenics-project/">new QA forum</a> to ask questions
+						</div>
+						
+					</div>
+					
+					<div class="qa-main">
+						<h1>
+							<span class="entry-title">Problem in running d6_p2D</span>
+						</h1>
+						<div class="qa-part-q-view">
+							<div class="qa-q-view  hentry question" id="q8933">
+								<form method="post" action="../../8933/problem-in-running-d6_p2d">
+									<div class="qa-q-view-stats">
+										<div class="qa-voting qa-voting-net" id="voting_8933">
+											<div class="qa-vote-count qa-vote-count-net">
+												<span class="qa-netvote-count">
+													<span class="qa-netvote-count-data">0<span class="votes-up"><span class="value-title" title="0"></span></span><span class="votes-down"><span class="value-title" title="0"></span></span></span><span class="qa-netvote-count-pad"> votes</span>
+												</span>
+											</div>
+											<div class="qa-vote-clear">
+											</div>
+										</div>
+									</div>
+									<input type="hidden" name="code" value="0-1516468199-1e653bf6fa00e4cc64fae6d32c6714e3bf3a9f31">
+								</form>
+								<div class="qa-q-view-main">
+									<form method="post" action="../../8933/problem-in-running-d6_p2d">
+										<div class="qa-q-view-content">
+											<a name="8933"></a><div class="entry-content"><p>sir, I paste here the whole code, but why is it not running? please help<br>
+"""<br>
+FEniCS tutorial demo program: Poisson equation with Dirichlet conditions.<br>
+As d5_p2D.py, but with a more complicated solution, error computations<br>
+and convergence studies.<br>
+"""</p>
+
+<p>from dolfin import *<br>
+import sys</p>
+
+<p>def compute(nx, ny, degree):<br>
+    # Create mesh and define function space<br>
+    mesh = UnitSquareMesh(nx, ny)<br>
+    V = FunctionSpace(mesh, 'Lagrange', degree=degree)</p>
+
+<pre><code># Define boundary conditions
+
+def u0_boundary(x, on_boundary):
+    return on_boundary
+
+bc = DirichletBC(V, Constant(0.0), u0_boundary)
+
+# Exact solution
+omega = 1.0
+u_e = Expression('sin(omega*pi*x[0])*sin(omega*pi*x[1])',
+                 omega=omega)
+
+# Define variational problem
+u = TrialFunction(V)
+v = TestFunction(V)
+#f = Function(V,
+#    '2*pow(pi,2)*pow(omega,2)*sin(omega*pi*x[0])*sin(omega*pi*x[1])',
+#    {'omega': omega})
+f = 2*pi**2*omega**2*u_e
+a = inner(nabla_grad(u), nabla_grad(v))*dx
+L = f*v*dx
+
+# Compute solution
+u = Function(V)
+problem = LinearVariationalProblem(a, L, u, bc)
+solver =  LinearVariationalSolver(problem)
+solver.solve()
+#plot(u, title='Numerical')
+
+# Compute gradient
+#gradu = project(grad(u), VectorFunctionSpace(mesh, 'Lagrange', degree))
+
+# Compute error norm
+
+# Function - Expression
+error = (u - u_e)**2*dx
+E1 = sqrt(assemble(error))
+
+# Explicit interpolation of u_e onto the same space as u:
+u_e_V = interpolate(u_e, V)
+error = (u - u_e_V)**2*dx
+E2 = sqrt(assemble(error))
+
+# Explicit interpolation of u_e to higher-order elements,
+# u will also be interpolated to the space Ve before integration
+Ve = FunctionSpace(mesh, 'Lagrange', degree=5)
+u_e_Ve = interpolate(u_e, Ve)
+error = (u - u_e_Ve)**2*dx
+E3 = sqrt(assemble(error))
+
+# errornorm interpolates u and u_e to a space with
+# given degree, and creates the error field by subtracting
+# the degrees of freedom, then the error field is integrated
+# TEMPORARY BUG - doesn't accept Expression for u_e
+#E4 = errornorm(u_e, u, normtype='l2', degree=3)
+# Manual implementation
+def errornorm(u_e, u, Ve):
+    u_Ve = interpolate(u, Ve)
+    u_e_Ve = interpolate(u_e, Ve)
+    e_Ve = Function(Ve)
+    # Subtract degrees of freedom for the error field
+    e_Ve.vector()[:] = u_e_Ve.vector().array() - u_Ve.vector().array()
+    # More efficient computation (avoids the rhs array result above)
+    #e_Ve.assign(u_e_Ve)                      # e_Ve = u_e_Ve
+    #e_Ve.vector().axpy(-1.0, u_Ve.vector())  # e_Ve += -1.0*u_Ve
+    error = e_Ve**2*dx
+    return sqrt(assemble(error, mesh=Ve.mesh())), e_Ve
+E4, e_Ve = errornorm(u_e, u, Ve)
+
+# Infinity norm based on nodal values
+u_e_V = interpolate(u_e, V)
+E5 = abs(u_e_V.vector().array() - u.vector().array()).max()
+print 'E2:', E2
+print 'E3:', E3
+print 'E4:', E4
+print 'E5:', E5
+
+# H1 seminorm
+error = inner(grad(e_Ve), grad(e_Ve))*dx
+E6 = sqrt(assemble(error))
+
+# Collect error measures in a dictionary with self-explanatory keys
+errors = {'u - u_e': E1,
+          'u - interpolate(u_e,V)': E2,
+          'interpolate(u,Ve) - interpolate(u_e,Ve)': E3,
+          'error field': E4,
+          'infinity norm (of dofs)': E5,
+          'grad(error field)': E6}
+
+return errors
+</code></pre>
+
+<h2>Perform experiments</h2>
+
+<p>degree = int(sys.argv[1])<br>
+h = []  # element sizes<br>
+E = []  # errors<br>
+for nx in [4, 8, 16, 32, 64, 128, 264]:<br>
+    h.append(1.0/nx)<br>
+    E.append(compute(nx, nx, degree))  # list of dicts</p>
+
+<h2>Convergence rates</h2>
+
+<p>from math import log as ln  # log is a dolfin name too<br>
+error_types = E[0].keys()<br>
+for error_type in sorted(error_types):<br>
+    print '\nError norm based on', error_type<br>
+    for i in range(1, len(E)):<br>
+        Ei   = E[i][error_type]  # E is a list of dicts<br>
+        Eim1 = E[i-1][error_type]<br>
+        r = ln(Ei/Eim1)/ln(h[i]/h[i-1])<br>
+        print 'h=%8.2E E=%8.2E r=%.2f' % (h[i], Ei, r)</p>
+</div>
+										</div>
+										<span class="qa-q-view-avatar-meta">
+											<span class="qa-q-view-meta">
+												<a href="../../8933/problem-in-running-d6_p2d" class="qa-q-view-what">asked</a>
+												<span class="qa-q-view-when">
+													<span class="qa-q-view-when-data"><span class="published"><span class="value-title" title="2015-12-26T16:35:42+0000"></span>Dec 26, 2015</span></span>
+												</span>
+												<span class="qa-q-view-who">
+													<span class="qa-q-view-who-pad">by </span>
+													<span class="qa-q-view-who-data"><span class="vcard author"><a href="../../user/abid" class="qa-user-link url nickname">abid</a></span></span>
+													<span class="qa-q-view-who-title">FEniCS Novice</span>
+													<span class="qa-q-view-who-points">
+														<span class="qa-q-view-who-points-pad">(</span><span class="qa-q-view-who-points-data">120</span><span class="qa-q-view-who-points-pad"> points)</span>
+													</span>
+												</span>
+											</span>
+										</span>
+										<div class="qa-q-view-buttons">
+										</div>
+										
+										<div class="qa-q-view-c-list" id="c8933_list">
+											<div class="qa-c-list-item  hentry comment" id="c8980">
+												<div class="qa-c-item-content">
+													<a name="8980"></a><div class="entry-content"><p>This script is from the tutorial, which is unfortunately not up-to-date and does not work with the latest versions of FEniCS. There is work in progress for updating the tutorial, but I don't know when it will be finished.</p>
+</div>
+												</div>
+												<div class="qa-c-item-footer">
+													<span class="qa-c-item-avatar-meta">
+														<span class="qa-c-item-avatar">
+															<a href="../../user/johannr" class="qa-avatar-link"><img src="https://www.gravatar.com/avatar/03ca226ee8d51ad8165d455dd3abad66?s=20" width="20" height="20" class="qa-avatar-image" alt=""></a>
+														</span>
+														<span class="qa-c-item-meta">
+															<a href="../../8933/problem-in-running-d6_p2d?show=8980#c8980" class="qa-c-item-what">commented</a>
+															<span class="qa-c-item-when">
+																<span class="qa-c-item-when-data"><span class="published"><span class="value-title" title="2016-01-06T08:44:44+0000"></span>Jan 6, 2016</span></span>
+															</span>
+															<span class="qa-c-item-who">
+																<span class="qa-c-item-who-pad">by </span>
+																<span class="qa-c-item-who-data"><span class="vcard author"><a href="../../user/johannr" class="qa-user-link url nickname">johannr</a></span></span>
+																<span class="qa-c-item-who-title">FEniCS Expert</span>
+																<span class="qa-c-item-who-points">
+																	<span class="qa-c-item-who-points-pad">(</span><span class="qa-c-item-who-points-data">17,350</span><span class="qa-c-item-who-points-pad"> points)</span>
+																</span>
+															</span>
+														</span>
+													</span>
+													<div class="qa-c-item-buttons">
+													</div>
+												</div>
+												<div class="qa-c-item-clear">
+												</div>
+											</div> <!-- END qa-c-item -->
+										</div> <!-- END qa-c-list -->
+										
+										<input type="hidden" name="code" value="0-1516468199-12daafff3f8d256510ab64a7a11a88920a594b8f">
+										<input type="hidden" name="qa_click" value="">
+									</form>
+									<div class="qa-c-form">
+									</div> <!-- END qa-c-form -->
+									
+								</div> <!-- END qa-q-view-main -->
+								<div class="qa-q-view-clear">
+								</div>
+							</div> <!-- END qa-q-view -->
+							
+						</div>
+						<div class="qa-part-a-list">
+							<h2 id="a_list_title" style="display:none;"></h2>
+							<div class="qa-a-list" id="a_list">
+								
+							</div> <!-- END qa-a-list -->
+							
+						</div>
+					</div> <!-- END qa-main -->
+					
+				</div> <!-- END main-wrapper -->
+			</div> <!-- END main-shadow -->
+		</div> <!-- END body-wrapper -->
+		<!-- END footer-bottom-group -->
+		
+		<div style="position:absolute; left:-9999px; top:-9999px;">
+			<span id="qa-waiting-template" class="qa-waiting">...</span>
+		</div>
+	
+	
+
+</body><!-- Powered by Question2Answer - http://www.question2answer.org/ --></html>

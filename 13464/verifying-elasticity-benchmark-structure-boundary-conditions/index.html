@@ -1,0 +1,267 @@
+<html><!-- Powered by Question2Answer - http://www.question2answer.org/ --><head>
+		<meta http-equiv="content-type" content="text/html; charset=utf-8">
+		<title>Verifying linear elasticity solver with known benchmark periodic structure and Neumann boundary conditions - FEniCS Q&amp;A</title>
+		<meta name="description" content="From an old, wise engineering book I've got the following problem: ![Elasticity example][1] There is 2D  ... )) [1]: https://i.imgur.com/8RjZCSU.png">
+		<meta name="keywords" content="boundary-conditions,periodic-bc,linear-elasticity,elasticity,neumann">
+		<link rel="stylesheet" type="text/css" href="../../qa-theme/Snow/qa-styles.css">
+		<link rel="canonical" href="http://fenicsproject.org/qa/13464/verifying-elasticity-benchmark-structure-boundary-conditions">
+		<script type="text/x-mathjax-config">
+  MathJax.Hub.Config({
+    extensions: ["tex2jax.js"],
+    jax: ["input/TeX","output/HTML-CSS"],
+    tex2jax: {inlineMath: [["$","$"],["\\(","\\)"]]},
+    TeX: { extensions: ["AMSmath.js","AMSsymbols.js"]}
+  });
+</script>
+<script type="text/javascript" src="../../mathjax/MathJax.js"></script>
+		<script src="../../jquery-1.7.2.min.js" type="text/javascript"></script>
+		<script src="../../highlight.min.js"></script>
+<script type="text/javascript">
+$(function(){
+	$('.wmd-input').keypress(function(){
+		window.clearTimeout(hljs.Timeout);
+		hljs.Timeout = window.setTimeout(function() {
+			hljs.initHighlighting.called = false;
+			hljs.initHighlighting();
+		}, 500);
+	});
+	window.setTimeout(function() {
+		hljs.initHighlighting.called = false;
+		hljs.initHighlighting();
+	}, 500);
+});
+</script>
+
+
+	</head>
+	<body class="qa-template-question qa-body-js-off">
+		<div class="qa-body-wrapper">
+			
+			<div class="qa-header">
+				<div class="qa-logo">
+					<a href="../../" class="qa-logo-link" title="FEniCS Q&amp;A"><img src="../../qa-theme/fenics_qa.png" border="0" alt="FEniCS Q&amp;A"></a>
+				</div>
+				<div class="qa-header-clear">
+				</div>
+			</div> <!-- END qa-header -->
+			
+			<div class="qa-main-shadow">
+				
+				<div class="qa-main-wrapper">
+					
+					<div class="qa-sidepanel">
+						<div class="qa-sidebar">
+							This is a read only copy of the old FEniCS QA forum. Please visit the <a href="https://www.allanswered.com/community/s/fenics-project/">new QA forum</a> to ask questions
+						</div>
+						
+					</div>
+					
+					<div class="qa-main">
+						<h1>
+							<span class="entry-title">Verifying linear elasticity solver with known benchmark periodic structure and Neumann boundary conditions</span>
+						</h1>
+						<div class="qa-part-q-view">
+							<div class="qa-q-view  hentry question" id="q13464">
+								<form method="post" action="../../13464/verifying-elasticity-benchmark-structure-boundary-conditions">
+									<div class="qa-q-view-stats">
+										<div class="qa-voting qa-voting-net" id="voting_13464">
+											<div class="qa-vote-count qa-vote-count-net">
+												<span class="qa-netvote-count">
+													<span class="qa-netvote-count-data">0<span class="votes-up"><span class="value-title" title="0"></span></span><span class="votes-down"><span class="value-title" title="0"></span></span></span><span class="qa-netvote-count-pad"> votes</span>
+												</span>
+											</div>
+											<div class="qa-vote-clear">
+											</div>
+										</div>
+									</div>
+									<input type="hidden" name="code" value="0-1516467868-42a7fb3d5ca0134025eca47bfe6e1badf7b8e73a">
+								</form>
+								<div class="qa-q-view-main">
+									<form method="post" action="../../13464/verifying-elasticity-benchmark-structure-boundary-conditions">
+										<div class="qa-q-view-content">
+											<a name="13464"></a><div class="entry-content"><p>From an old, wise engineering book I've got the following problem: <img src="https://i.imgur.com/8RjZCSU.png" alt="Elasticity example"><br>
+There is 2D infinite periodic structure with round holes of radius r with tension applied to it. The relation of maximum stress in the body to the applied one should follow nice 1/x like curve, see the picture. While I'm trying to reproduce this example, I'm getting anything but it. </p>
+
+<p>I use displacement based weak formulation for elasticity with periodic boundary conditions remaping top to bottom and left to right, with exception of corners (0,0), (0,1), (1,0), (1,1). <br>
+For problem to be well-posed I've fixed displacement vector in one point (0,0) to be equal (0,0). <br>
+Am I right? Is fixing one point enough? I still can rotate the unit square though. Do I need to fix an additional point? </p>
+
+<p>The tension is applied via Neumann boundary conditions  with tension applied in the following way:</p>
+
+<pre><code> g  = Expression(('1.0','0.0'), degree = 2)
+ dot(g,v)*ds(2) +  dot(-g,v)*ds(1) 
+</code></pre>
+
+<p>This is the place I'm most doubted about applying tension correctly.  The rest of the code follows (it produces almost constant max stress  equal to 0.4). </p>
+
+<pre><code>from __future__ import print_function
+import pickle 
+from dolfin import *
+from dolfin_adjoint import *
+
+n = 64
+mesh  = UnitSquareMesh(n, n)
+p = Constant(5)        
+eps = Constant(1.0e-2) 
+
+class HoleExpression(Expression):
+    def eval(self, values, x):
+        values[0] = 1.0
+
+        if (x[0]-0.5)**2 + (x[1]-0.5)**2 &lt;  rr**2:
+            values[0] = 0
+        return values
+
+class PeriodicBoundary(SubDomain):
+    def inside(self, x, on_boundary):
+        return bool((near(x[0],0) or near(x[1], 0)) and not ((near(x[0], 0) and (near(x[1], 0))) or (near(x[0], 0) and (near(x[1], 1))) or (near(x[0], 1) and (near(x[1], 0))) or (near(x[0], 1) and (near(x[1], 1)))  ))
+
+    def map(self, x, y):
+        if near(x[0], 1):
+            y[0] = x[0] - 1.
+            y[1] = x[1]
+        elif near(x[1], 1):
+            y[0] = x[0]
+            y[1] = x[1] - 1.
+        else:
+            y[0] = -1000
+            y[1] = -1000
+
+cor1 = CompiledSubDomain("near(x[0], 0.0) &amp;&amp; near(x[1], 0.0)")
+
+left  =  CompiledSubDomain("near(x[0], side) &amp;&amp; on_boundary", side = 0.0)
+right =  CompiledSubDomain("near(x[0], side) &amp;&amp; on_boundary", side = 1.0)
+
+boundary_parts = MeshFunction("size_t", mesh, mesh.topology().dim() - 1)
+boundary_parts.set_all(0)
+right.mark(boundary_parts, 1)
+left.mark(boundary_parts, 2)
+ds = Measure("ds")[boundary_parts]
+
+norm = FacetNormal(mesh)
+tang = as_vector([norm[1], -norm[0]])
+
+g  = Expression(('1.0','0.0'), degree = 2)# traction 
+
+A = FunctionSpace(mesh, "CG", 1)  
+PP = VectorFunctionSpace(mesh, "CG", 1, constrained_domain=PeriodicBoundary())
+PN = VectorFunctionSpace(mesh, "CG", 1)
+
+bc1 = DirichletBC(PP, Constant((0.0, 0.0)), cor1, method='pointwise')
+bcs = [bc1]
+
+parameters["std_out_all_processes"] = False
+
+def k(a):
+    return eps + (1 - eps) * a**p
+
+E, nu = 10.0, 0.3
+mu, lmbda = Constant(E/(2*(1 + nu))), Constant(E*nu/((1 + nu)*(1 - 2*nu)))
+
+def sigma(rho, v):
+    return 2.0*mu*rho*sym(grad(v)) + lmbda*rho*tr(sym(grad(v)))*Identity(len(v))
+
+
+def get_u_star(a):
+    u = TrialFunction(PP)
+    v = TestFunction(PP)
+    frm = inner(sigma(k(a), u), sym(grad(v)))*dx
+    rhs = dot(g,v)*ds(2) +  dot(-g,v)*ds(1) 
+    u = Function(PP)
+    problem = LinearVariationalProblem(frm, rhs, u, bcs)
+    solver = LinearVariationalSolver(problem)
+    solver.parameters["linear_solver"] ="bicgstab"
+    solver.solve()
+    return u
+
+if __name__ == "__main__":
+    _sigma_max = []
+    ligament_eff = []
+    TTT = TensorFunctionSpace(mesh, "CG", 1)
+    for _i in range(10):
+        rr = 0.05*_i
+        le = 1-2*rr
+        ligament_eff.append(le)
+        a = interpolate(HoleExpression(degree = 2), A, name="Control") 
+        u_star = get_u_star(a)
+        sg = sigma(k(a), u_star)
+        sigma_TTT = project(sg, TTT)
+        _sm = max(sigma_TTT.vector().array()) 
+        _sigma_max.append(_sm)
+        print(rr, le, _sm)
+    pickle.dump([_sigma_max, ligament_eff], open("data.pkl", "w"))
+</code></pre>
+</div>
+										</div>
+										<div class="qa-q-view-tags">
+											<ul class="qa-q-view-tag-list">
+												<li class="qa-q-view-tag-item"><a href="../../tag/boundary-conditions" rel="tag" class="qa-tag-link">boundary-conditions</a></li>
+												<li class="qa-q-view-tag-item"><a href="../../tag/periodic-bc" rel="tag" class="qa-tag-link">periodic-bc</a></li>
+												<li class="qa-q-view-tag-item"><a href="../../tag/linear-elasticity" rel="tag" class="qa-tag-link">linear-elasticity</a></li>
+												<li class="qa-q-view-tag-item"><a href="../../tag/elasticity" rel="tag" class="qa-tag-link">elasticity</a></li>
+												<li class="qa-q-view-tag-item"><a href="../../tag/neumann" rel="tag" class="qa-tag-link">neumann</a></li>
+											</ul>
+										</div>
+										<span class="qa-q-view-avatar-meta">
+											<span class="qa-q-view-meta">
+												<a href="../../13464/verifying-elasticity-benchmark-structure-boundary-conditions" class="qa-q-view-what">asked</a>
+												<span class="qa-q-view-when">
+													<span class="qa-q-view-when-data"><span class="published"><span class="value-title" title="2017-05-14T15:11:25+0000"></span>May 14, 2017</span></span>
+												</span>
+												<span class="qa-q-view-who">
+													<span class="qa-q-view-who-pad">by </span>
+													<span class="qa-q-view-who-data"><span class="vcard author"><a href="../../user/gtt" class="qa-user-link url nickname">gtt</a></span></span>
+													<span class="qa-q-view-who-title">FEniCS Novice</span>
+													<span class="qa-q-view-who-points">
+														<span class="qa-q-view-who-points-pad">(</span><span class="qa-q-view-who-points-data">630</span><span class="qa-q-view-who-points-pad"> points)</span>
+													</span>
+												</span>
+												<br>
+												<span class="qa-q-view-what">edited</span>
+												<span class="qa-q-view-when">
+													<span class="qa-q-view-when-data"><span class="updated"><span class="value-title" title="2017-05-14T15:34:16+0000"></span>May 14, 2017</span></span>
+												</span>
+												<span class="qa-q-view-who">
+													<span class="qa-q-view-who-pad">by </span><span class="qa-q-view-who-data"><a href="../../user/gtt" class="qa-user-link url nickname">gtt</a></span>
+												</span>
+											</span>
+										</span>
+										<div class="qa-q-view-buttons">
+										</div>
+										
+										<div class="qa-q-view-c-list" style="display:none;" id="c13464_list">
+										</div> <!-- END qa-c-list -->
+										
+										<input type="hidden" name="code" value="0-1516467868-054680b372e4916442d018f21e06b388ba9cfd41">
+										<input type="hidden" name="qa_click" value="">
+									</form>
+									<div class="qa-c-form">
+									</div> <!-- END qa-c-form -->
+									
+								</div> <!-- END qa-q-view-main -->
+								<div class="qa-q-view-clear">
+								</div>
+							</div> <!-- END qa-q-view -->
+							
+						</div>
+						<div class="qa-part-a-list">
+							<h2 id="a_list_title" style="display:none;"></h2>
+							<div class="qa-a-list" id="a_list">
+								
+							</div> <!-- END qa-a-list -->
+							
+						</div>
+					</div> <!-- END qa-main -->
+					
+				</div> <!-- END main-wrapper -->
+			</div> <!-- END main-shadow -->
+		</div> <!-- END body-wrapper -->
+		<!-- END footer-bottom-group -->
+		
+		<div style="position:absolute; left:-9999px; top:-9999px;">
+			<span id="qa-waiting-template" class="qa-waiting">...</span>
+		</div>
+	
+	
+
+</body><!-- Powered by Question2Answer - http://www.question2answer.org/ --></html>

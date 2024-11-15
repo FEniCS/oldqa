@@ -1,0 +1,472 @@
+<html><!-- Powered by Question2Answer - http://www.question2answer.org/ --><head>
+		<meta http-equiv="content-type" content="text/html; charset=utf-8">
+		<title>Errors solving a 1D problem (fiber spinning) - FEniCS Q&amp;A</title>
+		<meta name="description" content="Hello, I am completely new to FEniCS (I have just test the tutorial examples), and now I  ...  # Hold plot interactive() Thanks in advance, Alejandro">
+		<meta name="keywords" content="shape-mismatch,mismatch,1d">
+		<link rel="stylesheet" type="text/css" href="../../qa-theme/Snow/qa-styles.css">
+		<link rel="canonical" href="http://fenicsproject.org/qa/12633/errors-solving-a-1d-problem-fiber-spinning">
+		<script type="text/x-mathjax-config">
+  MathJax.Hub.Config({
+    extensions: ["tex2jax.js"],
+    jax: ["input/TeX","output/HTML-CSS"],
+    tex2jax: {inlineMath: [["$","$"],["\\(","\\)"]]},
+    TeX: { extensions: ["AMSmath.js","AMSsymbols.js"]}
+  });
+</script>
+<script type="text/javascript" src="../../mathjax/MathJax.js"></script>
+		<script src="../../jquery-1.7.2.min.js" type="text/javascript"></script>
+		<script src="../../highlight.min.js"></script>
+<script type="text/javascript">
+$(function(){
+	$('.wmd-input').keypress(function(){
+		window.clearTimeout(hljs.Timeout);
+		hljs.Timeout = window.setTimeout(function() {
+			hljs.initHighlighting.called = false;
+			hljs.initHighlighting();
+		}, 500);
+	});
+	window.setTimeout(function() {
+		hljs.initHighlighting.called = false;
+		hljs.initHighlighting();
+	}, 500);
+});
+</script>
+
+
+	</head>
+	<body class="qa-template-question qa-body-js-off">
+		<div class="qa-body-wrapper">
+			
+			<div class="qa-header">
+				<div class="qa-logo">
+					<a href="../../" class="qa-logo-link" title="FEniCS Q&amp;A"><img src="../../qa-theme/fenics_qa.png" border="0" alt="FEniCS Q&amp;A"></a>
+				</div>
+				<div class="qa-header-clear">
+				</div>
+			</div> <!-- END qa-header -->
+			
+			<div class="qa-main-shadow">
+				
+				<div class="qa-main-wrapper">
+					
+					<div class="qa-sidepanel">
+						<div class="qa-sidebar">
+							This is a read only copy of the old FEniCS QA forum. Please visit the <a href="https://www.allanswered.com/community/s/fenics-project/">new QA forum</a> to ask questions
+						</div>
+						
+					</div>
+					
+					<div class="qa-main">
+						<h1>
+							<span class="entry-title">Errors solving a 1D problem (fiber spinning)</span>
+						</h1>
+						<div class="qa-part-q-view">
+							<div class="qa-q-view  hentry question" id="q12633">
+								<form method="post" action="../../12633/errors-solving-a-1d-problem-fiber-spinning">
+									<div class="qa-q-view-stats">
+										<div class="qa-voting qa-voting-net" id="voting_12633">
+											<div class="qa-vote-count qa-vote-count-net">
+												<span class="qa-netvote-count">
+													<span class="qa-netvote-count-data">+1<span class="votes-up"><span class="value-title" title="1"></span></span><span class="votes-down"><span class="value-title" title="0"></span></span></span><span class="qa-netvote-count-pad"> vote</span>
+												</span>
+											</div>
+											<div class="qa-vote-clear">
+											</div>
+										</div>
+									</div>
+									<input type="hidden" name="code" value="0-1516467832-097777e12b6d6d8de229c9a8c6218bb23e8f2186">
+								</form>
+								<div class="qa-q-view-main">
+									<form method="post" action="../../12633/errors-solving-a-1d-problem-fiber-spinning">
+										<div class="qa-q-view-content">
+											<a name="12633"></a><div class="entry-content"><p>Hello,<br>
+I am completely new to FEniCS (I have just test the tutorial examples), and now I am trying to solve a fluid mechanics 1D problem, in particular the 1D model developed in the field of fiber spinning in the mid 60s, which reads,</p>
+
+<p>$\frac{\partial h}{\partial t} + \frac{\partial(u \, h)}{\partial x} = 0, \, \, 0\leq x \leq 1,$<br>
+$\frac{\partial}{\partial x} \left( h \frac{\partial u}{\partial x} \right) = 0, \, \, 0\leq x \leq 1,$<br>
+$h(0,t) = u(0,t) =1, \, \, u(1,t) = D_r,$</p>
+
+<p>where $D_r$ is the draw ratio and it is a constant, and the initial conditions are the stationary state of the 1D equations,</p>
+
+<p>$u(x,0) = D_r^x, \, \, h(x,0) = D_r^{-x}$</p>
+
+<p>My main issue with this kind of 1D problems is that I always get mismatch errors. In particular here I get this type of error when solving a_1 == L_1. I guess this is due to "dt<em>div(htest)</em>u_n<em>h</em>dx", but I do not know any other form to define the derivative of $h(x,t)$ respect to $x$.</p>
+
+<p>Besides, I do not know if it is appropriate to define two function spaces, one for the velocity $u(x,t)$ and another one for the fiber radius $h(x,t)$.</p>
+
+<p>I attach the code,</p>
+
+<pre><code>from __future__ import print_function
+from fenics import *
+
+T = 2.0            # final time
+num_steps = 1000     # number of time steps
+dt = T / num_steps # time step size
+
+# Dimensionless variables
+q     = 1
+
+# Create mesh and define function space
+mesh = IntervalMesh(30,0,5)
+V    = FunctionSpace(mesh, 'P', 2)
+Q    = FunctionSpace(mesh, 'P', 2)
+
+# Define boundary condition
+inflow   = 'near(x[0],0)'
+outflow  = 'near(x[0],5)'
+
+bch_inflow   = DirichletBC(V, Constant(1), inflow)
+bcu_inflow   = DirichletBC(Q, Constant(1), inflow)
+bcu_outflow  = DirichletBC(Q, Constant(23), outflow)
+
+bcu = [bcu_inflow, bcu_outflow]
+bch = [bch_inflow]
+
+# Define the initial value
+h_0 = Expression('pow(Dr,-x[0])', degree=2,Dr = 23)
+h_n = interpolate(h_0,V)
+u_0 = Expression('pow(Dr,x[0])', degree=2,Dr = 23)
+u_n = interpolate(u_0,Q)
+
+# Define variational problem
+h     = TrialFunction(V)  
+htest = TestFunction(V)
+u     = TrialFunction(Q)
+utest = TestFunction(Q)
+a1 = h*htest*dx - dt*div(htest)*u_n*h*dx
+L1 = h_n*htest*dx
+
+a2 =-h_n*inner(grad(u),grad(utest))*dx
+
+# Time-stepping
+h = Function(V)
+u = Function(Q)
+t = 0
+
+for n in range(num_steps):
+    # Update current time
+    t += dt
+    # Compute solution
+    solve(a1 == L1, h, bch)
+    solve(a2 == 0, u, bcu)
+    #Plot solution
+
+    plot(u)
+    print('t = %.2f' % (t))
+    # Update previous solution
+    u_n.assign(u)
+    h_n.asign(h)
+# Hold plot
+
+interactive()
+</code></pre>
+
+<p>Thanks in advance,<br>
+Alejandro</p>
+</div>
+										</div>
+										<div class="qa-q-view-tags">
+											<ul class="qa-q-view-tag-list">
+												<li class="qa-q-view-tag-item"><a href="../../tag/shape-mismatch" rel="tag" class="qa-tag-link">shape-mismatch</a></li>
+												<li class="qa-q-view-tag-item"><a href="../../tag/mismatch" rel="tag" class="qa-tag-link">mismatch</a></li>
+												<li class="qa-q-view-tag-item"><a href="../../tag/1d" rel="tag" class="qa-tag-link">1d</a></li>
+											</ul>
+										</div>
+										<span class="qa-q-view-avatar-meta">
+											<span class="qa-q-view-meta">
+												<a href="../../12633/errors-solving-a-1d-problem-fiber-spinning" class="qa-q-view-what">asked</a>
+												<span class="qa-q-view-when">
+													<span class="qa-q-view-when-data"><span class="published"><span class="value-title" title="2017-03-07T11:02:22+0000"></span>Mar 7, 2017</span></span>
+												</span>
+												<span class="qa-q-view-who">
+													<span class="qa-q-view-who-pad">by </span>
+													<span class="qa-q-view-who-data"><span class="vcard author"><a href="../../user/Amcyela" class="qa-user-link url nickname">Amcyela</a></span></span>
+													<span class="qa-q-view-who-title">FEniCS Novice</span>
+													<span class="qa-q-view-who-points">
+														<span class="qa-q-view-who-points-pad">(</span><span class="qa-q-view-who-points-data">240</span><span class="qa-q-view-who-points-pad"> points)</span>
+													</span>
+												</span>
+											</span>
+										</span>
+										<div class="qa-q-view-buttons">
+										</div>
+										
+										<div class="qa-q-view-c-list" style="display:none;" id="c12633_list">
+										</div> <!-- END qa-c-list -->
+										
+										<input type="hidden" name="code" value="0-1516467832-89ad211cc1a8c3a212980066f01bbc6b25754dbf">
+										<input type="hidden" name="qa_click" value="">
+									</form>
+									<div class="qa-c-form">
+									</div> <!-- END qa-c-form -->
+									
+								</div> <!-- END qa-q-view-main -->
+								<div class="qa-q-view-clear">
+								</div>
+							</div> <!-- END qa-q-view -->
+							
+						</div>
+						<div class="qa-part-a-list">
+							<h2 id="a_list_title">1 Answer</h2>
+							<div class="qa-a-list" id="a_list">
+								
+								<div class="qa-a-list-item  hentry answer" id="a12644">
+									<form method="post" action="../../12633/errors-solving-a-1d-problem-fiber-spinning">
+										<div class="qa-voting qa-voting-net" id="voting_12644">
+											<div class="qa-vote-count qa-vote-count-net">
+												<span class="qa-netvote-count">
+													<span class="qa-netvote-count-data">+1<span class="votes-up"><span class="value-title" title="1"></span></span><span class="votes-down"><span class="value-title" title="0"></span></span></span><span class="qa-netvote-count-pad"> vote</span>
+												</span>
+											</div>
+											<div class="qa-vote-clear">
+											</div>
+										</div>
+										<input type="hidden" name="code" value="0-1516467832-097777e12b6d6d8de229c9a8c6218bb23e8f2186">
+									</form>
+									<div class="qa-a-item-main">
+										<form method="post" action="../../12633/errors-solving-a-1d-problem-fiber-spinning">
+											<div class="qa-a-selection">
+											</div>
+											<div class="qa-a-item-content">
+												<a name="12644"></a><div class="entry-content"><p>I don't really know what to expect from a solution of your problem, so I am unable to validate my answer.</p>
+
+<p>Regarding your issues with <code>div(htest)</code> I refer you to <a rel="nofollow" href="https://fenicsproject.org/qa/12484/derivative-of-trial-function-2d-scalar-problem">here</a>.</p>
+
+<p>Furthermore, <code>ufl</code> formulations of the type <code>a2 == 0</code> will assume that <code>a2</code> is a semiliear residual arising from the variational formulation of a nonlinear problem.</p>
+
+<p>You also had a typo in <code>.assign</code>.</p>
+
+<p>Consider the following:</p>
+
+<pre><code>from __future__ import print_function
+from fenics import *
+
+T = 2.0            # final time
+num_steps = 1000     # number of time steps
+dt = T / num_steps # time step size
+
+# Dimensionless variables
+q     = 1
+
+# Create mesh and define function space
+mesh = IntervalMesh(30,0,5)
+V    = FunctionSpace(mesh, 'P', 2)
+Q    = FunctionSpace(mesh, 'P', 2)
+
+# Define boundary condition
+inflow   = 'near(x[0],0)'
+outflow  = 'near(x[0],5)'
+
+bch_inflow   = DirichletBC(V, Constant(1), inflow)
+bcu_inflow   = DirichletBC(Q, Constant(1), inflow)
+bcu_outflow  = DirichletBC(Q, Constant(23), outflow)
+
+bcu = [bcu_inflow, bcu_outflow]
+bch = [bch_inflow]
+
+# Define the initial value
+h_0 = Expression('pow(Dr,-x[0])', degree=2,Dr = 23)
+h_n = interpolate(h_0,V)
+u_0 = Expression('pow(Dr,x[0])', degree=2,Dr = 23)
+u_n = interpolate(u_0,Q)
+
+# Define variational problem
+h     = TrialFunction(V)  
+htest = TestFunction(V)
+u     = TrialFunction(Q)
+utest = TestFunction(Q)
+
+a1 = h*htest*dx - dt*grad(htest)[0]*u_n*h*dx
+L1 = h_n*htest*dx
+
+a2 =-h_n*inner(grad(u),grad(utest))*dx
+L2 = Constant(0.0)*utest*dx
+
+# Time-stepping
+h = Function(V)
+u = Function(Q)
+t = 0
+
+for n in range(num_steps):
+    # Update current time
+    t += dt
+    # Compute solution
+    solve(a1 == L1, h, bch)
+    solve(a2 == L2, u, bcu)
+    #Plot solution
+
+    plot(u)
+    print('t = %.2f' % (t))
+    # Update previous solution
+    u_n.assign(u)
+    h_n.assign(h)
+# Hold plot
+
+interactive()
+</code></pre>
+</div>
+											</div>
+											<span class="qa-a-item-avatar-meta">
+												<span class="qa-a-item-avatar">
+													<a href="../../user/nate" class="qa-avatar-link"><img src="../../?qa=image&amp;qa_blobid=969593914916706065&amp;qa_size=40" width="40" height="40" class="qa-avatar-image" alt=""></a>
+												</span>
+												<span class="qa-a-item-meta">
+													<a href="../../12633/errors-solving-a-1d-problem-fiber-spinning?show=12644#a12644" class="qa-a-item-what">answered</a>
+													<span class="qa-a-item-when">
+														<span class="qa-a-item-when-data"><span class="published"><span class="value-title" title="2017-03-08T16:41:29+0000"></span>Mar 8, 2017</span></span>
+													</span>
+													<span class="qa-a-item-who">
+														<span class="qa-a-item-who-pad">by </span>
+														<span class="qa-a-item-who-data"><span class="vcard author"><a href="../../user/nate" class="qa-user-link url nickname">nate</a></span></span>
+														<span class="qa-a-item-who-title">FEniCS Expert</span>
+														<span class="qa-a-item-who-points">
+															<span class="qa-a-item-who-points-pad">(</span><span class="qa-a-item-who-points-data">17,050</span><span class="qa-a-item-who-points-pad"> points)</span>
+														</span>
+													</span>
+												</span>
+											</span>
+											<div class="qa-a-item-buttons">
+												</div>
+											
+											<div class="qa-a-item-c-list" id="c12644_list">
+												<div class="qa-c-list-item  hentry comment" id="c12683">
+													<div class="qa-c-item-content">
+														<a name="12683"></a><div class="entry-content"><p>Thank you so much, now the code is running without any error messages! However the program does not converge. According to the mathematical model presented above, the variational problem reads, </p>
+
+<p>$\int_0^1 \frac{\partial \, h}{\partial t} h_{\text{test}} \, \text{d}x - \int_0^1 u \, h \frac{\partial  h_{\text{test}}}{\partial x} \, \text{d}x + u\,h \,  h_{\text{test}}|_{1} = 0$</p>
+
+<p>$-\int_0^1 h \, \frac{\partial u}{\partial x} \frac{\partial  u_{\text{test}}}{\partial x} \, \text{d} x = 0.$</p>
+
+<p>If the initial condition is $h(x,0) = D_r^{-x}$, $u(x,0) D_r^x$, the result that I expect from this equations is that the solution has to be absolutely stable, due to this initial condition is the analytical equilibrium state of the model. If this condition is slightly perturbed, with a value of $D_r$ above $22$ (do not know the exact value), the solution has to oscillate eventually reaching a limit cycle. However, as I said before the program is not numerically stable.</p>
+
+<p>I attach you the last version of the code,</p>
+
+<pre><code>from __future__ import print_function
+from fenics import *
+
+T = 2.0            # final time
+num_steps = 10000     # number of time steps
+dt = T / num_steps # time step size
+
+# Create mesh and define function space
+mesh = IntervalMesh(57,0,1)
+V    = FunctionSpace(mesh, 'P', 2)
+Q    = FunctionSpace(mesh, 'P', 2)
+
+# Define boundary condition
+inflow   = 'near(x[0],0)'
+outflow  = 'near(x[0],1)'
+
+bch_inflow   = DirichletBC(V, Constant(1), inflow)
+bcu_inflow   = DirichletBC(Q, Constant(1), inflow)
+bcu_outflow  = DirichletBC(Q, Constant(23), outflow)
+
+bcu = [bcu_inflow, bcu_outflow]
+bch = [bch_inflow]
+
+# Define the initial value
+h_0 = Expression('pow(Dr,-x[0])', degree=2,Dr = 23)
+h_n = interpolate(h_0,V)
+u_0 = Expression('pow(Dr,x[0])', degree=2,Dr = 23)
+u_n = interpolate(u_0,Q)
+
+# Define variational problem
+h     = TrialFunction(V)  
+htest = TestFunction(V)
+u     = TrialFunction(Q)
+utest = TestFunction(Q)
+
+a1 = h*htest*dx- dt*grad(htest)[0]*u_n*h*dx + dt*u_n*h*htest*ds(1)
+L1 = h_n*htest*dx
+
+a2 =-grad(u)[0]*grad(utest)[0]*h_n*dx
+L2 = Constant(0.0)*utest*dx
+
+# Time-stepping
+h = Function(V)
+u = Function(Q)
+t = 0
+
+for n in range(num_steps):
+    # Update current time
+    t += dt
+    # Compute solution
+    solve(a1 == L1, h, bch)
+    solve(a2 == L2, u, bcu)
+    #Plot solution
+
+    plot(h)
+    print('t = %.2f' % (t))
+    # Update previous solution
+    u_n.assign(u)
+    h_n.assign(h)
+# Hold plot
+
+interactive()
+</code></pre>
+
+<p>Thanks in advance,<br>
+Alejandro</p>
+</div>
+													</div>
+													<div class="qa-c-item-footer">
+														<span class="qa-c-item-avatar-meta">
+															<span class="qa-c-item-meta">
+																<a href="../../12633/errors-solving-a-1d-problem-fiber-spinning?show=12683#c12683" class="qa-c-item-what">commented</a>
+																<span class="qa-c-item-when">
+																	<span class="qa-c-item-when-data"><span class="published"><span class="value-title" title="2017-03-11T15:49:52+0000"></span>Mar 11, 2017</span></span>
+																</span>
+																<span class="qa-c-item-who">
+																	<span class="qa-c-item-who-pad">by </span>
+																	<span class="qa-c-item-who-data"><span class="vcard author"><a href="../../user/Amcyela" class="qa-user-link url nickname">Amcyela</a></span></span>
+																	<span class="qa-c-item-who-title">FEniCS Novice</span>
+																	<span class="qa-c-item-who-points">
+																		<span class="qa-c-item-who-points-pad">(</span><span class="qa-c-item-who-points-data">240</span><span class="qa-c-item-who-points-pad"> points)</span>
+																	</span>
+																</span>
+																<br>
+																<span class="qa-c-item-what">edited</span>
+																<span class="qa-c-item-when">
+																	<span class="qa-c-item-when-data"><span class="updated"><span class="value-title" title="2017-03-12T16:11:17+0000"></span>Mar 12, 2017</span></span>
+																</span>
+																<span class="qa-c-item-who">
+																	<span class="qa-c-item-who-pad">by </span><span class="qa-c-item-who-data"><a href="../../user/Amcyela" class="qa-user-link url nickname">Amcyela</a></span>
+																</span>
+															</span>
+														</span>
+														<div class="qa-c-item-buttons">
+														</div>
+													</div>
+													<div class="qa-c-item-clear">
+													</div>
+												</div> <!-- END qa-c-item -->
+											</div> <!-- END qa-c-list -->
+											
+											<input type="hidden" name="code" value="0-1516467832-868a9c3ebc34f1b2dc4e631565a64b250be5e375">
+											<input type="hidden" name="qa_click" value="">
+										</form>
+										<div class="qa-c-form">
+										</div> <!-- END qa-c-form -->
+										
+									</div> <!-- END qa-a-item-main -->
+									<div class="qa-a-item-clear">
+									</div>
+								</div> <!-- END qa-a-list-item -->
+								
+							</div> <!-- END qa-a-list -->
+							
+						</div>
+					</div> <!-- END qa-main -->
+					
+				</div> <!-- END main-wrapper -->
+			</div> <!-- END main-shadow -->
+		</div> <!-- END body-wrapper -->
+		<!-- END footer-bottom-group -->
+		
+		<div style="position:absolute; left:-9999px; top:-9999px;">
+			<span id="qa-waiting-template" class="qa-waiting">...</span>
+		</div>
+	
+	
+
+</body><!-- Powered by Question2Answer - http://www.question2answer.org/ --></html>

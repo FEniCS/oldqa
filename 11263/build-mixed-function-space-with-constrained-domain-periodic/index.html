@@ -1,0 +1,475 @@
+<html><!-- Powered by Question2Answer - http://www.question2answer.org/ --><head>
+		<meta http-equiv="content-type" content="text/html; charset=utf-8">
+		<title>Build mixed function space with constrained domain (periodic bc) - FEniCS Q&amp;A</title>
+		<meta name="description" content="Hi everybody! I want to solve a problem using a mixed function space $V \times W$ and I  ... very grateful if anyone could help. Best regards, Lisa">
+		<meta name="keywords" content="mixed-function-space,constrained-domain,periodic-bc">
+		<link rel="stylesheet" type="text/css" href="../../qa-theme/Snow/qa-styles.css">
+		<link rel="canonical" href="http://fenicsproject.org/qa/11263/build-mixed-function-space-with-constrained-domain-periodic">
+		<script type="text/x-mathjax-config">
+  MathJax.Hub.Config({
+    extensions: ["tex2jax.js"],
+    jax: ["input/TeX","output/HTML-CSS"],
+    tex2jax: {inlineMath: [["$","$"],["\\(","\\)"]]},
+    TeX: { extensions: ["AMSmath.js","AMSsymbols.js"]}
+  });
+</script>
+<script type="text/javascript" src="../../mathjax/MathJax.js"></script>
+		<script src="../../jquery-1.7.2.min.js" type="text/javascript"></script>
+		<script src="../../highlight.min.js"></script>
+<script type="text/javascript">
+$(function(){
+	$('.wmd-input').keypress(function(){
+		window.clearTimeout(hljs.Timeout);
+		hljs.Timeout = window.setTimeout(function() {
+			hljs.initHighlighting.called = false;
+			hljs.initHighlighting();
+		}, 500);
+	});
+	window.setTimeout(function() {
+		hljs.initHighlighting.called = false;
+		hljs.initHighlighting();
+	}, 500);
+});
+</script>
+
+
+	</head>
+	<body class="qa-template-question qa-body-js-off">
+		<div class="qa-body-wrapper">
+			
+			<div class="qa-header">
+				<div class="qa-logo">
+					<a href="../../" class="qa-logo-link" title="FEniCS Q&amp;A"><img src="../../qa-theme/fenics_qa.png" border="0" alt="FEniCS Q&amp;A"></a>
+				</div>
+				<div class="qa-header-clear">
+				</div>
+			</div> <!-- END qa-header -->
+			
+			<div class="qa-main-shadow">
+				
+				<div class="qa-main-wrapper">
+					
+					<div class="qa-sidepanel">
+						<div class="qa-sidebar">
+							This is a read only copy of the old FEniCS QA forum. Please visit the <a href="https://www.allanswered.com/community/s/fenics-project/">new QA forum</a> to ask questions
+						</div>
+						
+					</div>
+					
+					<div class="qa-main">
+						<h1>
+							<span class="entry-title">Build mixed function space with constrained domain (periodic bc)</span>
+						</h1>
+						<div class="qa-part-q-view">
+							<div class="qa-q-view  hentry question" id="q11263">
+								<form method="post" action="../../11263/build-mixed-function-space-with-constrained-domain-periodic">
+									<div class="qa-q-view-stats">
+										<div class="qa-voting qa-voting-net" id="voting_11263">
+											<div class="qa-vote-count qa-vote-count-net">
+												<span class="qa-netvote-count">
+													<span class="qa-netvote-count-data">0<span class="votes-up"><span class="value-title" title="0"></span></span><span class="votes-down"><span class="value-title" title="0"></span></span></span><span class="qa-netvote-count-pad"> votes</span>
+												</span>
+											</div>
+											<div class="qa-vote-clear">
+											</div>
+										</div>
+									</div>
+									<input type="hidden" name="code" value="0-1516467103-b6e33f36a96cb15f3871beec3c65b63254c0589e">
+								</form>
+								<div class="qa-q-view-main">
+									<form method="post" action="../../11263/build-mixed-function-space-with-constrained-domain-periodic">
+										<div class="qa-q-view-content">
+											<a name="11263"></a><div class="entry-content"><p>Hi everybody!</p>
+
+<p>I want to solve a problem using a mixed function space $V \times W$ and I want to equip $V$ with periodic boundary conditions:</p>
+
+<pre><code>from dolfin import *
+
+# define periodic bc
+class PeriodicBC(SubDomain):
+      def __init__(self, tolerance=DOLFIN_EPS, length = 1.0):
+          SubDomain.__init__(self)
+          self.tol = tolerance
+          self.length = length
+      def inside(self, x, on_boundary):
+          return bool((near(x[0], 0) or near(x[1], 0) and on_boundary) and \
+                      (not ((near(x[0], 0) and near(x[1], self.length)) or \
+                      (near(x[0], self.length) and near(x[1], 0)))) and on_boundary)
+      def map(self, x, y):
+          L = self.length
+          if near(x[0], L) and near(x[1], L):
+             y[0] = x[0] - L
+             y[1] = x[1] - L
+          elif near(x[0], L):
+             y[0] = x[0] - L
+             y[1] = x[1]
+          else:  
+             y[0] = x[0]
+             y[1] = x[1] - L
+
+
+# create mesh
+mesh = RectangleMesh(Point(0.0,0.0),Point(1.0,1.0),4,4,"left/right")
+
+# build function space
+PBC = PeriodicBC(length = 1.0)
+V  = FunctionSpace(mesh, "CG", 1, constrained_domain=PBC)
+W  = FunctionSpace(mesh, "CG", 1)          
+
+MS = MixedFunctionSpace([V,W])
+</code></pre>
+
+<p>But I get the following error:</p>
+
+<blockquote>
+  <p>*** Error:   Unable to create function space.<br>
+  *** Reason:  Nonmatching constrained_domain for mixed function space: [&lt;dolfin.cpp.mesh.SubDomain; proxy of  *' at 0x7fec5a8a0210&gt; &gt;, None].<br>
+  *** Where:   This error was encountered inside functionspace.py.<br>
+  *** Process: 0</p>
+  
+  <hr>
+  
+  <p>*** DOLFIN version: 1.6.0<br>
+  *** Git changeset:  unknown</p>
+</blockquote>
+
+<p>What am I doing wrong? I would be very grateful if anyone could help.</p>
+
+<p>Best regards,<br>
+Lisa</p>
+</div>
+										</div>
+										<div class="qa-q-view-tags">
+											<ul class="qa-q-view-tag-list">
+												<li class="qa-q-view-tag-item"><a href="../../tag/mixed-function-space" rel="tag" class="qa-tag-link">mixed-function-space</a></li>
+												<li class="qa-q-view-tag-item"><a href="../../tag/constrained-domain" rel="tag" class="qa-tag-link">constrained-domain</a></li>
+												<li class="qa-q-view-tag-item"><a href="../../tag/periodic-bc" rel="tag" class="qa-tag-link">periodic-bc</a></li>
+											</ul>
+										</div>
+										<span class="qa-q-view-avatar-meta">
+											<span class="qa-q-view-meta">
+												<a href="../../11263/build-mixed-function-space-with-constrained-domain-periodic" class="qa-q-view-what">asked</a>
+												<span class="qa-q-view-when">
+													<span class="qa-q-view-when-data"><span class="published"><span class="value-title" title="2016-10-03T19:48:23+0000"></span>Oct 3, 2016</span></span>
+												</span>
+												<span class="qa-q-view-who">
+													<span class="qa-q-view-who-pad">by </span>
+													<span class="qa-q-view-who-data"><span class="vcard author"><a href="../../user/lisa" class="qa-user-link url nickname">lisa</a></span></span>
+													<span class="qa-q-view-who-title">FEniCS Novice</span>
+													<span class="qa-q-view-who-points">
+														<span class="qa-q-view-who-points-pad">(</span><span class="qa-q-view-who-points-data">280</span><span class="qa-q-view-who-points-pad"> points)</span>
+													</span>
+												</span>
+											</span>
+										</span>
+										<div class="qa-q-view-buttons">
+										</div>
+										
+										<div class="qa-q-view-c-list" style="display:none;" id="c11263_list">
+										</div> <!-- END qa-c-list -->
+										
+										<input type="hidden" name="code" value="0-1516467103-d09ec9cebc2639f84ae38dc0e364b3ee613c9017">
+										<input type="hidden" name="qa_click" value="">
+									</form>
+									<div class="qa-c-form">
+									</div> <!-- END qa-c-form -->
+									
+								</div> <!-- END qa-q-view-main -->
+								<div class="qa-q-view-clear">
+								</div>
+							</div> <!-- END qa-q-view -->
+							
+						</div>
+						<div class="qa-part-a-list">
+							<h2 id="a_list_title">1 Answer</h2>
+							<div class="qa-a-list" id="a_list">
+								
+								<div class="qa-a-list-item  hentry answer" id="a11265">
+									<form method="post" action="../../11263/build-mixed-function-space-with-constrained-domain-periodic">
+										<div class="qa-voting qa-voting-net" id="voting_11265">
+											<div class="qa-vote-count qa-vote-count-net">
+												<span class="qa-netvote-count">
+													<span class="qa-netvote-count-data">0<span class="votes-up"><span class="value-title" title="0"></span></span><span class="votes-down"><span class="value-title" title="0"></span></span></span><span class="qa-netvote-count-pad"> votes</span>
+												</span>
+											</div>
+											<div class="qa-vote-clear">
+											</div>
+										</div>
+										<input type="hidden" name="code" value="0-1516467103-b6e33f36a96cb15f3871beec3c65b63254c0589e">
+									</form>
+									<div class="qa-a-item-main">
+										<form method="post" action="../../11263/build-mixed-function-space-with-constrained-domain-periodic">
+											<div class="qa-a-selection">
+											</div>
+											<div class="qa-a-item-content">
+												<a name="11265"></a><div class="entry-content"><p>Hi, consider</p>
+
+<pre><code># build function space 
+PBC = PeriodicBC(length = 1.0)
+V  = FunctionSpace(mesh, "CG", 1, constrained_domain=PBC)
+W  = FunctionSpace(mesh, "CG", 1, constrained_domain=PBC)          
+MS = MixedFunctionSpace([V,W])
+print MS.dim()
+
+V = FiniteElement('Lagrange', mesh.ufl_cell(), 1)
+W = MixedElement([V, V])
+W = FunctionSpace(mesh, W, constrained_domain=PBC)          
+print W.dim()
+</code></pre>
+</div>
+											</div>
+											<span class="qa-a-item-avatar-meta">
+												<span class="qa-a-item-avatar">
+													<a href="../../user/MiroK" class="qa-avatar-link"><img src="https://www.gravatar.com/avatar/f566be3274ec73e3a6dda27bca11631c?s=40" width="40" height="40" class="qa-avatar-image" alt=""></a>
+												</span>
+												<span class="qa-a-item-meta">
+													<a href="../../11263/build-mixed-function-space-with-constrained-domain-periodic?show=11265#a11265" class="qa-a-item-what">answered</a>
+													<span class="qa-a-item-when">
+														<span class="qa-a-item-when-data"><span class="published"><span class="value-title" title="2016-10-04T06:18:40+0000"></span>Oct 4, 2016</span></span>
+													</span>
+													<span class="qa-a-item-who">
+														<span class="qa-a-item-who-pad">by </span>
+														<span class="qa-a-item-who-data"><span class="vcard author"><a href="../../user/MiroK" class="qa-user-link url nickname">MiroK</a></span></span>
+														<span class="qa-a-item-who-title">FEniCS Expert</span>
+														<span class="qa-a-item-who-points">
+															<span class="qa-a-item-who-points-pad">(</span><span class="qa-a-item-who-points-data">80,920</span><span class="qa-a-item-who-points-pad"> points)</span>
+														</span>
+													</span>
+												</span>
+											</span>
+											<div class="qa-a-item-buttons">
+												</div>
+											
+											<div class="qa-a-item-c-list" id="c11265_list">
+												<div class="qa-c-list-item  hentry comment" id="c11269">
+													<div class="qa-c-item-content">
+														<a name="11269"></a><div class="entry-content"><p>Hi! Thank you for your quick response.</p>
+
+<p>When I run your code I get the following error:</p>
+
+<blockquote>
+<pre><code>W = FunctionSpace(mesh, W, constrained_domain=PBC)          
+</code></pre>
+  
+  <p>TypeError: <strong>init</strong>() takes at least 4 arguments (4 given)</p>
+</blockquote>
+</div>
+													</div>
+													<div class="qa-c-item-footer">
+														<span class="qa-c-item-avatar-meta">
+															<span class="qa-c-item-meta">
+																<a href="../../11263/build-mixed-function-space-with-constrained-domain-periodic?show=11269#c11269" class="qa-c-item-what">commented</a>
+																<span class="qa-c-item-when">
+																	<span class="qa-c-item-when-data"><span class="published"><span class="value-title" title="2016-10-04T08:32:36+0000"></span>Oct 4, 2016</span></span>
+																</span>
+																<span class="qa-c-item-who">
+																	<span class="qa-c-item-who-pad">by </span>
+																	<span class="qa-c-item-who-data"><span class="vcard author"><a href="../../user/lisa" class="qa-user-link url nickname">lisa</a></span></span>
+																	<span class="qa-c-item-who-title">FEniCS Novice</span>
+																	<span class="qa-c-item-who-points">
+																		<span class="qa-c-item-who-points-pad">(</span><span class="qa-c-item-who-points-data">280</span><span class="qa-c-item-who-points-pad"> points)</span>
+																	</span>
+																</span>
+															</span>
+														</span>
+														<div class="qa-c-item-buttons">
+														</div>
+													</div>
+													<div class="qa-c-item-clear">
+													</div>
+												</div> <!-- END qa-c-item -->
+												<div class="qa-c-list-item  hentry comment" id="c11270">
+													<div class="qa-c-item-content">
+														<a name="11270"></a><div class="entry-content"><p>It works for me on dolfin version 2016.1.0. </p>
+</div>
+													</div>
+													<div class="qa-c-item-footer">
+														<span class="qa-c-item-avatar-meta">
+															<span class="qa-c-item-avatar">
+																<a href="../../user/MiroK" class="qa-avatar-link"><img src="https://www.gravatar.com/avatar/f566be3274ec73e3a6dda27bca11631c?s=20" width="20" height="20" class="qa-avatar-image" alt=""></a>
+															</span>
+															<span class="qa-c-item-meta">
+																<a href="../../11263/build-mixed-function-space-with-constrained-domain-periodic?show=11270#c11270" class="qa-c-item-what">commented</a>
+																<span class="qa-c-item-when">
+																	<span class="qa-c-item-when-data"><span class="published"><span class="value-title" title="2016-10-04T08:34:03+0000"></span>Oct 4, 2016</span></span>
+																</span>
+																<span class="qa-c-item-who">
+																	<span class="qa-c-item-who-pad">by </span>
+																	<span class="qa-c-item-who-data"><span class="vcard author"><a href="../../user/MiroK" class="qa-user-link url nickname">MiroK</a></span></span>
+																	<span class="qa-c-item-who-title">FEniCS Expert</span>
+																	<span class="qa-c-item-who-points">
+																		<span class="qa-c-item-who-points-pad">(</span><span class="qa-c-item-who-points-data">80,920</span><span class="qa-c-item-who-points-pad"> points)</span>
+																	</span>
+																</span>
+															</span>
+														</span>
+														<div class="qa-c-item-buttons">
+														</div>
+													</div>
+													<div class="qa-c-item-clear">
+													</div>
+												</div> <!-- END qa-c-item -->
+												<div class="qa-c-list-item  hentry comment" id="c11303">
+													<div class="qa-c-item-content">
+														<a name="11303"></a><div class="entry-content"><p>Unfortunately, it does not work on FEniCS version 1.6.0.</p>
+
+<p>Can you explain what's wrong or why my code does not work? That would be great.</p>
+</div>
+													</div>
+													<div class="qa-c-item-footer">
+														<span class="qa-c-item-avatar-meta">
+															<span class="qa-c-item-meta">
+																<a href="../../11263/build-mixed-function-space-with-constrained-domain-periodic?show=11303#c11303" class="qa-c-item-what">commented</a>
+																<span class="qa-c-item-when">
+																	<span class="qa-c-item-when-data"><span class="published"><span class="value-title" title="2016-10-06T10:42:52+0000"></span>Oct 6, 2016</span></span>
+																</span>
+																<span class="qa-c-item-who">
+																	<span class="qa-c-item-who-pad">by </span>
+																	<span class="qa-c-item-who-data"><span class="vcard author"><a href="../../user/lisa" class="qa-user-link url nickname">lisa</a></span></span>
+																	<span class="qa-c-item-who-title">FEniCS Novice</span>
+																	<span class="qa-c-item-who-points">
+																		<span class="qa-c-item-who-points-pad">(</span><span class="qa-c-item-who-points-data">280</span><span class="qa-c-item-who-points-pad"> points)</span>
+																	</span>
+																</span>
+															</span>
+														</span>
+														<div class="qa-c-item-buttons">
+														</div>
+													</div>
+													<div class="qa-c-item-clear">
+													</div>
+												</div> <!-- END qa-c-item -->
+												<div class="qa-c-list-item  hentry comment" id="c11304">
+													<div class="qa-c-item-content">
+														<a name="11304"></a><div class="entry-content"><p>Hi, the code shows two approaches which should be equivalent. If it is <code>W = FunctionSpace(mesh, W, constrained_domain=PBC)</code> which does not work use the constructor above. Or is it that both approaches fail?</p>
+</div>
+													</div>
+													<div class="qa-c-item-footer">
+														<span class="qa-c-item-avatar-meta">
+															<span class="qa-c-item-avatar">
+																<a href="../../user/MiroK" class="qa-avatar-link"><img src="https://www.gravatar.com/avatar/f566be3274ec73e3a6dda27bca11631c?s=20" width="20" height="20" class="qa-avatar-image" alt=""></a>
+															</span>
+															<span class="qa-c-item-meta">
+																<a href="../../11263/build-mixed-function-space-with-constrained-domain-periodic?show=11304#c11304" class="qa-c-item-what">commented</a>
+																<span class="qa-c-item-when">
+																	<span class="qa-c-item-when-data"><span class="published"><span class="value-title" title="2016-10-06T11:30:48+0000"></span>Oct 6, 2016</span></span>
+																</span>
+																<span class="qa-c-item-who">
+																	<span class="qa-c-item-who-pad">by </span>
+																	<span class="qa-c-item-who-data"><span class="vcard author"><a href="../../user/MiroK" class="qa-user-link url nickname">MiroK</a></span></span>
+																	<span class="qa-c-item-who-title">FEniCS Expert</span>
+																	<span class="qa-c-item-who-points">
+																		<span class="qa-c-item-who-points-pad">(</span><span class="qa-c-item-who-points-data">80,920</span><span class="qa-c-item-who-points-pad"> points)</span>
+																	</span>
+																</span>
+															</span>
+														</span>
+														<div class="qa-c-item-buttons">
+														</div>
+													</div>
+													<div class="qa-c-item-clear">
+													</div>
+												</div> <!-- END qa-c-item -->
+												<div class="qa-c-list-item  hentry comment" id="c11305">
+													<div class="qa-c-item-content">
+														<a name="11305"></a><div class="entry-content"><p>I'm sorry. Now I see that I should have explained my original problem a bit more.</p>
+
+<p>So the problem is, that I can not create a mixed function space from one function space with periodic boundary conditions (V) and one function space without periodic boundary conditions (W):</p>
+
+<pre><code>MS = MixedFunctionSpace([V,W])
+</code></pre>
+
+<p>But the code works, if I want to create a mixed function space from two function spaces, which have both periodic boundary conditions:</p>
+
+<pre><code>MS = MixedFunctionSpace([V,V])
+</code></pre>
+
+<p>and it works for a mixed space consisting of two spaces without periodic bc.</p>
+
+<p>Do you have an idea what's wrong?</p>
+</div>
+													</div>
+													<div class="qa-c-item-footer">
+														<span class="qa-c-item-avatar-meta">
+															<span class="qa-c-item-meta">
+																<a href="../../11263/build-mixed-function-space-with-constrained-domain-periodic?show=11305#c11305" class="qa-c-item-what">commented</a>
+																<span class="qa-c-item-when">
+																	<span class="qa-c-item-when-data"><span class="published"><span class="value-title" title="2016-10-06T12:59:06+0000"></span>Oct 6, 2016</span></span>
+																</span>
+																<span class="qa-c-item-who">
+																	<span class="qa-c-item-who-pad">by </span>
+																	<span class="qa-c-item-who-data"><span class="vcard author"><a href="../../user/lisa" class="qa-user-link url nickname">lisa</a></span></span>
+																	<span class="qa-c-item-who-title">FEniCS Novice</span>
+																	<span class="qa-c-item-who-points">
+																		<span class="qa-c-item-who-points-pad">(</span><span class="qa-c-item-who-points-data">280</span><span class="qa-c-item-who-points-pad"> points)</span>
+																	</span>
+																</span>
+															</span>
+														</span>
+														<div class="qa-c-item-buttons">
+														</div>
+													</div>
+													<div class="qa-c-item-clear">
+													</div>
+												</div> <!-- END qa-c-item -->
+												<div class="qa-c-list-item  hentry comment" id="c11312">
+													<div class="qa-c-item-content">
+														<a name="11312"></a><div class="entry-content"><p>It is by <a rel="nofollow" href="https://github.com/FEniCS/dolfin/blob/master/site-packages/dolfin/functions/functionspace.py#L69">design</a> that you cannot create such a mixed space. Out of curiosity, what is the application where you need only one variable to be periodic? Also, you could have a look at <a rel="nofollow" href="https://bitbucket.org/fenics-apps/cbc.block/overview">cbc.block</a> where you can assemble block matrices - mixed spaces are not necessary.</p>
+</div>
+													</div>
+													<div class="qa-c-item-footer">
+														<span class="qa-c-item-avatar-meta">
+															<span class="qa-c-item-avatar">
+																<a href="../../user/MiroK" class="qa-avatar-link"><img src="https://www.gravatar.com/avatar/f566be3274ec73e3a6dda27bca11631c?s=20" width="20" height="20" class="qa-avatar-image" alt=""></a>
+															</span>
+															<span class="qa-c-item-meta">
+																<a href="../../11263/build-mixed-function-space-with-constrained-domain-periodic?show=11312#c11312" class="qa-c-item-what">commented</a>
+																<span class="qa-c-item-when">
+																	<span class="qa-c-item-when-data"><span class="published"><span class="value-title" title="2016-10-07T06:24:51+0000"></span>Oct 7, 2016</span></span>
+																</span>
+																<span class="qa-c-item-who">
+																	<span class="qa-c-item-who-pad">by </span>
+																	<span class="qa-c-item-who-data"><span class="vcard author"><a href="../../user/MiroK" class="qa-user-link url nickname">MiroK</a></span></span>
+																	<span class="qa-c-item-who-title">FEniCS Expert</span>
+																	<span class="qa-c-item-who-points">
+																		<span class="qa-c-item-who-points-pad">(</span><span class="qa-c-item-who-points-data">80,920</span><span class="qa-c-item-who-points-pad"> points)</span>
+																	</span>
+																</span>
+															</span>
+														</span>
+														<div class="qa-c-item-buttons">
+														</div>
+													</div>
+													<div class="qa-c-item-clear">
+													</div>
+												</div> <!-- END qa-c-item -->
+											</div> <!-- END qa-c-list -->
+											
+											<input type="hidden" name="code" value="0-1516467103-1682de968965803884e0a0ba6139178b42dd59ed">
+											<input type="hidden" name="qa_click" value="">
+										</form>
+										<div class="qa-c-form">
+										</div> <!-- END qa-c-form -->
+										
+									</div> <!-- END qa-a-item-main -->
+									<div class="qa-a-item-clear">
+									</div>
+								</div> <!-- END qa-a-list-item -->
+								
+							</div> <!-- END qa-a-list -->
+							
+						</div>
+					</div> <!-- END qa-main -->
+					
+				</div> <!-- END main-wrapper -->
+			</div> <!-- END main-shadow -->
+		</div> <!-- END body-wrapper -->
+		<!-- END footer-bottom-group -->
+		
+		<div style="position:absolute; left:-9999px; top:-9999px;">
+			<span id="qa-waiting-template" class="qa-waiting">...</span>
+		</div>
+	
+	
+
+</body><!-- Powered by Question2Answer - http://www.question2answer.org/ --></html>

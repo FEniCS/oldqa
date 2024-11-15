@@ -1,0 +1,466 @@
+<html><!-- Powered by Question2Answer - http://www.question2answer.org/ --><head>
+		<meta http-equiv="content-type" content="text/html; charset=utf-8">
+		<title>Restriction of DG space and measures to nodal patch - FEniCS Q&amp;A</title>
+		<meta name="description" content="I am having some issues with restricting a DG space and the assembly to a nodal patch. In the  ... , u) # Plot solution plot(u, interactive=True)">
+		<meta name="keywords" content="dg,restriction,measure">
+		<link rel="stylesheet" type="text/css" href="../../qa-theme/Snow/qa-styles.css">
+		<link rel="canonical" href="http://fenicsproject.org/qa/1401/restriction-of-dg-space-and-measures-to-nodal-patch">
+		<script type="text/x-mathjax-config">
+  MathJax.Hub.Config({
+    extensions: ["tex2jax.js"],
+    jax: ["input/TeX","output/HTML-CSS"],
+    tex2jax: {inlineMath: [["$","$"],["\\(","\\)"]]},
+    TeX: { extensions: ["AMSmath.js","AMSsymbols.js"]}
+  });
+</script>
+<script type="text/javascript" src="../../mathjax/MathJax.js"></script>
+		<script src="../../jquery-1.7.2.min.js" type="text/javascript"></script>
+		<script src="../../highlight.min.js"></script>
+<script type="text/javascript">
+$(function(){
+	$('.wmd-input').keypress(function(){
+		window.clearTimeout(hljs.Timeout);
+		hljs.Timeout = window.setTimeout(function() {
+			hljs.initHighlighting.called = false;
+			hljs.initHighlighting();
+		}, 500);
+	});
+	window.setTimeout(function() {
+		hljs.initHighlighting.called = false;
+		hljs.initHighlighting();
+	}, 500);
+});
+</script>
+
+
+	</head>
+	<body class="qa-template-question qa-body-js-off">
+		<div class="qa-body-wrapper">
+			
+			<div class="qa-header">
+				<div class="qa-logo">
+					<a href="../../" class="qa-logo-link" title="FEniCS Q&amp;A"><img src="../../qa-theme/fenics_qa.png" border="0" alt="FEniCS Q&amp;A"></a>
+				</div>
+				<div class="qa-header-clear">
+				</div>
+			</div> <!-- END qa-header -->
+			
+			<div class="qa-main-shadow">
+				
+				<div class="qa-main-wrapper">
+					
+					<div class="qa-sidepanel">
+						<div class="qa-sidebar">
+							This is a read only copy of the old FEniCS QA forum. Please visit the <a href="https://www.allanswered.com/community/s/fenics-project/">new QA forum</a> to ask questions
+						</div>
+						
+					</div>
+					
+					<div class="qa-main">
+						<h1>
+							<span class="entry-title">Restriction of DG space and measures to nodal patch</span>
+						</h1>
+						<div class="qa-part-q-view">
+							<div class="qa-q-view  hentry question" id="q1401">
+								<form method="post" action="../../1401/restriction-of-dg-space-and-measures-to-nodal-patch">
+									<div class="qa-q-view-stats">
+										<div class="qa-voting qa-voting-net" id="voting_1401">
+											<div class="qa-vote-count qa-vote-count-net">
+												<span class="qa-netvote-count">
+													<span class="qa-netvote-count-data">+3<span class="votes-up"><span class="value-title" title="3"></span></span><span class="votes-down"><span class="value-title" title="0"></span></span></span><span class="qa-netvote-count-pad"> votes</span>
+												</span>
+											</div>
+											<div class="qa-vote-clear">
+											</div>
+										</div>
+									</div>
+									<input type="hidden" name="code" value="0-1516467883-1a2b4d766535152edfe1b96ce2dc7f3875afb325">
+								</form>
+								<div class="qa-q-view-main">
+									<form method="post" action="../../1401/restriction-of-dg-space-and-measures-to-nodal-patch">
+										<div class="qa-q-view-content">
+											<a name="1401"></a><div class="entry-content"><p>I am having some issues with restricting a DG space and the assembly to a nodal patch. In the following example based on the dolfin DG Poisson demo, the patch of some arbitrary node (here with index 12) is determined. Subsequently, the inner and outer (patch boundary) facets are determined. With this information, the required measures are restricted and the DG Poisson problem is assembled on the restricted DG space. However, the solution does neither seem to be correct nor to be restricted to the selected patch.</p>
+
+<p>Cheers, Martin</p>
+
+<pre><code>from dolfin import *
+import itertools as iter
+
+# Create mesh and define function space
+mesh = UnitSquareMesh(4, 4)
+mesh.init()
+
+# determine vertex patch data
+selected_vertex = Vertex(mesh,12)
+cf = CellFunction('size_t', mesh)
+patch_cells = set(selected_vertex.entities(2).astype(int).tolist())
+for cid in patch_cells:
+    cf[cid] = 1
+patch_facets = [Cell(mesh,cid).entities(1).astype(int).tolist() for cid in patch_cells]
+patch_facets = set(iter.chain(*patch_facets))
+ff_inner = FacetFunction('size_t', mesh)
+ff_outer = FacetFunction('size_t', mesh)
+for fid in patch_facets:
+    facet_cells = set(Facet(mesh,fid).entities(2).astype(int).tolist())
+    if len(facet_cells)==1 or len(facet_cells-patch_cells)==1:
+        ff_outer[fid] = 1
+    else:
+        ff_inner[fid] = 1
+plot(cf)
+plot(ff_inner, title='inner')
+plot(ff_outer, title='outer', interactive=True)
+
+# construct restricted function space
+restriction = Restriction(cf,1)
+V = FunctionSpace(restriction, "DG", 1)
+
+# Define test and trial functions
+v = TestFunction(V)
+u = TrialFunction(V)
+
+# Define normal component, mesh size and right-hand side
+n = FacetNormal(mesh)
+h = CellSize(mesh)
+h_avg = (h('+') + h('-'))/2
+f = Expression("500.0*exp(-(pow(x[0] - 0.5, 2) + pow(x[1] - 0.5, 2)) / 0.02)")
+
+# Define parameters
+alpha = 4.0
+gamma = 8.0
+
+# Define restricted measures
+dx = Measure('dx')[cf]
+ds = Measure('ds')[ff_outer]
+dS = Measure('dS')[ff_inner]
+
+# Define variational problem
+a = dot(grad(v), grad(u))*dx(1) \
+   - dot(avg(grad(v)), jump(u, n))*dS(1) \
+   - dot(jump(v, n), avg(grad(u)))*dS(1) \
+   + alpha/h_avg*dot(jump(v, n), jump(u, n))*dS(1) \
+   - dot(grad(v), u*n)*ds(1) \
+   - dot(v*n, grad(u))*ds(1) \
+   + gamma/h*v*u*ds(1)
+L = v*f*dx(1)
+
+# Compute solution
+u = Function(V)
+solve(a == L, u)
+
+# Plot solution
+plot(u, interactive=True)
+</code></pre>
+</div>
+										</div>
+										<div class="qa-q-view-tags">
+											<ul class="qa-q-view-tag-list">
+												<li class="qa-q-view-tag-item"><a href="../../tag/dg" rel="tag" class="qa-tag-link">dg</a></li>
+												<li class="qa-q-view-tag-item"><a href="../../tag/restriction" rel="tag" class="qa-tag-link">restriction</a></li>
+												<li class="qa-q-view-tag-item"><a href="../../tag/measure" rel="tag" class="qa-tag-link">measure</a></li>
+											</ul>
+										</div>
+										<span class="qa-q-view-avatar-meta">
+											<span class="qa-q-view-meta">
+												<a href="../../1401/restriction-of-dg-space-and-measures-to-nodal-patch" class="qa-q-view-what">asked</a>
+												<span class="qa-q-view-when">
+													<span class="qa-q-view-when-data"><span class="published"><span class="value-title" title="2013-10-17T07:12:16+0000"></span>Oct 17, 2013</span></span>
+												</span>
+												<span class="qa-q-view-who">
+													<span class="qa-q-view-who-pad">by </span>
+													<span class="qa-q-view-who-data"><span class="vcard author"><a href="../../user/meigel" class="qa-user-link url nickname">meigel</a></span></span>
+													<span class="qa-q-view-who-title">FEniCS User</span>
+													<span class="qa-q-view-who-points">
+														<span class="qa-q-view-who-points-pad">(</span><span class="qa-q-view-who-points-data">1,520</span><span class="qa-q-view-who-points-pad"> points)</span>
+													</span>
+												</span>
+											</span>
+										</span>
+										<div class="qa-q-view-buttons">
+										</div>
+										
+										<div class="qa-q-view-c-list" style="display:none;" id="c1401_list">
+										</div> <!-- END qa-c-list -->
+										
+										<input type="hidden" name="code" value="0-1516467883-f8b56024475d67fd5289891a8bbde02883f88a13">
+										<input type="hidden" name="qa_click" value="">
+									</form>
+									<div class="qa-c-form">
+									</div> <!-- END qa-c-form -->
+									
+								</div> <!-- END qa-q-view-main -->
+								<div class="qa-q-view-clear">
+								</div>
+							</div> <!-- END qa-q-view -->
+							
+						</div>
+						<div class="qa-part-a-list">
+							<h2 id="a_list_title">1 Answer</h2>
+							<div class="qa-a-list" id="a_list">
+								
+								<div class="qa-a-list-item  hentry answer answer-selected qa-a-list-item-selected" id="a1415">
+									<form method="post" action="../../1401/restriction-of-dg-space-and-measures-to-nodal-patch">
+										<div class="qa-voting qa-voting-net" id="voting_1415">
+											<div class="qa-vote-count qa-vote-count-net">
+												<span class="qa-netvote-count">
+													<span class="qa-netvote-count-data">0<span class="votes-up"><span class="value-title" title="0"></span></span><span class="votes-down"><span class="value-title" title="0"></span></span></span><span class="qa-netvote-count-pad"> votes</span>
+												</span>
+											</div>
+											<div class="qa-vote-clear">
+											</div>
+										</div>
+										<input type="hidden" name="code" value="0-1516467883-1a2b4d766535152edfe1b96ce2dc7f3875afb325">
+									</form>
+									<div class="qa-a-item-main">
+										<form method="post" action="../../1401/restriction-of-dg-space-and-measures-to-nodal-patch">
+											<div class="qa-a-item-selected">
+												<div class="qa-a-selection">
+													<div class="qa-a-selected">&#160;</div>
+													<div class="qa-a-selected-text">Best answer</div>
+												</div>
+												<div class="qa-a-item-content">
+													<a name="1415"></a><div class="entry-content"><pre><code>ds = Measure('ds')[ff_outer]
+</code></pre>
+
+<p>this obviously creates a measure of exterior (w. r. t. <code>mesh</code>) facets taking values <code>ff_outter==1</code> which is an empty set. If you switch to</p>
+
+<pre><code>ds = Measure('dS')[ff_outer]
+</code></pre>
+
+<p>then it is not obvious how to restrict integrand. Could you <a rel="nofollow" href="https://bitbucket.org/fenics-project/dolfin/issues/new">file an issue</a> so that it can be thought over and designed better?</p>
+</div>
+												</div>
+												<span class="qa-a-item-avatar-meta">
+													<span class="qa-a-item-avatar">
+														<a href="../../user/Jan+Blechta" class="qa-avatar-link"><img src="https://www.gravatar.com/avatar/dc6f8dce77e4a0bd5adc7ff31ab83741?s=40" width="40" height="40" class="qa-avatar-image" alt=""></a>
+													</span>
+													<span class="qa-a-item-meta">
+														<a href="../../1401/restriction-of-dg-space-and-measures-to-nodal-patch?show=1415#a1415" class="qa-a-item-what">answered</a>
+														<span class="qa-a-item-when">
+															<span class="qa-a-item-when-data"><span class="published"><span class="value-title" title="2013-10-18T15:04:03+0000"></span>Oct 18, 2013</span></span>
+														</span>
+														<span class="qa-a-item-who">
+															<span class="qa-a-item-who-pad">by </span>
+															<span class="qa-a-item-who-data"><span class="vcard author"><a href="../../user/Jan+Blechta" class="qa-user-link url nickname">Jan Blechta</a></span></span>
+															<span class="qa-a-item-who-title">FEniCS Expert</span>
+															<span class="qa-a-item-who-points">
+																<span class="qa-a-item-who-points-pad">(</span><span class="qa-a-item-who-points-data">51,420</span><span class="qa-a-item-who-points-pad"> points)</span>
+															</span>
+														</span>
+														<br>
+														<span class="qa-a-item-what">selected</span>
+														<span class="qa-a-item-when">
+															<span class="qa-a-item-when-data"><span class="updated"><span class="value-title" title="2013-10-21T17:21:06+0000"></span>Oct 21, 2013</span></span>
+														</span>
+														<span class="qa-a-item-who">
+															<span class="qa-a-item-who-pad">by </span><span class="qa-a-item-who-data"><a href="../../user/meigel" class="qa-user-link url nickname">meigel</a></span>
+														</span>
+													</span>
+												</span>
+											</div>
+											<div class="qa-a-item-buttons">
+												</div>
+											
+											<div class="qa-a-item-c-list" id="c1415_list">
+												<div class="qa-c-list-item  hentry comment" id="c1420">
+													<div class="qa-c-item-content">
+														<a name="1420"></a><div class="entry-content"><p>So what you are saying is that</p>
+
+<pre><code>ds = Measure('ds')[ff_outer]
+</code></pre>
+
+<p>requires the marked facets in ff_outer to coincide with some exterior facets of mesh, otherwise ds(1) integrals never get evaluated? In that case, it should be possible to just use dS and define the exterior facet integrals of the patch as dS(2) (replacing ds(1)), right?<br>
+If not, do you have any suggestion how to discretise the described patch problem?</p>
+</div>
+													</div>
+													<div class="qa-c-item-footer">
+														<span class="qa-c-item-avatar-meta">
+															<span class="qa-c-item-meta">
+																<a href="../../1401/restriction-of-dg-space-and-measures-to-nodal-patch?show=1420#c1420" class="qa-c-item-what">commented</a>
+																<span class="qa-c-item-when">
+																	<span class="qa-c-item-when-data"><span class="published"><span class="value-title" title="2013-10-19T11:49:54+0000"></span>Oct 19, 2013</span></span>
+																</span>
+																<span class="qa-c-item-who">
+																	<span class="qa-c-item-who-pad">by </span>
+																	<span class="qa-c-item-who-data"><span class="vcard author"><a href="../../user/meigel" class="qa-user-link url nickname">meigel</a></span></span>
+																	<span class="qa-c-item-who-title">FEniCS User</span>
+																	<span class="qa-c-item-who-points">
+																		<span class="qa-c-item-who-points-pad">(</span><span class="qa-c-item-who-points-data">1,520</span><span class="qa-c-item-who-points-pad"> points)</span>
+																	</span>
+																</span>
+															</span>
+														</span>
+														<div class="qa-c-item-buttons">
+														</div>
+													</div>
+													<div class="qa-c-item-clear">
+													</div>
+												</div> <!-- END qa-c-item -->
+												<div class="qa-c-list-item  hentry comment" id="c1421">
+													<div class="qa-c-item-content">
+														<a name="1421"></a><div class="entry-content"><blockquote>
+  <p>In that case, it should be possible to just use dS and define the exterior facet integrals of the patch as dS(2) (replacing ds(1)), right?</p>
+</blockquote>
+
+<p>Yeah, I just said it. The problem is that integrand must be restricted and it is not obvious how.</p>
+
+<blockquote>
+  <p>If not, do you have any suggestion how to discretise the described patch problem?</p>
+</blockquote>
+
+<p>I suggested that you file an issue.</p>
+</div>
+													</div>
+													<div class="qa-c-item-footer">
+														<span class="qa-c-item-avatar-meta">
+															<span class="qa-c-item-avatar">
+																<a href="../../user/Jan+Blechta" class="qa-avatar-link"><img src="https://www.gravatar.com/avatar/dc6f8dce77e4a0bd5adc7ff31ab83741?s=20" width="20" height="20" class="qa-avatar-image" alt=""></a>
+															</span>
+															<span class="qa-c-item-meta">
+																<a href="../../1401/restriction-of-dg-space-and-measures-to-nodal-patch?show=1421#c1421" class="qa-c-item-what">commented</a>
+																<span class="qa-c-item-when">
+																	<span class="qa-c-item-when-data"><span class="published"><span class="value-title" title="2013-10-19T13:11:13+0000"></span>Oct 19, 2013</span></span>
+																</span>
+																<span class="qa-c-item-who">
+																	<span class="qa-c-item-who-pad">by </span>
+																	<span class="qa-c-item-who-data"><span class="vcard author"><a href="../../user/Jan+Blechta" class="qa-user-link url nickname">Jan Blechta</a></span></span>
+																	<span class="qa-c-item-who-title">FEniCS Expert</span>
+																	<span class="qa-c-item-who-points">
+																		<span class="qa-c-item-who-points-pad">(</span><span class="qa-c-item-who-points-data">51,420</span><span class="qa-c-item-who-points-pad"> points)</span>
+																	</span>
+																</span>
+															</span>
+														</span>
+														<div class="qa-c-item-buttons">
+														</div>
+													</div>
+													<div class="qa-c-item-clear">
+													</div>
+												</div> <!-- END qa-c-item -->
+												<div class="qa-c-list-item  hentry comment" id="c1422">
+													<div class="qa-c-item-content">
+														<a name="1422"></a><div class="entry-content"><blockquote>
+  <p>The problem is that integrand must be restricted and it is not obvious how.</p>
+</blockquote>
+
+<p>Could you elaborate? I don't get why the integrand is not restricted although it should only be defined on marked facets. In fact, I get the error message</p>
+
+<blockquote>
+  <p>ufl.log.UFLException: Form argument must be restricted.</p>
+</blockquote>
+
+<p>which seems to support your point.</p>
+
+<blockquote>
+  <p>I suggested that you file an issue.</p>
+</blockquote>
+
+<p>Sure, can do. My question was: Is there a way around the problem which is readily available?</p>
+</div>
+													</div>
+													<div class="qa-c-item-footer">
+														<span class="qa-c-item-avatar-meta">
+															<span class="qa-c-item-meta">
+																<a href="../../1401/restriction-of-dg-space-and-measures-to-nodal-patch?show=1422#c1422" class="qa-c-item-what">commented</a>
+																<span class="qa-c-item-when">
+																	<span class="qa-c-item-when-data"><span class="published"><span class="value-title" title="2013-10-19T16:28:29+0000"></span>Oct 19, 2013</span></span>
+																</span>
+																<span class="qa-c-item-who">
+																	<span class="qa-c-item-who-pad">by </span>
+																	<span class="qa-c-item-who-data"><span class="vcard author"><a href="../../user/meigel" class="qa-user-link url nickname">meigel</a></span></span>
+																	<span class="qa-c-item-who-title">FEniCS User</span>
+																	<span class="qa-c-item-who-points">
+																		<span class="qa-c-item-who-points-pad">(</span><span class="qa-c-item-who-points-data">1,520</span><span class="qa-c-item-who-points-pad"> points)</span>
+																	</span>
+																</span>
+															</span>
+														</span>
+														<div class="qa-c-item-buttons">
+														</div>
+													</div>
+													<div class="qa-c-item-clear">
+													</div>
+												</div> <!-- END qa-c-item -->
+												<div class="qa-c-list-item  hentry comment" id="c1423">
+													<div class="qa-c-item-content">
+														<a name="1423"></a><div class="entry-content"><blockquote>
+  <p>Could you elaborate?</p>
+</blockquote>
+
+<p>While integrating say <code>foo</code> over some interior facet, you need to say on which cell adjacent to the facet you take the integrand <code>foo</code>. You can do:</p>
+
+<pre><code>dS = Measure("dS")[facet_function]
+foo('+') * dS(1)
+foo('-') * dS(1)
+jump(foo) * dS(1)
+avg(foo) * dS(1)
+...
+</code></pre>
+
+<p>but not</p>
+
+<pre><code>foo * dS(1)
+</code></pre>
+
+<blockquote>
+  <p>Is there a way around the problem which is readily available?</p>
+</blockquote>
+
+<p><code>avg</code> may be a way around provided that integrand is defined on cells outside of restriction which probably does not hold. The issue itself is then characterized as following: <strong>exterior facet integral (as currently working) is not capable to integrate on actual exterior facets of restricted domain.</strong> Your example code is very suitable to demonstrate the issue.</p>
+</div>
+													</div>
+													<div class="qa-c-item-footer">
+														<span class="qa-c-item-avatar-meta">
+															<span class="qa-c-item-avatar">
+																<a href="../../user/Jan+Blechta" class="qa-avatar-link"><img src="https://www.gravatar.com/avatar/dc6f8dce77e4a0bd5adc7ff31ab83741?s=20" width="20" height="20" class="qa-avatar-image" alt=""></a>
+															</span>
+															<span class="qa-c-item-meta">
+																<a href="../../1401/restriction-of-dg-space-and-measures-to-nodal-patch?show=1423#c1423" class="qa-c-item-what">commented</a>
+																<span class="qa-c-item-when">
+																	<span class="qa-c-item-when-data"><span class="published"><span class="value-title" title="2013-10-19T17:48:34+0000"></span>Oct 19, 2013</span></span>
+																</span>
+																<span class="qa-c-item-who">
+																	<span class="qa-c-item-who-pad">by </span>
+																	<span class="qa-c-item-who-data"><span class="vcard author"><a href="../../user/Jan+Blechta" class="qa-user-link url nickname">Jan Blechta</a></span></span>
+																	<span class="qa-c-item-who-title">FEniCS Expert</span>
+																	<span class="qa-c-item-who-points">
+																		<span class="qa-c-item-who-points-pad">(</span><span class="qa-c-item-who-points-data">51,420</span><span class="qa-c-item-who-points-pad"> points)</span>
+																	</span>
+																</span>
+															</span>
+														</span>
+														<div class="qa-c-item-buttons">
+														</div>
+													</div>
+													<div class="qa-c-item-clear">
+													</div>
+												</div> <!-- END qa-c-item -->
+											</div> <!-- END qa-c-list -->
+											
+											<input type="hidden" name="code" value="0-1516467883-e2934b35a64e135d374c8332dfbe65b27a8ea9f3">
+											<input type="hidden" name="qa_click" value="">
+										</form>
+										<div class="qa-c-form">
+										</div> <!-- END qa-c-form -->
+										
+									</div> <!-- END qa-a-item-main -->
+									<div class="qa-a-item-clear">
+									</div>
+								</div> <!-- END qa-a-list-item -->
+								
+							</div> <!-- END qa-a-list -->
+							
+						</div>
+					</div> <!-- END qa-main -->
+					
+				</div> <!-- END main-wrapper -->
+			</div> <!-- END main-shadow -->
+		</div> <!-- END body-wrapper -->
+		<!-- END footer-bottom-group -->
+		
+		<div style="position:absolute; left:-9999px; top:-9999px;">
+			<span id="qa-waiting-template" class="qa-waiting">...</span>
+		</div>
+	
+	
+
+</body><!-- Powered by Question2Answer - http://www.question2answer.org/ --></html>

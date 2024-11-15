@@ -1,0 +1,436 @@
+<html><!-- Powered by Question2Answer - http://www.question2answer.org/ --><head>
+		<meta http-equiv="content-type" content="text/html; charset=utf-8">
+		<title>External libraries in JIT compiled expression - FEniCS Q&amp;A</title>
+		<meta name="description" content="I'd like to use the C (!) package [cubature][1] in a JIT compiled expression. I can't figure  ... 1]: http://ab-initio.mit.edu/wiki/index.php/Cubature">
+		<meta name="keywords" content="expression,c,python,jit">
+		<link rel="stylesheet" type="text/css" href="../../qa-theme/Snow/qa-styles.css">
+		<link rel="canonical" href="http://fenicsproject.org/qa/10668/external-libraries-in-jit-compiled-expression">
+		<script type="text/x-mathjax-config">
+  MathJax.Hub.Config({
+    extensions: ["tex2jax.js"],
+    jax: ["input/TeX","output/HTML-CSS"],
+    tex2jax: {inlineMath: [["$","$"],["\\(","\\)"]]},
+    TeX: { extensions: ["AMSmath.js","AMSsymbols.js"]}
+  });
+</script>
+<script type="text/javascript" src="../../mathjax/MathJax.js"></script>
+		<script src="../../jquery-1.7.2.min.js" type="text/javascript"></script>
+		<script src="../../highlight.min.js"></script>
+<script type="text/javascript">
+$(function(){
+	$('.wmd-input').keypress(function(){
+		window.clearTimeout(hljs.Timeout);
+		hljs.Timeout = window.setTimeout(function() {
+			hljs.initHighlighting.called = false;
+			hljs.initHighlighting();
+		}, 500);
+	});
+	window.setTimeout(function() {
+		hljs.initHighlighting.called = false;
+		hljs.initHighlighting();
+	}, 500);
+});
+</script>
+
+
+	</head>
+	<body class="qa-template-question qa-body-js-off">
+		<div class="qa-body-wrapper">
+			
+			<div class="qa-header">
+				<div class="qa-logo">
+					<a href="../../" class="qa-logo-link" title="FEniCS Q&amp;A"><img src="../../qa-theme/fenics_qa.png" border="0" alt="FEniCS Q&amp;A"></a>
+				</div>
+				<div class="qa-header-clear">
+				</div>
+			</div> <!-- END qa-header -->
+			
+			<div class="qa-main-shadow">
+				
+				<div class="qa-main-wrapper">
+					
+					<div class="qa-sidepanel">
+						<div class="qa-sidebar">
+							This is a read only copy of the old FEniCS QA forum. Please visit the <a href="https://www.allanswered.com/community/s/fenics-project/">new QA forum</a> to ask questions
+						</div>
+						
+					</div>
+					
+					<div class="qa-main">
+						<h1>
+							<span class="entry-title">External libraries in JIT compiled expression</span>
+						</h1>
+						<div class="qa-part-q-view">
+							<div class="qa-q-view  hentry question" id="q10668">
+								<form method="post" action="../../10668/external-libraries-in-jit-compiled-expression">
+									<div class="qa-q-view-stats">
+										<div class="qa-voting qa-voting-net" id="voting_10668">
+											<div class="qa-vote-count qa-vote-count-net">
+												<span class="qa-netvote-count">
+													<span class="qa-netvote-count-data">0<span class="votes-up"><span class="value-title" title="0"></span></span><span class="votes-down"><span class="value-title" title="0"></span></span></span><span class="qa-netvote-count-pad"> votes</span>
+												</span>
+											</div>
+											<div class="qa-vote-clear">
+											</div>
+										</div>
+									</div>
+									<input type="hidden" name="code" value="0-1516467072-f9b7a6bb540696d7190dd8947e27afc208dc3cda">
+								</form>
+								<div class="qa-q-view-main">
+									<form method="post" action="../../10668/external-libraries-in-jit-compiled-expression">
+										<div class="qa-q-view-content">
+											<a name="10668"></a><div class="entry-content"><p>I'd like to use the C (!) package <a rel="nofollow" href="http://ab-initio.mit.edu/wiki/index.php/Cubature">cubature</a> in a JIT compiled expression. I can't figure out how to do it. The package documentation reads: </p>
+
+<p>The current version of the code can be downloaded from:</p>
+
+<p>cubature-1.0.2.tgz </p>
+
+<p>a gzipped tar file. This unpacks to a directory containing a README file with instructions and a stand-alone hcubature.c or pcubature.c file (along with a couple of private header files) that you can compile and link into your program for h-adaptive and p-adaptive integration, respectively, and a header file cubature.h that you #include. </p>
+
+<p>In my view, the problem is that this package cannot be "installed".</p>
+
+<p>The package compiles and runs when I use either <code>gcc</code> or <code>cc</code>. I ran a few tests to see if I can call it from another file and all works well. Here is a minimal example of my problem in FEniCS.</p>
+
+<p>The following python file <code>pyfile.py</code> runs well except for a warning (see comment at bottom):</p>
+
+<pre><code>from dolfin import *
+
+loc_file = open( "xpr.cpp" , 'r' )  
+code = loc_file.read()
+xpr = Expression( code ) 
+xpr( (2.,2.) )
+</code></pre>
+
+<p>and the c++ file is <code>xpr.cpp</code>:</p>
+
+<pre><code>namespace dolfin {
+
+    class Xpr : public Expression
+    {
+    public:
+        Xpr() : Expression() { }
+
+        void eval(Array&lt;double&gt;&amp; values, const Array&lt;double&gt;&amp; x) const
+        {
+            values[0]  = 1;
+        }
+    };
+}
+</code></pre>
+
+<p>adding the following line to the beginning of <code>xpr.cpp</code> makes the compilation fail with a long error message.</p>
+
+<pre><code>#include "cubature.h"
+</code></pre>
+
+<p>I know this is the line I need because this is how I included the package in my tests that didn't involve python and dolfin.</p>
+
+<p>Any help would be greatly appreciated!</p>
+
+<p>UPDATE: I believe what I need to do is give the Expression the option <code>include_dirs = [ "." ]</code> and place the compiled cubature files in the same library as my code. I can't figure this out (yet).</p>
+
+<p>PS 1: The warning mentioned above is <code>Automatic determination of degree for Expressions has been deprecated in FEniCS version 2016.1.</code> I'd love to get rid of it if anyone knows how. </p>
+
+<p>PS 2: Why do I want to use this package? I want to calculate an integral of a function over a computatinal domain. Normally, this can be done via FEniCS. However, the function has a singularity on the boundary, so plan on (adaptively) integrating over every cell, and using that to calculate the domain integral. I think this might help other people who may use FEniCS in thee future. Also, I did try to increase the degree of the expression, but to no avail. </p>
+</div>
+										</div>
+										<div class="qa-q-view-tags">
+											<ul class="qa-q-view-tag-list">
+												<li class="qa-q-view-tag-item"><a href="../../tag/expression" rel="tag" class="qa-tag-link">expression</a></li>
+												<li class="qa-q-view-tag-item"><a href="../../tag/c" rel="tag" class="qa-tag-link">c</a></li>
+												<li class="qa-q-view-tag-item"><a href="../../tag/python" rel="tag" class="qa-tag-link">python</a></li>
+												<li class="qa-q-view-tag-item"><a href="../../tag/jit" rel="tag" class="qa-tag-link">jit</a></li>
+											</ul>
+										</div>
+										<span class="qa-q-view-avatar-meta">
+											<span class="qa-q-view-meta">
+												<a href="../../10668/external-libraries-in-jit-compiled-expression" class="qa-q-view-what">asked</a>
+												<span class="qa-q-view-when">
+													<span class="qa-q-view-when-data"><span class="published"><span class="value-title" title="2016-07-14T17:55:47+0000"></span>Jul 14, 2016</span></span>
+												</span>
+												<span class="qa-q-view-who">
+													<span class="qa-q-view-who-pad">by </span>
+													<span class="qa-q-view-who-data"><span class="vcard author"><a href="../../user/Yair+Daon" class="qa-user-link url nickname">Yair Daon</a></span></span>
+													<span class="qa-q-view-who-title">FEniCS User</span>
+													<span class="qa-q-view-who-points">
+														<span class="qa-q-view-who-points-pad">(</span><span class="qa-q-view-who-points-data">1,350</span><span class="qa-q-view-who-points-pad"> points)</span>
+													</span>
+												</span>
+												<br>
+												<span class="qa-q-view-what">edited</span>
+												<span class="qa-q-view-when">
+													<span class="qa-q-view-when-data"><span class="updated"><span class="value-title" title="2016-07-14T22:39:11+0000"></span>Jul 15, 2016</span></span>
+												</span>
+												<span class="qa-q-view-who">
+													<span class="qa-q-view-who-pad">by </span><span class="qa-q-view-who-data"><a href="../../user/Yair+Daon" class="qa-user-link url nickname">Yair Daon</a></span>
+												</span>
+											</span>
+										</span>
+										<div class="qa-q-view-buttons">
+										</div>
+										
+										<div class="qa-q-view-c-list" style="display:none;" id="c10668_list">
+										</div> <!-- END qa-c-list -->
+										
+										<input type="hidden" name="code" value="0-1516467072-67c2638fe659afab6e3c5149abfd721531f5763c">
+										<input type="hidden" name="qa_click" value="">
+									</form>
+									<div class="qa-c-form">
+									</div> <!-- END qa-c-form -->
+									
+								</div> <!-- END qa-q-view-main -->
+								<div class="qa-q-view-clear">
+								</div>
+							</div> <!-- END qa-q-view -->
+							
+						</div>
+						<div class="qa-part-a-list">
+							<h2 id="a_list_title">3 Answers</h2>
+							<div class="qa-a-list" id="a_list">
+								
+								<div class="qa-a-list-item  hentry answer answer-selected qa-a-list-item-selected" id="a10702">
+									<form method="post" action="../../10668/external-libraries-in-jit-compiled-expression">
+										<div class="qa-voting qa-voting-net" id="voting_10702">
+											<div class="qa-vote-count qa-vote-count-net">
+												<span class="qa-netvote-count">
+													<span class="qa-netvote-count-data">+2<span class="votes-up"><span class="value-title" title="2"></span></span><span class="votes-down"><span class="value-title" title="0"></span></span></span><span class="qa-netvote-count-pad"> votes</span>
+												</span>
+											</div>
+											<div class="qa-vote-clear">
+											</div>
+										</div>
+										<input type="hidden" name="code" value="0-1516467072-f9b7a6bb540696d7190dd8947e27afc208dc3cda">
+									</form>
+									<div class="qa-a-item-main">
+										<form method="post" action="../../10668/external-libraries-in-jit-compiled-expression">
+											<div class="qa-a-item-selected">
+												<div class="qa-a-selection">
+													<div class="qa-a-selected">&#160;</div>
+													<div class="qa-a-selected-text">Best answer</div>
+												</div>
+												<div class="qa-a-item-content">
+													<a name="10702"></a><div class="entry-content"><p>The most useful reference for me was chapter 14 in the FEniCS book (covering JIT compilation using Instant). The book is downloadable from launchpad via <a rel="nofollow" href="https://fenicsproject.org/book/">this link</a> (hopefully will not be broken anytime soon). Here's the python file I use:</p>
+
+<pre><code>from dolfin import *
+import instant 
+
+import numpy as np
+
+
+def det_A ( v ):
+    v[6] =  abs( (v[2] - v[0]) * (v[5] - v[3]) - (v[4] - v[2]) * (v[3] - v[1]) )
+tol = 1e-7
+
+xpr_file = open( "xpr.cpp" , 'r' )  
+xpr_code = xpr_file.read()
+xpr_file.close()
+
+xpr_code = xpr_code.replace( "FUNCTION_NAME", "exam" )
+
+#instant.output.set_log_level("DEBUG")
+
+xpr = instant.build_module(
+code=xpr_code,
+sources = ["helper.cpp" , "hcubature.c" ],
+system_headers=["numpy/arrayobject.h"],
+include_dirs=[np.get_include()],
+init_code="import_array();",
+local_headers = [ "header.h" , "cubature.h" ],
+arrays=[[ "m", "vertices" ]]
+)
+
+arr = np.array( [
+    -3, 0, # a
+     6, 0, # b
+     0, 3,  # c
+     -1 # placeholder for det
+     ] , dtype = np.float64 )
+det_A( arr )
+
+val = xpr.integrate( arr, tol, 1 )
+print "\n\nExample from some exam\n"
+print "Computed integral = "  + str (val/2        )  
+print "Analytic solution = "  + str (13.5         )  
+print "Difference        = "  + str (val/2 - 13.5 )  
+print "Tolerance         = "  + str (tol          )  
+</code></pre>
+
+<p>Of course, this needs also some C\C++ files, which I chose not to post because the python file really is the issue.<br>
+For some reason, the compiler doesn't appreciate the fact that it needs to do some includes (specifically, <code>vwrapper.h</code> and <code>converged.h</code>) so I copy-pasted them in place of the <code>#include</code> statement.</p>
+</div>
+												</div>
+												<span class="qa-a-item-avatar-meta">
+													<span class="qa-a-item-meta">
+														<a href="../../10668/external-libraries-in-jit-compiled-expression?show=10702#a10702" class="qa-a-item-what">answered</a>
+														<span class="qa-a-item-when">
+															<span class="qa-a-item-when-data"><span class="published"><span class="value-title" title="2016-07-19T16:06:09+0000"></span>Jul 19, 2016</span></span>
+														</span>
+														<span class="qa-a-item-who">
+															<span class="qa-a-item-who-pad">by </span>
+															<span class="qa-a-item-who-data"><span class="vcard author"><a href="../../user/Yair+Daon" class="qa-user-link url nickname">Yair Daon</a></span></span>
+															<span class="qa-a-item-who-title">FEniCS User</span>
+															<span class="qa-a-item-who-points">
+																<span class="qa-a-item-who-points-pad">(</span><span class="qa-a-item-who-points-data">1,350</span><span class="qa-a-item-who-points-pad"> points)</span>
+															</span>
+														</span>
+														<br>
+														<span class="qa-a-item-what">selected</span>
+														<span class="qa-a-item-when">
+															<span class="qa-a-item-when-data"><span class="updated"><span class="value-title" title="2016-07-21T18:11:22+0000"></span>Jul 21, 2016</span></span>
+														</span>
+														<span class="qa-a-item-who">
+															<span class="qa-a-item-who-pad">by </span><span class="qa-a-item-who-data"><a href="../../user/Yair+Daon" class="qa-user-link url nickname">Yair Daon</a></span>
+														</span>
+													</span>
+												</span>
+											</div>
+											<div class="qa-a-item-buttons">
+												</div>
+											
+											<div class="qa-a-item-c-list" style="display:none;" id="c10702_list">
+											</div> <!-- END qa-c-list -->
+											
+											<input type="hidden" name="code" value="0-1516467072-5b7494a5a61f5cead3851f9ec443355a1010f518">
+											<input type="hidden" name="qa_click" value="">
+										</form>
+										<div class="qa-c-form">
+										</div> <!-- END qa-c-form -->
+										
+									</div> <!-- END qa-a-item-main -->
+									<div class="qa-a-item-clear">
+									</div>
+								</div> <!-- END qa-a-list-item -->
+								
+								<div class="qa-a-list-item  hentry answer" id="a10676">
+									<form method="post" action="../../10668/external-libraries-in-jit-compiled-expression">
+										<div class="qa-voting qa-voting-net" id="voting_10676">
+											<div class="qa-vote-count qa-vote-count-net">
+												<span class="qa-netvote-count">
+													<span class="qa-netvote-count-data">+2<span class="votes-up"><span class="value-title" title="2"></span></span><span class="votes-down"><span class="value-title" title="0"></span></span></span><span class="qa-netvote-count-pad"> votes</span>
+												</span>
+											</div>
+											<div class="qa-vote-clear">
+											</div>
+										</div>
+										<input type="hidden" name="code" value="0-1516467072-f9b7a6bb540696d7190dd8947e27afc208dc3cda">
+									</form>
+									<div class="qa-a-item-main">
+										<form method="post" action="../../10668/external-libraries-in-jit-compiled-expression">
+											<div class="qa-a-selection">
+											</div>
+											<div class="qa-a-item-content">
+												<a name="10676"></a><div class="entry-content"><p>Hello, <a rel="nofollow" href="http://hplgit.github.io/fenics-mixed/doc/pub/sphinx-pyramid/._part0003_fenics-mixed.html">this</a> post by Hans Petter Langtangen should be helpful. Further, you could consider using <code>scipy.integrate.dblquad</code> and <code>tplquad</code> instead of <code>cubature</code>. They might be less performant but interfacing is trivial. As for PS1, you need to give the degree of the expression (e.g. for estimating the quadrature degree). So </p>
+
+<pre><code>xpr = Expression(code, degree=2) 
+</code></pre>
+
+<p>gets rid of the error.</p>
+</div>
+											</div>
+											<span class="qa-a-item-avatar-meta">
+												<span class="qa-a-item-meta">
+													<a href="../../10668/external-libraries-in-jit-compiled-expression?show=10676#a10676" class="qa-a-item-what">answered</a>
+													<span class="qa-a-item-when">
+														<span class="qa-a-item-when-data"><span class="published"><span class="value-title" title="2016-07-15T14:34:04+0000"></span>Jul 15, 2016</span></span>
+													</span>
+													<span class="qa-a-item-who">
+														<span class="qa-a-item-who-pad">by </span>
+														<span class="qa-a-item-who-data"><span class="vcard author"><a href="../../user/OxbowQuest" class="qa-user-link url nickname">OxbowQuest</a></span></span>
+														<span class="qa-a-item-who-title">FEniCS User</span>
+														<span class="qa-a-item-who-points">
+															<span class="qa-a-item-who-points-pad">(</span><span class="qa-a-item-who-points-data">1,360</span><span class="qa-a-item-who-points-pad"> points)</span>
+														</span>
+													</span>
+												</span>
+											</span>
+											<div class="qa-a-item-buttons">
+												</div>
+											
+											<div class="qa-a-item-c-list" style="display:none;" id="c10676_list">
+											</div> <!-- END qa-c-list -->
+											
+											<input type="hidden" name="code" value="0-1516467072-9eeb8e4d8c2f5f5bf00bb36f2337e52ea528d7c2">
+											<input type="hidden" name="qa_click" value="">
+										</form>
+										<div class="qa-c-form">
+										</div> <!-- END qa-c-form -->
+										
+									</div> <!-- END qa-a-item-main -->
+									<div class="qa-a-item-clear">
+									</div>
+								</div> <!-- END qa-a-list-item -->
+								
+								<div class="qa-a-list-item  hentry answer" id="a10677">
+									<form method="post" action="../../10668/external-libraries-in-jit-compiled-expression">
+										<div class="qa-voting qa-voting-net" id="voting_10677">
+											<div class="qa-vote-count qa-vote-count-net">
+												<span class="qa-netvote-count">
+													<span class="qa-netvote-count-data">+3<span class="votes-up"><span class="value-title" title="3"></span></span><span class="votes-down"><span class="value-title" title="0"></span></span></span><span class="qa-netvote-count-pad"> votes</span>
+												</span>
+											</div>
+											<div class="qa-vote-clear">
+											</div>
+										</div>
+										<input type="hidden" name="code" value="0-1516467072-f9b7a6bb540696d7190dd8947e27afc208dc3cda">
+									</form>
+									<div class="qa-a-item-main">
+										<form method="post" action="../../10668/external-libraries-in-jit-compiled-expression">
+											<div class="qa-a-selection">
+											</div>
+											<div class="qa-a-item-content">
+												<a name="10677"></a><div class="entry-content"><p>We have written about including external libraries in JIT here: <br>
+<a rel="nofollow" href="http://hplgit.github.io/fenics-mixed/doc/web/index.html">http://hplgit.github.io/fenics-mixed/doc/web/index.html</a><br>
+It might be a little outdated, but it shows how to combine <br>
+external code. </p>
+</div>
+											</div>
+											<span class="qa-a-item-avatar-meta">
+												<span class="qa-a-item-meta">
+													<a href="../../10668/external-libraries-in-jit-compiled-expression?show=10677#a10677" class="qa-a-item-what">answered</a>
+													<span class="qa-a-item-when">
+														<span class="qa-a-item-when-data"><span class="published"><span class="value-title" title="2016-07-15T14:48:59+0000"></span>Jul 15, 2016</span></span>
+													</span>
+													<span class="qa-a-item-who">
+														<span class="qa-a-item-who-pad">by </span>
+														<span class="qa-a-item-who-data"><span class="vcard author"><a href="../../user/Kent-Andre+Mardal" class="qa-user-link url nickname">Kent-Andre Mardal</a></span></span>
+														<span class="qa-a-item-who-title">FEniCS Expert</span>
+														<span class="qa-a-item-who-points">
+															<span class="qa-a-item-who-points-pad">(</span><span class="qa-a-item-who-points-data">14,380</span><span class="qa-a-item-who-points-pad"> points)</span>
+														</span>
+													</span>
+												</span>
+											</span>
+											<div class="qa-a-item-buttons">
+												</div>
+											
+											<div class="qa-a-item-c-list" style="display:none;" id="c10677_list">
+											</div> <!-- END qa-c-list -->
+											
+											<input type="hidden" name="code" value="0-1516467072-b3abef2e248430f30ef5722aef37b69b051ec76d">
+											<input type="hidden" name="qa_click" value="">
+										</form>
+										<div class="qa-c-form">
+										</div> <!-- END qa-c-form -->
+										
+									</div> <!-- END qa-a-item-main -->
+									<div class="qa-a-item-clear">
+									</div>
+								</div> <!-- END qa-a-list-item -->
+								
+							</div> <!-- END qa-a-list -->
+							
+						</div>
+					</div> <!-- END qa-main -->
+					
+				</div> <!-- END main-wrapper -->
+			</div> <!-- END main-shadow -->
+		</div> <!-- END body-wrapper -->
+		<!-- END footer-bottom-group -->
+		
+		<div style="position:absolute; left:-9999px; top:-9999px;">
+			<span id="qa-waiting-template" class="qa-waiting">...</span>
+		</div>
+	
+	
+
+</body><!-- Powered by Question2Answer - http://www.question2answer.org/ --></html>

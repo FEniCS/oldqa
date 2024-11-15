@@ -1,0 +1,321 @@
+<html><!-- Powered by Question2Answer - http://www.question2answer.org/ --><head>
+		<meta http-equiv="content-type" content="text/html; charset=utf-8">
+		<title>Function eval in parallel - FEniCS Q&amp;A</title>
+		<meta name="description" content="Hi, Consider the following code: from dolfin import * mesh = UnitIntervalMesh(100) inside = (0.9,) ...  it belonged to any process, not just this one?">
+		<meta name="keywords" content="function-evaluation,parallel">
+		<link rel="stylesheet" type="text/css" href="../../qa-theme/Snow/qa-styles.css">
+		<link rel="canonical" href="http://fenicsproject.org/qa/1381/function-eval-in-parallel">
+		<script type="text/x-mathjax-config">
+  MathJax.Hub.Config({
+    extensions: ["tex2jax.js"],
+    jax: ["input/TeX","output/HTML-CSS"],
+    tex2jax: {inlineMath: [["$","$"],["\\(","\\)"]]},
+    TeX: { extensions: ["AMSmath.js","AMSsymbols.js"]}
+  });
+</script>
+<script type="text/javascript" src="../../mathjax/MathJax.js"></script>
+		<script src="../../jquery-1.7.2.min.js" type="text/javascript"></script>
+		<script src="../../highlight.min.js"></script>
+<script type="text/javascript">
+$(function(){
+	$('.wmd-input').keypress(function(){
+		window.clearTimeout(hljs.Timeout);
+		hljs.Timeout = window.setTimeout(function() {
+			hljs.initHighlighting.called = false;
+			hljs.initHighlighting();
+		}, 500);
+	});
+	window.setTimeout(function() {
+		hljs.initHighlighting.called = false;
+		hljs.initHighlighting();
+	}, 500);
+});
+</script>
+
+
+	</head>
+	<body class="qa-template-question qa-body-js-off">
+		<div class="qa-body-wrapper">
+			
+			<div class="qa-header">
+				<div class="qa-logo">
+					<a href="../../" class="qa-logo-link" title="FEniCS Q&amp;A"><img src="../../qa-theme/fenics_qa.png" border="0" alt="FEniCS Q&amp;A"></a>
+				</div>
+				<div class="qa-header-clear">
+				</div>
+			</div> <!-- END qa-header -->
+			
+			<div class="qa-main-shadow">
+				
+				<div class="qa-main-wrapper">
+					
+					<div class="qa-sidepanel">
+						<div class="qa-sidebar">
+							This is a read only copy of the old FEniCS QA forum. Please visit the <a href="https://www.allanswered.com/community/s/fenics-project/">new QA forum</a> to ask questions
+						</div>
+						
+					</div>
+					
+					<div class="qa-main">
+						<h1>
+							<span class="entry-title">Function eval in parallel</span>
+						</h1>
+						<div class="qa-part-q-view">
+							<div class="qa-q-view  hentry question" id="q1381">
+								<form method="post" action="../../1381/function-eval-in-parallel">
+									<div class="qa-q-view-stats">
+										<div class="qa-voting qa-voting-net" id="voting_1381">
+											<div class="qa-vote-count qa-vote-count-net">
+												<span class="qa-netvote-count">
+													<span class="qa-netvote-count-data">+10<span class="votes-up"><span class="value-title" title="10"></span></span><span class="votes-down"><span class="value-title" title="0"></span></span></span><span class="qa-netvote-count-pad"> votes</span>
+												</span>
+											</div>
+											<div class="qa-vote-clear">
+											</div>
+										</div>
+									</div>
+									<input type="hidden" name="code" value="0-1516467880-b6e45ebd26d92cbccbd574b65533e64ce2b8b126">
+								</form>
+								<div class="qa-q-view-main">
+									<form method="post" action="../../1381/function-eval-in-parallel">
+										<div class="qa-q-view-content">
+											<a name="1381"></a><div class="entry-content"><p>Hi,</p>
+
+<p>Consider the following code:</p>
+
+<pre><code>from dolfin import *
+
+mesh = UnitIntervalMesh(100)
+inside = (0.9,)
+
+V = FunctionSpace(mesh, "CG", 1)
+f = interpolate(Constant(1), V)
+
+print "Value of f at %s: %s" % (inside, f(inside))
+</code></pre>
+
+<p>On one process, this works fine:</p>
+
+<pre><code>[pef@aislinn:/tmp]$ python eval.py 
+Computed bounding box tree with 199 nodes for 100 entities.
+Value of f at (0.9,): 1.0
+</code></pre>
+
+<p>But on two processes, one process succeeds and the other fails:</p>
+
+<pre><code>[pef@aislinn:/tmp]$ mpiexec -n 2 python eval.py 
+Process 0: Number of global vertices: 101
+Process 0: Number of global cells: 100
+Process 1: Computed bounding box tree with 99 nodes for 50 entities.
+Process 0: Computed bounding box tree with 99 nodes for 50 entities.
+Value of f at (0.9,): 1.0
+Traceback (most recent call last):
+  File "eval.py", line 9, in &lt;module&gt;
+    print "Value of f at %s: %s" % (inside, f(inside))
+  File "/usr/lib/python2.7/dist-packages/dolfin/functions/function.py", line 587, in __call__
+    self.eval(values, x)
+RuntimeError: 
+
+*** -------------------------------------------------------------------------
+*** DOLFIN encountered an error. If you are not able to resolve this issue
+*** using the information listed below, you can ask for help at
+***
+***     fenics@fenicsproject.org
+***
+*** Remember to include the error message listed below and, if possible,
+*** include a *minimal* running example to reproduce the error.
+***
+*** -------------------------------------------------------------------------
+*** Error:   Unable to evaluate function at point.
+*** Reason:  The point is not inside the domain. Consider setting "allow_extrapolation" to allow extrapolation.
+*** Where:   This error was encountered inside Function.cpp.
+*** Process: 1
+*** -------------------------------------------------------------------------
+</code></pre>
+
+<p>My question: what's the recommended way of handling this? Is there any parallel-safe way of evaluating functions at points? (I know I could check for this case manually with MPI, but I'm hoping there's a cleaner way than making the user take care of it.) If there's nothing currently in the code, what do you think of a parallel=True flag to function evaluation that would check if it belonged to any process, not just this one? </p>
+</div>
+										</div>
+										<div class="qa-q-view-tags">
+											<ul class="qa-q-view-tag-list">
+												<li class="qa-q-view-tag-item"><a href="../../tag/function-evaluation" rel="tag" class="qa-tag-link">function-evaluation</a></li>
+												<li class="qa-q-view-tag-item"><a href="../../tag/parallel" rel="tag" class="qa-tag-link">parallel</a></li>
+											</ul>
+										</div>
+										<span class="qa-q-view-avatar-meta">
+											<span class="qa-q-view-avatar">
+												<a href="../../user/pfarrell" class="qa-avatar-link"><img src="https://www.gravatar.com/avatar/f920b3a3dca100d87c8051afc5ad9242?s=50" width="50" height="50" class="qa-avatar-image" alt=""></a>
+											</span>
+											<span class="qa-q-view-meta">
+												<a href="../../1381/function-eval-in-parallel" class="qa-q-view-what">asked</a>
+												<span class="qa-q-view-when">
+													<span class="qa-q-view-when-data"><span class="published"><span class="value-title" title="2013-10-14T13:45:05+0000"></span>Oct 14, 2013</span></span>
+												</span>
+												<span class="qa-q-view-who">
+													<span class="qa-q-view-who-pad">by </span>
+													<span class="qa-q-view-who-data"><span class="vcard author"><a href="../../user/pfarrell" class="qa-user-link url nickname">pfarrell</a></span></span>
+													<span class="qa-q-view-who-title">FEniCS Novice</span>
+													<span class="qa-q-view-who-points">
+														<span class="qa-q-view-who-points-pad">(</span><span class="qa-q-view-who-points-data">520</span><span class="qa-q-view-who-points-pad"> points)</span>
+													</span>
+												</span>
+											</span>
+										</span>
+										<div class="qa-q-view-buttons">
+										</div>
+										
+										<div class="qa-q-view-c-list" style="display:none;" id="c1381_list">
+										</div> <!-- END qa-c-list -->
+										
+										<input type="hidden" name="code" value="0-1516467880-625eb9fa2d2223925bffc7e7bf18f7d39f8ec7b7">
+										<input type="hidden" name="qa_click" value="">
+									</form>
+									<div class="qa-c-form">
+									</div> <!-- END qa-c-form -->
+									
+								</div> <!-- END qa-q-view-main -->
+								<div class="qa-q-view-clear">
+								</div>
+							</div> <!-- END qa-q-view -->
+							
+						</div>
+						<div class="qa-part-a-list">
+							<h2 id="a_list_title">2 Answers</h2>
+							<div class="qa-a-list" id="a_list">
+								
+								<div class="qa-a-list-item  hentry answer" id="a1385">
+									<form method="post" action="../../1381/function-eval-in-parallel">
+										<div class="qa-voting qa-voting-net" id="voting_1385">
+											<div class="qa-vote-count qa-vote-count-net">
+												<span class="qa-netvote-count">
+													<span class="qa-netvote-count-data">0<span class="votes-up"><span class="value-title" title="0"></span></span><span class="votes-down"><span class="value-title" title="0"></span></span></span><span class="qa-netvote-count-pad"> votes</span>
+												</span>
+											</div>
+											<div class="qa-vote-clear">
+											</div>
+										</div>
+										<input type="hidden" name="code" value="0-1516467880-b6e45ebd26d92cbccbd574b65533e64ce2b8b126">
+									</form>
+									<div class="qa-a-item-main">
+										<form method="post" action="../../1381/function-eval-in-parallel">
+											<div class="qa-a-selection">
+											</div>
+											<div class="qa-a-item-content">
+												<a name="1385"></a><div class="entry-content"><p>There is nothing that provides this functionality inside <code>Function.__call__</code>. The latter is a convenience method only provided in <code>Python</code>. I do not see any immediate problems with such a functionality if it was implemented inside that method.</p>
+
+<p>I suggest you send an email to the list and propose the syntax and behavior there.</p>
+</div>
+											</div>
+											<span class="qa-a-item-avatar-meta">
+												<span class="qa-a-item-avatar">
+													<a href="../../user/johanhake" class="qa-avatar-link"><img src="https://www.gravatar.com/avatar/73612279d6702974866af2e1a9653a5b?s=40" width="40" height="40" class="qa-avatar-image" alt=""></a>
+												</span>
+												<span class="qa-a-item-meta">
+													<a href="../../1381/function-eval-in-parallel?show=1385#a1385" class="qa-a-item-what">answered</a>
+													<span class="qa-a-item-when">
+														<span class="qa-a-item-when-data"><span class="published"><span class="value-title" title="2013-10-15T06:27:26+0000"></span>Oct 15, 2013</span></span>
+													</span>
+													<span class="qa-a-item-who">
+														<span class="qa-a-item-who-pad">by </span>
+														<span class="qa-a-item-who-data"><span class="vcard author"><a href="../../user/johanhake" class="qa-user-link url nickname">johanhake</a></span></span>
+														<span class="qa-a-item-who-title">FEniCS Expert</span>
+														<span class="qa-a-item-who-points">
+															<span class="qa-a-item-who-points-pad">(</span><span class="qa-a-item-who-points-data">22,480</span><span class="qa-a-item-who-points-pad"> points)</span>
+														</span>
+													</span>
+												</span>
+											</span>
+											<div class="qa-a-item-buttons">
+												</div>
+											
+											<div class="qa-a-item-c-list" style="display:none;" id="c1385_list">
+											</div> <!-- END qa-c-list -->
+											
+											<input type="hidden" name="code" value="0-1516467880-076463d8712eb7e816a3a4ab6de7ec6aba89a376">
+											<input type="hidden" name="qa_click" value="">
+										</form>
+										<div class="qa-c-form">
+										</div> <!-- END qa-c-form -->
+										
+									</div> <!-- END qa-a-item-main -->
+									<div class="qa-a-item-clear">
+									</div>
+								</div> <!-- END qa-a-list-item -->
+								
+								<div class="qa-a-list-item  hentry answer" id="a1429">
+									<form method="post" action="../../1381/function-eval-in-parallel">
+										<div class="qa-voting qa-voting-net" id="voting_1429">
+											<div class="qa-vote-count qa-vote-count-net">
+												<span class="qa-netvote-count">
+													<span class="qa-netvote-count-data">0<span class="votes-up"><span class="value-title" title="0"></span></span><span class="votes-down"><span class="value-title" title="0"></span></span></span><span class="qa-netvote-count-pad"> votes</span>
+												</span>
+											</div>
+											<div class="qa-vote-clear">
+											</div>
+										</div>
+										<input type="hidden" name="code" value="0-1516467880-b6e45ebd26d92cbccbd574b65533e64ce2b8b126">
+									</form>
+									<div class="qa-a-item-main">
+										<form method="post" action="../../1381/function-eval-in-parallel">
+											<div class="qa-a-selection">
+											</div>
+											<div class="qa-a-item-content">
+												<a name="1429"></a><div class="entry-content"><p>Use the Probe implemented here: <br>
+ <a rel="nofollow" href="https://github.com/mikaem/fenicstools/wiki">https://github.com/mikaem/fenicstools/wiki</a></p>
+
+<p>A simple example of use can be found here: <br>
+<a rel="nofollow" href="http://hplgit.github.io/fenics-mixed/doc/pub/sphinx-basicstrap/index.html">http://hplgit.github.io/fenics-mixed/doc/pub/sphinx-basicstrap/index.html</a><br>
+under<br>
+"How to interface a C++/DOLFIN code from Python"</p>
+</div>
+											</div>
+											<span class="qa-a-item-avatar-meta">
+												<span class="qa-a-item-meta">
+													<a href="../../1381/function-eval-in-parallel?show=1429#a1429" class="qa-a-item-what">answered</a>
+													<span class="qa-a-item-when">
+														<span class="qa-a-item-when-data"><span class="published"><span class="value-title" title="2013-10-21T13:57:44+0000"></span>Oct 21, 2013</span></span>
+													</span>
+													<span class="qa-a-item-who">
+														<span class="qa-a-item-who-pad">by </span>
+														<span class="qa-a-item-who-data"><span class="vcard author"><a href="../../user/Kent-Andre+Mardal" class="qa-user-link url nickname">Kent-Andre Mardal</a></span></span>
+														<span class="qa-a-item-who-title">FEniCS Expert</span>
+														<span class="qa-a-item-who-points">
+															<span class="qa-a-item-who-points-pad">(</span><span class="qa-a-item-who-points-data">14,380</span><span class="qa-a-item-who-points-pad"> points)</span>
+														</span>
+													</span>
+												</span>
+											</span>
+											<div class="qa-a-item-buttons">
+												</div>
+											
+											<div class="qa-a-item-c-list" style="display:none;" id="c1429_list">
+											</div> <!-- END qa-c-list -->
+											
+											<input type="hidden" name="code" value="0-1516467880-1fe25bdbbc3907d88fb4eca954c6c27931a783a8">
+											<input type="hidden" name="qa_click" value="">
+										</form>
+										<div class="qa-c-form">
+										</div> <!-- END qa-c-form -->
+										
+									</div> <!-- END qa-a-item-main -->
+									<div class="qa-a-item-clear">
+									</div>
+								</div> <!-- END qa-a-list-item -->
+								
+							</div> <!-- END qa-a-list -->
+							
+						</div>
+					</div> <!-- END qa-main -->
+					
+				</div> <!-- END main-wrapper -->
+			</div> <!-- END main-shadow -->
+		</div> <!-- END body-wrapper -->
+		<!-- END footer-bottom-group -->
+		
+		<div style="position:absolute; left:-9999px; top:-9999px;">
+			<span id="qa-waiting-template" class="qa-waiting">...</span>
+		</div>
+	
+	
+
+</body><!-- Powered by Question2Answer - http://www.question2answer.org/ --></html>

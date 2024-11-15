@@ -1,0 +1,321 @@
+<html><!-- Powered by Question2Answer - http://www.question2answer.org/ --><head>
+		<meta http-equiv="content-type" content="text/html; charset=utf-8">
+		<title>Surface subdomain fails to mark CellFunction on a 3D mesh - FEniCS Q&amp;A</title>
+		<meta name="description" content="Hi everyone! I'm currently trying to impose periodic BC on a 3D mesh. Basically I want the solutions ... png [2]: https://i.imgsafe.org/157bd9db17.png">
+		<meta name="keywords" content="periodic-bc,subdomains,subdomain,cellfunction,3d-mesh">
+		<link rel="stylesheet" type="text/css" href="../../qa-theme/Snow/qa-styles.css">
+		<link rel="canonical" href="http://fenicsproject.org/qa/10495/surface-subdomain-fails-to-mark-cellfunction-on-a-3d-mesh">
+		<script type="text/x-mathjax-config">
+  MathJax.Hub.Config({
+    extensions: ["tex2jax.js"],
+    jax: ["input/TeX","output/HTML-CSS"],
+    tex2jax: {inlineMath: [["$","$"],["\\(","\\)"]]},
+    TeX: { extensions: ["AMSmath.js","AMSsymbols.js"]}
+  });
+</script>
+<script type="text/javascript" src="../../mathjax/MathJax.js"></script>
+		<script src="../../jquery-1.7.2.min.js" type="text/javascript"></script>
+		<script src="../../highlight.min.js"></script>
+<script type="text/javascript">
+$(function(){
+	$('.wmd-input').keypress(function(){
+		window.clearTimeout(hljs.Timeout);
+		hljs.Timeout = window.setTimeout(function() {
+			hljs.initHighlighting.called = false;
+			hljs.initHighlighting();
+		}, 500);
+	});
+	window.setTimeout(function() {
+		hljs.initHighlighting.called = false;
+		hljs.initHighlighting();
+	}, 500);
+});
+</script>
+
+
+	</head>
+	<body class="qa-template-question qa-body-js-off">
+		<div class="qa-body-wrapper">
+			
+			<div class="qa-header">
+				<div class="qa-logo">
+					<a href="../../" class="qa-logo-link" title="FEniCS Q&amp;A"><img src="../../qa-theme/fenics_qa.png" border="0" alt="FEniCS Q&amp;A"></a>
+				</div>
+				<div class="qa-header-clear">
+				</div>
+			</div> <!-- END qa-header -->
+			
+			<div class="qa-main-shadow">
+				
+				<div class="qa-main-wrapper">
+					
+					<div class="qa-sidepanel">
+						<div class="qa-sidebar">
+							This is a read only copy of the old FEniCS QA forum. Please visit the <a href="https://www.allanswered.com/community/s/fenics-project/">new QA forum</a> to ask questions
+						</div>
+						
+					</div>
+					
+					<div class="qa-main">
+						<h1>
+							<span class="entry-title">Surface subdomain fails to mark CellFunction on a 3D mesh</span>
+						</h1>
+						<div class="qa-part-q-view">
+							<div class="qa-q-view  hentry question" id="q10495">
+								<form method="post" action="../../10495/surface-subdomain-fails-to-mark-cellfunction-on-a-3d-mesh">
+									<div class="qa-q-view-stats">
+										<div class="qa-voting qa-voting-net" id="voting_10495">
+											<div class="qa-vote-count qa-vote-count-net">
+												<span class="qa-netvote-count">
+													<span class="qa-netvote-count-data">0<span class="votes-up"><span class="value-title" title="0"></span></span><span class="votes-down"><span class="value-title" title="0"></span></span></span><span class="qa-netvote-count-pad"> votes</span>
+												</span>
+											</div>
+											<div class="qa-vote-clear">
+											</div>
+										</div>
+									</div>
+									<input type="hidden" name="code" value="0-1516467061-c84ea57bf9996c1584cfbc74b73e0c299533a42d">
+								</form>
+								<div class="qa-q-view-main">
+									<form method="post" action="../../10495/surface-subdomain-fails-to-mark-cellfunction-on-a-3d-mesh">
+										<div class="qa-q-view-content">
+											<a name="10495"></a><div class="entry-content"><p>Hi everyone!</p>
+
+<p>I'm currently trying to impose periodic BC on a 3D mesh. Basically I want the solutions of my PDE to be equal on opposite normal-to-midplan faces of a 3D plate.</p>
+
+<p>The mesh is defined with GMSH, with extra attention to make the corresponding boundary meshes to be matching (enforced in GMSH through <em>Periodic Surface</em> command).</p>
+
+<p>Basically I import the mesh (shown in figure) and define my periodic BC so as to identify the bottom and left sides in the <em>inside</em> procedure:</p>
+
+<p><img src="https://i.imgsafe.org/1578adab6c.png" alt="The mesh"></p>
+
+<pre><code>mesh = Mesh('Omega3D_GMSH.xml');
+class PeriodicBoundary(SubDomain):
+
+def inside(self, x, on_boundary):
+    return bool((near(x[0],-0.0075) or near(x[1],-0.0075))\
+                 and not ((near(x[0],0.0075) and near(x[1],-0.0075))\
+                 or (near(x[0],-0.0075) and near(x[1],0.0075))) and on_boundary)
+
+def map(self, x, y):
+    if near(x[0],00075) and near(x[1],0.0075):
+        y[0] = x[0] - 0.015
+        y[1] = x[1] - 0.015
+        y[2] = x[2]
+    elif near(x[0],00075): 
+        y[0] = x[0] - 0.015
+        y[1] = x[1]
+        y[2] = x[2]
+    elif near(x[1],0.0075):
+        y[0] = x[0]
+        y[1] = x[1] - 0.015
+        y[2] = x[2]
+    else:
+        y[0]=1.0
+        y[1]=1.0
+        y[2]=1.0
+</code></pre>
+
+<p>Then I create a CellFunction on a BoundaryMesh in order to mark the interior hole:</p>
+
+<pre><code>bmesh = BoundaryMesh(mesh, "exterior");
+mapping = bmesh.entity_map(2);
+part_of_boundary = CellFunction("size_t", bmesh, 0);
+for cell in cells(bmesh):
+    if ((abs(Facet(mesh, mapping[cell.index()]).normal().x()) &gt; 0) or \
+       (abs(Facet(mesh, mapping[cell.index()]).normal().y()) &gt; 0)) and \
+       (abs(Facet(mesh, mapping[cell.index()]).distance(Point(0.0,0.0,0.0))) &lt; 0.0025):
+           part_of_boundary[cell]=1
+
+PeriodicBoundary().mark(part_of_boundary,2);
+
+ds = ds[part_of_boundary];
+
+plot(part_of_boundary);
+</code></pre>
+
+<p>And to be sure that my Periodic BC is set as I want I marked the CellFunction on the corresponding part and plotted the resulting Subdomain map, but it doesn't work at all, and the solution is indeed non periodic. </p>
+
+<p><img src="https://i.imgsafe.org/157bd9db17.png" alt="Subdomains map"></p>
+
+<p>As you can see the bottom and left sides are not marked through the command and I can't figure out why. Thank you for your answers,</p>
+
+<p>Regards,</p>
+
+<p>MFV.</p>
+</div>
+										</div>
+										<div class="qa-q-view-tags">
+											<ul class="qa-q-view-tag-list">
+												<li class="qa-q-view-tag-item"><a href="../../tag/periodic-bc" rel="tag" class="qa-tag-link">periodic-bc</a></li>
+												<li class="qa-q-view-tag-item"><a href="../../tag/subdomains" rel="tag" class="qa-tag-link">subdomains</a></li>
+												<li class="qa-q-view-tag-item"><a href="../../tag/subdomain" rel="tag" class="qa-tag-link">subdomain</a></li>
+												<li class="qa-q-view-tag-item"><a href="../../tag/cellfunction" rel="tag" class="qa-tag-link">cellfunction</a></li>
+												<li class="qa-q-view-tag-item"><a href="../../tag/3d-mesh" rel="tag" class="qa-tag-link">3d-mesh</a></li>
+											</ul>
+										</div>
+										<span class="qa-q-view-avatar-meta">
+											<span class="qa-q-view-meta">
+												<a href="../../10495/surface-subdomain-fails-to-mark-cellfunction-on-a-3d-mesh" class="qa-q-view-what">asked</a>
+												<span class="qa-q-view-when">
+													<span class="qa-q-view-when-data"><span class="published"><span class="value-title" title="2016-06-27T16:50:20+0000"></span>Jun 27, 2016</span></span>
+												</span>
+												<span class="qa-q-view-who">
+													<span class="qa-q-view-who-pad">by </span>
+													<span class="qa-q-view-who-data"><span class="vcard author"><a href="../../user/MathieuFV" class="qa-user-link url nickname">MathieuFV</a></span></span>
+													<span class="qa-q-view-who-title">FEniCS User</span>
+													<span class="qa-q-view-who-points">
+														<span class="qa-q-view-who-points-pad">(</span><span class="qa-q-view-who-points-data">1,490</span><span class="qa-q-view-who-points-pad"> points)</span>
+													</span>
+												</span>
+											</span>
+										</span>
+										<div class="qa-q-view-buttons">
+										</div>
+										
+										<div class="qa-q-view-c-list" style="display:none;" id="c10495_list">
+										</div> <!-- END qa-c-list -->
+										
+										<input type="hidden" name="code" value="0-1516467061-80eefedbe7d3613675ec6c972613d4b50d58a62e">
+										<input type="hidden" name="qa_click" value="">
+									</form>
+									<div class="qa-c-form">
+									</div> <!-- END qa-c-form -->
+									
+								</div> <!-- END qa-q-view-main -->
+								<div class="qa-q-view-clear">
+								</div>
+							</div> <!-- END qa-q-view -->
+							
+						</div>
+						<div class="qa-part-a-list">
+							<h2 id="a_list_title">1 Answer</h2>
+							<div class="qa-a-list" id="a_list">
+								
+								<div class="qa-a-list-item  hentry answer answer-selected qa-a-list-item-selected" id="a10536">
+									<form method="post" action="../../10495/surface-subdomain-fails-to-mark-cellfunction-on-a-3d-mesh">
+										<div class="qa-voting qa-voting-net" id="voting_10536">
+											<div class="qa-vote-count qa-vote-count-net">
+												<span class="qa-netvote-count">
+													<span class="qa-netvote-count-data">0<span class="votes-up"><span class="value-title" title="0"></span></span><span class="votes-down"><span class="value-title" title="0"></span></span></span><span class="qa-netvote-count-pad"> votes</span>
+												</span>
+											</div>
+											<div class="qa-vote-clear">
+											</div>
+										</div>
+										<input type="hidden" name="code" value="0-1516467061-c84ea57bf9996c1584cfbc74b73e0c299533a42d">
+									</form>
+									<div class="qa-a-item-main">
+										<form method="post" action="../../10495/surface-subdomain-fails-to-mark-cellfunction-on-a-3d-mesh">
+											<div class="qa-a-item-selected">
+												<div class="qa-a-selection">
+													<div class="qa-a-selected">&#160;</div>
+													<div class="qa-a-selected-text">Best answer</div>
+												</div>
+												<div class="qa-a-item-content">
+													<a name="10536"></a><div class="entry-content"><p>The condition in <code>inside</code> is wrong. If you change it with <code>return True</code> you'll see that the marking works correctly, so it looks like the conditional never evaluates to <code>True</code>. You can verify this by doing, in <code>inside</code>,</p>
+
+<pre><code>b = bool(...)
+if b:
+    print "working!"
+return b
+</code></pre>
+
+<p>If I'm right, you should never see the line printed.</p>
+</div>
+												</div>
+												<span class="qa-a-item-avatar-meta">
+													<span class="qa-a-item-meta">
+														<a href="../../10495/surface-subdomain-fails-to-mark-cellfunction-on-a-3d-mesh?show=10536#a10536" class="qa-a-item-what">answered</a>
+														<span class="qa-a-item-when">
+															<span class="qa-a-item-when-data"><span class="published"><span class="value-title" title="2016-06-30T16:22:22+0000"></span>Jun 30, 2016</span></span>
+														</span>
+														<span class="qa-a-item-who">
+															<span class="qa-a-item-who-pad">by </span>
+															<span class="qa-a-item-who-data"><span class="vcard author"><a href="../../user/Massimiliano+Leoni" class="qa-user-link url nickname">Massimiliano Leoni</a></span></span>
+															<span class="qa-a-item-who-title">FEniCS User</span>
+															<span class="qa-a-item-who-points">
+																<span class="qa-a-item-who-points-pad">(</span><span class="qa-a-item-who-points-data">1,760</span><span class="qa-a-item-who-points-pad"> points)</span>
+															</span>
+														</span>
+														<br>
+														<span class="qa-a-item-what">selected</span>
+														<span class="qa-a-item-when">
+															<span class="qa-a-item-when-data"><span class="updated"><span class="value-title" title="2016-07-01T08:21:19+0000"></span>Jul 1, 2016</span></span>
+														</span>
+														<span class="qa-a-item-who">
+															<span class="qa-a-item-who-pad">by </span><span class="qa-a-item-who-data"><a href="../../user/MathieuFV" class="qa-user-link url nickname">MathieuFV</a></span>
+														</span>
+													</span>
+												</span>
+											</div>
+											<div class="qa-a-item-buttons">
+												</div>
+											
+											<div class="qa-a-item-c-list" id="c10536_list">
+												<div class="qa-c-list-item  hentry comment" id="c10547">
+													<div class="qa-c-item-content">
+														<a name="10547"></a><div class="entry-content"><p>Thank you for your answer, indeed the condition is wrong and after further testing it looks like it is the <code>on_boundary</code> statement that makes it incorrect. In fact it seems that the <code>on_boundary</code> method simply doesn't work on the mesh. </p>
+
+<p>Deleting the <code>on_boundary</code> condition in the <code>inside</code> function of the PeriodicBoundary() SubDomain class makes it work correctly.</p>
+
+<p>Thanks again for your help,</p>
+
+<p>Regards,</p>
+
+<p>MFV</p>
+</div>
+													</div>
+													<div class="qa-c-item-footer">
+														<span class="qa-c-item-avatar-meta">
+															<span class="qa-c-item-meta">
+																<a href="../../10495/surface-subdomain-fails-to-mark-cellfunction-on-a-3d-mesh?show=10547#c10547" class="qa-c-item-what">commented</a>
+																<span class="qa-c-item-when">
+																	<span class="qa-c-item-when-data"><span class="published"><span class="value-title" title="2016-07-01T08:21:17+0000"></span>Jul 1, 2016</span></span>
+																</span>
+																<span class="qa-c-item-who">
+																	<span class="qa-c-item-who-pad">by </span>
+																	<span class="qa-c-item-who-data"><span class="vcard author"><a href="../../user/MathieuFV" class="qa-user-link url nickname">MathieuFV</a></span></span>
+																	<span class="qa-c-item-who-title">FEniCS User</span>
+																	<span class="qa-c-item-who-points">
+																		<span class="qa-c-item-who-points-pad">(</span><span class="qa-c-item-who-points-data">1,490</span><span class="qa-c-item-who-points-pad"> points)</span>
+																	</span>
+																</span>
+															</span>
+														</span>
+														<div class="qa-c-item-buttons">
+														</div>
+													</div>
+													<div class="qa-c-item-clear">
+													</div>
+												</div> <!-- END qa-c-item -->
+											</div> <!-- END qa-c-list -->
+											
+											<input type="hidden" name="code" value="0-1516467061-5962f835730e30ae59fddec5067a2f2c4e47eba3">
+											<input type="hidden" name="qa_click" value="">
+										</form>
+										<div class="qa-c-form">
+										</div> <!-- END qa-c-form -->
+										
+									</div> <!-- END qa-a-item-main -->
+									<div class="qa-a-item-clear">
+									</div>
+								</div> <!-- END qa-a-list-item -->
+								
+							</div> <!-- END qa-a-list -->
+							
+						</div>
+					</div> <!-- END qa-main -->
+					
+				</div> <!-- END main-wrapper -->
+			</div> <!-- END main-shadow -->
+		</div> <!-- END body-wrapper -->
+		<!-- END footer-bottom-group -->
+		
+		<div style="position:absolute; left:-9999px; top:-9999px;">
+			<span id="qa-waiting-template" class="qa-waiting">...</span>
+		</div>
+	
+	
+
+</body><!-- Powered by Question2Answer - http://www.question2answer.org/ --></html>

@@ -1,0 +1,495 @@
+<html><!-- Powered by Question2Answer - http://www.question2answer.org/ --><head>
+		<meta http-equiv="content-type" content="text/html; charset=utf-8">
+		<title>How to apply boundary conditions in a mixed-space setting (Nedelec &amp; nodal Galerkin). - FEniCS Q&amp;A</title>
+		<meta name="description" content="Hi FEniCS users, I have a system of two PDEs which I want to discretize, and then port ... problem are also warmly welcome with thanks. Cheers, Hisham">
+		<meta name="keywords" content="assemble_system,petsc,dirichletbc,nedelec,galerkin">
+		<link rel="stylesheet" type="text/css" href="../../qa-theme/Snow/qa-styles.css">
+		<link rel="canonical" href="http://fenicsproject.org/qa/12120/boundary-conditions-mixed-space-setting-nedelec-galerkin">
+		<script type="text/x-mathjax-config">
+  MathJax.Hub.Config({
+    extensions: ["tex2jax.js"],
+    jax: ["input/TeX","output/HTML-CSS"],
+    tex2jax: {inlineMath: [["$","$"],["\\(","\\)"]]},
+    TeX: { extensions: ["AMSmath.js","AMSsymbols.js"]}
+  });
+</script>
+<script type="text/javascript" src="../../mathjax/MathJax.js"></script>
+		<script src="../../jquery-1.7.2.min.js" type="text/javascript"></script>
+		<script src="../../highlight.min.js"></script>
+<script type="text/javascript">
+$(function(){
+	$('.wmd-input').keypress(function(){
+		window.clearTimeout(hljs.Timeout);
+		hljs.Timeout = window.setTimeout(function() {
+			hljs.initHighlighting.called = false;
+			hljs.initHighlighting();
+		}, 500);
+	});
+	window.setTimeout(function() {
+		hljs.initHighlighting.called = false;
+		hljs.initHighlighting();
+	}, 500);
+});
+</script>
+
+
+	</head>
+	<body class="qa-template-question qa-body-js-off">
+		<div class="qa-body-wrapper">
+			
+			<div class="qa-header">
+				<div class="qa-logo">
+					<a href="../../" class="qa-logo-link" title="FEniCS Q&amp;A"><img src="../../qa-theme/fenics_qa.png" border="0" alt="FEniCS Q&amp;A"></a>
+				</div>
+				<div class="qa-header-clear">
+				</div>
+			</div> <!-- END qa-header -->
+			
+			<div class="qa-main-shadow">
+				
+				<div class="qa-main-wrapper">
+					
+					<div class="qa-sidepanel">
+						<div class="qa-sidebar">
+							This is a read only copy of the old FEniCS QA forum. Please visit the <a href="https://www.allanswered.com/community/s/fenics-project/">new QA forum</a> to ask questions
+						</div>
+						
+					</div>
+					
+					<div class="qa-main">
+						<h1>
+							<span class="entry-title">How to apply boundary conditions in a mixed-space setting (Nedelec &amp; nodal Galerkin).</span>
+						</h1>
+						<div class="qa-part-q-view">
+							<div class="qa-q-view  hentry question" id="q12120">
+								<form method="post" action="../../12120/boundary-conditions-mixed-space-setting-nedelec-galerkin">
+									<div class="qa-q-view-stats">
+										<div class="qa-voting qa-voting-net" id="voting_12120">
+											<div class="qa-vote-count qa-vote-count-net">
+												<span class="qa-netvote-count">
+													<span class="qa-netvote-count-data">+2<span class="votes-up"><span class="value-title" title="2"></span></span><span class="votes-down"><span class="value-title" title="0"></span></span></span><span class="qa-netvote-count-pad"> votes</span>
+												</span>
+											</div>
+											<div class="qa-vote-clear">
+											</div>
+										</div>
+									</div>
+									<input type="hidden" name="code" value="0-1516467808-7619ee928481193d9ef49e8a6f8425d90915c54a">
+								</form>
+								<div class="qa-q-view-main">
+									<form method="post" action="../../12120/boundary-conditions-mixed-space-setting-nedelec-galerkin">
+										<div class="qa-q-view-content">
+											<a name="12120"></a><div class="entry-content"><p>Hi FEniCS users,</p>
+
+<p>I have a system of two PDEs which I want to discretize, and then port the relevant matrices to another solution platform. I have so far used assemble_system with success. These are Maxwell's equations in an electromagnetic geophysics application. In the weak form, I have an integral over the inner product of a test function belonging to the Nedelec 1st kind H(curl) space (TA), and the gradient of a trial function belonging to a single degree nodal Galerkin space. I don't quite know how to implement strong Dirichlet BC (homogeneous in this case) to the matrix  that represents this particular form.</p>
+
+<p>I am working on the following code; which has 4 assemble_system statements, and I don't know how to apply the boundary conditions in the 3rd usage (which is currently commented out). </p>
+
+<pre><code>    parameters["linear_algebra_backend"] = "PETSc";
+    mesh     = UnitCubeMesh(5,5,5)    
+    mesh     = refine(mesh)
+    VN        = FunctionSpace(mesh, "Nedelec 1st kind H(curl)", 1)
+    VG       = FunctionSpace(mesh, "Lagrange", 1)   
+    A = TrialFunction(VN)
+    phi = TrialFunction(VG)
+    TA = TestFunction(VN)
+    Tphi = TestFunction(VG)  
+
+    om = 1e-4    
+    mu = 1         
+    si = 1           
+    ep = 1          
+
+    zero   = Constant((0.0,0.0,0.0))   
+    BCN     = DirichletBC(VN,zero,DirichletBoundary())
+    BCG      = DirichletBC(VG, Constant((0.0)),DirichletBoundary())  (Nedelec)
+    c = inner(curl(TA), curl(A))*dx     
+    m1 = inner(TA,A)*dx                  
+    m2 = inner(TA,grad(phi))*dx       
+    #m3 = inner(grad(Tphi),A)*dx     
+    m4 = inner(grad(Tphi),grad(phi))*dx  
+
+    dbdt = Constant((0.0, 0.0, 1.0))   
+    L1 = inner(TA, dbdt)*dx               
+    L2 = inner(grad(Tphi),dbdt)*dx     
+
+    C = PETScMatrix()                      
+    M1 = PETScMatrix()
+    M2= PETScMatrix()
+    M4 = PETScMatrix()
+
+    bc = PETScVector()
+    bm1 = PETScVector()
+    bm2= PETScVector()
+    bm4 = PETScVector()
+
+    assemble_system(c,L1,BCN, x0=None, form_compiler_parameters=None, add_values=False, finalize_tensor=True, keep_diagonal=False, A_tensor=C, b_tensor=bc, backend=PETSc)
+    assemble_system(m1,L1,BCN, x0=None, form_compiler_parameters=None, add_values=False, finalize_tensor=True, keep_diagonal=False, A_tensor=M1, b_tensor=bm1, backend=PETSc)
+    #assemble_system(m2,L1,???, x0=None, form_compiler_parameters=None, add_values=False, finalize_tensor=True, keep_diagonal=False, A_tensor=M2, b_tensor=bm2, backend=PETSc)    
+    assemble_system(m4,L2,BCG, x0=None, form_compiler_parameters=None, add_values=False, finalize_tensor=True, keep_diagonal=False, A_tensor=M4, b_tensor=bm4, backend=PETSc)    
+</code></pre>
+
+<p>Any help is deeply appreciated; criticism of my usage, and alternate ways of handling this kind of mixed problem are also warmly welcome with thanks. </p>
+
+<p>Cheers,<br>
+Hisham</p>
+</div>
+										</div>
+										<div class="qa-q-view-tags">
+											<ul class="qa-q-view-tag-list">
+												<li class="qa-q-view-tag-item"><a href="../../tag/assemble_system" rel="tag" class="qa-tag-link">assemble_system</a></li>
+												<li class="qa-q-view-tag-item"><a href="../../tag/petsc" rel="tag" class="qa-tag-link">petsc</a></li>
+												<li class="qa-q-view-tag-item"><a href="../../tag/dirichletbc" rel="tag" class="qa-tag-link">dirichletbc</a></li>
+												<li class="qa-q-view-tag-item"><a href="../../tag/nedelec" rel="tag" class="qa-tag-link">nedelec</a></li>
+												<li class="qa-q-view-tag-item"><a href="../../tag/galerkin" rel="tag" class="qa-tag-link">galerkin</a></li>
+											</ul>
+										</div>
+										<span class="qa-q-view-avatar-meta">
+											<span class="qa-q-view-meta">
+												<a href="../../12120/boundary-conditions-mixed-space-setting-nedelec-galerkin" class="qa-q-view-what">asked</a>
+												<span class="qa-q-view-when">
+													<span class="qa-q-view-when-data"><span class="published"><span class="value-title" title="2017-01-11T20:11:00+0000"></span>Jan 11, 2017</span></span>
+												</span>
+												<span class="qa-q-view-who">
+													<span class="qa-q-view-who-pad">by </span>
+													<span class="qa-q-view-who-data"><span class="vcard author"><a href="../../user/hbinzubair" class="qa-user-link url nickname">hbinzubair</a></span></span>
+													<span class="qa-q-view-who-title">FEniCS Novice</span>
+													<span class="qa-q-view-who-points">
+														<span class="qa-q-view-who-points-pad">(</span><span class="qa-q-view-who-points-data">250</span><span class="qa-q-view-who-points-pad"> points)</span>
+													</span>
+												</span>
+												<br>
+												<span class="qa-q-view-what">edited</span>
+												<span class="qa-q-view-when">
+													<span class="qa-q-view-when-data"><span class="updated"><span class="value-title" title="2017-01-12T16:41:03+0000"></span>Jan 12, 2017</span></span>
+												</span>
+												<span class="qa-q-view-who">
+													<span class="qa-q-view-who-pad">by </span><span class="qa-q-view-who-data"><a href="../../user/hbinzubair" class="qa-user-link url nickname">hbinzubair</a></span>
+												</span>
+											</span>
+										</span>
+										<div class="qa-q-view-buttons">
+										</div>
+										
+										<div class="qa-q-view-c-list" id="c12120_list">
+											<div class="qa-c-list-item  hentry comment" id="c12131">
+												<div class="qa-c-item-content">
+													<a name="12131"></a><div class="entry-content"><p>The code would be easier to read if one didn't have to scroll left and right all the time. I'd scratch <code>def main</code>, hardcode <code>Nx</code> and friends to something, and put the comments _above_ the line they comment on, not right behind.</p>
+
+<p>Apart from that, it's a little unclear to me what it is you're trying to achieve. Can it not be broken down to something more elemental? Like, like, a 2x2 block matrix of Laplaces?</p>
+</div>
+												</div>
+												<div class="qa-c-item-footer">
+													<span class="qa-c-item-avatar-meta">
+														<span class="qa-c-item-avatar">
+															<a href="../../user/nschloe" class="qa-avatar-link"><img src="https://www.gravatar.com/avatar/500a1e2e864ae08f386afde2cd21add0?s=20" width="20" height="20" class="qa-avatar-image" alt=""></a>
+														</span>
+														<span class="qa-c-item-meta">
+															<a href="../../12120/boundary-conditions-mixed-space-setting-nedelec-galerkin?show=12131#c12131" class="qa-c-item-what">commented</a>
+															<span class="qa-c-item-when">
+																<span class="qa-c-item-when-data"><span class="published"><span class="value-title" title="2017-01-12T16:33:02+0000"></span>Jan 12, 2017</span></span>
+															</span>
+															<span class="qa-c-item-who">
+																<span class="qa-c-item-who-pad">by </span>
+																<span class="qa-c-item-who-data"><span class="vcard author"><a href="../../user/nschloe" class="qa-user-link url nickname">nschloe</a></span></span>
+																<span class="qa-c-item-who-title">FEniCS User</span>
+																<span class="qa-c-item-who-points">
+																	<span class="qa-c-item-who-points-pad">(</span><span class="qa-c-item-who-points-data">7,120</span><span class="qa-c-item-who-points-pad"> points)</span>
+																</span>
+															</span>
+														</span>
+													</span>
+													<div class="qa-c-item-buttons">
+													</div>
+												</div>
+												<div class="qa-c-item-clear">
+												</div>
+											</div> <!-- END qa-c-item -->
+											<div class="qa-c-list-item  hentry comment" id="c12133">
+												<div class="qa-c-item-content">
+													<a name="12133"></a><div class="entry-content"><p>Hi Nico,</p>
+
+<p>Done. Comments have been removed, they were not useful. <br>
+Nx, Ny, Nz, are now just 5,5,5.</p>
+
+<p>I have a system of 2 PDEs which after discretization I want to develop a block preconditioning technique for.</p>
+
+<p>Two variables appear in the weak form, A (which belongs to the Nedelec first order element space), and phi (which belongs to nodal Lagrangian space of degree 1). I want to assemble the bilinear form m2 into a PETSc matrix. The only hurdle seems to be the application of strong Dirichlet boundary conditions throughout the unit cube domain. The way it appears implemented for c, m1, and m4 matrices works fine. In these three bilinear forms, the space to which the two components of the inner product belong is the same. Nedelec in c, and m1, and Lagrange in m4. However, in m2, one component belongs to the Nedelec space, and the other to Lagrangian. So I just want to figure out, what to put in place where there are currently question marks in the second last line of the code. </p>
+
+<p>Scott suggested to use [BCN, BCG], and although the code then runs without errors, I just need to confirm if this is indeed the right way to bring this about. </p>
+
+<p>Does, this explanation help any further?<br>
+Cheers,<br>
+Hisham</p>
+</div>
+												</div>
+												<div class="qa-c-item-footer">
+													<span class="qa-c-item-avatar-meta">
+														<span class="qa-c-item-meta">
+															<a href="../../12120/boundary-conditions-mixed-space-setting-nedelec-galerkin?show=12133#c12133" class="qa-c-item-what">commented</a>
+															<span class="qa-c-item-when">
+																<span class="qa-c-item-when-data"><span class="published"><span class="value-title" title="2017-01-12T16:49:39+0000"></span>Jan 12, 2017</span></span>
+															</span>
+															<span class="qa-c-item-who">
+																<span class="qa-c-item-who-pad">by </span>
+																<span class="qa-c-item-who-data"><span class="vcard author"><a href="../../user/hbinzubair" class="qa-user-link url nickname">hbinzubair</a></span></span>
+																<span class="qa-c-item-who-title">FEniCS Novice</span>
+																<span class="qa-c-item-who-points">
+																	<span class="qa-c-item-who-points-pad">(</span><span class="qa-c-item-who-points-data">250</span><span class="qa-c-item-who-points-pad"> points)</span>
+																</span>
+															</span>
+														</span>
+													</span>
+													<div class="qa-c-item-buttons">
+													</div>
+												</div>
+												<div class="qa-c-item-clear">
+												</div>
+											</div> <!-- END qa-c-item -->
+											<div class="qa-c-list-item  hentry comment" id="c12169">
+												<div class="qa-c-item-content">
+													<a name="12169"></a><div class="entry-content"><p>I forgot to comment the original question, despite I would still suggest to use implicit boundary conditions:</p>
+
+<p>"Scott suggested to use [BCN, BCG], and although the code then runs without errors, I just need to confirm if this is indeed the right way to bring this about. "</p>
+
+<p>YES, this is the correct way.</p>
+
+<p>Cheers, Raphael</p>
+</div>
+												</div>
+												<div class="qa-c-item-footer">
+													<span class="qa-c-item-avatar-meta">
+														<span class="qa-c-item-meta">
+															<a href="../../12120/boundary-conditions-mixed-space-setting-nedelec-galerkin?show=12169#c12169" class="qa-c-item-what">commented</a>
+															<span class="qa-c-item-when">
+																<span class="qa-c-item-when-data"><span class="published"><span class="value-title" title="2017-01-17T17:37:26+0000"></span>Jan 17, 2017</span></span>
+															</span>
+															<span class="qa-c-item-who">
+																<span class="qa-c-item-who-pad">by </span>
+																<span class="qa-c-item-who-data"><span class="vcard author"><a href="../../user/RR" class="qa-user-link url nickname">RR</a></span></span>
+																<span class="qa-c-item-who-title">FEniCS User</span>
+																<span class="qa-c-item-who-points">
+																	<span class="qa-c-item-who-points-pad">(</span><span class="qa-c-item-who-points-data">3,330</span><span class="qa-c-item-who-points-pad"> points)</span>
+																</span>
+															</span>
+														</span>
+													</span>
+													<div class="qa-c-item-buttons">
+													</div>
+												</div>
+												<div class="qa-c-item-clear">
+												</div>
+											</div> <!-- END qa-c-item -->
+											<div class="qa-c-list-item  hentry comment" id="c12170">
+												<div class="qa-c-item-content">
+													<a name="12170"></a><div class="entry-content"><p>Thanks Raphael.</p>
+</div>
+												</div>
+												<div class="qa-c-item-footer">
+													<span class="qa-c-item-avatar-meta">
+														<span class="qa-c-item-meta">
+															<a href="../../12120/boundary-conditions-mixed-space-setting-nedelec-galerkin?show=12170#c12170" class="qa-c-item-what">commented</a>
+															<span class="qa-c-item-when">
+																<span class="qa-c-item-when-data"><span class="published"><span class="value-title" title="2017-01-17T17:41:00+0000"></span>Jan 17, 2017</span></span>
+															</span>
+															<span class="qa-c-item-who">
+																<span class="qa-c-item-who-pad">by </span>
+																<span class="qa-c-item-who-data"><span class="vcard author"><a href="../../user/hbinzubair" class="qa-user-link url nickname">hbinzubair</a></span></span>
+																<span class="qa-c-item-who-title">FEniCS Novice</span>
+																<span class="qa-c-item-who-points">
+																	<span class="qa-c-item-who-points-pad">(</span><span class="qa-c-item-who-points-data">250</span><span class="qa-c-item-who-points-pad"> points)</span>
+																</span>
+															</span>
+														</span>
+													</span>
+													<div class="qa-c-item-buttons">
+													</div>
+												</div>
+												<div class="qa-c-item-clear">
+												</div>
+											</div> <!-- END qa-c-item -->
+										</div> <!-- END qa-c-list -->
+										
+										<input type="hidden" name="code" value="0-1516467808-7e54a19b3d35c46eb2d632f31a4cca35f8661062">
+										<input type="hidden" name="qa_click" value="">
+									</form>
+									<div class="qa-c-form">
+									</div> <!-- END qa-c-form -->
+									
+								</div> <!-- END qa-q-view-main -->
+								<div class="qa-q-view-clear">
+								</div>
+							</div> <!-- END qa-q-view -->
+							
+						</div>
+						<div class="qa-part-a-list">
+							<h2 id="a_list_title">2 Answers</h2>
+							<div class="qa-a-list" id="a_list">
+								
+								<div class="qa-a-list-item  hentry answer" id="a12123">
+									<form method="post" action="../../12120/boundary-conditions-mixed-space-setting-nedelec-galerkin">
+										<div class="qa-voting qa-voting-net" id="voting_12123">
+											<div class="qa-vote-count qa-vote-count-net">
+												<span class="qa-netvote-count">
+													<span class="qa-netvote-count-data">0<span class="votes-up"><span class="value-title" title="0"></span></span><span class="votes-down"><span class="value-title" title="0"></span></span></span><span class="qa-netvote-count-pad"> votes</span>
+												</span>
+											</div>
+											<div class="qa-vote-clear">
+											</div>
+										</div>
+										<input type="hidden" name="code" value="0-1516467808-7619ee928481193d9ef49e8a6f8425d90915c54a">
+									</form>
+									<div class="qa-a-item-main">
+										<form method="post" action="../../12120/boundary-conditions-mixed-space-setting-nedelec-galerkin">
+											<div class="qa-a-selection">
+											</div>
+											<div class="qa-a-item-content">
+												<a name="12123"></a><div class="entry-content"><p>hi, can I ask you a question?</p>
+
+<p>When you set the boundary condition, what's the meaning of <br>
+zero   = Constant((0.0,0.0,0.0))       # Expression for zero Dirichlet BC on the Nedelec space<br>
+BCN   = DirichletBC(VN,zero,DirichletBoundary())  # Zero Dirichlet Boundary conditions (Nedelec) ?</p>
+
+<p>Your boundary condition is A=0 or A*n=0 on boundary? </p>
+</div>
+											</div>
+											<span class="qa-a-item-avatar-meta">
+												<span class="qa-a-item-meta">
+													<a href="../../12120/boundary-conditions-mixed-space-setting-nedelec-galerkin?show=12123#a12123" class="qa-a-item-what">answered</a>
+													<span class="qa-a-item-when">
+														<span class="qa-a-item-when-data"><span class="published"><span class="value-title" title="2017-01-12T04:01:18+0000"></span>Jan 12, 2017</span></span>
+													</span>
+													<span class="qa-a-item-who">
+														<span class="qa-a-item-who-pad">by </span>
+														<span class="qa-a-item-who-data"><span class="vcard author"><a href="../../user/fanronghong" class="qa-user-link url nickname">fanronghong</a></span></span>
+														<span class="qa-a-item-who-title">FEniCS User</span>
+														<span class="qa-a-item-who-points">
+															<span class="qa-a-item-who-points-pad">(</span><span class="qa-a-item-who-points-data">1,680</span><span class="qa-a-item-who-points-pad"> points)</span>
+														</span>
+													</span>
+												</span>
+											</span>
+											<div class="qa-a-item-buttons">
+												</div>
+											
+											<div class="qa-a-item-c-list" id="c12123_list">
+												<div class="qa-c-list-item  hentry comment" id="c12125">
+													<div class="qa-c-item-content">
+														<a name="12125"></a><div class="entry-content"><p>Hi, <br>
+My boundary condition is A=0 on the boundary. A represents the vector potential (part) of the electric field, and the boundaries are far from the actual domain of interest; so the field dissipates and is negligible. </p>
+
+<p>Cheers,<br>
+Hisham</p>
+</div>
+													</div>
+													<div class="qa-c-item-footer">
+														<span class="qa-c-item-avatar-meta">
+															<span class="qa-c-item-meta">
+																<a href="../../12120/boundary-conditions-mixed-space-setting-nedelec-galerkin?show=12125#c12125" class="qa-c-item-what">commented</a>
+																<span class="qa-c-item-when">
+																	<span class="qa-c-item-when-data"><span class="published"><span class="value-title" title="2017-01-12T13:21:01+0000"></span>Jan 12, 2017</span></span>
+																</span>
+																<span class="qa-c-item-who">
+																	<span class="qa-c-item-who-pad">by </span>
+																	<span class="qa-c-item-who-data"><span class="vcard author"><a href="../../user/hbinzubair" class="qa-user-link url nickname">hbinzubair</a></span></span>
+																	<span class="qa-c-item-who-title">FEniCS Novice</span>
+																	<span class="qa-c-item-who-points">
+																		<span class="qa-c-item-who-points-pad">(</span><span class="qa-c-item-who-points-data">250</span><span class="qa-c-item-who-points-pad"> points)</span>
+																	</span>
+																</span>
+															</span>
+														</span>
+														<div class="qa-c-item-buttons">
+														</div>
+													</div>
+													<div class="qa-c-item-clear">
+													</div>
+												</div> <!-- END qa-c-item -->
+											</div> <!-- END qa-c-list -->
+											
+											<input type="hidden" name="code" value="0-1516467808-0896b28cfefd0b12962a9a1efa1e8a021dd4b856">
+											<input type="hidden" name="qa_click" value="">
+										</form>
+										<div class="qa-c-form">
+										</div> <!-- END qa-c-form -->
+										
+									</div> <!-- END qa-a-item-main -->
+									<div class="qa-a-item-clear">
+									</div>
+								</div> <!-- END qa-a-list-item -->
+								
+								<div class="qa-a-list-item  hentry answer" id="a12132">
+									<form method="post" action="../../12120/boundary-conditions-mixed-space-setting-nedelec-galerkin">
+										<div class="qa-voting qa-voting-net" id="voting_12132">
+											<div class="qa-vote-count qa-vote-count-net">
+												<span class="qa-netvote-count">
+													<span class="qa-netvote-count-data">0<span class="votes-up"><span class="value-title" title="0"></span></span><span class="votes-down"><span class="value-title" title="0"></span></span></span><span class="qa-netvote-count-pad"> votes</span>
+												</span>
+											</div>
+											<div class="qa-vote-clear">
+											</div>
+										</div>
+										<input type="hidden" name="code" value="0-1516467808-7619ee928481193d9ef49e8a6f8425d90915c54a">
+									</form>
+									<div class="qa-a-item-main">
+										<form method="post" action="../../12120/boundary-conditions-mixed-space-setting-nedelec-galerkin">
+											<div class="qa-a-selection">
+											</div>
+											<div class="qa-a-item-content">
+												<a name="12132"></a><div class="entry-content"><p>Hi Hisham,</p>
+
+<p>if you want to solve geophysical scattering problems which I assume, just don't set explicit boundary conditions and everthing will be fine! Setting explicit Zero-Dirichlet-BC, disregarding if I use the field or potential approach, made my solutions only more inaccurate at the domain boundaries. Nevertheless, I'm actually not sure if the implementation, as already mentioned in the following question, is correct on Nedelec spaces:</p>
+
+<p><a rel="nofollow" href="https://fenicsproject.org/qa/11942/how-to-implement-the-boundary-condition-of-maxwell-equation">https://fenicsproject.org/qa/11942/how-to-implement-the-boundary-condition-of-maxwell-equation</a></p>
+</div>
+											</div>
+											<span class="qa-a-item-avatar-meta">
+												<span class="qa-a-item-meta">
+													<a href="../../12120/boundary-conditions-mixed-space-setting-nedelec-galerkin?show=12132#a12132" class="qa-a-item-what">answered</a>
+													<span class="qa-a-item-when">
+														<span class="qa-a-item-when-data"><span class="published"><span class="value-title" title="2017-01-12T16:42:11+0000"></span>Jan 12, 2017</span></span>
+													</span>
+													<span class="qa-a-item-who">
+														<span class="qa-a-item-who-pad">by </span>
+														<span class="qa-a-item-who-data"><span class="vcard author"><a href="../../user/RR" class="qa-user-link url nickname">RR</a></span></span>
+														<span class="qa-a-item-who-title">FEniCS User</span>
+														<span class="qa-a-item-who-points">
+															<span class="qa-a-item-who-points-pad">(</span><span class="qa-a-item-who-points-data">3,330</span><span class="qa-a-item-who-points-pad"> points)</span>
+														</span>
+													</span>
+												</span>
+											</span>
+											<div class="qa-a-item-buttons">
+												</div>
+											
+											<div class="qa-a-item-c-list" style="display:none;" id="c12132_list">
+											</div> <!-- END qa-c-list -->
+											
+											<input type="hidden" name="code" value="0-1516467808-709087e4f1410777d9e84e9549e2e5a1faab7cd5">
+											<input type="hidden" name="qa_click" value="">
+										</form>
+										<div class="qa-c-form">
+										</div> <!-- END qa-c-form -->
+										
+									</div> <!-- END qa-a-item-main -->
+									<div class="qa-a-item-clear">
+									</div>
+								</div> <!-- END qa-a-list-item -->
+								
+							</div> <!-- END qa-a-list -->
+							
+						</div>
+					</div> <!-- END qa-main -->
+					
+				</div> <!-- END main-wrapper -->
+			</div> <!-- END main-shadow -->
+		</div> <!-- END body-wrapper -->
+		<!-- END footer-bottom-group -->
+		
+		<div style="position:absolute; left:-9999px; top:-9999px;">
+			<span id="qa-waiting-template" class="qa-waiting">...</span>
+		</div>
+	
+	
+
+</body><!-- Powered by Question2Answer - http://www.question2answer.org/ --></html>

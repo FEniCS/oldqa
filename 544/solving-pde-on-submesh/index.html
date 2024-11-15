@@ -1,0 +1,626 @@
+<html><!-- Powered by Question2Answer - http://www.question2answer.org/ --><head>
+		<meta http-equiv="content-type" content="text/html; charset=utf-8">
+		<title>solving PDE on submesh - FEniCS Q&amp;A</title>
+		<meta name="description" content="When solving a PDE on a submesh $\Omega_0\subset\Omega$ of a given mesh $\Omega$, how do I apply boundary  ... Omega_1 = \{(x,y)\in(0,1)^2: x">
+		<meta name="keywords" content="submesh,subdomain,boundary-conditions">
+		<link rel="stylesheet" type="text/css" href="../../qa-theme/Snow/qa-styles.css">
+		<link rel="canonical" href="http://fenicsproject.org/qa/544/solving-pde-on-submesh">
+		<script type="text/x-mathjax-config">
+  MathJax.Hub.Config({
+    extensions: ["tex2jax.js"],
+    jax: ["input/TeX","output/HTML-CSS"],
+    tex2jax: {inlineMath: [["$","$"],["\\(","\\)"]]},
+    TeX: { extensions: ["AMSmath.js","AMSsymbols.js"]}
+  });
+</script>
+<script type="text/javascript" src="../../mathjax/MathJax.js"></script>
+		<script src="../../jquery-1.7.2.min.js" type="text/javascript"></script>
+		<script src="../../highlight.min.js"></script>
+<script type="text/javascript">
+$(function(){
+	$('.wmd-input').keypress(function(){
+		window.clearTimeout(hljs.Timeout);
+		hljs.Timeout = window.setTimeout(function() {
+			hljs.initHighlighting.called = false;
+			hljs.initHighlighting();
+		}, 500);
+	});
+	window.setTimeout(function() {
+		hljs.initHighlighting.called = false;
+		hljs.initHighlighting();
+	}, 500);
+});
+</script>
+
+
+	</head>
+	<body class="qa-template-question qa-body-js-off">
+		<div class="qa-body-wrapper">
+			
+			<div class="qa-header">
+				<div class="qa-logo">
+					<a href="../../" class="qa-logo-link" title="FEniCS Q&amp;A"><img src="../../qa-theme/fenics_qa.png" border="0" alt="FEniCS Q&amp;A"></a>
+				</div>
+				<div class="qa-header-clear">
+				</div>
+			</div> <!-- END qa-header -->
+			
+			<div class="qa-main-shadow">
+				
+				<div class="qa-main-wrapper">
+					
+					<div class="qa-sidepanel">
+						<div class="qa-sidebar">
+							This is a read only copy of the old FEniCS QA forum. Please visit the <a href="https://www.allanswered.com/community/s/fenics-project/">new QA forum</a> to ask questions
+						</div>
+						
+					</div>
+					
+					<div class="qa-main">
+						<h1>
+							<span class="entry-title">solving PDE on submesh</span>
+						</h1>
+						<div class="qa-part-q-view">
+							<div class="qa-q-view  hentry question" id="q544">
+								<form method="post" action="../../544/solving-pde-on-submesh">
+									<div class="qa-q-view-stats">
+										<div class="qa-voting qa-voting-net" id="voting_544">
+											<div class="qa-vote-count qa-vote-count-net">
+												<span class="qa-netvote-count">
+													<span class="qa-netvote-count-data">+6<span class="votes-up"><span class="value-title" title="6"></span></span><span class="votes-down"><span class="value-title" title="0"></span></span></span><span class="qa-netvote-count-pad"> votes</span>
+												</span>
+											</div>
+											<div class="qa-vote-clear">
+											</div>
+										</div>
+									</div>
+									<input type="hidden" name="code" value="0-1516468028-8ae8e292f36b124e65120333bdc6617870352a28">
+								</form>
+								<div class="qa-q-view-main">
+									<form method="post" action="../../544/solving-pde-on-submesh">
+										<div class="qa-q-view-content">
+											<a name="544"></a><div class="entry-content"><p>When solving a PDE on a submesh $\Omega_0\subset\Omega$ of a given mesh $\Omega$, how do I apply boundary conditions to the PDE?<br>
+I'm able to correctly extract the submesh and set up the <code>FunctionSpaces</code>. I suppose it's something about the <code>Measure</code>s that I'm missing here.</p>
+
+<p>The following code tries to setup the solution of Poisson's equation on $\Omega_1 = {(x,y)\in(0,1)^2: x&lt;0.5}\subset \Omega = (0,1)^2$. On the left boundary of $\Omega_1$, I'd like to enforce $n\cdot\nabla u = \alpha (u_0 - u)$ with some given $\alpha, u_0\in\mathbb{R}$.<br>
+Dolfin solves something, but the suggested solution just looks funky.</p>
+
+<pre><code>from dolfin import *
+
+mesh = UnitSquareMesh(20, 20, 'left/right')
+
+# -------------------------------------------------
+class OmegaLeft(SubDomain):
+    def inside(self, x, on_boundary):
+        return x[0] &lt;= 0.5
+omegaL = OmegaLeft()
+
+# Initialize mesh function for interior domains
+subdomains = CellFunction('size_t', mesh)
+subdomains.set_all(0)
+omegaL.mark(subdomains, 1)
+
+dx = Measure('dx')[subdomains]
+
+submesh_omegaL = SubMesh(mesh, subdomains, 1)
+# -------------------------------------------------
+# define boundaries for the subdomain
+class LeftBoundary(SubDomain):
+    def inside(self, x, on_boundary):
+        return on_boundary and abs(x[0]) &lt; DOLFIN_EPS
+left_boundary = LeftBoundary()
+
+omegaL_boundaries = FacetFunction('size_t', submesh_omegaL)
+omegaL_boundaries.set_all(0)
+left_boundary.mark(omegaL_boundaries, 1)
+
+ds_omegaL = Measure('ds')[omegaL_boundaries]
+# -------------------------------------------------
+# Solve Poisson's equation.
+f = Constant(0.0)
+
+V = FunctionSpace(submesh_omegaL, 'CG', 1)
+u = TrialFunction(V)
+v = TestFunction(V)
+# Boundary conditions of the form
+#   n.grad(u) = alpha * (u0 - u)
+alpha = 1.0
+u0 = 0.421
+F = dot(grad(u), grad(v)) * dx(1) \
+  - alpha * (u0-u) * v * ds_omegaL(1) \
+  - f * v * dx(1)
+
+a = lhs(F)
+L = rhs(F)
+
+sol = Function(V)
+solve(a == L, sol)
+
+plot(sol)
+interactive()
+# -------------------------------------------------
+</code></pre>
+
+<p>Even simpler, when only applying Dirichlet boundary conditions, e.g.,</p>
+
+<pre><code>from dolfin import *
+
+mesh = UnitSquareMesh(4, 4, 'left/right')
+
+# -------------------------------------------------
+class OmegaLeft(SubDomain):
+    def inside(self, x, on_boundary):
+        return x[0] &lt;= 0.5
+omegaL = OmegaLeft()
+
+# Initialize mesh function for interior domains
+subdomains = CellFunction('size_t', mesh)
+subdomains.set_all(0)
+omegaL.mark(subdomains, 1)
+
+dx = Measure('dx')[subdomains]
+
+submesh_omegaL = SubMesh(mesh, subdomains, 1)
+# -------------------------------------------------
+# define boundaries for the subdomain
+class LeftBoundary(SubDomain):
+    def inside(self, x, on_boundary):
+        return on_boundary and abs(x[0]) &lt; DOLFIN_EPS
+left_boundary = LeftBoundary()
+# -------------------------------------------------
+# Solve Poisson's equation.
+f = Constant(0.0)
+
+V = FunctionSpace(submesh_omegaL, 'CG', 1)
+u = TrialFunction(V)
+v = TestFunction(V)
+F = dot(grad(u), grad(v)) * dx(1) \
+  - f * v * dx(1)
+
+bcs = DirichletBC(V, 0.421, 'on_boundary')
+
+a = lhs(F)
+L = rhs(F)
+
+sol = Function(V)
+solve(a == L, sol, bcs=bcs)
+
+plot(sol)
+interactive()
+# -------------------------------------------------
+</code></pre>
+
+<p>one gets</p>
+
+<pre><code>*** Error:   Unable to set given rows to identity matrix.
+*** Reason:  some diagonal elements not preallocated (try assembler option keep_diagonal).
+*** Where:   This error was encountered inside PETScMatrix.cpp.
+</code></pre>
+</div>
+										</div>
+										<div class="qa-q-view-tags">
+											<ul class="qa-q-view-tag-list">
+												<li class="qa-q-view-tag-item"><a href="../../tag/submesh" rel="tag" class="qa-tag-link">submesh</a></li>
+												<li class="qa-q-view-tag-item"><a href="../../tag/subdomain" rel="tag" class="qa-tag-link">subdomain</a></li>
+												<li class="qa-q-view-tag-item"><a href="../../tag/boundary-conditions" rel="tag" class="qa-tag-link">boundary-conditions</a></li>
+											</ul>
+										</div>
+										<span class="qa-q-view-avatar-meta">
+											<span class="qa-q-view-avatar">
+												<a href="../../user/nschloe" class="qa-avatar-link"><img src="https://www.gravatar.com/avatar/500a1e2e864ae08f386afde2cd21add0?s=50" width="50" height="50" class="qa-avatar-image" alt=""></a>
+											</span>
+											<span class="qa-q-view-meta">
+												<a href="../../544/solving-pde-on-submesh" class="qa-q-view-what">asked</a>
+												<span class="qa-q-view-when">
+													<span class="qa-q-view-when-data"><span class="published"><span class="value-title" title="2013-07-12T20:48:26+0000"></span>Jul 12, 2013</span></span>
+												</span>
+												<span class="qa-q-view-who">
+													<span class="qa-q-view-who-pad">by </span>
+													<span class="qa-q-view-who-data"><span class="vcard author"><a href="../../user/nschloe" class="qa-user-link url nickname">nschloe</a></span></span>
+													<span class="qa-q-view-who-title">FEniCS User</span>
+													<span class="qa-q-view-who-points">
+														<span class="qa-q-view-who-points-pad">(</span><span class="qa-q-view-who-points-data">7,120</span><span class="qa-q-view-who-points-pad"> points)</span>
+													</span>
+												</span>
+												<br>
+												<span class="qa-q-view-what">edited</span>
+												<span class="qa-q-view-when">
+													<span class="qa-q-view-when-data"><span class="updated"><span class="value-title" title="2013-07-12T21:57:55+0000"></span>Jul 12, 2013</span></span>
+												</span>
+												<span class="qa-q-view-who">
+													<span class="qa-q-view-who-pad">by </span><span class="qa-q-view-who-data"><a href="../../user/nschloe" class="qa-user-link url nickname">nschloe</a></span>
+												</span>
+											</span>
+										</span>
+										<div class="qa-q-view-buttons">
+										</div>
+										
+										<div class="qa-q-view-c-list" id="c544_list">
+											<div class="qa-c-list-item  hentry comment" id="c548">
+												<div class="qa-c-item-content">
+													<a name="548"></a><div class="entry-content"><p>This error message</p>
+
+<pre><code>*** Error:   Unable to set given rows to identity matrix.
+*** Reason:  some diagonal elements not preallocated (try assembler option keep_diagonal).
+*** Where:   This error was encountered inside PETScMatrix.cpp.
+</code></pre>
+
+<p>actually means PETSc error: object in wrong state. But due to its common cause it is translated into <code>some diagonal elements not preallocated</code> for DOLFIN user.</p>
+</div>
+												</div>
+												<div class="qa-c-item-footer">
+													<span class="qa-c-item-avatar-meta">
+														<span class="qa-c-item-avatar">
+															<a href="../../user/Jan+Blechta" class="qa-avatar-link"><img src="https://www.gravatar.com/avatar/dc6f8dce77e4a0bd5adc7ff31ab83741?s=20" width="20" height="20" class="qa-avatar-image" alt=""></a>
+														</span>
+														<span class="qa-c-item-meta">
+															<a href="../../544/solving-pde-on-submesh?show=548#c548" class="qa-c-item-what">commented</a>
+															<span class="qa-c-item-when">
+																<span class="qa-c-item-when-data"><span class="published"><span class="value-title" title="2013-07-12T22:06:55+0000"></span>Jul 13, 2013</span></span>
+															</span>
+															<span class="qa-c-item-who">
+																<span class="qa-c-item-who-pad">by </span>
+																<span class="qa-c-item-who-data"><span class="vcard author"><a href="../../user/Jan+Blechta" class="qa-user-link url nickname">Jan Blechta</a></span></span>
+																<span class="qa-c-item-who-title">FEniCS Expert</span>
+																<span class="qa-c-item-who-points">
+																	<span class="qa-c-item-who-points-pad">(</span><span class="qa-c-item-who-points-data">51,420</span><span class="qa-c-item-who-points-pad"> points)</span>
+																</span>
+															</span>
+														</span>
+													</span>
+													<div class="qa-c-item-buttons">
+													</div>
+												</div>
+												<div class="qa-c-item-clear">
+												</div>
+											</div> <!-- END qa-c-item -->
+											<div class="qa-c-list-item  hentry comment" id="c549">
+												<div class="qa-c-item-content">
+													<a name="549"></a><div class="entry-content"><p>Both code gives assertion fail</p>
+
+<pre><code>*** Error:   Unable to complete call to function operator[]().
+*** Reason:  Assertion &amp;entity.mesh() == _mesh.get() failed.
+*** Where:   This error was encountered inside /usr/users/blechta/fenics/fenics/src/dolfin/dolfin/mesh/MeshFunction.h (line 686).
+</code></pre>
+
+<p>on line <code>solve(a == L, ...)</code>. What about <code>dx</code> measure defined on another mesh?</p>
+</div>
+												</div>
+												<div class="qa-c-item-footer">
+													<span class="qa-c-item-avatar-meta">
+														<span class="qa-c-item-avatar">
+															<a href="../../user/Jan+Blechta" class="qa-avatar-link"><img src="https://www.gravatar.com/avatar/dc6f8dce77e4a0bd5adc7ff31ab83741?s=20" width="20" height="20" class="qa-avatar-image" alt=""></a>
+														</span>
+														<span class="qa-c-item-meta">
+															<a href="../../544/solving-pde-on-submesh?show=549#c549" class="qa-c-item-what">commented</a>
+															<span class="qa-c-item-when">
+																<span class="qa-c-item-when-data"><span class="published"><span class="value-title" title="2013-07-12T22:14:38+0000"></span>Jul 13, 2013</span></span>
+															</span>
+															<span class="qa-c-item-who">
+																<span class="qa-c-item-who-pad">by </span>
+																<span class="qa-c-item-who-data"><span class="vcard author"><a href="../../user/Jan+Blechta" class="qa-user-link url nickname">Jan Blechta</a></span></span>
+																<span class="qa-c-item-who-title">FEniCS Expert</span>
+																<span class="qa-c-item-who-points">
+																	<span class="qa-c-item-who-points-pad">(</span><span class="qa-c-item-who-points-data">51,420</span><span class="qa-c-item-who-points-pad"> points)</span>
+																</span>
+															</span>
+														</span>
+													</span>
+													<div class="qa-c-item-buttons">
+													</div>
+												</div>
+												<div class="qa-c-item-clear">
+												</div>
+											</div> <!-- END qa-c-item -->
+											<div class="qa-c-list-item  hentry comment" id="c550">
+												<div class="qa-c-item-content">
+													<a name="550"></a><div class="entry-content"><p>Funny; I don't get this error message for either the codes, neither in 1.2.0 nor in the latest dev.<br>
+I'm not sure what should be wrong with <code>dx(1)</code>. -- It's created as <code>Measure('dx')[subdomains]</code>, and the subdomain with index 1 is <code>omegaL</code>.</p>
+</div>
+												</div>
+												<div class="qa-c-item-footer">
+													<span class="qa-c-item-avatar-meta">
+														<span class="qa-c-item-avatar">
+															<a href="../../user/nschloe" class="qa-avatar-link"><img src="https://www.gravatar.com/avatar/500a1e2e864ae08f386afde2cd21add0?s=20" width="20" height="20" class="qa-avatar-image" alt=""></a>
+														</span>
+														<span class="qa-c-item-meta">
+															<a href="../../544/solving-pde-on-submesh?show=550#c550" class="qa-c-item-what">commented</a>
+															<span class="qa-c-item-when">
+																<span class="qa-c-item-when-data"><span class="published"><span class="value-title" title="2013-07-12T23:22:25+0000"></span>Jul 13, 2013</span></span>
+															</span>
+															<span class="qa-c-item-who">
+																<span class="qa-c-item-who-pad">by </span>
+																<span class="qa-c-item-who-data"><span class="vcard author"><a href="../../user/nschloe" class="qa-user-link url nickname">nschloe</a></span></span>
+																<span class="qa-c-item-who-title">FEniCS User</span>
+																<span class="qa-c-item-who-points">
+																	<span class="qa-c-item-who-points-pad">(</span><span class="qa-c-item-who-points-data">7,120</span><span class="qa-c-item-who-points-pad"> points)</span>
+																</span>
+															</span>
+														</span>
+													</span>
+													<div class="qa-c-item-buttons">
+													</div>
+												</div>
+												<div class="qa-c-item-clear">
+												</div>
+											</div> <!-- END qa-c-item -->
+											<div class="qa-c-list-item  hentry comment" id="c553">
+												<div class="qa-c-item-content">
+													<a name="553"></a><div class="entry-content"><p>That's probably because my DOLFIN is compiled with <code>CMAKE_BUILD_TYPE:STRING=Developer</code> and yours is with <code>RelWithDebInfo</code> or <code>Release</code>. Hence you have turned off <code>dolfin_assert</code> checks.</p>
+
+<p>Rest in my answer.</p>
+</div>
+												</div>
+												<div class="qa-c-item-footer">
+													<span class="qa-c-item-avatar-meta">
+														<span class="qa-c-item-avatar">
+															<a href="../../user/Jan+Blechta" class="qa-avatar-link"><img src="https://www.gravatar.com/avatar/dc6f8dce77e4a0bd5adc7ff31ab83741?s=20" width="20" height="20" class="qa-avatar-image" alt=""></a>
+														</span>
+														<span class="qa-c-item-meta">
+															<a href="../../544/solving-pde-on-submesh?show=553#c553" class="qa-c-item-what">commented</a>
+															<span class="qa-c-item-when">
+																<span class="qa-c-item-when-data"><span class="published"><span class="value-title" title="2013-07-13T00:22:08+0000"></span>Jul 13, 2013</span></span>
+															</span>
+															<span class="qa-c-item-who">
+																<span class="qa-c-item-who-pad">by </span>
+																<span class="qa-c-item-who-data"><span class="vcard author"><a href="../../user/Jan+Blechta" class="qa-user-link url nickname">Jan Blechta</a></span></span>
+																<span class="qa-c-item-who-title">FEniCS Expert</span>
+																<span class="qa-c-item-who-points">
+																	<span class="qa-c-item-who-points-pad">(</span><span class="qa-c-item-who-points-data">51,420</span><span class="qa-c-item-who-points-pad"> points)</span>
+																</span>
+															</span>
+														</span>
+													</span>
+													<div class="qa-c-item-buttons">
+													</div>
+												</div>
+												<div class="qa-c-item-clear">
+												</div>
+											</div> <!-- END qa-c-item -->
+										</div> <!-- END qa-c-list -->
+										
+										<input type="hidden" name="code" value="0-1516468028-f5d2f9d2a9c31e08887916ee26a07dcfb5d115cf">
+										<input type="hidden" name="qa_click" value="">
+									</form>
+									<div class="qa-c-form">
+									</div> <!-- END qa-c-form -->
+									
+								</div> <!-- END qa-q-view-main -->
+								<div class="qa-q-view-clear">
+								</div>
+							</div> <!-- END qa-q-view -->
+							
+						</div>
+						<div class="qa-part-a-list">
+							<h2 id="a_list_title">1 Answer</h2>
+							<div class="qa-a-list" id="a_list">
+								
+								<div class="qa-a-list-item  hentry answer answer-selected qa-a-list-item-selected" id="a552">
+									<form method="post" action="../../544/solving-pde-on-submesh">
+										<div class="qa-voting qa-voting-net" id="voting_552">
+											<div class="qa-vote-count qa-vote-count-net">
+												<span class="qa-netvote-count">
+													<span class="qa-netvote-count-data">+3<span class="votes-up"><span class="value-title" title="3"></span></span><span class="votes-down"><span class="value-title" title="0"></span></span></span><span class="qa-netvote-count-pad"> votes</span>
+												</span>
+											</div>
+											<div class="qa-vote-clear">
+											</div>
+										</div>
+										<input type="hidden" name="code" value="0-1516468028-8ae8e292f36b124e65120333bdc6617870352a28">
+									</form>
+									<div class="qa-a-item-main">
+										<form method="post" action="../../544/solving-pde-on-submesh">
+											<div class="qa-a-item-selected">
+												<div class="qa-a-selection">
+													<div class="qa-a-selected">&#160;</div>
+													<div class="qa-a-selected-text">Best answer</div>
+												</div>
+												<div class="qa-a-item-content">
+													<a name="552"></a><div class="entry-content"><p>Problem is that your measure <code>dx</code> holds different mesh than your form function space and cell indices does not match. With assertion checks turned off in DOLFIN this is not checked. Just try defining your measure <code>dx</code> using <code>CellFunction</code> on correct mesh <code>submesh_omegaL</code>. </p>
+
+<p>This is quite dangerous and should be reported as a bug as wrong user code passed in one your case without error but computing non-sense.</p>
+</div>
+												</div>
+												<span class="qa-a-item-avatar-meta">
+													<span class="qa-a-item-avatar">
+														<a href="../../user/Jan+Blechta" class="qa-avatar-link"><img src="https://www.gravatar.com/avatar/dc6f8dce77e4a0bd5adc7ff31ab83741?s=40" width="40" height="40" class="qa-avatar-image" alt=""></a>
+													</span>
+													<span class="qa-a-item-meta">
+														<a href="../../544/solving-pde-on-submesh?show=552#a552" class="qa-a-item-what">answered</a>
+														<span class="qa-a-item-when">
+															<span class="qa-a-item-when-data"><span class="published"><span class="value-title" title="2013-07-13T00:19:45+0000"></span>Jul 13, 2013</span></span>
+														</span>
+														<span class="qa-a-item-who">
+															<span class="qa-a-item-who-pad">by </span>
+															<span class="qa-a-item-who-data"><span class="vcard author"><a href="../../user/Jan+Blechta" class="qa-user-link url nickname">Jan Blechta</a></span></span>
+															<span class="qa-a-item-who-title">FEniCS Expert</span>
+															<span class="qa-a-item-who-points">
+																<span class="qa-a-item-who-points-pad">(</span><span class="qa-a-item-who-points-data">51,420</span><span class="qa-a-item-who-points-pad"> points)</span>
+															</span>
+														</span>
+														<br>
+														<span class="qa-a-item-what">selected</span>
+														<span class="qa-a-item-when">
+															<span class="qa-a-item-when-data"><span class="updated"><span class="value-title" title="2013-07-13T05:24:28+0000"></span>Jul 13, 2013</span></span>
+														</span>
+														<span class="qa-a-item-who">
+															<span class="qa-a-item-who-pad">by </span><span class="qa-a-item-who-data"><a href="../../user/nschloe" class="qa-user-link url nickname">nschloe</a></span>
+														</span>
+													</span>
+												</span>
+											</div>
+											<div class="qa-a-item-buttons">
+												</div>
+											
+											<div class="qa-a-item-c-list" id="c552_list">
+												<div class="qa-c-list-item  hentry comment" id="c555">
+													<div class="qa-c-item-content">
+														<a name="555"></a><div class="entry-content"><p>Bug filed at <a rel="nofollow" href="https://bitbucket.org/fenics-project/dolfin/issue/88/solving-on-submesh-may-lead-to-wrong">https://bitbucket.org/fenics-project/dolfin/issue/88/solving-on-submesh-may-lead-to-wrong</a>.</p>
+</div>
+													</div>
+													<div class="qa-c-item-footer">
+														<span class="qa-c-item-avatar-meta">
+															<span class="qa-c-item-avatar">
+																<a href="../../user/nschloe" class="qa-avatar-link"><img src="https://www.gravatar.com/avatar/500a1e2e864ae08f386afde2cd21add0?s=20" width="20" height="20" class="qa-avatar-image" alt=""></a>
+															</span>
+															<span class="qa-c-item-meta">
+																<a href="../../544/solving-pde-on-submesh?show=555#c555" class="qa-c-item-what">commented</a>
+																<span class="qa-c-item-when">
+																	<span class="qa-c-item-when-data"><span class="published"><span class="value-title" title="2013-07-13T01:03:17+0000"></span>Jul 13, 2013</span></span>
+																</span>
+																<span class="qa-c-item-who">
+																	<span class="qa-c-item-who-pad">by </span>
+																	<span class="qa-c-item-who-data"><span class="vcard author"><a href="../../user/nschloe" class="qa-user-link url nickname">nschloe</a></span></span>
+																	<span class="qa-c-item-who-title">FEniCS User</span>
+																	<span class="qa-c-item-who-points">
+																		<span class="qa-c-item-who-points-pad">(</span><span class="qa-c-item-who-points-data">7,120</span><span class="qa-c-item-who-points-pad"> points)</span>
+																	</span>
+																</span>
+															</span>
+														</span>
+														<div class="qa-c-item-buttons">
+														</div>
+													</div>
+													<div class="qa-c-item-clear">
+													</div>
+												</div> <!-- END qa-c-item -->
+												<div class="qa-c-list-item  hentry comment" id="c556">
+													<div class="qa-c-item-content">
+														<a name="556"></a><div class="entry-content"><p>Using <code>dx_subdomain(0)</code> from</p>
+
+<pre><code>mydomains = CellFunction('size_t', submesh_omegaL)
+mydomains.set_all(0)
+dx_subdomain = Measure('dx')[mydomains]
+</code></pre>
+
+<p>doesn't help. -- The wrong behavior persists.</p>
+</div>
+													</div>
+													<div class="qa-c-item-footer">
+														<span class="qa-c-item-avatar-meta">
+															<span class="qa-c-item-avatar">
+																<a href="../../user/nschloe" class="qa-avatar-link"><img src="https://www.gravatar.com/avatar/500a1e2e864ae08f386afde2cd21add0?s=20" width="20" height="20" class="qa-avatar-image" alt=""></a>
+															</span>
+															<span class="qa-c-item-meta">
+																<a href="../../544/solving-pde-on-submesh?show=556#c556" class="qa-c-item-what">commented</a>
+																<span class="qa-c-item-when">
+																	<span class="qa-c-item-when-data"><span class="published"><span class="value-title" title="2013-07-13T01:05:55+0000"></span>Jul 13, 2013</span></span>
+																</span>
+																<span class="qa-c-item-who">
+																	<span class="qa-c-item-who-pad">by </span>
+																	<span class="qa-c-item-who-data"><span class="vcard author"><a href="../../user/nschloe" class="qa-user-link url nickname">nschloe</a></span></span>
+																	<span class="qa-c-item-who-title">FEniCS User</span>
+																	<span class="qa-c-item-who-points">
+																		<span class="qa-c-item-who-points-pad">(</span><span class="qa-c-item-who-points-data">7,120</span><span class="qa-c-item-who-points-pad"> points)</span>
+																	</span>
+																</span>
+															</span>
+														</span>
+														<div class="qa-c-item-buttons">
+														</div>
+													</div>
+													<div class="qa-c-item-clear">
+													</div>
+												</div> <!-- END qa-c-item -->
+												<div class="qa-c-list-item  hentry comment" id="c557">
+													<div class="qa-c-item-content">
+														<a name="557"></a><div class="entry-content"><p>Are you sure? For me both codes with <code>dx_subdomain(0)</code> in place of <code>dx(1)</code> yields constant solution <code>sol==0.421</code> which is correct.</p>
+
+<p>Both solutions also looks reasonable for <code>f = Constant(1.0)</code> and fulfills all the BCs. In particular <code>u-u0==0.5</code> on Robin boundary as required by necessary condition for Neumann problem.</p>
+</div>
+													</div>
+													<div class="qa-c-item-footer">
+														<span class="qa-c-item-avatar-meta">
+															<span class="qa-c-item-avatar">
+																<a href="../../user/Jan+Blechta" class="qa-avatar-link"><img src="https://www.gravatar.com/avatar/dc6f8dce77e4a0bd5adc7ff31ab83741?s=20" width="20" height="20" class="qa-avatar-image" alt=""></a>
+															</span>
+															<span class="qa-c-item-meta">
+																<a href="../../544/solving-pde-on-submesh?show=557#c557" class="qa-c-item-what">commented</a>
+																<span class="qa-c-item-when">
+																	<span class="qa-c-item-when-data"><span class="published"><span class="value-title" title="2013-07-13T01:25:57+0000"></span>Jul 13, 2013</span></span>
+																</span>
+																<span class="qa-c-item-who">
+																	<span class="qa-c-item-who-pad">by </span>
+																	<span class="qa-c-item-who-data"><span class="vcard author"><a href="../../user/Jan+Blechta" class="qa-user-link url nickname">Jan Blechta</a></span></span>
+																	<span class="qa-c-item-who-title">FEniCS Expert</span>
+																	<span class="qa-c-item-who-points">
+																		<span class="qa-c-item-who-points-pad">(</span><span class="qa-c-item-who-points-data">51,420</span><span class="qa-c-item-who-points-pad"> points)</span>
+																	</span>
+																</span>
+																<br>
+																<span class="qa-c-item-what">edited</span>
+																<span class="qa-c-item-when">
+																	<span class="qa-c-item-when-data"><span class="updated"><span class="value-title" title="2013-07-13T01:35:22+0000"></span>Jul 13, 2013</span></span>
+																</span>
+																<span class="qa-c-item-who">
+																	<span class="qa-c-item-who-pad">by </span><span class="qa-c-item-who-data"><a href="../../user/Jan+Blechta" class="qa-user-link url nickname">Jan Blechta</a></span>
+																</span>
+															</span>
+														</span>
+														<div class="qa-c-item-buttons">
+														</div>
+													</div>
+													<div class="qa-c-item-clear">
+													</div>
+												</div> <!-- END qa-c-item -->
+												<div class="qa-c-list-item  hentry comment" id="c558">
+													<div class="qa-c-item-content">
+														<a name="558"></a><div class="entry-content"><p>It works now, thanks.</p>
+</div>
+													</div>
+													<div class="qa-c-item-footer">
+														<span class="qa-c-item-avatar-meta">
+															<span class="qa-c-item-avatar">
+																<a href="../../user/nschloe" class="qa-avatar-link"><img src="https://www.gravatar.com/avatar/500a1e2e864ae08f386afde2cd21add0?s=20" width="20" height="20" class="qa-avatar-image" alt=""></a>
+															</span>
+															<span class="qa-c-item-meta">
+																<a href="../../544/solving-pde-on-submesh?show=558#c558" class="qa-c-item-what">commented</a>
+																<span class="qa-c-item-when">
+																	<span class="qa-c-item-when-data"><span class="published"><span class="value-title" title="2013-07-13T05:25:16+0000"></span>Jul 13, 2013</span></span>
+																</span>
+																<span class="qa-c-item-who">
+																	<span class="qa-c-item-who-pad">by </span>
+																	<span class="qa-c-item-who-data"><span class="vcard author"><a href="../../user/nschloe" class="qa-user-link url nickname">nschloe</a></span></span>
+																	<span class="qa-c-item-who-title">FEniCS User</span>
+																	<span class="qa-c-item-who-points">
+																		<span class="qa-c-item-who-points-pad">(</span><span class="qa-c-item-who-points-data">7,120</span><span class="qa-c-item-who-points-pad"> points)</span>
+																	</span>
+																</span>
+															</span>
+														</span>
+														<div class="qa-c-item-buttons">
+														</div>
+													</div>
+													<div class="qa-c-item-clear">
+													</div>
+												</div> <!-- END qa-c-item -->
+											</div> <!-- END qa-c-list -->
+											
+											<input type="hidden" name="code" value="0-1516468028-317213704d894ade7648d4e9bd0fe9ff65884fc5">
+											<input type="hidden" name="qa_click" value="">
+										</form>
+										<div class="qa-c-form">
+										</div> <!-- END qa-c-form -->
+										
+									</div> <!-- END qa-a-item-main -->
+									<div class="qa-a-item-clear">
+									</div>
+								</div> <!-- END qa-a-list-item -->
+								
+							</div> <!-- END qa-a-list -->
+							
+						</div>
+					</div> <!-- END qa-main -->
+					
+				</div> <!-- END main-wrapper -->
+			</div> <!-- END main-shadow -->
+		</div> <!-- END body-wrapper -->
+		<!-- END footer-bottom-group -->
+		
+		<div style="position:absolute; left:-9999px; top:-9999px;">
+			<span id="qa-waiting-template" class="qa-waiting">...</span>
+		</div>
+	
+	
+
+</body><!-- Powered by Question2Answer - http://www.question2answer.org/ --></html>

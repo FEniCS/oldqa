@@ -1,0 +1,362 @@
+<html><!-- Powered by Question2Answer - http://www.question2answer.org/ --><head>
+		<meta http-equiv="content-type" content="text/html; charset=utf-8">
+		<title>Summation with dg - FEniCS Q&amp;A</title>
+		<meta name="description" content="Hi: I am trying to solve next problem: ![enter image description here][1] [1]: https://lh3. ... u,q) = w.leaf_node().split() # extract solutions">
+		<meta name="keywords" content="dg,convection-diffusion">
+		<link rel="stylesheet" type="text/css" href="../../qa-theme/Snow/qa-styles.css">
+		<link rel="canonical" href="http://fenicsproject.org/qa/9205/summation-with-dg">
+		<script type="text/x-mathjax-config">
+  MathJax.Hub.Config({
+    extensions: ["tex2jax.js"],
+    jax: ["input/TeX","output/HTML-CSS"],
+    tex2jax: {inlineMath: [["$","$"],["\\(","\\)"]]},
+    TeX: { extensions: ["AMSmath.js","AMSsymbols.js"]}
+  });
+</script>
+<script type="text/javascript" src="../../mathjax/MathJax.js"></script>
+		<script src="../../jquery-1.7.2.min.js" type="text/javascript"></script>
+		<script src="../../highlight.min.js"></script>
+<script type="text/javascript">
+$(function(){
+	$('.wmd-input').keypress(function(){
+		window.clearTimeout(hljs.Timeout);
+		hljs.Timeout = window.setTimeout(function() {
+			hljs.initHighlighting.called = false;
+			hljs.initHighlighting();
+		}, 500);
+	});
+	window.setTimeout(function() {
+		hljs.initHighlighting.called = false;
+		hljs.initHighlighting();
+	}, 500);
+});
+</script>
+
+
+	</head>
+	<body class="qa-template-question qa-body-js-off">
+		<div class="qa-body-wrapper">
+			
+			<div class="qa-header">
+				<div class="qa-logo">
+					<a href="../../" class="qa-logo-link" title="FEniCS Q&amp;A"><img src="../../qa-theme/fenics_qa.png" border="0" alt="FEniCS Q&amp;A"></a>
+				</div>
+				<div class="qa-header-clear">
+				</div>
+			</div> <!-- END qa-header -->
+			
+			<div class="qa-main-shadow">
+				
+				<div class="qa-main-wrapper">
+					
+					<div class="qa-sidepanel">
+						<div class="qa-sidebar">
+							This is a read only copy of the old FEniCS QA forum. Please visit the <a href="https://www.allanswered.com/community/s/fenics-project/">new QA forum</a> to ask questions
+						</div>
+						
+					</div>
+					
+					<div class="qa-main">
+						<h1>
+							<span class="entry-title">Summation with dg</span>
+						</h1>
+						<div class="qa-part-q-view">
+							<div class="qa-q-view  hentry question" id="q9205">
+								<form method="post" action="../../9205/summation-with-dg">
+									<div class="qa-q-view-stats">
+										<div class="qa-voting qa-voting-net" id="voting_9205">
+											<div class="qa-vote-count qa-vote-count-net">
+												<span class="qa-netvote-count">
+													<span class="qa-netvote-count-data">0<span class="votes-up"><span class="value-title" title="0"></span></span><span class="votes-down"><span class="value-title" title="0"></span></span></span><span class="qa-netvote-count-pad"> votes</span>
+												</span>
+											</div>
+											<div class="qa-vote-clear">
+											</div>
+										</div>
+									</div>
+									<input type="hidden" name="code" value="0-1516468212-1e48fd4d1f0b3baa593ee88eaa4c457ad79b3a9a">
+								</form>
+								<div class="qa-q-view-main">
+									<form method="post" action="../../9205/summation-with-dg">
+										<div class="qa-q-view-content">
+											<a name="9205"></a><div class="entry-content"><p>Hi:<br>
+I am trying to solve next problem:</p>
+
+<p><img src="https://lh3.googleusercontent.com/-87K3fttQTUw/VrKEGYgBV3I/AAAAAAAAA9Y/7rVOnt6nYqs/s800-Ic42/question1.png" alt="enter image description here"></p>
+
+<p>in fact I add the equations in unique equation. I don't get the 4 summations following the idea come from previous question Using non-integral in variational formulation<br>
+ I introduce  c * inner(I, V) * dx where c = Constant(1.0 / assemble(1.0 * dx(mesh))).<br>
+How do I write the summations into the code?<br>
+Adjoint the code. I'm sorry the length one. <br>
+Thanks.<br>
+Jesus</p>
+
+<pre><code># DG 1D using Cockburn 
+
+from dolfin import *
+import sys, numpy
+
+mesh = UnitIntervalMesh(4)    # Define function spaces
+V0 = FunctionSpace(mesh, "DG", 2)
+W = MixedFunctionSpace([V0, V0])
+
+
+tol = DOLFIN_EPS       # Define boundary conditions
+def left_boundary(x, on_boundary):
+    return on_boundary and abs(x[0]) &lt; tol
+
+def right_boundary(x, on_boundary):
+    return on_boundary and abs(x[0]-1.0) &lt; tol
+Gamma_0 = DirichletBC(W.sub(0), Constant(2.0), left_boundary)
+Gamma_1 = DirichletBC(W.sub(0), Constant(1.0), right_boundary)
+bcs = [Gamma_0, Gamma_1]
+
+(u,q) = TrialFunctions(W)
+(vu,vq) = TestFunctions(W)
+w = Function(W)
+u, q = (w[0],w[1])
+
+alfa = 0.00001          # Define parameters
+beta = alfa
+auxv = as_vector((1.0, 1.0))
+
+h = Expression('2.0 -x[0] ') 
+h2 = Expression('(2.0 -x[0])*(2.0 -x[0]) ')
+h3 = Expression('(2.0 -x[0])*(2.0 -x[0])*(2.0 -x[0])')
+hdx = Expression('-1.0 ')
+
+auxu   = alfa + beta*u
+aux1  = sqrt(h*(alfa + beta*u))
+aux2 = sqrt(h*alfa)
+hu = u*(1.0-alfa) - beta*u*u - q*aux1
+hq = (-2.0/(3*sqrt(beta*h)))*(aux1*aux1*aux1 - aux2*aux2*aux2)
+
+c = Constant(1.0 / assemble(1.0 * dx(mesh)))
+
+f = Constant(0.0)
+L =  f*vq*dx
+a = -inner(hu,vu.dx(0))*dx
+b =  inner(q,vq)*dx - inner(hq,vq.dx(0))*dx 
+F =  a + b - L
+
+J = derivative(F,w)
+problem = NonlinearVariationalProblem(F,w,bcs=bcs,J=J)
+solver = NonlinearVariationalSolver(problem)
+solver.solve()
+
+(u,q) = w.leaf_node().split()  # extract solutions
+</code></pre>
+</div>
+										</div>
+										<div class="qa-q-view-tags">
+											<ul class="qa-q-view-tag-list">
+												<li class="qa-q-view-tag-item"><a href="../../tag/dg" rel="tag" class="qa-tag-link">dg</a></li>
+												<li class="qa-q-view-tag-item"><a href="../../tag/convection-diffusion" rel="tag" class="qa-tag-link">convection-diffusion</a></li>
+											</ul>
+										</div>
+										<span class="qa-q-view-avatar-meta">
+											<span class="qa-q-view-meta">
+												<a href="../../9205/summation-with-dg" class="qa-q-view-what">asked</a>
+												<span class="qa-q-view-when">
+													<span class="qa-q-view-when-data"><span class="published"><span class="value-title" title="2016-02-04T10:10:35+0000"></span>Feb 4, 2016</span></span>
+												</span>
+												<span class="qa-q-view-who">
+													<span class="qa-q-view-who-pad">by </span>
+													<span class="qa-q-view-who-data"><span class="vcard author"><a href="../../user/jesus" class="qa-user-link url nickname">jesus</a></span></span>
+													<span class="qa-q-view-who-title">FEniCS Novice</span>
+													<span class="qa-q-view-who-points">
+														<span class="qa-q-view-who-points-pad">(</span><span class="qa-q-view-who-points-data">300</span><span class="qa-q-view-who-points-pad"> points)</span>
+													</span>
+												</span>
+											</span>
+										</span>
+										<div class="qa-q-view-buttons">
+										</div>
+										
+										<div class="qa-q-view-c-list" id="c9205_list">
+											<div class="qa-c-list-item  hentry comment" id="c9390">
+												<div class="qa-c-item-content">
+													<a name="9390"></a><div class="entry-content"><p>Try posing a more focussed question. You'll be more likely to get an answer.</p>
+</div>
+												</div>
+												<div class="qa-c-item-footer">
+													<span class="qa-c-item-avatar-meta">
+														<span class="qa-c-item-meta">
+															<a href="../../9205/summation-with-dg?show=9390#c9390" class="qa-c-item-what">commented</a>
+															<span class="qa-c-item-when">
+																<span class="qa-c-item-when-data"><span class="published"><span class="value-title" title="2016-02-23T10:59:49+0000"></span>Feb 23, 2016</span></span>
+															</span>
+															<span class="qa-c-item-who">
+																<span class="qa-c-item-who-pad">by </span>
+																<span class="qa-c-item-who-data"><span class="vcard author"><a href="../../user/Garth+N.+Wells" class="qa-user-link url nickname">Garth N. Wells</a></span></span>
+																<span class="qa-c-item-who-title">FEniCS Expert</span>
+																<span class="qa-c-item-who-points">
+																	<span class="qa-c-item-who-points-pad">(</span><span class="qa-c-item-who-points-data">35,930</span><span class="qa-c-item-who-points-pad"> points)</span>
+																</span>
+															</span>
+														</span>
+													</span>
+													<div class="qa-c-item-buttons">
+													</div>
+												</div>
+												<div class="qa-c-item-clear">
+												</div>
+											</div> <!-- END qa-c-item -->
+											<div class="qa-c-list-item  hentry comment" id="c9398">
+												<div class="qa-c-item-content">
+													<a name="9398"></a><div class="entry-content"><p>Hi!<br>
+for the first summation I've written into the code<br>
+    c * inner(hu, vu('-')) * dx<br>
+the other summations are similiar.<br>
+I think is solved my question.<br>
+Thanks</p>
+</div>
+												</div>
+												<div class="qa-c-item-footer">
+													<span class="qa-c-item-avatar-meta">
+														<span class="qa-c-item-meta">
+															<a href="../../9205/summation-with-dg?show=9398#c9398" class="qa-c-item-what">commented</a>
+															<span class="qa-c-item-when">
+																<span class="qa-c-item-when-data"><span class="published"><span class="value-title" title="2016-02-23T11:19:28+0000"></span>Feb 23, 2016</span></span>
+															</span>
+															<span class="qa-c-item-who">
+																<span class="qa-c-item-who-pad">by </span>
+																<span class="qa-c-item-who-data"><span class="vcard author"><a href="../../user/jesus" class="qa-user-link url nickname">jesus</a></span></span>
+																<span class="qa-c-item-who-title">FEniCS Novice</span>
+																<span class="qa-c-item-who-points">
+																	<span class="qa-c-item-who-points-pad">(</span><span class="qa-c-item-who-points-data">300</span><span class="qa-c-item-who-points-pad"> points)</span>
+																</span>
+															</span>
+														</span>
+													</span>
+													<div class="qa-c-item-buttons">
+													</div>
+												</div>
+												<div class="qa-c-item-clear">
+												</div>
+											</div> <!-- END qa-c-item -->
+											<div class="qa-c-list-item  hentry comment" id="c9399">
+												<div class="qa-c-item-content">
+													<a name="9399"></a><div class="entry-content"><p>Please post you comment as an 'answer' to close off the question.</p>
+</div>
+												</div>
+												<div class="qa-c-item-footer">
+													<span class="qa-c-item-avatar-meta">
+														<span class="qa-c-item-meta">
+															<a href="../../9205/summation-with-dg?show=9399#c9399" class="qa-c-item-what">commented</a>
+															<span class="qa-c-item-when">
+																<span class="qa-c-item-when-data"><span class="published"><span class="value-title" title="2016-02-23T11:20:55+0000"></span>Feb 23, 2016</span></span>
+															</span>
+															<span class="qa-c-item-who">
+																<span class="qa-c-item-who-pad">by </span>
+																<span class="qa-c-item-who-data"><span class="vcard author"><a href="../../user/Garth+N.+Wells" class="qa-user-link url nickname">Garth N. Wells</a></span></span>
+																<span class="qa-c-item-who-title">FEniCS Expert</span>
+																<span class="qa-c-item-who-points">
+																	<span class="qa-c-item-who-points-pad">(</span><span class="qa-c-item-who-points-data">35,930</span><span class="qa-c-item-who-points-pad"> points)</span>
+																</span>
+															</span>
+														</span>
+													</span>
+													<div class="qa-c-item-buttons">
+													</div>
+												</div>
+												<div class="qa-c-item-clear">
+												</div>
+											</div> <!-- END qa-c-item -->
+										</div> <!-- END qa-c-list -->
+										
+										<input type="hidden" name="code" value="0-1516468212-bac14f8ad6d77b3edc293daa5ea6a2a118b8dd00">
+										<input type="hidden" name="qa_click" value="">
+									</form>
+									<div class="qa-c-form">
+									</div> <!-- END qa-c-form -->
+									
+								</div> <!-- END qa-q-view-main -->
+								<div class="qa-q-view-clear">
+								</div>
+							</div> <!-- END qa-q-view -->
+							
+						</div>
+						<div class="qa-part-a-list">
+							<h2 id="a_list_title">1 Answer</h2>
+							<div class="qa-a-list" id="a_list">
+								
+								<div class="qa-a-list-item  hentry answer" id="a9403">
+									<form method="post" action="../../9205/summation-with-dg">
+										<div class="qa-voting qa-voting-net" id="voting_9403">
+											<div class="qa-vote-count qa-vote-count-net">
+												<span class="qa-netvote-count">
+													<span class="qa-netvote-count-data">0<span class="votes-up"><span class="value-title" title="0"></span></span><span class="votes-down"><span class="value-title" title="0"></span></span></span><span class="qa-netvote-count-pad"> votes</span>
+												</span>
+											</div>
+											<div class="qa-vote-clear">
+											</div>
+										</div>
+										<input type="hidden" name="code" value="0-1516468212-1e48fd4d1f0b3baa593ee88eaa4c457ad79b3a9a">
+									</form>
+									<div class="qa-a-item-main">
+										<form method="post" action="../../9205/summation-with-dg">
+											<div class="qa-a-selection">
+											</div>
+											<div class="qa-a-item-content">
+												<a name="9403"></a><div class="entry-content"><p>Hi!<br>
+for the first summation I've written into the code</p>
+
+<pre><code>c * inner(hu, vu('-')) * dx
+</code></pre>
+
+<p>the other summations are similiar.<br>
+I think is solved my question.<br>
+Thanks</p>
+</div>
+											</div>
+											<span class="qa-a-item-avatar-meta">
+												<span class="qa-a-item-meta">
+													<a href="../../9205/summation-with-dg?show=9403#a9403" class="qa-a-item-what">answered</a>
+													<span class="qa-a-item-when">
+														<span class="qa-a-item-when-data"><span class="published"><span class="value-title" title="2016-02-23T12:57:17+0000"></span>Feb 23, 2016</span></span>
+													</span>
+													<span class="qa-a-item-who">
+														<span class="qa-a-item-who-pad">by </span>
+														<span class="qa-a-item-who-data"><span class="vcard author"><a href="../../user/jesus" class="qa-user-link url nickname">jesus</a></span></span>
+														<span class="qa-a-item-who-title">FEniCS Novice</span>
+														<span class="qa-a-item-who-points">
+															<span class="qa-a-item-who-points-pad">(</span><span class="qa-a-item-who-points-data">300</span><span class="qa-a-item-who-points-pad"> points)</span>
+														</span>
+													</span>
+												</span>
+											</span>
+											<div class="qa-a-item-buttons">
+												</div>
+											
+											<div class="qa-a-item-c-list" style="display:none;" id="c9403_list">
+											</div> <!-- END qa-c-list -->
+											
+											<input type="hidden" name="code" value="0-1516468212-51bc2fed156e9bafba2b00d14ffe56f2eb64f687">
+											<input type="hidden" name="qa_click" value="">
+										</form>
+										<div class="qa-c-form">
+										</div> <!-- END qa-c-form -->
+										
+									</div> <!-- END qa-a-item-main -->
+									<div class="qa-a-item-clear">
+									</div>
+								</div> <!-- END qa-a-list-item -->
+								
+							</div> <!-- END qa-a-list -->
+							
+						</div>
+					</div> <!-- END qa-main -->
+					
+				</div> <!-- END main-wrapper -->
+			</div> <!-- END main-shadow -->
+		</div> <!-- END body-wrapper -->
+		<!-- END footer-bottom-group -->
+		
+		<div style="position:absolute; left:-9999px; top:-9999px;">
+			<span id="qa-waiting-template" class="qa-waiting">...</span>
+		</div>
+	
+	
+
+</body><!-- Powered by Question2Answer - http://www.question2answer.org/ --></html>

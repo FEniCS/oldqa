@@ -1,0 +1,329 @@
+<html><!-- Powered by Question2Answer - http://www.question2answer.org/ --><head>
+		<meta http-equiv="content-type" content="text/html; charset=utf-8">
+		<title>Solve Poisson with discontinuous Galerkin (DG=0) - FEniCS Q&amp;A</title>
+		<meta name="description" content="Hi, I try to solve Poisson equation with Dirichlet boundary conditions and discontinuous Galerkin  ... # Plot solution plot(u, interactive=True)">
+		<meta name="keywords" content="discontinuous-galerkin,galerkin,poisson">
+		<link rel="stylesheet" type="text/css" href="../../qa-theme/Snow/qa-styles.css">
+		<link rel="canonical" href="http://fenicsproject.org/qa/13192/solve-poisson-with-discontinuous-galerkin-dg-0">
+		<script type="text/x-mathjax-config">
+  MathJax.Hub.Config({
+    extensions: ["tex2jax.js"],
+    jax: ["input/TeX","output/HTML-CSS"],
+    tex2jax: {inlineMath: [["$","$"],["\\(","\\)"]]},
+    TeX: { extensions: ["AMSmath.js","AMSsymbols.js"]}
+  });
+</script>
+<script type="text/javascript" src="../../mathjax/MathJax.js"></script>
+		<script src="../../jquery-1.7.2.min.js" type="text/javascript"></script>
+		<script src="../../highlight.min.js"></script>
+<script type="text/javascript">
+$(function(){
+	$('.wmd-input').keypress(function(){
+		window.clearTimeout(hljs.Timeout);
+		hljs.Timeout = window.setTimeout(function() {
+			hljs.initHighlighting.called = false;
+			hljs.initHighlighting();
+		}, 500);
+	});
+	window.setTimeout(function() {
+		hljs.initHighlighting.called = false;
+		hljs.initHighlighting();
+	}, 500);
+});
+</script>
+
+
+	</head>
+	<body class="qa-template-question qa-body-js-off">
+		<div class="qa-body-wrapper">
+			
+			<div class="qa-header">
+				<div class="qa-logo">
+					<a href="../../" class="qa-logo-link" title="FEniCS Q&amp;A"><img src="../../qa-theme/fenics_qa.png" border="0" alt="FEniCS Q&amp;A"></a>
+				</div>
+				<div class="qa-header-clear">
+				</div>
+			</div> <!-- END qa-header -->
+			
+			<div class="qa-main-shadow">
+				
+				<div class="qa-main-wrapper">
+					
+					<div class="qa-sidepanel">
+						<div class="qa-sidebar">
+							This is a read only copy of the old FEniCS QA forum. Please visit the <a href="https://www.allanswered.com/community/s/fenics-project/">new QA forum</a> to ask questions
+						</div>
+						
+					</div>
+					
+					<div class="qa-main">
+						<h1>
+							<span class="entry-title">Solve Poisson with discontinuous Galerkin (DG=0)</span>
+						</h1>
+						<div class="qa-part-q-view">
+							<div class="qa-q-view  hentry question" id="q13192">
+								<form method="post" action="../../13192/solve-poisson-with-discontinuous-galerkin-dg-0">
+									<div class="qa-q-view-stats">
+										<div class="qa-voting qa-voting-net" id="voting_13192">
+											<div class="qa-vote-count qa-vote-count-net">
+												<span class="qa-netvote-count">
+													<span class="qa-netvote-count-data">0<span class="votes-up"><span class="value-title" title="0"></span></span><span class="votes-down"><span class="value-title" title="0"></span></span></span><span class="qa-netvote-count-pad"> votes</span>
+												</span>
+											</div>
+											<div class="qa-vote-clear">
+											</div>
+										</div>
+									</div>
+									<input type="hidden" name="code" value="0-1516467856-0607553502d56ef1d7debf1923fb4ab0cca5c994">
+								</form>
+								<div class="qa-q-view-main">
+									<form method="post" action="../../13192/solve-poisson-with-discontinuous-galerkin-dg-0">
+										<div class="qa-q-view-content">
+											<a name="13192"></a><div class="entry-content"><p>Hi,<br>
+I try to solve Poisson equation with Dirichlet boundary conditions and  discontinuous Galerkin element (DG=0)<br>
+The BC are:x[0]=0 c=500 and x[0]=1 c=100.<br>
+There is no source term.</p>
+
+<p>I have used the demo_dg-poisson.py to start<br>
+<a rel="nofollow" href="https://github.com/FEniCS/dolfin/blob/master/demo/undocumented/dg-poisson/python/demo_dg-poisson.py">https://github.com/FEniCS/dolfin/blob/master/demo/undocumented/dg-poisson/python/demo_dg-poisson.py</a></p>
+
+<p>Here is my code (FEniCS 2016.1)</p>
+
+<p>When i plot the solution field at the end, the concentrations show a non-linear gradient i do not understand.<br>
+I guess the BC or the variational formulation are ill-posed.<br>
+If someone can help.</p>
+
+<p>Thanks.</p>
+
+<pre><code>from dolfin import *
+
+tolerance_boundary_location = DOLFIN_EPS*1000;
+class DirichletBoundary(SubDomain):
+  def inside(self, x, on_boundary):
+    return ( abs(x[0])  &lt; tolerance_boundary_location or abs(x[0]-1)  &lt; tolerance_boundary_location)
+
+# Create mesh and define function space
+mesh = UnitCubeMesh(10, 10, 10)
+V = FunctionSpace(mesh, 'DG', 0)
+
+# Define test and trial functions
+u = TrialFunction(V)
+v = TestFunction(V)
+
+# Define normal vector and mesh size
+n = FacetNormal(mesh)
+h = CellSize(mesh)
+h_avg = (h('+') + h('-'))/2
+
+# Define the source term f, Dirichlet term u0 and Neumann term g
+u0 = Expression('-400*x[0] + 500', degree=2)
+f = Constant(0)
+
+# Mark facets of the mesh
+boundaries = FacetFunction('size_t', mesh, 0)
+DirichletBoundary().mark(boundaries, 1)
+
+# Define outer surface measure aware of Dirichlet and Neumann boundaries
+ds = Measure('ds', domain=mesh, subdomain_data=boundaries)
+
+# Define parameters
+alpha = 4.0
+gamma = 8.0
+
+plot(boundaries, title='Dirichlet BC are applied here', interactive=True)
+
+# Define variational problem
+a = dot(grad(v), grad(u))*dx \
+   - dot(avg(grad(v)), jump(u, n))*dS \
+   - dot(jump(v, n), avg(grad(u)))*dS \
+   + alpha/h_avg*dot(jump(v, n), jump(u, n))*dS \
+   - dot(grad(v), u*n)*ds(1) \
+   - dot(v*n, grad(u))*ds(1) \
+   + (gamma/h)*v*u*ds(1)
+L = v*f*dx - u0*dot(grad(v), n)*ds(1) + (gamma/h)*u0*v*ds(1)
+
+# Compute solution
+u = Function(V)
+solve(a == L, u)
+
+# Plot solution
+plot(u, interactive=True)
+</code></pre>
+</div>
+										</div>
+										<div class="qa-q-view-tags">
+											<ul class="qa-q-view-tag-list">
+												<li class="qa-q-view-tag-item"><a href="../../tag/discontinuous-galerkin" rel="tag" class="qa-tag-link">discontinuous-galerkin</a></li>
+												<li class="qa-q-view-tag-item"><a href="../../tag/galerkin" rel="tag" class="qa-tag-link">galerkin</a></li>
+												<li class="qa-q-view-tag-item"><a href="../../tag/poisson" rel="tag" class="qa-tag-link">poisson</a></li>
+											</ul>
+										</div>
+										<span class="qa-q-view-avatar-meta">
+											<span class="qa-q-view-meta">
+												<a href="../../13192/solve-poisson-with-discontinuous-galerkin-dg-0" class="qa-q-view-what">asked</a>
+												<span class="qa-q-view-when">
+													<span class="qa-q-view-when-data"><span class="published"><span class="value-title" title="2017-04-24T18:37:19+0000"></span>Apr 24, 2017</span></span>
+												</span>
+												<span class="qa-q-view-who">
+													<span class="qa-q-view-who-pad">by </span>
+													<span class="qa-q-view-who-data"><span class="vcard author"><a href="../../user/fussegli" class="qa-user-link url nickname">fussegli</a></span></span>
+													<span class="qa-q-view-who-title">FEniCS Novice</span>
+													<span class="qa-q-view-who-points">
+														<span class="qa-q-view-who-points-pad">(</span><span class="qa-q-view-who-points-data">700</span><span class="qa-q-view-who-points-pad"> points)</span>
+													</span>
+												</span>
+											</span>
+										</span>
+										<div class="qa-q-view-buttons">
+										</div>
+										
+										<div class="qa-q-view-c-list" id="c13192_list">
+											<div class="qa-c-list-item  hentry comment" id="c13204">
+												<div class="qa-c-item-content">
+													<a name="13204"></a><div class="entry-content"><p>What do you exactly mean with the 'non-linear gradient' in the results for DG=0? I have run your results and except from the stepwise behavior of the solution (which you can't expect to be better when using DG=0 ), the solution looks fine.</p>
+</div>
+												</div>
+												<div class="qa-c-item-footer">
+													<span class="qa-c-item-avatar-meta">
+														<span class="qa-c-item-meta">
+															<a href="../../13192/solve-poisson-with-discontinuous-galerkin-dg-0?show=13204#c13204" class="qa-c-item-what">commented</a>
+															<span class="qa-c-item-when">
+																<span class="qa-c-item-when-data"><span class="published"><span class="value-title" title="2017-04-25T06:39:18+0000"></span>Apr 25, 2017</span></span>
+															</span>
+															<span class="qa-c-item-who">
+																<span class="qa-c-item-who-pad">by </span>
+																<span class="qa-c-item-who-data"><span class="vcard author"><a href="../../user/jmmal" class="qa-user-link url nickname">jmmal</a></span></span>
+																<span class="qa-c-item-who-title">FEniCS User</span>
+																<span class="qa-c-item-who-points">
+																	<span class="qa-c-item-who-points-pad">(</span><span class="qa-c-item-who-points-data">5,890</span><span class="qa-c-item-who-points-pad"> points)</span>
+																</span>
+															</span>
+														</span>
+													</span>
+													<div class="qa-c-item-buttons">
+													</div>
+												</div>
+												<div class="qa-c-item-clear">
+												</div>
+											</div> <!-- END qa-c-item -->
+											<div class="qa-c-list-item  hentry comment" id="c13218">
+												<div class="qa-c-item-content">
+													<a name="13218"></a><div class="entry-content"><p>You are right. I have re-tested the code after reading your message and the solution is linear. I must have modified something when i have edited this post that has corrected my initial error.<br>
+Well, glad it works!</p>
+</div>
+												</div>
+												<div class="qa-c-item-footer">
+													<span class="qa-c-item-avatar-meta">
+														<span class="qa-c-item-meta">
+															<a href="../../13192/solve-poisson-with-discontinuous-galerkin-dg-0?show=13218#c13218" class="qa-c-item-what">commented</a>
+															<span class="qa-c-item-when">
+																<span class="qa-c-item-when-data"><span class="published"><span class="value-title" title="2017-04-25T14:21:11+0000"></span>Apr 25, 2017</span></span>
+															</span>
+															<span class="qa-c-item-who">
+																<span class="qa-c-item-who-pad">by </span>
+																<span class="qa-c-item-who-data"><span class="vcard author"><a href="../../user/fussegli" class="qa-user-link url nickname">fussegli</a></span></span>
+																<span class="qa-c-item-who-title">FEniCS Novice</span>
+																<span class="qa-c-item-who-points">
+																	<span class="qa-c-item-who-points-pad">(</span><span class="qa-c-item-who-points-data">700</span><span class="qa-c-item-who-points-pad"> points)</span>
+																</span>
+															</span>
+														</span>
+													</span>
+													<div class="qa-c-item-buttons">
+													</div>
+												</div>
+												<div class="qa-c-item-clear">
+												</div>
+											</div> <!-- END qa-c-item -->
+											<div class="qa-c-list-item  hentry comment" id="c13391">
+												<div class="qa-c-item-content">
+													<a name="13391"></a><div class="entry-content"><p>Does it make sense to solve with DG0? The discretization of the elliptic operator will be zero:<br>
+dot(grad(v), grad(u))*dx = 0 The finite element space is not in H_1.</p>
+</div>
+												</div>
+												<div class="qa-c-item-footer">
+													<span class="qa-c-item-avatar-meta">
+														<span class="qa-c-item-meta">
+															<a href="../../13192/solve-poisson-with-discontinuous-galerkin-dg-0?show=13391#c13391" class="qa-c-item-what">commented</a>
+															<span class="qa-c-item-when">
+																<span class="qa-c-item-when-data"><span class="published"><span class="value-title" title="2017-05-09T17:15:03+0000"></span>May 9, 2017</span></span>
+															</span>
+															<span class="qa-c-item-who">
+																<span class="qa-c-item-who-pad">by </span>
+																<span class="qa-c-item-who-data"><span class="vcard author"><a href="../../user/miguelito" class="qa-user-link url nickname">miguelito</a></span></span>
+																<span class="qa-c-item-who-title">FEniCS Novice</span>
+																<span class="qa-c-item-who-points">
+																	<span class="qa-c-item-who-points-pad">(</span><span class="qa-c-item-who-points-data">760</span><span class="qa-c-item-who-points-pad"> points)</span>
+																</span>
+															</span>
+														</span>
+													</span>
+													<div class="qa-c-item-buttons">
+													</div>
+												</div>
+												<div class="qa-c-item-clear">
+												</div>
+											</div> <!-- END qa-c-item -->
+											<div class="qa-c-list-item  hentry comment" id="c13392">
+												<div class="qa-c-item-content">
+													<a name="13392"></a><div class="entry-content"><p>Hmm, motivation is (i) how to have a working code with DG and (ii) i am curious about the solution with a field constant element by element.</p>
+</div>
+												</div>
+												<div class="qa-c-item-footer">
+													<span class="qa-c-item-avatar-meta">
+														<span class="qa-c-item-meta">
+															<a href="../../13192/solve-poisson-with-discontinuous-galerkin-dg-0?show=13392#c13392" class="qa-c-item-what">commented</a>
+															<span class="qa-c-item-when">
+																<span class="qa-c-item-when-data"><span class="published"><span class="value-title" title="2017-05-09T17:42:03+0000"></span>May 9, 2017</span></span>
+															</span>
+															<span class="qa-c-item-who">
+																<span class="qa-c-item-who-pad">by </span>
+																<span class="qa-c-item-who-data"><span class="vcard author"><a href="../../user/fussegli" class="qa-user-link url nickname">fussegli</a></span></span>
+																<span class="qa-c-item-who-title">FEniCS Novice</span>
+																<span class="qa-c-item-who-points">
+																	<span class="qa-c-item-who-points-pad">(</span><span class="qa-c-item-who-points-data">700</span><span class="qa-c-item-who-points-pad"> points)</span>
+																</span>
+															</span>
+														</span>
+													</span>
+													<div class="qa-c-item-buttons">
+													</div>
+												</div>
+												<div class="qa-c-item-clear">
+												</div>
+											</div> <!-- END qa-c-item -->
+										</div> <!-- END qa-c-list -->
+										
+										<input type="hidden" name="code" value="0-1516467856-37f6abda887312c8d9d70cf01e92b2aca838139b">
+										<input type="hidden" name="qa_click" value="">
+									</form>
+									<div class="qa-c-form">
+									</div> <!-- END qa-c-form -->
+									
+								</div> <!-- END qa-q-view-main -->
+								<div class="qa-q-view-clear">
+								</div>
+							</div> <!-- END qa-q-view -->
+							
+						</div>
+						<div class="qa-part-a-list">
+							<h2 id="a_list_title" style="display:none;"></h2>
+							<div class="qa-a-list" id="a_list">
+								
+							</div> <!-- END qa-a-list -->
+							
+						</div>
+					</div> <!-- END qa-main -->
+					
+				</div> <!-- END main-wrapper -->
+			</div> <!-- END main-shadow -->
+		</div> <!-- END body-wrapper -->
+		<!-- END footer-bottom-group -->
+		
+		<div style="position:absolute; left:-9999px; top:-9999px;">
+			<span id="qa-waiting-template" class="qa-waiting">...</span>
+		</div>
+	
+	
+
+</body><!-- Powered by Question2Answer - http://www.question2answer.org/ --></html>

@@ -1,0 +1,375 @@
+<html><!-- Powered by Question2Answer - http://www.question2answer.org/ --><head>
+		<meta http-equiv="content-type" content="text/html; charset=utf-8">
+		<title>Solving mixed strain-displacement formulation with linear-quadratic interpolation - FEniCS Q&amp;A</title>
+		<meta name="description" content="I have problems with stress oscillations and found a stabilized mixed formulation (displacement  ...  = File('verschiebung.pvd') file_verschiebung">
+		<meta name="keywords" content="mixed-formulation,stress-stabilization">
+		<link rel="stylesheet" type="text/css" href="../../qa-theme/Snow/qa-styles.css">
+		<link rel="canonical" href="http://fenicsproject.org/qa/13584/solving-displacement-formulation-quadratic-interpolation">
+		<script type="text/x-mathjax-config">
+  MathJax.Hub.Config({
+    extensions: ["tex2jax.js"],
+    jax: ["input/TeX","output/HTML-CSS"],
+    tex2jax: {inlineMath: [["$","$"],["\\(","\\)"]]},
+    TeX: { extensions: ["AMSmath.js","AMSsymbols.js"]}
+  });
+</script>
+<script type="text/javascript" src="../../mathjax/MathJax.js"></script>
+		<script src="../../jquery-1.7.2.min.js" type="text/javascript"></script>
+		<script src="../../highlight.min.js"></script>
+<script type="text/javascript">
+$(function(){
+	$('.wmd-input').keypress(function(){
+		window.clearTimeout(hljs.Timeout);
+		hljs.Timeout = window.setTimeout(function() {
+			hljs.initHighlighting.called = false;
+			hljs.initHighlighting();
+		}, 500);
+	});
+	window.setTimeout(function() {
+		hljs.initHighlighting.called = false;
+		hljs.initHighlighting();
+	}, 500);
+});
+</script>
+
+
+	</head>
+	<body class="qa-template-question qa-body-js-off">
+		<div class="qa-body-wrapper">
+			
+			<div class="qa-header">
+				<div class="qa-logo">
+					<a href="../../" class="qa-logo-link" title="FEniCS Q&amp;A"><img src="../../qa-theme/fenics_qa.png" border="0" alt="FEniCS Q&amp;A"></a>
+				</div>
+				<div class="qa-header-clear">
+				</div>
+			</div> <!-- END qa-header -->
+			
+			<div class="qa-main-shadow">
+				
+				<div class="qa-main-wrapper">
+					
+					<div class="qa-sidepanel">
+						<div class="qa-sidebar">
+							This is a read only copy of the old FEniCS QA forum. Please visit the <a href="https://www.allanswered.com/community/s/fenics-project/">new QA forum</a> to ask questions
+						</div>
+						
+					</div>
+					
+					<div class="qa-main">
+						<h1>
+							<span class="entry-title">Solving mixed strain-displacement formulation with linear-quadratic interpolation</span>
+						</h1>
+						<div class="qa-part-q-view">
+							<div class="qa-q-view  hentry question" id="q13584">
+								<form method="post" action="../../13584/solving-displacement-formulation-quadratic-interpolation">
+									<div class="qa-q-view-stats">
+										<div class="qa-voting qa-voting-net" id="voting_13584">
+											<div class="qa-vote-count qa-vote-count-net">
+												<span class="qa-netvote-count">
+													<span class="qa-netvote-count-data">0<span class="votes-up"><span class="value-title" title="0"></span></span><span class="votes-down"><span class="value-title" title="0"></span></span></span><span class="qa-netvote-count-pad"> votes</span>
+												</span>
+											</div>
+											<div class="qa-vote-clear">
+											</div>
+										</div>
+									</div>
+									<input type="hidden" name="code" value="0-1516467872-df2b18554c493f510e0a260b55a8f0643538dde3">
+								</form>
+								<div class="qa-q-view-main">
+									<form method="post" action="../../13584/solving-displacement-formulation-quadratic-interpolation">
+										<div class="qa-q-view-content">
+											<a name="13584"></a><div class="entry-content"><p>I have problems with stress oscillations and found a stabilized mixed formulation (displacement and strain). It uses linear-linear interpolation and thus doesn't fulfil the inf-sup-condition. But the stabilization accounts for this and this code seems to run.</p>
+
+<p>Then i wanted to run the code with linear(strain)-quadratic(displacement) interpolations. I get errors, depending on the used solver. For example:</p>
+
+<blockquote>
+  <p>*** Error:   Unable to successfully call PETSc function 'KSPSolve'.<br>
+  *** Reason:  PETSc error code is: 76 (Error in external library).<br>
+  *** Where:   This error was encountered inside /build/dolfin-4SStI2/dolfin-2016.2.0/dolfin/la/PETScLUSolver.cpp.<br>
+  *** Process: 0<br>
+  *** DOLFIN version: 2016.2.0<br>
+  *** Git changeset:  unknown<br>
+  *** -------------------------------------------------------------------------</p>
+</blockquote>
+
+<p>I don't understand it, since the only thing i change is increasing the degree of interpolation function. (I want to avoid the stabilization by fulfilling the inf-sup-condition.)</p>
+
+<p>Source of the mixed formulation: <a rel="nofollow" href="http://www.sciencedirect.com/science/article/pii/S0266352X14001876">http://www.sciencedirect.com/science/article/pii/S0266352X14001876</a></p>
+
+<p>Thanks a lot.</p>
+
+<p>I made a simplified version as running example:</p>
+
+<pre><code>from fenics import *
+import os
+import numpy as np
+
+abspath = os.path.abspath(__file__)
+dname = os.path.dirname(abspath)
+os.chdir(dname)
+#----------------------------------------------------------------------------#
+mesh = UnitSquareMesh(32, 32)
+
+domains = CellFunction('size_t', mesh)
+domains.set_all(0)
+
+facets = FacetFunction('size_t', mesh)
+facets.set_all(0)
+
+dA = Measure("ds", domain=mesh, subdomain_data=facets)
+dV = Measure("dx", domain=mesh, subdomain_data=domains)
+
+Normale = FacetNormal(mesh)
+#----------------------------------------------------------------------------#
+nu = 0.45
+G = 33 * 10**(-3) # [N/um^2]
+lamda = 2.0*G*nu / (1.0-2.0*nu)
+mu = G
+lamda = ((2*mu)/(lamda + 2*mu))*lamda
+#----------------------------------------------------------------------------#
+
+ScalarSpaceCG1 = FunctionSpace(mesh,'CG',1)
+TensorSpaceCG1 = TensorFunctionSpace(mesh,'CG',1)
+
+
+###### Crucial Part #######
+#--------------------------
+TCG = TensorElement("Lagrange", mesh.ufl_cell(), 1)
+#### Running version
+VCG = VectorElement("Lagrange", mesh.ufl_cell(), 1)
+### NOT running version
+# VCG = VectorElement("Lagrange", mesh.ufl_cell(), 2)
+######################
+
+W = TCG * VCG
+W = FunctionSpace(mesh, W)
+
+(epsilon_h, u_h) = TrialFunctions(W)
+(gamma_h, v_h) = TestFunctions(W)
+
+#----------------------------------------------------------------------------#
+
+delta = Identity(2)  
+
+def sym_grad(u):
+           return as_tensor(  0.5*(u[i].dx(j) + u[j].dx(i))  , (i,j))
+
+def epsilon_elastisch(epsilon_gesamt):
+       return as_tensor(epsilon_gesamt[i,j], (i,j))
+
+def sigma(epsilon_elastisch):
+           return as_tensor(lamda*epsilon_elastisch[k,k]*delta[i,j] + 2.0*mu*epsilon_elastisch[i,j] , (i,j))
+
+def C_mal_T2Stufe(Tensor_2_Stufe):
+           return as_tensor(lamda*Tensor_2_Stufe[k,k]*delta[i,j] + 2.0*mu*Tensor_2_Stufe[i,j] , (i,j))
+
+
+#----------------------------------------------------------------------------#
+# Boundary conditions
+
+def boundary_xleft(x):
+    return -DOLFIN_EPS &lt; x[0] &lt; DOLFIN_EPS
+bc1 = DirichletBC(W.sub(1).sub(0), Constant((0.0)), boundary_xleft)
+
+def boundary_xright(x):
+    return -DOLFIN_EPS +1 &lt; x[0] &lt; DOLFIN_EPS +1
+bc2 = DirichletBC(W.sub(1).sub(0), Constant((0.1)), boundary_xright)
+
+def boundary_xleft_corner(x):
+    return ( (-DOLFIN_EPS &lt; x[0] &lt; DOLFIN_EPS) and (-DOLFIN_EPS &lt; x[1] &lt; DOLFIN_EPS))
+bc3 = DirichletBC(W.sub(1), Constant((0.0,0.0)), boundary_xleft_corner,method="pointwise")
+
+
+Sigma_Global_Feld = as_matrix([[0.0, 0.0], [0.0, 0.0]])  # [N/um^2]
+#----------------------------------------------------------------------------#
+
+Eq1 = -gamma_h[i,j]*C_mal_T2Stufe(epsilon_h-sym_grad(u_h))[i,j]*dV 
+
+Eq2 = sym_grad(v_h)[i,j]*C_mal_T2Stufe( epsilon_h )[i,j]*dV    - Sigma_Global_Feld[i,j]*Normale[j]*v_h[i]*dA
+
+Eq = Eq1 + Eq2
+
+a = lhs(Eq)
+L = rhs(Eq)
+
+w = Function(W)
+
+solve (a==L, w, bcs=[bc1,bc2,bc3], solver_parameters={"linear_solver": "mumps"}, form_compiler_parameters={"optimize": True,"cpp_optimize":True})
+
+
+# Post process
+#-------------
+(epsilon_h, u_h) = w.split()
+#----------------------------------------------------------------------------#
+epsilon_gesamt = epsilon_h
+epsilon_elastisch = epsilon_elastisch(epsilon_gesamt)
+sigma = as_tensor(lamda*epsilon_elastisch[k,k]*delta[i,j] + 2.0*mu*epsilon_elastisch[i,j] , (i,j))
+#----------------------------------------------------------------------------#
+epsilon_elastisch =  project( epsilon_elastisch, TensorSpaceCG1, solver_type="cg",form_compiler_parameters={"cpp_optimize":True} )
+
+sigma =  project( sigma, TensorSpaceCG1, solver_type="cg",form_compiler_parameters={"cpp_optimize":True} )
+#----------------------------------------------------------------------------#
+file_verschiebung = File('verschiebung.pvd')
+file_verschiebung &lt;&lt; u_h
+
+file_stress = File('stress.pvd')
+file_stress &lt;&lt; sigma
+</code></pre>
+</div>
+										</div>
+										<div class="qa-q-view-tags">
+											<ul class="qa-q-view-tag-list">
+												<li class="qa-q-view-tag-item"><a href="../../tag/mixed-formulation" rel="tag" class="qa-tag-link">mixed-formulation</a></li>
+												<li class="qa-q-view-tag-item"><a href="../../tag/stress-stabilization" rel="tag" class="qa-tag-link">stress-stabilization</a></li>
+											</ul>
+										</div>
+										<span class="qa-q-view-avatar-meta">
+											<span class="qa-q-view-meta">
+												<a href="../../13584/solving-displacement-formulation-quadratic-interpolation" class="qa-q-view-what">asked</a>
+												<span class="qa-q-view-when">
+													<span class="qa-q-view-when-data"><span class="published"><span class="value-title" title="2017-05-22T16:02:49+0000"></span>May 22, 2017</span></span>
+												</span>
+												<span class="qa-q-view-who">
+													<span class="qa-q-view-who-pad">by </span>
+													<span class="qa-q-view-who-data"><span class="vcard author"><a href="../../user/titusf" class="qa-user-link url nickname">titusf</a></span></span>
+													<span class="qa-q-view-who-title">FEniCS Novice</span>
+													<span class="qa-q-view-who-points">
+														<span class="qa-q-view-who-points-pad">(</span><span class="qa-q-view-who-points-data">570</span><span class="qa-q-view-who-points-pad"> points)</span>
+													</span>
+												</span>
+											</span>
+										</span>
+										<div class="qa-q-view-buttons">
+										</div>
+										
+										<div class="qa-q-view-c-list" id="c13584_list">
+											<div class="qa-c-list-item  hentry comment" id="c13615">
+												<div class="qa-c-item-content">
+													<a name="13615"></a><div class="entry-content"><p>Hi, did you look at any of the <a rel="nofollow" href="https://fenicsproject.org/qa/search?q=petsc%2076">related</a> threads?</p>
+</div>
+												</div>
+												<div class="qa-c-item-footer">
+													<span class="qa-c-item-avatar-meta">
+														<span class="qa-c-item-avatar">
+															<a href="../../user/MiroK" class="qa-avatar-link"><img src="https://www.gravatar.com/avatar/f566be3274ec73e3a6dda27bca11631c?s=20" width="20" height="20" class="qa-avatar-image" alt=""></a>
+														</span>
+														<span class="qa-c-item-meta">
+															<a href="../../13584/solving-displacement-formulation-quadratic-interpolation?show=13615#c13615" class="qa-c-item-what">commented</a>
+															<span class="qa-c-item-when">
+																<span class="qa-c-item-when-data"><span class="published"><span class="value-title" title="2017-05-23T15:45:35+0000"></span>May 23, 2017</span></span>
+															</span>
+															<span class="qa-c-item-who">
+																<span class="qa-c-item-who-pad">by </span>
+																<span class="qa-c-item-who-data"><span class="vcard author"><a href="../../user/MiroK" class="qa-user-link url nickname">MiroK</a></span></span>
+																<span class="qa-c-item-who-title">FEniCS Expert</span>
+																<span class="qa-c-item-who-points">
+																	<span class="qa-c-item-who-points-pad">(</span><span class="qa-c-item-who-points-data">80,920</span><span class="qa-c-item-who-points-pad"> points)</span>
+																</span>
+															</span>
+														</span>
+													</span>
+													<div class="qa-c-item-buttons">
+													</div>
+												</div>
+												<div class="qa-c-item-clear">
+												</div>
+											</div> <!-- END qa-c-item -->
+											<div class="qa-c-list-item  hentry comment" id="c13619">
+												<div class="qa-c-item-content">
+													<a name="13619"></a><div class="entry-content"><p>I did now. But it doesnt make any sense to me. Error 76 seems to be memory related. Solving a 3x3 mesh should not cause this, i guess. Also, using a different solver brings a different error message, like: </p>
+
+<p>*** Warning: Krylov solver did not converge in 0 iterations (PETSc reason DIVERGED_NANORINF, residual norm ||r|| = -nan).</p>
+
+<p>Could it be related to the boundary conditions? Am i doing something wrong there?</p>
+</div>
+												</div>
+												<div class="qa-c-item-footer">
+													<span class="qa-c-item-avatar-meta">
+														<span class="qa-c-item-meta">
+															<a href="../../13584/solving-displacement-formulation-quadratic-interpolation?show=13619#c13619" class="qa-c-item-what">commented</a>
+															<span class="qa-c-item-when">
+																<span class="qa-c-item-when-data"><span class="published"><span class="value-title" title="2017-05-23T16:39:33+0000"></span>May 23, 2017</span></span>
+															</span>
+															<span class="qa-c-item-who">
+																<span class="qa-c-item-who-pad">by </span>
+																<span class="qa-c-item-who-data"><span class="vcard author"><a href="../../user/titusf" class="qa-user-link url nickname">titusf</a></span></span>
+																<span class="qa-c-item-who-title">FEniCS Novice</span>
+																<span class="qa-c-item-who-points">
+																	<span class="qa-c-item-who-points-pad">(</span><span class="qa-c-item-who-points-data">570</span><span class="qa-c-item-who-points-pad"> points)</span>
+																</span>
+															</span>
+														</span>
+													</span>
+													<div class="qa-c-item-buttons">
+													</div>
+												</div>
+												<div class="qa-c-item-clear">
+												</div>
+											</div> <!-- END qa-c-item -->
+											<div class="qa-c-list-item  hentry comment" id="c13626">
+												<div class="qa-c-item-content">
+													<a name="13626"></a><div class="entry-content"><p>The system you assembled is far from invertible; on 16x16 square you have &gt;1000 singular modes. </p>
+</div>
+												</div>
+												<div class="qa-c-item-footer">
+													<span class="qa-c-item-avatar-meta">
+														<span class="qa-c-item-avatar">
+															<a href="../../user/MiroK" class="qa-avatar-link"><img src="https://www.gravatar.com/avatar/f566be3274ec73e3a6dda27bca11631c?s=20" width="20" height="20" class="qa-avatar-image" alt=""></a>
+														</span>
+														<span class="qa-c-item-meta">
+															<a href="../../13584/solving-displacement-formulation-quadratic-interpolation?show=13626#c13626" class="qa-c-item-what">commented</a>
+															<span class="qa-c-item-when">
+																<span class="qa-c-item-when-data"><span class="published"><span class="value-title" title="2017-05-24T07:17:28+0000"></span>May 24, 2017</span></span>
+															</span>
+															<span class="qa-c-item-who">
+																<span class="qa-c-item-who-pad">by </span>
+																<span class="qa-c-item-who-data"><span class="vcard author"><a href="../../user/MiroK" class="qa-user-link url nickname">MiroK</a></span></span>
+																<span class="qa-c-item-who-title">FEniCS Expert</span>
+																<span class="qa-c-item-who-points">
+																	<span class="qa-c-item-who-points-pad">(</span><span class="qa-c-item-who-points-data">80,920</span><span class="qa-c-item-who-points-pad"> points)</span>
+																</span>
+															</span>
+														</span>
+													</span>
+													<div class="qa-c-item-buttons">
+													</div>
+												</div>
+												<div class="qa-c-item-clear">
+												</div>
+											</div> <!-- END qa-c-item -->
+										</div> <!-- END qa-c-list -->
+										
+										<input type="hidden" name="code" value="0-1516467872-6707d7d1477add2e8788b41ebdeaf3d9d94c2d82">
+										<input type="hidden" name="qa_click" value="">
+									</form>
+									<div class="qa-c-form">
+									</div> <!-- END qa-c-form -->
+									
+								</div> <!-- END qa-q-view-main -->
+								<div class="qa-q-view-clear">
+								</div>
+							</div> <!-- END qa-q-view -->
+							
+						</div>
+						<div class="qa-part-a-list">
+							<h2 id="a_list_title" style="display:none;"></h2>
+							<div class="qa-a-list" id="a_list">
+								
+							</div> <!-- END qa-a-list -->
+							
+						</div>
+					</div> <!-- END qa-main -->
+					
+				</div> <!-- END main-wrapper -->
+			</div> <!-- END main-shadow -->
+		</div> <!-- END body-wrapper -->
+		<!-- END footer-bottom-group -->
+		
+		<div style="position:absolute; left:-9999px; top:-9999px;">
+			<span id="qa-waiting-template" class="qa-waiting">...</span>
+		</div>
+	
+	
+
+</body><!-- Powered by Question2Answer - http://www.question2answer.org/ --></html>

@@ -1,0 +1,339 @@
+<html><!-- Powered by Question2Answer - http://www.question2answer.org/ --><head>
+		<meta http-equiv="content-type" content="text/html; charset=utf-8">
+		<title>Setting Boundary Condition on Eigenvalue Problem. - FEniCS Q&amp;A</title>
+		<meta name="description" content="Hi, Below is code to plot the first three eigenvalues in an infinite potential well (adapted from ... ] = rx #plot eigenfunction plot(u) interactive()">
+		<meta name="keywords" content="boundary-conditions,eigenfunction">
+		<link rel="stylesheet" type="text/css" href="../../qa-theme/Snow/qa-styles.css">
+		<link rel="canonical" href="http://fenicsproject.org/qa/3239/setting-boundary-condition-on-eigenvalue-problem">
+		<script type="text/x-mathjax-config">
+  MathJax.Hub.Config({
+    extensions: ["tex2jax.js"],
+    jax: ["input/TeX","output/HTML-CSS"],
+    tex2jax: {inlineMath: [["$","$"],["\\(","\\)"]]},
+    TeX: { extensions: ["AMSmath.js","AMSsymbols.js"]}
+  });
+</script>
+<script type="text/javascript" src="../../mathjax/MathJax.js"></script>
+		<script src="../../jquery-1.7.2.min.js" type="text/javascript"></script>
+		<script src="../../highlight.min.js"></script>
+<script type="text/javascript">
+$(function(){
+	$('.wmd-input').keypress(function(){
+		window.clearTimeout(hljs.Timeout);
+		hljs.Timeout = window.setTimeout(function() {
+			hljs.initHighlighting.called = false;
+			hljs.initHighlighting();
+		}, 500);
+	});
+	window.setTimeout(function() {
+		hljs.initHighlighting.called = false;
+		hljs.initHighlighting();
+	}, 500);
+});
+</script>
+
+
+	</head>
+	<body class="qa-template-question qa-body-js-off">
+		<div class="qa-body-wrapper">
+			
+			<div class="qa-header">
+				<div class="qa-logo">
+					<a href="../../" class="qa-logo-link" title="FEniCS Q&amp;A"><img src="../../qa-theme/fenics_qa.png" border="0" alt="FEniCS Q&amp;A"></a>
+				</div>
+				<div class="qa-header-clear">
+				</div>
+			</div> <!-- END qa-header -->
+			
+			<div class="qa-main-shadow">
+				
+				<div class="qa-main-wrapper">
+					
+					<div class="qa-sidepanel">
+						<div class="qa-sidebar">
+							This is a read only copy of the old FEniCS QA forum. Please visit the <a href="https://www.allanswered.com/community/s/fenics-project/">new QA forum</a> to ask questions
+						</div>
+						
+					</div>
+					
+					<div class="qa-main">
+						<h1>
+							<span class="entry-title">Setting Boundary Condition on Eigenvalue Problem.</span>
+						</h1>
+						<div class="qa-part-q-view">
+							<div class="qa-q-view  hentry question" id="q3239">
+								<form method="post" action="../../3239/setting-boundary-condition-on-eigenvalue-problem">
+									<div class="qa-q-view-stats">
+										<div class="qa-voting qa-voting-net" id="voting_3239">
+											<div class="qa-vote-count qa-vote-count-net">
+												<span class="qa-netvote-count">
+													<span class="qa-netvote-count-data">0<span class="votes-up"><span class="value-title" title="0"></span></span><span class="votes-down"><span class="value-title" title="0"></span></span></span><span class="qa-netvote-count-pad"> votes</span>
+												</span>
+											</div>
+											<div class="qa-vote-clear">
+											</div>
+										</div>
+									</div>
+									<input type="hidden" name="code" value="0-1516467963-895f37e8440e5e9825a72525a20c1e144e6ae0db">
+								</form>
+								<div class="qa-q-view-main">
+									<form method="post" action="../../3239/setting-boundary-condition-on-eigenvalue-problem">
+										<div class="qa-q-view-content">
+											<a name="3239"></a><div class="entry-content"><p>Hi,</p>
+
+<p>Below is code to plot the first three eigenvalues in an infinite potential well<br>
+(adapted from <a rel="nofollow" href="http://en.wikiversity.org/wiki/User:Tclamb/FEniCS#Quantum_Harmonic_Oscillator">http://en.wikiversity.org/wiki/User:Tclamb/FEniCS#Quantum_Harmonic_Oscillator</a> )</p>
+
+<p>While the boundary condition (solution = 0 at the ends) is defined, it doesn't seem to be implemented.  Indeed, when the eigenfunctions are plotted by the code, not all of them obey the boundary condition.</p>
+
+<pre><code>from dolfin import *
+
+#define mesh and function space
+mesh = IntervalMesh(100, -10, 10)
+V = FunctionSpace(mesh, 'Lagrange', 3)
+
+#define boundary
+def boundary(x, on_boundary):
+    return on_boundary
+
+#apply essential boundary conditions
+bc = DirichletBC(V, 0, boundary)
+
+#define functions
+u = TrialFunction(V)
+v = TestFunction(V)
+
+Pot = Expression('0.0')
+
+#define problem
+a = (inner(grad(u), grad(v)) \
+     + Pot*u*v)*dx
+m = u*v*dx
+
+#assemble stiffness matrix
+A = PETScMatrix()
+assemble(a, tensor=A)
+M = PETScMatrix()
+assemble(m, tensor=M)
+
+#create eigensolver
+eigensolver = SLEPcEigenSolver(A,M)
+eigensolver.parameters['spectrum'] = 'smallest magnitude'
+eigensolver.parameters['solver']   = 'lapack'
+eigensolver.parameters['tolerance'] = 1.e-15
+
+#solve for eigenvalues
+eigensolver.solve()
+
+u = Function(V)
+for i in range(0,3):
+    #extract next eigenpair
+    r, c, rx, cx = eigensolver.get_eigenpair(i)
+    print 'eigenvalue:', r
+
+    #assign eigenvector to function
+    u.vector()[:] = rx
+
+    #plot eigenfunction
+    plot(u)
+    interactive()
+</code></pre>
+</div>
+										</div>
+										<div class="qa-q-view-tags">
+											<ul class="qa-q-view-tag-list">
+												<li class="qa-q-view-tag-item"><a href="../../tag/boundary-conditions" rel="tag" class="qa-tag-link">boundary-conditions</a></li>
+												<li class="qa-q-view-tag-item"><a href="../../tag/eigenfunction" rel="tag" class="qa-tag-link">eigenfunction</a></li>
+											</ul>
+										</div>
+										<span class="qa-q-view-avatar-meta">
+											<span class="qa-q-view-meta">
+												<a href="../../3239/setting-boundary-condition-on-eigenvalue-problem" class="qa-q-view-what">asked</a>
+												<span class="qa-q-view-when">
+													<span class="qa-q-view-when-data"><span class="published"><span class="value-title" title="2014-04-11T09:42:28+0000"></span>Apr 11, 2014</span></span>
+												</span>
+												<span class="qa-q-view-who">
+													<span class="qa-q-view-who-pad">by </span>
+													<span class="qa-q-view-who-data"><span class="vcard author"><a href="../../user/sixtysymbols" class="qa-user-link url nickname">sixtysymbols</a></span></span>
+													<span class="qa-q-view-who-title">FEniCS User</span>
+													<span class="qa-q-view-who-points">
+														<span class="qa-q-view-who-points-pad">(</span><span class="qa-q-view-who-points-data">2,280</span><span class="qa-q-view-who-points-pad"> points)</span>
+													</span>
+												</span>
+											</span>
+										</span>
+										<div class="qa-q-view-buttons">
+										</div>
+										
+										<div class="qa-q-view-c-list" style="display:none;" id="c3239_list">
+										</div> <!-- END qa-c-list -->
+										
+										<input type="hidden" name="code" value="0-1516467963-4349eb6a031c8088301fbf3e4a671ce270131364">
+										<input type="hidden" name="qa_click" value="">
+									</form>
+									<div class="qa-c-form">
+									</div> <!-- END qa-c-form -->
+									
+								</div> <!-- END qa-q-view-main -->
+								<div class="qa-q-view-clear">
+								</div>
+							</div> <!-- END qa-q-view -->
+							
+						</div>
+						<div class="qa-part-a-list">
+							<h2 id="a_list_title">1 Answer</h2>
+							<div class="qa-a-list" id="a_list">
+								
+								<div class="qa-a-list-item  hentry answer answer-selected qa-a-list-item-selected" id="a3242">
+									<form method="post" action="../../3239/setting-boundary-condition-on-eigenvalue-problem">
+										<div class="qa-voting qa-voting-net" id="voting_3242">
+											<div class="qa-vote-count qa-vote-count-net">
+												<span class="qa-netvote-count">
+													<span class="qa-netvote-count-data">+3<span class="votes-up"><span class="value-title" title="3"></span></span><span class="votes-down"><span class="value-title" title="0"></span></span></span><span class="qa-netvote-count-pad"> votes</span>
+												</span>
+											</div>
+											<div class="qa-vote-clear">
+											</div>
+										</div>
+										<input type="hidden" name="code" value="0-1516467963-895f37e8440e5e9825a72525a20c1e144e6ae0db">
+									</form>
+									<div class="qa-a-item-main">
+										<form method="post" action="../../3239/setting-boundary-condition-on-eigenvalue-problem">
+											<div class="qa-a-item-selected">
+												<div class="qa-a-selection">
+													<div class="qa-a-selected">&#160;</div>
+													<div class="qa-a-selected-text">Best answer</div>
+												</div>
+												<div class="qa-a-item-content">
+													<a name="3242"></a><div class="entry-content"><p>Hi, you have created object for Dirichlet bcs but haven't really used it.</p>
+
+<pre><code>#assemble stiffness matrix
+A = PETScMatrix()
+assemble(a, tensor=A)
+M = PETScMatrix()
+assemble(m, tensor=M)
+bc.apply(A)          # apply the boundary conditions
+bc.apply(M)
+</code></pre>
+</div>
+												</div>
+												<span class="qa-a-item-avatar-meta">
+													<span class="qa-a-item-avatar">
+														<a href="../../user/MiroK" class="qa-avatar-link"><img src="https://www.gravatar.com/avatar/f566be3274ec73e3a6dda27bca11631c?s=40" width="40" height="40" class="qa-avatar-image" alt=""></a>
+													</span>
+													<span class="qa-a-item-meta">
+														<a href="../../3239/setting-boundary-condition-on-eigenvalue-problem?show=3242#a3242" class="qa-a-item-what">answered</a>
+														<span class="qa-a-item-when">
+															<span class="qa-a-item-when-data"><span class="published"><span class="value-title" title="2014-04-11T09:56:46+0000"></span>Apr 11, 2014</span></span>
+														</span>
+														<span class="qa-a-item-who">
+															<span class="qa-a-item-who-pad">by </span>
+															<span class="qa-a-item-who-data"><span class="vcard author"><a href="../../user/MiroK" class="qa-user-link url nickname">MiroK</a></span></span>
+															<span class="qa-a-item-who-title">FEniCS Expert</span>
+															<span class="qa-a-item-who-points">
+																<span class="qa-a-item-who-points-pad">(</span><span class="qa-a-item-who-points-data">80,920</span><span class="qa-a-item-who-points-pad"> points)</span>
+															</span>
+														</span>
+														<br>
+														<span class="qa-a-item-what">selected</span>
+														<span class="qa-a-item-when">
+															<span class="qa-a-item-when-data"><span class="updated"><span class="value-title" title="2014-04-11T10:01:54+0000"></span>Apr 11, 2014</span></span>
+														</span>
+														<span class="qa-a-item-who">
+															<span class="qa-a-item-who-pad">by </span><span class="qa-a-item-who-data"><a href="../../user/sixtysymbols" class="qa-user-link url nickname">sixtysymbols</a></span>
+														</span>
+													</span>
+												</span>
+											</div>
+											<div class="qa-a-item-buttons">
+												</div>
+											
+											<div class="qa-a-item-c-list" id="c3242_list">
+												<div class="qa-c-list-item  hentry comment" id="c3243">
+													<div class="qa-c-item-content">
+														<a name="3243"></a><div class="entry-content"><p>Thanks for this.</p>
+</div>
+													</div>
+													<div class="qa-c-item-footer">
+														<span class="qa-c-item-avatar-meta">
+															<span class="qa-c-item-meta">
+																<a href="../../3239/setting-boundary-condition-on-eigenvalue-problem?show=3243#c3243" class="qa-c-item-what">commented</a>
+																<span class="qa-c-item-when">
+																	<span class="qa-c-item-when-data"><span class="published"><span class="value-title" title="2014-04-11T10:02:08+0000"></span>Apr 11, 2014</span></span>
+																</span>
+																<span class="qa-c-item-who">
+																	<span class="qa-c-item-who-pad">by </span>
+																	<span class="qa-c-item-who-data"><span class="vcard author"><a href="../../user/sixtysymbols" class="qa-user-link url nickname">sixtysymbols</a></span></span>
+																	<span class="qa-c-item-who-title">FEniCS User</span>
+																	<span class="qa-c-item-who-points">
+																		<span class="qa-c-item-who-points-pad">(</span><span class="qa-c-item-who-points-data">2,280</span><span class="qa-c-item-who-points-pad"> points)</span>
+																	</span>
+																</span>
+															</span>
+														</span>
+														<div class="qa-c-item-buttons">
+														</div>
+													</div>
+													<div class="qa-c-item-clear">
+													</div>
+												</div> <!-- END qa-c-item -->
+												<div class="qa-c-list-item  hentry comment" id="c3244">
+													<div class="qa-c-item-content">
+														<a name="3244"></a><div class="entry-content"><p>P.S. It looks like the solver would fail for higher eigenvalues.  </p>
+
+<p>If I only apply the boundary conditions to A, however, it works fine.</p>
+</div>
+													</div>
+													<div class="qa-c-item-footer">
+														<span class="qa-c-item-avatar-meta">
+															<span class="qa-c-item-meta">
+																<a href="../../3239/setting-boundary-condition-on-eigenvalue-problem?show=3244#c3244" class="qa-c-item-what">commented</a>
+																<span class="qa-c-item-when">
+																	<span class="qa-c-item-when-data"><span class="published"><span class="value-title" title="2014-04-11T10:24:46+0000"></span>Apr 11, 2014</span></span>
+																</span>
+																<span class="qa-c-item-who">
+																	<span class="qa-c-item-who-pad">by </span>
+																	<span class="qa-c-item-who-data"><span class="vcard author"><a href="../../user/sixtysymbols" class="qa-user-link url nickname">sixtysymbols</a></span></span>
+																	<span class="qa-c-item-who-title">FEniCS User</span>
+																	<span class="qa-c-item-who-points">
+																		<span class="qa-c-item-who-points-pad">(</span><span class="qa-c-item-who-points-data">2,280</span><span class="qa-c-item-who-points-pad"> points)</span>
+																	</span>
+																</span>
+															</span>
+														</span>
+														<div class="qa-c-item-buttons">
+														</div>
+													</div>
+													<div class="qa-c-item-clear">
+													</div>
+												</div> <!-- END qa-c-item -->
+											</div> <!-- END qa-c-list -->
+											
+											<input type="hidden" name="code" value="0-1516467963-8a9a8d55b8aeb133c08780e5aa73bdb9bbf9fb26">
+											<input type="hidden" name="qa_click" value="">
+										</form>
+										<div class="qa-c-form">
+										</div> <!-- END qa-c-form -->
+										
+									</div> <!-- END qa-a-item-main -->
+									<div class="qa-a-item-clear">
+									</div>
+								</div> <!-- END qa-a-list-item -->
+								
+							</div> <!-- END qa-a-list -->
+							
+						</div>
+					</div> <!-- END qa-main -->
+					
+				</div> <!-- END main-wrapper -->
+			</div> <!-- END main-shadow -->
+		</div> <!-- END body-wrapper -->
+		<!-- END footer-bottom-group -->
+		
+		<div style="position:absolute; left:-9999px; top:-9999px;">
+			<span id="qa-waiting-template" class="qa-waiting">...</span>
+		</div>
+	
+	
+
+</body><!-- Powered by Question2Answer - http://www.question2answer.org/ --></html>

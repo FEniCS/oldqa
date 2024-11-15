@@ -1,0 +1,625 @@
+<html><!-- Powered by Question2Answer - http://www.question2answer.org/ --><head>
+		<meta http-equiv="content-type" content="text/html; charset=utf-8">
+		<title>Coefficient rank error: wrong C++ or UFL? - FEniCS Q&amp;A</title>
+		<meta name="description" content="**EDIT: removed everything now, still an error** Dear all, I have the usual simple linear elastic problem ... assemble_system(A, b, lhs, rhs, bcs); //">
+		<meta name="keywords" content="expression,error,c,shared_ptr">
+		<link rel="stylesheet" type="text/css" href="../../qa-theme/Snow/qa-styles.css">
+		<link rel="canonical" href="http://fenicsproject.org/qa/9561/coefficient-rank-error-wrong-c-or-ufl">
+		<script type="text/x-mathjax-config">
+  MathJax.Hub.Config({
+    extensions: ["tex2jax.js"],
+    jax: ["input/TeX","output/HTML-CSS"],
+    tex2jax: {inlineMath: [["$","$"],["\\(","\\)"]]},
+    TeX: { extensions: ["AMSmath.js","AMSsymbols.js"]}
+  });
+</script>
+<script type="text/javascript" src="../../mathjax/MathJax.js"></script>
+		<script src="../../jquery-1.7.2.min.js" type="text/javascript"></script>
+		<script src="../../highlight.min.js"></script>
+<script type="text/javascript">
+$(function(){
+	$('.wmd-input').keypress(function(){
+		window.clearTimeout(hljs.Timeout);
+		hljs.Timeout = window.setTimeout(function() {
+			hljs.initHighlighting.called = false;
+			hljs.initHighlighting();
+		}, 500);
+	});
+	window.setTimeout(function() {
+		hljs.initHighlighting.called = false;
+		hljs.initHighlighting();
+	}, 500);
+});
+</script>
+
+
+	</head>
+	<body class="qa-template-question qa-body-js-off">
+		<div class="qa-body-wrapper">
+			
+			<div class="qa-header">
+				<div class="qa-logo">
+					<a href="../../" class="qa-logo-link" title="FEniCS Q&amp;A"><img src="../../qa-theme/fenics_qa.png" border="0" alt="FEniCS Q&amp;A"></a>
+				</div>
+				<div class="qa-header-clear">
+				</div>
+			</div> <!-- END qa-header -->
+			
+			<div class="qa-main-shadow">
+				
+				<div class="qa-main-wrapper">
+					
+					<div class="qa-sidepanel">
+						<div class="qa-sidebar">
+							This is a read only copy of the old FEniCS QA forum. Please visit the <a href="https://www.allanswered.com/community/s/fenics-project/">new QA forum</a> to ask questions
+						</div>
+						
+					</div>
+					
+					<div class="qa-main">
+						<h1>
+							<span class="entry-title">Coefficient rank error: wrong C++ or UFL?</span>
+						</h1>
+						<div class="qa-part-q-view">
+							<div class="qa-q-view  hentry question" id="q9561">
+								<form method="post" action="../../9561/coefficient-rank-error-wrong-c-or-ufl">
+									<div class="qa-q-view-stats">
+										<div class="qa-voting qa-voting-net" id="voting_9561">
+											<div class="qa-vote-count qa-vote-count-net">
+												<span class="qa-netvote-count">
+													<span class="qa-netvote-count-data">+1<span class="votes-up"><span class="value-title" title="1"></span></span><span class="votes-down"><span class="value-title" title="0"></span></span></span><span class="qa-netvote-count-pad"> vote</span>
+												</span>
+											</div>
+											<div class="qa-vote-clear">
+											</div>
+										</div>
+									</div>
+									<input type="hidden" name="code" value="0-1516468228-fe8c59dee224ca4f88556b752265dc3d3fa808e4">
+								</form>
+								<div class="qa-q-view-main">
+									<form method="post" action="../../9561/coefficient-rank-error-wrong-c-or-ufl">
+										<div class="qa-q-view-content">
+											<a name="9561"></a><div class="entry-content"><p><strong>EDIT: removed everything now, still an error</strong></p>
+
+<p>Dear all,</p>
+
+<p>I have the usual simple linear elastic problem, and now I'd like to have a vector of expressions and detection classes to specify arbitrary Neumann conditions. In order to do that, I'm using vectors of shared pointers, but somewhere I'm doing bad things.</p>
+
+<p><strong>You can find <a rel="nofollow" href="https://dl.dropboxusercontent.com/u/15635416/fenics-example.zip">a minimal example here</a></strong>.</p>
+
+<p>The error is this:</p>
+
+<pre><code>*** -------------------------------------------------------------------------
+*** Error:   Unable to assemble form.
+*** Reason:  Invalid value rank for coefficient 0 (got 0 but expecting 1). You might have forgotten to specify the value rank correctly in an Expression subclass.
+*** Where:   This error was encountered inside AssemblerBase.cpp.
+*** Process: unknown
+*** 
+*** DOLFIN version: 1.5.0
+*** Git changeset:  f467b66dcfd821ec20e9f9070c7cef5a991dbc42
+*** -------------------------------------------------------------------------
+</code></pre>
+
+<p>I've removed everything from the UFL, now it's this:</p>
+
+<pre><code># Bilinear form
+a = inner(u, v) * dx #inner(sigma(u), eps(v))*dx
+
+# Known term
+L = inner(f, v) * dx #+ inner(f1, v) * ds(1) + inner(f2, v) * ds(2) + inner(f3, v) * ds(3) + inner(f4, v) * ds(4) + inner(f5, v) * ds(5)
+
+# Export
+forms = [a, L]
+</code></pre>
+
+<p>The only coefficient now is <code>f</code>, which is assigned as follows:</p>
+
+<pre><code>// Bulk force
+rhs.f = dolfin::Constant(0.0, 0.0);
+</code></pre>
+
+<p>When assembling the matrix, I get the exception:</p>
+
+<pre><code>// Assign RHS markers
+rhs.ds = boundary_markers;
+
+// Numerical system
+dolfin::PETScMatrix A;
+dolfin::PETScVector b;
+
+// Assemble
+dolfin::assemble_system(A, b, lhs, rhs, bcs); // &lt;---- BOOM
+</code></pre>
+
+<p>I am missing something stupid probably...</p>
+
+<p>Thanks for any pointers!</p>
+</div>
+										</div>
+										<div class="qa-q-view-tags">
+											<ul class="qa-q-view-tag-list">
+												<li class="qa-q-view-tag-item"><a href="../../tag/expression" rel="tag" class="qa-tag-link">expression</a></li>
+												<li class="qa-q-view-tag-item"><a href="../../tag/error" rel="tag" class="qa-tag-link">error</a></li>
+												<li class="qa-q-view-tag-item"><a href="../../tag/c" rel="tag" class="qa-tag-link">c</a></li>
+												<li class="qa-q-view-tag-item"><a href="../../tag/shared_ptr" rel="tag" class="qa-tag-link">shared_ptr</a></li>
+											</ul>
+										</div>
+										<span class="qa-q-view-avatar-meta">
+											<span class="qa-q-view-meta">
+												<a href="../../9561/coefficient-rank-error-wrong-c-or-ufl" class="qa-q-view-what">asked</a>
+												<span class="qa-q-view-when">
+													<span class="qa-q-view-when-data"><span class="published"><span class="value-title" title="2016-03-14T15:59:54+0000"></span>Mar 14, 2016</span></span>
+												</span>
+												<span class="qa-q-view-who">
+													<span class="qa-q-view-who-pad">by </span>
+													<span class="qa-q-view-who-data"><span class="vcard author"><a href="../../user/senseiwa" class="qa-user-link url nickname">senseiwa</a></span></span>
+													<span class="qa-q-view-who-title">FEniCS User</span>
+													<span class="qa-q-view-who-points">
+														<span class="qa-q-view-who-points-pad">(</span><span class="qa-q-view-who-points-data">2,620</span><span class="qa-q-view-who-points-pad"> points)</span>
+													</span>
+												</span>
+												<br>
+												<span class="qa-q-view-what">edited</span>
+												<span class="qa-q-view-when">
+													<span class="qa-q-view-when-data"><span class="updated"><span class="value-title" title="2016-03-16T13:16:22+0000"></span>Mar 16, 2016</span></span>
+												</span>
+												<span class="qa-q-view-who">
+													<span class="qa-q-view-who-pad">by </span><span class="qa-q-view-who-data"><a href="../../user/senseiwa" class="qa-user-link url nickname">senseiwa</a></span>
+												</span>
+											</span>
+										</span>
+										<div class="qa-q-view-buttons">
+										</div>
+										
+										<div class="qa-q-view-c-list" id="c9561_list">
+											<div class="qa-c-list-item  hentry comment" id="c9565">
+												<div class="qa-c-item-content">
+													<a name="9565"></a><div class="entry-content"><p>I have edited the question. </p>
+
+<p>In my code I've removed <strong>everything</strong> from the UFL, I am not using any subclass now, just a plain <code>Coefficient</code>, and I still get the error.</p>
+
+<p>I have no ideas...</p>
+</div>
+												</div>
+												<div class="qa-c-item-footer">
+													<span class="qa-c-item-avatar-meta">
+														<span class="qa-c-item-meta">
+															<a href="../../9561/coefficient-rank-error-wrong-c-or-ufl?show=9565#c9565" class="qa-c-item-what">commented</a>
+															<span class="qa-c-item-when">
+																<span class="qa-c-item-when-data"><span class="published"><span class="value-title" title="2016-03-15T14:28:23+0000"></span>Mar 15, 2016</span></span>
+															</span>
+															<span class="qa-c-item-who">
+																<span class="qa-c-item-who-pad">by </span>
+																<span class="qa-c-item-who-data"><span class="vcard author"><a href="../../user/senseiwa" class="qa-user-link url nickname">senseiwa</a></span></span>
+																<span class="qa-c-item-who-title">FEniCS User</span>
+																<span class="qa-c-item-who-points">
+																	<span class="qa-c-item-who-points-pad">(</span><span class="qa-c-item-who-points-data">2,620</span><span class="qa-c-item-who-points-pad"> points)</span>
+																</span>
+															</span>
+														</span>
+													</span>
+													<div class="qa-c-item-buttons">
+													</div>
+												</div>
+												<div class="qa-c-item-clear">
+												</div>
+											</div> <!-- END qa-c-item -->
+											<div class="qa-c-list-item  hentry comment" id="c9566">
+												<div class="qa-c-item-content">
+													<a name="9566"></a><div class="entry-content"><p>Another point. I decided to print all the coefficients, and I get an error because there are no coefficients:</p>
+
+<pre><code>auto v = lhs.coefficients();
+std::cout &lt;&lt; "COUNT IS " &lt;&lt; v.size() &lt;&lt; std::endl;
+std::cout &lt;&lt; "NAME  IS " &lt;&lt; lhs.coefficient_name(0) &lt;&lt; std::endl;
+
+*** Error:   Unable to access coefficient data.
+*** Reason:  There are no coefficients.
+</code></pre>
+
+<p>Now I'm puzzled. Why then I have this error?</p>
+
+<pre><code>*** Reason:  Invalid value rank for coefficient 0 (got 0 but expecting 1). You might have forgotten to specify the value rank correctly in an Expression subclass.
+</code></pre>
+</div>
+												</div>
+												<div class="qa-c-item-footer">
+													<span class="qa-c-item-avatar-meta">
+														<span class="qa-c-item-meta">
+															<a href="../../9561/coefficient-rank-error-wrong-c-or-ufl?show=9566#c9566" class="qa-c-item-what">commented</a>
+															<span class="qa-c-item-when">
+																<span class="qa-c-item-when-data"><span class="published"><span class="value-title" title="2016-03-15T14:57:05+0000"></span>Mar 15, 2016</span></span>
+															</span>
+															<span class="qa-c-item-who">
+																<span class="qa-c-item-who-pad">by </span>
+																<span class="qa-c-item-who-data"><span class="vcard author"><a href="../../user/senseiwa" class="qa-user-link url nickname">senseiwa</a></span></span>
+																<span class="qa-c-item-who-title">FEniCS User</span>
+																<span class="qa-c-item-who-points">
+																	<span class="qa-c-item-who-points-pad">(</span><span class="qa-c-item-who-points-data">2,620</span><span class="qa-c-item-who-points-pad"> points)</span>
+																</span>
+															</span>
+														</span>
+													</span>
+													<div class="qa-c-item-buttons">
+													</div>
+												</div>
+												<div class="qa-c-item-clear">
+												</div>
+											</div> <!-- END qa-c-item -->
+											<div class="qa-c-list-item  hentry comment" id="c9573">
+												<div class="qa-c-item-content">
+													<a name="9573"></a><div class="entry-content"><p>Hi, please provide us with a <strong>minimal</strong> example that produces the error. This is ideally a pair of files: UFL file with the form and a CPP file as a driver. </p>
+</div>
+												</div>
+												<div class="qa-c-item-footer">
+													<span class="qa-c-item-avatar-meta">
+														<span class="qa-c-item-avatar">
+															<a href="../../user/MiroK" class="qa-avatar-link"><img src="https://www.gravatar.com/avatar/f566be3274ec73e3a6dda27bca11631c?s=20" width="20" height="20" class="qa-avatar-image" alt=""></a>
+														</span>
+														<span class="qa-c-item-meta">
+															<a href="../../9561/coefficient-rank-error-wrong-c-or-ufl?show=9573#c9573" class="qa-c-item-what">commented</a>
+															<span class="qa-c-item-when">
+																<span class="qa-c-item-when-data"><span class="published"><span class="value-title" title="2016-03-16T16:33:24+0000"></span>Mar 16, 2016</span></span>
+															</span>
+															<span class="qa-c-item-who">
+																<span class="qa-c-item-who-pad">by </span>
+																<span class="qa-c-item-who-data"><span class="vcard author"><a href="../../user/MiroK" class="qa-user-link url nickname">MiroK</a></span></span>
+																<span class="qa-c-item-who-title">FEniCS Expert</span>
+																<span class="qa-c-item-who-points">
+																	<span class="qa-c-item-who-points-pad">(</span><span class="qa-c-item-who-points-data">80,920</span><span class="qa-c-item-who-points-pad"> points)</span>
+																</span>
+															</span>
+														</span>
+													</span>
+													<div class="qa-c-item-buttons">
+													</div>
+												</div>
+												<div class="qa-c-item-clear">
+												</div>
+											</div> <!-- END qa-c-item -->
+											<div class="qa-c-list-item  hentry comment" id="c9575">
+												<div class="qa-c-item-content">
+													<a name="9575"></a><div class="entry-content"><p>Thanks @MiroK, I have included a complete example code. I may have done something wrong somewhere else, although the probability is <strong>close to null</strong>, so all you have to see is the UFL file <code>elasticity.ufl</code> and the linear elastic problem <code>elastic.cpp</code>.</p>
+
+<p>As I've read the answer by @gifo75, I can say that all you have to really care about is the  <code>elastic.cpp</code> file.</p>
+</div>
+												</div>
+												<div class="qa-c-item-footer">
+													<span class="qa-c-item-avatar-meta">
+														<span class="qa-c-item-meta">
+															<a href="../../9561/coefficient-rank-error-wrong-c-or-ufl?show=9575#c9575" class="qa-c-item-what">commented</a>
+															<span class="qa-c-item-when">
+																<span class="qa-c-item-when-data"><span class="published"><span class="value-title" title="2016-03-17T07:40:58+0000"></span>Mar 17, 2016</span></span>
+															</span>
+															<span class="qa-c-item-who">
+																<span class="qa-c-item-who-pad">by </span>
+																<span class="qa-c-item-who-data"><span class="vcard author"><a href="../../user/senseiwa" class="qa-user-link url nickname">senseiwa</a></span></span>
+																<span class="qa-c-item-who-title">FEniCS User</span>
+																<span class="qa-c-item-who-points">
+																	<span class="qa-c-item-who-points-pad">(</span><span class="qa-c-item-who-points-data">2,620</span><span class="qa-c-item-who-points-pad"> points)</span>
+																</span>
+															</span>
+														</span>
+													</span>
+													<div class="qa-c-item-buttons">
+													</div>
+												</div>
+												<div class="qa-c-item-clear">
+												</div>
+											</div> <!-- END qa-c-item -->
+											<div class="qa-c-list-item  hentry comment" id="c9623">
+												<div class="qa-c-item-content">
+													<a name="9623"></a><div class="entry-content"><p>Any hints would be useful...</p>
+</div>
+												</div>
+												<div class="qa-c-item-footer">
+													<span class="qa-c-item-avatar-meta">
+														<span class="qa-c-item-meta">
+															<a href="../../9561/coefficient-rank-error-wrong-c-or-ufl?show=9623#c9623" class="qa-c-item-what">commented</a>
+															<span class="qa-c-item-when">
+																<span class="qa-c-item-when-data"><span class="published"><span class="value-title" title="2016-03-21T13:28:12+0000"></span>Mar 21, 2016</span></span>
+															</span>
+															<span class="qa-c-item-who">
+																<span class="qa-c-item-who-pad">by </span>
+																<span class="qa-c-item-who-data"><span class="vcard author"><a href="../../user/senseiwa" class="qa-user-link url nickname">senseiwa</a></span></span>
+																<span class="qa-c-item-who-title">FEniCS User</span>
+																<span class="qa-c-item-who-points">
+																	<span class="qa-c-item-who-points-pad">(</span><span class="qa-c-item-who-points-data">2,620</span><span class="qa-c-item-who-points-pad"> points)</span>
+																</span>
+															</span>
+														</span>
+													</span>
+													<div class="qa-c-item-buttons">
+													</div>
+												</div>
+												<div class="qa-c-item-clear">
+												</div>
+											</div> <!-- END qa-c-item -->
+											<div class="qa-c-list-item  hentry comment" id="c9624">
+												<div class="qa-c-item-content">
+													<a name="9624"></a><div class="entry-content"><p>I have narrowed down to these few lines, removes all possible pointers, without any hope to get it working:</p>
+
+<pre><code>auto V  = elasticity::Form_a::TestSpace(mesh_.object);
+
+// Subspaces for BCs
+dolfin::SubSpace V0(V, 0);
+dolfin::SubSpace V1(V, 1);
+
+// Dirichlet BCs
+std::vector&lt;const dolfin::DirichletBC*&gt; bcs;
+
+//
+// DO EVERYTHING MANUALLY
+//
+bcs.push_back(new dolfin::DirichletBC(V,
+                                      dolfin::Constant(0.0, 0.0),
+                                      edgedetect(dolfin::Point(0.0, 0.0), dolfin::Point(7.0, 0.0), conf_)));
+bcs.push_back(new dolfin::DirichletBC(V,
+                                      dolfin::Constant(1.0, 16.0),
+                                      edgedetect(dolfin::Point(0.0, 16.0), dolfin::Point(7.0, 16.0), conf_)));
+
+// Bilinear and linear forms
+elasticity::Form_a lhs(V, V);
+elasticity::Form_L rhs(V);
+
+// Bulk force
+rhs.f = constantload(conf_.bulk[0], conf_.bulk[1]);;
+
+// Numerical system
+dolfin::PETScMatrix A;
+dolfin::PETScVector b;
+
+// Assemble
+dolfin::assemble_system(A, b, lhs, rhs, bcs);
+</code></pre>
+
+<p><strong>UFL</strong></p>
+
+<pre><code># Bilinear form
+a = inner(u, v) * dx
+
+# Known term
+L = inner(f, v) * dx
+</code></pre>
+</div>
+												</div>
+												<div class="qa-c-item-footer">
+													<span class="qa-c-item-avatar-meta">
+														<span class="qa-c-item-meta">
+															<a href="../../9561/coefficient-rank-error-wrong-c-or-ufl?show=9624#c9624" class="qa-c-item-what">commented</a>
+															<span class="qa-c-item-when">
+																<span class="qa-c-item-when-data"><span class="published"><span class="value-title" title="2016-03-21T14:04:59+0000"></span>Mar 21, 2016</span></span>
+															</span>
+															<span class="qa-c-item-who">
+																<span class="qa-c-item-who-pad">by </span>
+																<span class="qa-c-item-who-data"><span class="vcard author"><a href="../../user/senseiwa" class="qa-user-link url nickname">senseiwa</a></span></span>
+																<span class="qa-c-item-who-title">FEniCS User</span>
+																<span class="qa-c-item-who-points">
+																	<span class="qa-c-item-who-points-pad">(</span><span class="qa-c-item-who-points-data">2,620</span><span class="qa-c-item-who-points-pad"> points)</span>
+																</span>
+															</span>
+														</span>
+													</span>
+													<div class="qa-c-item-buttons">
+													</div>
+												</div>
+												<div class="qa-c-item-clear">
+												</div>
+											</div> <!-- END qa-c-item -->
+										</div> <!-- END qa-c-list -->
+										
+										<input type="hidden" name="code" value="0-1516468228-15dc6de0584349638d951f080ce42e8db06351d1">
+										<input type="hidden" name="qa_click" value="">
+									</form>
+									<div class="qa-c-form">
+									</div> <!-- END qa-c-form -->
+									
+								</div> <!-- END qa-q-view-main -->
+								<div class="qa-q-view-clear">
+								</div>
+							</div> <!-- END qa-q-view -->
+							
+						</div>
+						<div class="qa-part-a-list">
+							<h2 id="a_list_title">2 Answers</h2>
+							<div class="qa-a-list" id="a_list">
+								
+								<div class="qa-a-list-item  hentry answer answer-selected qa-a-list-item-selected" id="a9628">
+									<form method="post" action="../../9561/coefficient-rank-error-wrong-c-or-ufl">
+										<div class="qa-voting qa-voting-net" id="voting_9628">
+											<div class="qa-vote-count qa-vote-count-net">
+												<span class="qa-netvote-count">
+													<span class="qa-netvote-count-data">0<span class="votes-up"><span class="value-title" title="0"></span></span><span class="votes-down"><span class="value-title" title="0"></span></span></span><span class="qa-netvote-count-pad"> votes</span>
+												</span>
+											</div>
+											<div class="qa-vote-clear">
+											</div>
+										</div>
+										<input type="hidden" name="code" value="0-1516468228-fe8c59dee224ca4f88556b752265dc3d3fa808e4">
+									</form>
+									<div class="qa-a-item-main">
+										<form method="post" action="../../9561/coefficient-rank-error-wrong-c-or-ufl">
+											<div class="qa-a-item-selected">
+												<div class="qa-a-selection">
+													<div class="qa-a-selected">&#160;</div>
+													<div class="qa-a-selected-text">Best answer</div>
+												</div>
+												<div class="qa-a-item-content">
+													<a name="9628"></a><div class="entry-content"><p>This is unusual, to self-answer, but <a rel="nofollow" href="http://fenicsproject.org/qa/9627/dirichletbc-bug-or-feature">I have posted another question here</a>, because something is missing.</p>
+
+<p>The TL;DR answer: <strong>DO NOT USE TEMPORARIES, USE SHARED POINTERS</strong></p>
+
+<p>When creating a <code>DirichletBC</code> do not use a code that use temporary variables as this <code>dolfin::Constant</code>:</p>
+
+<pre><code>// Bad code
+bcs.push_back(new dolfin::DirichletBC(*V,
+                    dolfin::Constant(0.0, 0.0), // &lt;---- CRASH
+                    edgedetect(dolfin::Point(0.0, 0.0), dolfin::Point(7.0, 0.0))));
+</code></pre>
+
+<p>If you avoid this constructor, and use a <strong>shared pointer</strong> (or create a separate variable) then no crash will happen:</p>
+
+<pre><code>// Happy code
+bcs.push_back(new dolfin::DirichletBC(V,
+                                      std::make_shared&lt;const dolfin::Constant&gt;(0.0, 0.0),
+                                      std::make_shared&lt;const edgedetect&gt;(dolfin::Point(0.0, 0.0), dolfin::Point(7.0, 0.0), conf_)));
+</code></pre>
+
+<p>Thank you.</p>
+</div>
+												</div>
+												<span class="qa-a-item-avatar-meta">
+													<span class="qa-a-item-meta">
+														<a href="../../9561/coefficient-rank-error-wrong-c-or-ufl?show=9628#a9628" class="qa-a-item-what">answered</a>
+														<span class="qa-a-item-when">
+															<span class="qa-a-item-when-data"><span class="published"><span class="value-title" title="2016-03-21T16:56:38+0000"></span>Mar 21, 2016</span></span>
+														</span>
+														<span class="qa-a-item-who">
+															<span class="qa-a-item-who-pad">by </span>
+															<span class="qa-a-item-who-data"><span class="vcard author"><a href="../../user/senseiwa" class="qa-user-link url nickname">senseiwa</a></span></span>
+															<span class="qa-a-item-who-title">FEniCS User</span>
+															<span class="qa-a-item-who-points">
+																<span class="qa-a-item-who-points-pad">(</span><span class="qa-a-item-who-points-data">2,620</span><span class="qa-a-item-who-points-pad"> points)</span>
+															</span>
+														</span>
+													</span>
+												</span>
+											</div>
+											<div class="qa-a-item-buttons">
+												</div>
+											
+											<div class="qa-a-item-c-list" style="display:none;" id="c9628_list">
+											</div> <!-- END qa-c-list -->
+											
+											<input type="hidden" name="code" value="0-1516468228-a375add07d9570704a9ea3f4b3d84d782194603f">
+											<input type="hidden" name="qa_click" value="">
+										</form>
+										<div class="qa-c-form">
+										</div> <!-- END qa-c-form -->
+										
+									</div> <!-- END qa-a-item-main -->
+									<div class="qa-a-item-clear">
+									</div>
+								</div> <!-- END qa-a-list-item -->
+								
+								<div class="qa-a-list-item  hentry answer" id="a9570">
+									<form method="post" action="../../9561/coefficient-rank-error-wrong-c-or-ufl">
+										<div class="qa-voting qa-voting-net" id="voting_9570">
+											<div class="qa-vote-count qa-vote-count-net">
+												<span class="qa-netvote-count">
+													<span class="qa-netvote-count-data">+1<span class="votes-up"><span class="value-title" title="1"></span></span><span class="votes-down"><span class="value-title" title="0"></span></span></span><span class="qa-netvote-count-pad"> vote</span>
+												</span>
+											</div>
+											<div class="qa-vote-clear">
+											</div>
+										</div>
+										<input type="hidden" name="code" value="0-1516468228-fe8c59dee224ca4f88556b752265dc3d3fa808e4">
+									</form>
+									<div class="qa-a-item-main">
+										<form method="post" action="../../9561/coefficient-rank-error-wrong-c-or-ufl">
+											<div class="qa-a-selection">
+											</div>
+											<div class="qa-a-item-content">
+												<a name="9570"></a><div class="entry-content"><p>Dear all,</p>
+
+<p>I've played with the code and found a weird behavior. When using an assignment to the coefficient <code>f</code>, the error changes if I use a variable, or an inline:</p>
+
+<pre><code>    dolfin::Constant testing(1.0, 1.0);
+    rhs.f = testing;
+
+*** Error:   Unable to evaluate expression.
+*** Reason:  Missing eval() function (must be overloaded).
+</code></pre>
+
+<p><strong>INLINE</strong></p>
+
+<pre><code>    rhs.f = dolfin::Constant(1.0, 1.0);
+
+*** Error:   Unable to assemble form.
+*** Reason:  Invalid value rank for coefficient 0 (got 0 
+    but expecting 1). You might have forgotten to specify
+    the value rank correctly in an Expression subclass.
+</code></pre>
+
+<p>Why is this?</p>
+
+<p>Thanks!</p>
+</div>
+											</div>
+											<span class="qa-a-item-avatar-meta">
+												<span class="qa-a-item-meta">
+													<a href="../../9561/coefficient-rank-error-wrong-c-or-ufl?show=9570#a9570" class="qa-a-item-what">answered</a>
+													<span class="qa-a-item-when">
+														<span class="qa-a-item-when-data"><span class="published"><span class="value-title" title="2016-03-16T11:31:10+0000"></span>Mar 16, 2016</span></span>
+													</span>
+													<span class="qa-a-item-who">
+														<span class="qa-a-item-who-pad">by </span>
+														<span class="qa-a-item-who-data"><span class="vcard author"><a href="../../user/gifo75" class="qa-user-link url nickname">gifo75</a></span></span>
+														<span class="qa-a-item-who-title">FEniCS Novice</span>
+														<span class="qa-a-item-who-points">
+															<span class="qa-a-item-who-points-pad">(</span><span class="qa-a-item-who-points-data">650</span><span class="qa-a-item-who-points-pad"> points)</span>
+														</span>
+													</span>
+												</span>
+											</span>
+											<div class="qa-a-item-buttons">
+												</div>
+											
+											<div class="qa-a-item-c-list" id="c9570_list">
+												<div class="qa-c-list-item  hentry comment" id="c9571">
+													<div class="qa-c-item-content">
+														<a name="9571"></a><div class="entry-content"><p>Yes, I see the same here. Weird.</p>
+</div>
+													</div>
+													<div class="qa-c-item-footer">
+														<span class="qa-c-item-avatar-meta">
+															<span class="qa-c-item-meta">
+																<a href="../../9561/coefficient-rank-error-wrong-c-or-ufl?show=9571#c9571" class="qa-c-item-what">commented</a>
+																<span class="qa-c-item-when">
+																	<span class="qa-c-item-when-data"><span class="published"><span class="value-title" title="2016-03-16T13:16:06+0000"></span>Mar 16, 2016</span></span>
+																</span>
+																<span class="qa-c-item-who">
+																	<span class="qa-c-item-who-pad">by </span>
+																	<span class="qa-c-item-who-data"><span class="vcard author"><a href="../../user/senseiwa" class="qa-user-link url nickname">senseiwa</a></span></span>
+																	<span class="qa-c-item-who-title">FEniCS User</span>
+																	<span class="qa-c-item-who-points">
+																		<span class="qa-c-item-who-points-pad">(</span><span class="qa-c-item-who-points-data">2,620</span><span class="qa-c-item-who-points-pad"> points)</span>
+																	</span>
+																</span>
+															</span>
+														</span>
+														<div class="qa-c-item-buttons">
+														</div>
+													</div>
+													<div class="qa-c-item-clear">
+													</div>
+												</div> <!-- END qa-c-item -->
+											</div> <!-- END qa-c-list -->
+											
+											<input type="hidden" name="code" value="0-1516468228-b46c7688738e08b2ac19d6f675b4ec4e68e2c599">
+											<input type="hidden" name="qa_click" value="">
+										</form>
+										<div class="qa-c-form">
+										</div> <!-- END qa-c-form -->
+										
+									</div> <!-- END qa-a-item-main -->
+									<div class="qa-a-item-clear">
+									</div>
+								</div> <!-- END qa-a-list-item -->
+								
+							</div> <!-- END qa-a-list -->
+							
+						</div>
+					</div> <!-- END qa-main -->
+					
+				</div> <!-- END main-wrapper -->
+			</div> <!-- END main-shadow -->
+		</div> <!-- END body-wrapper -->
+		<!-- END footer-bottom-group -->
+		
+		<div style="position:absolute; left:-9999px; top:-9999px;">
+			<span id="qa-waiting-template" class="qa-waiting">...</span>
+		</div>
+	
+	
+
+</body><!-- Powered by Question2Answer - http://www.question2answer.org/ --></html>

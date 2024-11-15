@@ -1,0 +1,437 @@
+<html><!-- Powered by Question2Answer - http://www.question2answer.org/ --><head>
+		<meta http-equiv="content-type" content="text/html; charset=utf-8">
+		<title>Fixing the convergence issue by changing the "absolute_tolerance" - FEniCS Q&amp;A</title>
+		<meta name="description" content="I have a code for solving a time-dependent and non-linear problem. The thing is my code does not converge  ... F_N / epsilon) * C_0 * v_2 * dx while t">
+		<meta name="keywords" content="convergence,time-dependent,newton-solver,nonlinear-problem">
+		<link rel="stylesheet" type="text/css" href="../../qa-theme/Snow/qa-styles.css">
+		<link rel="canonical" href="http://fenicsproject.org/qa/13952/fixing-the-convergence-issue-changing-absolute_tolerance">
+		<script type="text/x-mathjax-config">
+  MathJax.Hub.Config({
+    extensions: ["tex2jax.js"],
+    jax: ["input/TeX","output/HTML-CSS"],
+    tex2jax: {inlineMath: [["$","$"],["\\(","\\)"]]},
+    TeX: { extensions: ["AMSmath.js","AMSsymbols.js"]}
+  });
+</script>
+<script type="text/javascript" src="../../mathjax/MathJax.js"></script>
+		<script src="../../jquery-1.7.2.min.js" type="text/javascript"></script>
+		<script src="../../highlight.min.js"></script>
+<script type="text/javascript">
+$(function(){
+	$('.wmd-input').keypress(function(){
+		window.clearTimeout(hljs.Timeout);
+		hljs.Timeout = window.setTimeout(function() {
+			hljs.initHighlighting.called = false;
+			hljs.initHighlighting();
+		}, 500);
+	});
+	window.setTimeout(function() {
+		hljs.initHighlighting.called = false;
+		hljs.initHighlighting();
+	}, 500);
+});
+</script>
+
+
+	</head>
+	<body class="qa-template-question qa-body-js-off">
+		<div class="qa-body-wrapper">
+			
+			<div class="qa-header">
+				<div class="qa-logo">
+					<a href="../../" class="qa-logo-link" title="FEniCS Q&amp;A"><img src="../../qa-theme/fenics_qa.png" border="0" alt="FEniCS Q&amp;A"></a>
+				</div>
+				<div class="qa-header-clear">
+				</div>
+			</div> <!-- END qa-header -->
+			
+			<div class="qa-main-shadow">
+				
+				<div class="qa-main-wrapper">
+					
+					<div class="qa-sidepanel">
+						<div class="qa-sidebar">
+							This is a read only copy of the old FEniCS QA forum. Please visit the <a href="https://www.allanswered.com/community/s/fenics-project/">new QA forum</a> to ask questions
+						</div>
+						
+					</div>
+					
+					<div class="qa-main">
+						<h1>
+							<span class="entry-title">Fixing the convergence issue by changing the "absolute_tolerance"</span>
+						</h1>
+						<div class="qa-part-q-view">
+							<div class="qa-q-view  hentry question" id="q13952">
+								<form method="post" action="../../13952/fixing-the-convergence-issue-changing-absolute_tolerance">
+									<div class="qa-q-view-stats">
+										<div class="qa-voting qa-voting-net" id="voting_13952">
+											<div class="qa-vote-count qa-vote-count-net">
+												<span class="qa-netvote-count">
+													<span class="qa-netvote-count-data">+1<span class="votes-up"><span class="value-title" title="1"></span></span><span class="votes-down"><span class="value-title" title="0"></span></span></span><span class="qa-netvote-count-pad"> vote</span>
+												</span>
+											</div>
+											<div class="qa-vote-clear">
+											</div>
+										</div>
+									</div>
+									<input type="hidden" name="code" value="0-1516466500-058bbdae8de19daa942e8d5289e3019412c36897">
+								</form>
+								<div class="qa-q-view-main">
+									<form method="post" action="../../13952/fixing-the-convergence-issue-changing-absolute_tolerance">
+										<div class="qa-q-view-content">
+											<a name="13952"></a><div class="entry-content"><p>I have a code for solving a time-dependent and non-linear problem. The thing is my code does not converge for some reason. Here is my complete code:</p>
+
+<pre><code>from dolfin import *
+import mshr
+import numpy as np
+from numpy import cos, pi
+
+#Diffusion constant
+D = 1. * (10**(-9))
+
+#The gas constant
+R = 8.31
+
+#Anion concentration
+C_0 = 1200.
+
+#Dielectric permittivity
+epsilon = 0.025
+
+#Temperature
+Temp = 293.0
+
+#Electrical mobility
+mu = D / (R*Temp)
+
+#Faraday number
+F_N = 96500.
+
+#Charge number
+Charge_num=Constant(1.)
+
+
+# Define boundaries
+class Left(SubDomain):
+    def inside(self, x, on_boundary):
+        return near(x[0], 0.0)
+
+
+class Right(SubDomain):
+    def inside(self, x, on_boundary):
+        return near(x[0], 0.03)
+
+
+class Bottom(SubDomain):
+    def inside(self, x, on_boundary):
+        return near(x[1], 0)
+
+
+class Top(SubDomain):
+    def inside(self, x, on_boundary):
+        return near(x[1], (200 * (10**(-6))))
+
+# Initialize sub-domain instances
+left = Left()
+top = Top()
+right = Right()
+bottom = Bottom()
+
+# Domain
+class Mesh:
+    def __init__(self, lx,ly, Nx,Ny):
+        self.lx = lx
+        self.ly = ly
+        self.Nx = Nx
+        self.Ny = Ny
+
+    def mesh(self):
+        m = RectangleMesh(Point(0,0), Point(1, 1),self.Nx, self.Ny)
+        x = m.coordinates()
+         #Refine on top and bottom sides
+        x[:,:] = (x[:,:] - 0.5) * 2.
+        x[:,:] = 0.5 * (cos(pi * (x[:,:] - 1.) / 2.) + 1.)
+        #Scale
+        x[:,0] = x[:,0]*self.lx
+        x[:,1] = x[:,1]*self.ly
+        return m
+
+mesh0=Mesh(0.03,200.*(10 ** (-6)), 1000,15)
+mesh1 = mesh0.mesh()
+# Marking boundary domains
+boundaries = FacetFunction("size_t", mesh1)
+boundaries.set_all(0)
+left.mark(boundaries, 2)
+top.mark(boundaries, 1)
+right.mark(boundaries, 4)
+bottom.mark(boundaries, 3)
+
+# Defining the function spaces for the concentration
+V_c = FunctionSpace(mesh1, 'CG', 1)
+
+# Defining the function spaces for the voltage
+V_phi = FunctionSpace(mesh1, 'CG', 1)
+
+# Defining the mixed function space
+W = MixedFunctionSpace((V_c, V_phi))
+
+# Defining the "Trial" functions
+
+z = Function(W)
+dz=TrialFunction(W)
+
+c, phi = split(z)
+
+# Defining the test  functions
+(v_1, v_2) = TestFunctions(W)
+
+# Time variables
+dt = 0.005
+t = 0
+T = 0.2
+
+# Previous solution
+W_const = Constant(1200.0)
+C_previous = interpolate(W_const, V_c)
+
+# Define Dirichlet boundary conditions at top boundary 
+Voltage = Constant(2.0)
+bc_top = DirichletBC(W.sub(1), Voltage, boundaries, 1)
+
+# Define Dirichlet boundary conditions at bottom boundary 
+bc_bottom = DirichletBC(W.sub(1), 0.0, boundaries, 3)
+
+# Collecting the boundary conditions
+bcs = [bc_top, bc_bottom]
+
+# Variational form For nonlinear solver
+F = dot(grad(phi), grad(v_2)) * dx \
+    + c * v_1 * dx \
+    - (F_N / epsilon) * c * v_2 * dx \
+    + dt * D * dot(grad(c), grad(v_1)) * dx \
+    + dt * Charge_num * mu * F_N * c * dot(grad(phi), grad(v_1)) * dx \
+    - C_previous * v_1 * dx + (F_N / epsilon) * C_0 * v_2 * dx
+
+while t &lt;= T:
+    #solve(F == 0, u, bcs)
+    J = derivative(F, z, dz) #Define the Jacobian
+    problem = NonlinearVariationalProblem(F, z, bcs,J)
+    solver = NonlinearVariationalSolver(problem)    
+    solver.solve()
+    (c, phi) = z.split(True)
+    C_previous.assign(c)
+    t += dt
+    plot(c,key="c", interactive=False)
+
+interactive()
+</code></pre>
+
+<p>Here is the error I am getting:</p>
+
+<pre><code>*** Error:   Unable to solve nonlinear system with NewtonSolver.
+*** Reason:  Newton solver did not converge because maximum number of iterations reached.
+*** Where:   This error was encountered inside NewtonSolver.cpp.
+*** Process: 0
+*** 
+*** DOLFIN version: 1.6.0
+</code></pre>
+
+<p>I fixed this issue <em>by changing the</em> <strong>"absolute_tolerance"</strong>. I just increased this value from <strong>1.000e-10</strong> (default value) <strong>to 5e-7</strong>. I just added this line:</p>
+
+<pre><code>solver.parameters["newton_solver"]["absolute_tolerance"]=5e-7
+</code></pre>
+
+<p>When I run this code I am not getting the same error and it gives me some results. This time I got this message:</p>
+
+<pre><code>Solving nonlinear variational problem.
+  Newton iteration 0: r (abs) = 4.925e-07 (tol = 5.000e-07) r (rel) = 1.000e+00 (tol = 1.000e-09)
+  Newton solver finished in 0 iterations and 0 linear solver iterations.
+</code></pre>
+
+<p>I just want to know if these results are reliable or not. Is it a right approach to fix the convergence problem by increasing the absolute_tolerance?  If not, do you have any idea how to resolve this issue in my code?<br>
+Thanks!</p>
+</div>
+										</div>
+										<div class="qa-q-view-tags">
+											<ul class="qa-q-view-tag-list">
+												<li class="qa-q-view-tag-item"><a href="../../tag/convergence" rel="tag" class="qa-tag-link">convergence</a></li>
+												<li class="qa-q-view-tag-item"><a href="../../tag/time-dependent" rel="tag" class="qa-tag-link">time-dependent</a></li>
+												<li class="qa-q-view-tag-item"><a href="../../tag/newton-solver" rel="tag" class="qa-tag-link">newton-solver</a></li>
+												<li class="qa-q-view-tag-item"><a href="../../tag/nonlinear-problem" rel="tag" class="qa-tag-link">nonlinear-problem</a></li>
+											</ul>
+										</div>
+										<span class="qa-q-view-avatar-meta">
+											<span class="qa-q-view-meta">
+												<a href="../../13952/fixing-the-convergence-issue-changing-absolute_tolerance" class="qa-q-view-what">asked</a>
+												<span class="qa-q-view-when">
+													<span class="qa-q-view-when-data"><span class="published"><span class="value-title" title="2017-06-14T05:50:58+0000"></span>Jun 14, 2017</span></span>
+												</span>
+												<span class="qa-q-view-who">
+													<span class="qa-q-view-who-pad">by </span>
+													<span class="qa-q-view-who-data"><span class="vcard author"><a href="../../user/Leo" class="qa-user-link url nickname">Leo</a></span></span>
+													<span class="qa-q-view-who-title">FEniCS Novice</span>
+													<span class="qa-q-view-who-points">
+														<span class="qa-q-view-who-points-pad">(</span><span class="qa-q-view-who-points-data">840</span><span class="qa-q-view-who-points-pad"> points)</span>
+													</span>
+												</span>
+											</span>
+										</span>
+										<div class="qa-q-view-buttons">
+										</div>
+										
+										<div class="qa-q-view-c-list" style="display:none;" id="c13952_list">
+										</div> <!-- END qa-c-list -->
+										
+										<input type="hidden" name="code" value="0-1516466500-31f4d1de5d009a37a4783b7f732c25e52969f8fb">
+										<input type="hidden" name="qa_click" value="">
+									</form>
+									<div class="qa-c-form">
+									</div> <!-- END qa-c-form -->
+									
+								</div> <!-- END qa-q-view-main -->
+								<div class="qa-q-view-clear">
+								</div>
+							</div> <!-- END qa-q-view -->
+							
+						</div>
+						<div class="qa-part-a-list">
+							<h2 id="a_list_title">1 Answer</h2>
+							<div class="qa-a-list" id="a_list">
+								
+								<div class="qa-a-list-item  hentry answer" id="a13964">
+									<form method="post" action="../../13952/fixing-the-convergence-issue-changing-absolute_tolerance">
+										<div class="qa-voting qa-voting-net" id="voting_13964">
+											<div class="qa-vote-count qa-vote-count-net">
+												<span class="qa-netvote-count">
+													<span class="qa-netvote-count-data">0<span class="votes-up"><span class="value-title" title="0"></span></span><span class="votes-down"><span class="value-title" title="0"></span></span></span><span class="qa-netvote-count-pad"> votes</span>
+												</span>
+											</div>
+											<div class="qa-vote-clear">
+											</div>
+										</div>
+										<input type="hidden" name="code" value="0-1516466500-058bbdae8de19daa942e8d5289e3019412c36897">
+									</form>
+									<div class="qa-a-item-main">
+										<form method="post" action="../../13952/fixing-the-convergence-issue-changing-absolute_tolerance">
+											<div class="qa-a-selection">
+											</div>
+											<div class="qa-a-item-content">
+												<a name="13964"></a><div class="entry-content"><p>There are two issues here:</p>
+
+<p>You seem to be getting a solution with really small values for the units used. You can try using the relative tolerance instead which is a tolerance normalized by the magnitude of your solution. Try:</p>
+
+<pre><code>solver.parameters["newton_solver"]["relative_tolerance"] = 1.0e-3
+</code></pre>
+
+<p>This might work but also to have a solution less dependent on machine precision errors (when dealing with large and small constants for example), you might consider changing your units.</p>
+
+<p>For example, instead of using all SI units you can use microns for length and change all constants accordingly. After doing this you probably won't need to change the Newton solver settings and your solution will be more accurate.</p>
+
+<p>To check you did this correctly, all the terms in your differential equation should end up being multiplied by the same constant after doing the change of units. For example, if going to meters from microns all the terms should be scaled by 1.0e6 to some power. And remember some units like watts have a lengh scale as well. Get all units in terms of mass length and time units.</p>
+</div>
+											</div>
+											<span class="qa-a-item-avatar-meta">
+												<span class="qa-a-item-meta">
+													<a href="../../13952/fixing-the-convergence-issue-changing-absolute_tolerance?show=13964#a13964" class="qa-a-item-what">answered</a>
+													<span class="qa-a-item-when">
+														<span class="qa-a-item-when-data"><span class="published"><span class="value-title" title="2017-06-14T13:23:48+0000"></span>Jun 14, 2017</span></span>
+													</span>
+													<span class="qa-a-item-who">
+														<span class="qa-a-item-who-pad">by </span>
+														<span class="qa-a-item-who-data"><span class="vcard author"><a href="../../user/alexmm" class="qa-user-link url nickname">alexmm</a></span></span>
+														<span class="qa-a-item-who-title">FEniCS User</span>
+														<span class="qa-a-item-who-points">
+															<span class="qa-a-item-who-points-pad">(</span><span class="qa-a-item-who-points-data">4,240</span><span class="qa-a-item-who-points-pad"> points)</span>
+														</span>
+													</span>
+													<br>
+													<span class="qa-a-item-what">edited</span>
+													<span class="qa-a-item-when">
+														<span class="qa-a-item-when-data"><span class="updated"><span class="value-title" title="2017-06-14T14:08:32+0000"></span>Jun 14, 2017</span></span>
+													</span>
+													<span class="qa-a-item-who">
+														<span class="qa-a-item-who-pad">by </span><span class="qa-a-item-who-data"><a href="../../user/alexmm" class="qa-user-link url nickname">alexmm</a></span>
+													</span>
+												</span>
+											</span>
+											<div class="qa-a-item-buttons">
+												</div>
+											
+											<div class="qa-a-item-c-list" id="c13964_list">
+												<div class="qa-c-list-item  hentry comment" id="c13970">
+													<div class="qa-c-item-content">
+														<a name="13970"></a><div class="entry-content"><p>Thanks for your response. Unfortunately using:</p>
+
+<pre><code>solver.parameters["newton_solver"]["relative_tolerance"] = 1.0e-3
+</code></pre>
+
+<p>was not helpful. Anyway, I have not still gotten the answer of my question. Does it make sense to solve the convergence issue by increasing the absolute tolerance of the newton solver?<br>
+In addition,  when I am getting this message:</p>
+
+<pre><code>Newton solver finished in 0 iterations and 0 linear solver iterations.
+</code></pre>
+
+<p>can I trust the given results?</p>
+</div>
+													</div>
+													<div class="qa-c-item-footer">
+														<span class="qa-c-item-avatar-meta">
+															<span class="qa-c-item-meta">
+																<a href="../../13952/fixing-the-convergence-issue-changing-absolute_tolerance?show=13970#c13970" class="qa-c-item-what">commented</a>
+																<span class="qa-c-item-when">
+																	<span class="qa-c-item-when-data"><span class="published"><span class="value-title" title="2017-06-14T16:14:00+0000"></span>Jun 14, 2017</span></span>
+																</span>
+																<span class="qa-c-item-who">
+																	<span class="qa-c-item-who-pad">by </span>
+																	<span class="qa-c-item-who-data"><span class="vcard author"><a href="../../user/Leo" class="qa-user-link url nickname">Leo</a></span></span>
+																	<span class="qa-c-item-who-title">FEniCS Novice</span>
+																	<span class="qa-c-item-who-points">
+																		<span class="qa-c-item-who-points-pad">(</span><span class="qa-c-item-who-points-data">840</span><span class="qa-c-item-who-points-pad"> points)</span>
+																	</span>
+																</span>
+																<br>
+																<span class="qa-c-item-what">edited</span>
+																<span class="qa-c-item-when">
+																	<span class="qa-c-item-when-data"><span class="updated"><span class="value-title" title="2017-06-14T16:42:07+0000"></span>Jun 14, 2017</span></span>
+																</span>
+																<span class="qa-c-item-who">
+																	<span class="qa-c-item-who-pad">by </span><span class="qa-c-item-who-data"><a href="../../user/Leo" class="qa-user-link url nickname">Leo</a></span>
+																</span>
+															</span>
+														</span>
+														<div class="qa-c-item-buttons">
+														</div>
+													</div>
+													<div class="qa-c-item-clear">
+													</div>
+												</div> <!-- END qa-c-item -->
+											</div> <!-- END qa-c-list -->
+											
+											<input type="hidden" name="code" value="0-1516466500-7395558fcc8dfa554ebd59d9c7ba98369c78dcdb">
+											<input type="hidden" name="qa_click" value="">
+										</form>
+										<div class="qa-c-form">
+										</div> <!-- END qa-c-form -->
+										
+									</div> <!-- END qa-a-item-main -->
+									<div class="qa-a-item-clear">
+									</div>
+								</div> <!-- END qa-a-list-item -->
+								
+							</div> <!-- END qa-a-list -->
+							
+						</div>
+					</div> <!-- END qa-main -->
+					
+				</div> <!-- END main-wrapper -->
+			</div> <!-- END main-shadow -->
+		</div> <!-- END body-wrapper -->
+		<!-- END footer-bottom-group -->
+		
+		<div style="position:absolute; left:-9999px; top:-9999px;">
+			<span id="qa-waiting-template" class="qa-waiting">...</span>
+		</div>
+	
+	
+
+</body><!-- Powered by Question2Answer - http://www.question2answer.org/ --></html>

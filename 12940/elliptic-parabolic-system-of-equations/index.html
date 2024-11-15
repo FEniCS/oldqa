@@ -1,0 +1,379 @@
+<html><!-- Powered by Question2Answer - http://www.question2answer.org/ --><head>
+		<meta http-equiv="content-type" content="text/html; charset=utf-8">
+		<title>Elliptic-Parabolic System of Equations - FEniCS Q&amp;A</title>
+		<meta name="description" content="I am trying to solve a coupled system of equations made up of a parabolic and elliptic equation. For  ... to VTK format _u1, _u2 = u.split() vtkfile1">
+		<link rel="stylesheet" type="text/css" href="../../qa-theme/Snow/qa-styles.css">
+		<link rel="canonical" href="http://fenicsproject.org/qa/12940/elliptic-parabolic-system-of-equations">
+		<script type="text/x-mathjax-config">
+  MathJax.Hub.Config({
+    extensions: ["tex2jax.js"],
+    jax: ["input/TeX","output/HTML-CSS"],
+    tex2jax: {inlineMath: [["$","$"],["\\(","\\)"]]},
+    TeX: { extensions: ["AMSmath.js","AMSsymbols.js"]}
+  });
+</script>
+<script type="text/javascript" src="../../mathjax/MathJax.js"></script>
+		<script src="../../jquery-1.7.2.min.js" type="text/javascript"></script>
+		<script src="../../highlight.min.js"></script>
+<script type="text/javascript">
+$(function(){
+	$('.wmd-input').keypress(function(){
+		window.clearTimeout(hljs.Timeout);
+		hljs.Timeout = window.setTimeout(function() {
+			hljs.initHighlighting.called = false;
+			hljs.initHighlighting();
+		}, 500);
+	});
+	window.setTimeout(function() {
+		hljs.initHighlighting.called = false;
+		hljs.initHighlighting();
+	}, 500);
+});
+</script>
+
+
+	</head>
+	<body class="qa-template-question qa-body-js-off">
+		<div class="qa-body-wrapper">
+			
+			<div class="qa-header">
+				<div class="qa-logo">
+					<a href="../../" class="qa-logo-link" title="FEniCS Q&amp;A"><img src="../../qa-theme/fenics_qa.png" border="0" alt="FEniCS Q&amp;A"></a>
+				</div>
+				<div class="qa-header-clear">
+				</div>
+			</div> <!-- END qa-header -->
+			
+			<div class="qa-main-shadow">
+				
+				<div class="qa-main-wrapper">
+					
+					<div class="qa-sidepanel">
+						<div class="qa-sidebar">
+							This is a read only copy of the old FEniCS QA forum. Please visit the <a href="https://www.allanswered.com/community/s/fenics-project/">new QA forum</a> to ask questions
+						</div>
+						
+					</div>
+					
+					<div class="qa-main">
+						<h1>
+							<span class="entry-title">Elliptic-Parabolic System of Equations</span>
+						</h1>
+						<div class="qa-part-q-view">
+							<div class="qa-q-view  hentry question" id="q12940">
+								<form method="post" action="../../12940/elliptic-parabolic-system-of-equations">
+									<div class="qa-q-view-stats">
+										<div class="qa-voting qa-voting-net" id="voting_12940">
+											<div class="qa-vote-count qa-vote-count-net">
+												<span class="qa-netvote-count">
+													<span class="qa-netvote-count-data">0<span class="votes-up"><span class="value-title" title="0"></span></span><span class="votes-down"><span class="value-title" title="0"></span></span></span><span class="qa-netvote-count-pad"> votes</span>
+												</span>
+											</div>
+											<div class="qa-vote-clear">
+											</div>
+										</div>
+									</div>
+									<input type="hidden" name="code" value="0-1516467846-272c7908b20e9ef45a27f20a69c660069a48ec2f">
+								</form>
+								<div class="qa-q-view-main">
+									<form method="post" action="../../12940/elliptic-parabolic-system-of-equations">
+										<div class="qa-q-view-content">
+											<a name="12940"></a><div class="entry-content"><p>I am trying to solve a coupled system of equations made up of a parabolic and elliptic equation. For some reason, when I use a mixed space and solve the equations in a single solve call, the parabolic equation remains constant. Is there a way to solve these equations as a single system? Below is a minimal example.</p>
+
+<p><code></code></p>
+
+<h2>Import necessary packages</h2>
+
+<p>from fenics import *<br>
+from dolfin import *<br>
+import numpy as np</p>
+
+<h2>Define parameters and constants</h2>
+
+<p>tol = 1E-14<br>
+density = 1.0<br>
+specificHeat = 1.0<br>
+ambAlpha = 1.0<br>
+ambTemp = 1.0<br>
+coolAlpha = 1.0<br>
+coolTemp = 0.5<br>
+thermalConductivity = 1.0<br>
+perfusionRate = 1.0<br>
+bloodTemp = 1.0<br>
+radDiffusion = 1.0<br>
+absCoefficient = 5.0<br>
+appliedPower = 18.0<br>
+appliedArea = 0.2</p>
+
+<h2>Set time-stepping parameters</h2>
+
+<p>T = 10.0<br>
+num_steps = 100<br>
+dt = T / num_steps</p>
+
+<h2>Create mesh and define function space</h2>
+
+<p>nx = ny = 10<br>
+mesh = UnitSquareMesh(nx,ny)</p>
+
+<p>boundaryMarkers = FacetFunction('size_t', mesh)</p>
+
+<h2>Set the ambient boundary</h2>
+
+<p>class Boundary1(SubDomain):<br>
+    def inside(self, x, on_boundary):<br>
+        return on_boundary and (near(x[1], 0, tol) or near(x[1], 1, tol) or near(x[0], 1, tol))</p>
+
+<p>bx1 = Boundary1()<br>
+bx1.mark(boundaryMarkers, 1)</p>
+
+<h2>Set the radiative boundary</h2>
+
+<p>class Boundary2(SubDomain):<br>
+    def inside(self, x, on_boundary):<br>
+        return on_boundary and near(x[0], 0, tol) and (x[1] &gt;= 0.25 and x[1] &lt;= 0.75)</p>
+
+<p>bx2 = Boundary2()<br>
+bx2.mark(boundaryMarkers, 2)</p>
+
+<h2>Set the cooled boundary</h2>
+
+<p>class Boundary3(SubDomain):<br>
+    def inside(self, x, on_boundary):<br>
+        return on_boundary and near(x[0], 0, tol) and (x[1] &lt; 0.25 or x[1] &gt; 0.75)</p>
+
+<p>bx3 = Boundary3()<br>
+bx3.mark(boundaryMarkers, 3)</p>
+
+<p>P1 = FiniteElement("Lagrange", triangle, 1)<br>
+element = MixedElement([P1,P1])<br>
+V = FunctionSpace(mesh, element)</p>
+
+<h2>Define boundary conditions</h2>
+
+<p>bcs = [] # No Dirichlet boundary conditions</p>
+
+<h2>Redefine the measure ds for boundary integrals</h2>
+
+<p>ds = Measure('ds', domain=mesh, subdomain_data=boundaryMarkers)</p>
+
+<h2>Define variational problem</h2>
+
+<p>u = Function(V)<br>
+u1, u2 = split(u)</p>
+
+<p>u_n = Function(V)<br>
+u1_n, u2_n = split(u_n)</p>
+
+<p>v1, v2 = TestFunctions(V)</p>
+
+<h2>Define initial conditions</h2>
+
+<p>u_n = interpolate(Constant((0.5,0.0)), V)</p>
+
+<h2>Create progress bar</h2>
+
+<p>progress = Progress('Time-stepping')<br>
+set_log_level(PROGRESS)</p>
+
+<h2>Save solution to file in VTK format</h2>
+
+<p>vtkfile1 = File('paraview/temperature.pvd')<br>
+vtkfile2 = File('paraview/radiation.pvd')</p>
+
+<h2>Time-stepping</h2>
+
+<p>t = 0</p>
+
+<p>k = Constant(dt)</p>
+
+<p>for n in range(num_steps):<br>
+    # Update time<br>
+    t += dt</p>
+
+<pre><code># Solve equations
+F = density * specificHeat * ((u1 - u1_n) / k) * v1 * dx \
+    - ambAlpha * (ambTemp - u1) * v1 * ds(1) \
+    - coolAlpha * (coolTemp - u1) * v1 * ds(2) \
+    - coolAlpha * (coolTemp - u1) * v1 * ds(3) \
+    + dot(thermalConductivity * grad(u1), grad(v1)) * dx \
+    - absCoefficient * u2 * v1 * dx \
+    - perfusionRate * (bloodTemp - u1) * v1 * dx
+
+F += dot(grad(u2), grad(v2)) * dx             \
+    - appliedPower/appliedArea * v2 * ds(3)  \
+    + 1/2 * u2 * v2 * ds(1)                   \
+    + absCoefficient * u2 * v2 * dx
+
+solve(F == 0, u)
+
+# Write solution to VTK format
+_u1, _u2 = u.split()
+vtkfile1 &lt;&lt; (_u1,t)
+vtkfile2 &lt;&lt; (_u2,t)
+
+# Update previous solution
+u_n.assign(u)
+
+# Update progress boundary
+progress.update(t / T)
+</code></pre>
+
+<p></p>
+</div>
+										</div>
+										<span class="qa-q-view-avatar-meta">
+											<span class="qa-q-view-meta">
+												<a href="../../12940/elliptic-parabolic-system-of-equations" class="qa-q-view-what">asked</a>
+												<span class="qa-q-view-when">
+													<span class="qa-q-view-when-data"><span class="published"><span class="value-title" title="2017-04-03T08:06:53+0000"></span>Apr 3, 2017</span></span>
+												</span>
+												<span class="qa-q-view-who">
+													<span class="qa-q-view-who-pad">by </span>
+													<span class="qa-q-view-who-data"><span class="vcard author"><a href="../../user/kevibruner" class="qa-user-link url nickname">kevibruner</a></span></span>
+													<span class="qa-q-view-who-title">FEniCS Novice</span>
+													<span class="qa-q-view-who-points">
+														<span class="qa-q-view-who-points-pad">(</span><span class="qa-q-view-who-points-data">150</span><span class="qa-q-view-who-points-pad"> points)</span>
+													</span>
+												</span>
+												<br>
+												<span class="qa-q-view-what">edited</span>
+												<span class="qa-q-view-when">
+													<span class="qa-q-view-when-data"><span class="updated"><span class="value-title" title="2017-04-04T06:50:51+0000"></span>Apr 4, 2017</span></span>
+												</span>
+												<span class="qa-q-view-who">
+													<span class="qa-q-view-who-pad">by </span><span class="qa-q-view-who-data"><a href="../../user/kevibruner" class="qa-user-link url nickname">kevibruner</a></span>
+												</span>
+											</span>
+										</span>
+										<div class="qa-q-view-buttons">
+										</div>
+										
+										<div class="qa-q-view-c-list" id="c12940_list">
+											<div class="qa-c-list-item  hentry comment" id="c12952">
+												<div class="qa-c-item-content">
+													<a name="12952"></a><div class="entry-content"><p>Hi, did you include the entire code? Because I guess that u_n is the previous step, and it is not being updated.</p>
+</div>
+												</div>
+												<div class="qa-c-item-footer">
+													<span class="qa-c-item-avatar-meta">
+														<span class="qa-c-item-avatar">
+															<a href="../../user/nabarnaf" class="qa-avatar-link"><img src="../../?qa=image&amp;qa_blobid=6623124104544180019&amp;qa_size=20" width="20" height="14" class="qa-avatar-image" alt=""></a>
+														</span>
+														<span class="qa-c-item-meta">
+															<a href="../../12940/elliptic-parabolic-system-of-equations?show=12952#c12952" class="qa-c-item-what">commented</a>
+															<span class="qa-c-item-when">
+																<span class="qa-c-item-when-data"><span class="published"><span class="value-title" title="2017-04-03T16:09:33+0000"></span>Apr 3, 2017</span></span>
+															</span>
+															<span class="qa-c-item-who">
+																<span class="qa-c-item-who-pad">by </span>
+																<span class="qa-c-item-who-data"><span class="vcard author"><a href="../../user/nabarnaf" class="qa-user-link url nickname">nabarnaf</a></span></span>
+																<span class="qa-c-item-who-title">FEniCS User</span>
+																<span class="qa-c-item-who-points">
+																	<span class="qa-c-item-who-points-pad">(</span><span class="qa-c-item-who-points-data">2,940</span><span class="qa-c-item-who-points-pad"> points)</span>
+																</span>
+															</span>
+														</span>
+													</span>
+													<div class="qa-c-item-buttons">
+													</div>
+												</div>
+												<div class="qa-c-item-clear">
+												</div>
+											</div> <!-- END qa-c-item -->
+											<div class="qa-c-list-item  hentry comment" id="c12965">
+												<div class="qa-c-item-content">
+													<a name="12965"></a><div class="entry-content"><p>It appears that a portion of the code got cut off when copying. I've added the rest, the update for u_n was cut off, but it is in the version that is giving me trouble.</p>
+
+<p>PS: Is there a trick to getting the code to appear properly? It was complete in the original post but wasn't displayed.</p>
+</div>
+												</div>
+												<div class="qa-c-item-footer">
+													<span class="qa-c-item-avatar-meta">
+														<span class="qa-c-item-meta">
+															<a href="../../12940/elliptic-parabolic-system-of-equations?show=12965#c12965" class="qa-c-item-what">commented</a>
+															<span class="qa-c-item-when">
+																<span class="qa-c-item-when-data"><span class="published"><span class="value-title" title="2017-04-04T06:49:11+0000"></span>Apr 4, 2017</span></span>
+															</span>
+															<span class="qa-c-item-who">
+																<span class="qa-c-item-who-pad">by </span>
+																<span class="qa-c-item-who-data"><span class="vcard author"><a href="../../user/kevibruner" class="qa-user-link url nickname">kevibruner</a></span></span>
+																<span class="qa-c-item-who-title">FEniCS Novice</span>
+																<span class="qa-c-item-who-points">
+																	<span class="qa-c-item-who-points-pad">(</span><span class="qa-c-item-who-points-data">150</span><span class="qa-c-item-who-points-pad"> points)</span>
+																</span>
+															</span>
+														</span>
+													</span>
+													<div class="qa-c-item-buttons">
+													</div>
+												</div>
+												<div class="qa-c-item-clear">
+												</div>
+											</div> <!-- END qa-c-item -->
+											<div class="qa-c-list-item  hentry comment" id="c12970">
+												<div class="qa-c-item-content">
+													<a name="12970"></a><div class="entry-content"><p>No idea, and also no idea why it is not working. Maybe you could try splitting u_n in each iteration because the splitted functions could be copies and not references, but no idea honestly.</p>
+</div>
+												</div>
+												<div class="qa-c-item-footer">
+													<span class="qa-c-item-avatar-meta">
+														<span class="qa-c-item-avatar">
+															<a href="../../user/nabarnaf" class="qa-avatar-link"><img src="../../?qa=image&amp;qa_blobid=6623124104544180019&amp;qa_size=20" width="20" height="14" class="qa-avatar-image" alt=""></a>
+														</span>
+														<span class="qa-c-item-meta">
+															<a href="../../12940/elliptic-parabolic-system-of-equations?show=12970#c12970" class="qa-c-item-what">commented</a>
+															<span class="qa-c-item-when">
+																<span class="qa-c-item-when-data"><span class="published"><span class="value-title" title="2017-04-04T12:01:10+0000"></span>Apr 4, 2017</span></span>
+															</span>
+															<span class="qa-c-item-who">
+																<span class="qa-c-item-who-pad">by </span>
+																<span class="qa-c-item-who-data"><span class="vcard author"><a href="../../user/nabarnaf" class="qa-user-link url nickname">nabarnaf</a></span></span>
+																<span class="qa-c-item-who-title">FEniCS User</span>
+																<span class="qa-c-item-who-points">
+																	<span class="qa-c-item-who-points-pad">(</span><span class="qa-c-item-who-points-data">2,940</span><span class="qa-c-item-who-points-pad"> points)</span>
+																</span>
+															</span>
+														</span>
+													</span>
+													<div class="qa-c-item-buttons">
+													</div>
+												</div>
+												<div class="qa-c-item-clear">
+												</div>
+											</div> <!-- END qa-c-item -->
+										</div> <!-- END qa-c-list -->
+										
+										<input type="hidden" name="code" value="0-1516467846-5265d61e7e2260630bc620b1513b8dcef30c47bc">
+										<input type="hidden" name="qa_click" value="">
+									</form>
+									<div class="qa-c-form">
+									</div> <!-- END qa-c-form -->
+									
+								</div> <!-- END qa-q-view-main -->
+								<div class="qa-q-view-clear">
+								</div>
+							</div> <!-- END qa-q-view -->
+							
+						</div>
+						<div class="qa-part-a-list">
+							<h2 id="a_list_title" style="display:none;"></h2>
+							<div class="qa-a-list" id="a_list">
+								
+							</div> <!-- END qa-a-list -->
+							
+						</div>
+					</div> <!-- END qa-main -->
+					
+				</div> <!-- END main-wrapper -->
+			</div> <!-- END main-shadow -->
+		</div> <!-- END body-wrapper -->
+		<!-- END footer-bottom-group -->
+		
+		<div style="position:absolute; left:-9999px; top:-9999px;">
+			<span id="qa-waiting-template" class="qa-waiting">...</span>
+		</div>
+	
+	
+
+</body><!-- Powered by Question2Answer - http://www.question2answer.org/ --></html>

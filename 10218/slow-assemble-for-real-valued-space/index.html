@@ -1,0 +1,346 @@
+<html><!-- Powered by Question2Answer - http://www.question2answer.org/ --><head>
+		<meta http-equiv="content-type" content="text/html; charset=utf-8">
+		<title>Slow assemble for real-valued space - FEniCS Q&amp;A</title>
+		<meta name="description" content="I am solving a problem which in its simplest form is the following weak problem $$\int_\Omega \sigma\ ...  should be fixed since it is far too slow.">
+		<link rel="stylesheet" type="text/css" href="../../qa-theme/Snow/qa-styles.css">
+		<link rel="canonical" href="http://fenicsproject.org/qa/10218/slow-assemble-for-real-valued-space">
+		<script type="text/x-mathjax-config">
+  MathJax.Hub.Config({
+    extensions: ["tex2jax.js"],
+    jax: ["input/TeX","output/HTML-CSS"],
+    tex2jax: {inlineMath: [["$","$"],["\\(","\\)"]]},
+    TeX: { extensions: ["AMSmath.js","AMSsymbols.js"]}
+  });
+</script>
+<script type="text/javascript" src="../../mathjax/MathJax.js"></script>
+		<script src="../../jquery-1.7.2.min.js" type="text/javascript"></script>
+		<script src="../../highlight.min.js"></script>
+<script type="text/javascript">
+$(function(){
+	$('.wmd-input').keypress(function(){
+		window.clearTimeout(hljs.Timeout);
+		hljs.Timeout = window.setTimeout(function() {
+			hljs.initHighlighting.called = false;
+			hljs.initHighlighting();
+		}, 500);
+	});
+	window.setTimeout(function() {
+		hljs.initHighlighting.called = false;
+		hljs.initHighlighting();
+	}, 500);
+});
+</script>
+
+
+	</head>
+	<body class="qa-template-question qa-body-js-off">
+		<div class="qa-body-wrapper">
+			
+			<div class="qa-header">
+				<div class="qa-logo">
+					<a href="../../" class="qa-logo-link" title="FEniCS Q&amp;A"><img src="../../qa-theme/fenics_qa.png" border="0" alt="FEniCS Q&amp;A"></a>
+				</div>
+				<div class="qa-header-clear">
+				</div>
+			</div> <!-- END qa-header -->
+			
+			<div class="qa-main-shadow">
+				
+				<div class="qa-main-wrapper">
+					
+					<div class="qa-sidepanel">
+						<div class="qa-sidebar">
+							This is a read only copy of the old FEniCS QA forum. Please visit the <a href="https://www.allanswered.com/community/s/fenics-project/">new QA forum</a> to ask questions
+						</div>
+						
+					</div>
+					
+					<div class="qa-main">
+						<h1>
+							<span class="entry-title">Slow assemble for real-valued space</span>
+						</h1>
+						<div class="qa-part-q-view">
+							<div class="qa-q-view  hentry question" id="q10218">
+								<form method="post" action="../../10218/slow-assemble-for-real-valued-space">
+									<div class="qa-q-view-stats">
+										<div class="qa-voting qa-voting-net" id="voting_10218">
+											<div class="qa-vote-count qa-vote-count-net">
+												<span class="qa-netvote-count">
+													<span class="qa-netvote-count-data">0<span class="votes-up"><span class="value-title" title="0"></span></span><span class="votes-down"><span class="value-title" title="0"></span></span></span><span class="qa-netvote-count-pad"> votes</span>
+												</span>
+											</div>
+											<div class="qa-vote-clear">
+											</div>
+										</div>
+									</div>
+									<input type="hidden" name="code" value="0-1516467047-41628be3a13056c334dc970856f96aac9caa7614">
+								</form>
+								<div class="qa-q-view-main">
+									<form method="post" action="../../10218/slow-assemble-for-real-valued-space">
+										<div class="qa-q-view-content">
+											<a name="10218"></a><div class="entry-content"><p>I am solving a problem which in its simplest form is the following weak problem</p>
+
+<p>$$\int_\Omega \sigma\nabla u\cdot\nabla v \,dx + z^{-1}\left( \int_{E_1}(u-U)(v-V)\,ds + \int_{E_2}(u+U)(v+V)\,ds \right) = 2V$$</p>
+
+<p>Here E_1 and E_2 are subdomains on the boundary, $\sigma$ is a function on $\Omega$, $u\in H^1(\Omega)$ and $U\in\mathbb{R}$, and similarly for the test functions (v,V). </p>
+
+<p>When assembling the first part of the form</p>
+
+<pre><code>V = FunctionSpace(mesh, "CG", 1)
+R = FunctionSpace(mesh, "R", 0)
+W = MixedFunctionSpace([R,V])
+(U,u) = TrialFunctions(W)
+(V,v) = TestFunctions(W)
+dom_int = sigma*inner(grad(u), grad(v))*dx
+A = assemble(dom_int)
+</code></pre>
+
+<p>the assembly is incredibly slow, especially when compared to not using the real function space</p>
+
+<pre><code>V = FunctionSpace(mesh, "CG", 1)
+u = TrialFunction(V)
+v = TestFunction(V)
+dom_int = sigma*inner(grad(u), grad(v))*dx
+A = assemble(dom_int)
+</code></pre>
+
+<p>This seems to be a known problem:<br>
+<a rel="nofollow" href="http://fenicsproject.org/qa/1231/hybrid-fem-formulation-with-some-non-spatial-dofs-with-fenics">http://fenicsproject.org/qa/1231/hybrid-fem-formulation-with-some-non-spatial-dofs-with-fenics</a></p>
+
+<p>Since I have to reassemble the A-matrix many times (iterative method where sigma is changing), this slowdown is very bad. Is there an easy way to:</p>
+
+<ol>
+<li>Build the A-matrix using only CG-1</li>
+<li>Extend the matrix by a zero row and column (how is this done, and will it ruin performance?)</li>
+</ol>
+
+<p>I tried a workaround with cbc.block by defining</p>
+
+<pre><code>M = block_mat([[0, 0], [0, A]])+block_mat([[B]])
+</code></pre>
+
+<p>where A is the CG-1 matrix from above and B is the assembled matrix for <br>
+$$z^{-1}\left( \int_{E_1}(u-U)(v-V)\,ds + \int_{E_2}(u+U)(v+V)\,ds \right)$$</p>
+
+<p>It did not work, when I tried to solve the system it give the error (I am not even sure if cbc.block supports adding block matrices of different shapes like this):</p>
+
+<pre><code>RuntimeError: Can't allocate vector - no usable template for block 0.
+Consider calling something like bb.allocate([V, Q]) to initialise the block_vec.
+</code></pre>
+
+<p>Any suggestions for a workaround that might help? Ideally the assembly with real spaces should be fixed since it is far too slow.</p>
+</div>
+										</div>
+										<span class="qa-q-view-avatar-meta">
+											<span class="qa-q-view-meta">
+												<a href="../../10218/slow-assemble-for-real-valued-space" class="qa-q-view-what">asked</a>
+												<span class="qa-q-view-when">
+													<span class="qa-q-view-when-data"><span class="published"><span class="value-title" title="2016-05-31T08:21:14+0000"></span>May 31, 2016</span></span>
+												</span>
+												<span class="qa-q-view-who">
+													<span class="qa-q-view-who-pad">by </span>
+													<span class="qa-q-view-who-data"><span class="vcard author"><a href="../../user/hgar" class="qa-user-link url nickname">hgar</a></span></span>
+													<span class="qa-q-view-who-title">FEniCS Novice</span>
+													<span class="qa-q-view-who-points">
+														<span class="qa-q-view-who-points-pad">(</span><span class="qa-q-view-who-points-data">770</span><span class="qa-q-view-who-points-pad"> points)</span>
+													</span>
+												</span>
+											</span>
+										</span>
+										<div class="qa-q-view-buttons">
+										</div>
+										
+										<div class="qa-q-view-c-list" style="display:none;" id="c10218_list">
+										</div> <!-- END qa-c-list -->
+										
+										<input type="hidden" name="code" value="0-1516467047-0d247cf40e13f8d386e74e608310fe18ecae9f6f">
+										<input type="hidden" name="qa_click" value="">
+									</form>
+									<div class="qa-c-form">
+									</div> <!-- END qa-c-form -->
+									
+								</div> <!-- END qa-q-view-main -->
+								<div class="qa-q-view-clear">
+								</div>
+							</div> <!-- END qa-q-view -->
+							
+						</div>
+						<div class="qa-part-a-list">
+							<h2 id="a_list_title">1 Answer</h2>
+							<div class="qa-a-list" id="a_list">
+								
+								<div class="qa-a-list-item  hentry answer answer-selected qa-a-list-item-selected" id="a10220">
+									<form method="post" action="../../10218/slow-assemble-for-real-valued-space">
+										<div class="qa-voting qa-voting-net" id="voting_10220">
+											<div class="qa-vote-count qa-vote-count-net">
+												<span class="qa-netvote-count">
+													<span class="qa-netvote-count-data">0<span class="votes-up"><span class="value-title" title="0"></span></span><span class="votes-down"><span class="value-title" title="0"></span></span></span><span class="qa-netvote-count-pad"> votes</span>
+												</span>
+											</div>
+											<div class="qa-vote-clear">
+											</div>
+										</div>
+										<input type="hidden" name="code" value="0-1516467047-41628be3a13056c334dc970856f96aac9caa7614">
+									</form>
+									<div class="qa-a-item-main">
+										<form method="post" action="../../10218/slow-assemble-for-real-valued-space">
+											<div class="qa-a-item-selected">
+												<div class="qa-a-selection">
+													<div class="qa-a-selected">&#160;</div>
+													<div class="qa-a-selected-text">Best answer</div>
+												</div>
+												<div class="qa-a-item-content">
+													<a name="10220"></a><div class="entry-content"><p>In cbc.block you would have separate matrices for CG and R spaces. <br>
+Have a look at e.g. the Stokes demo. </p>
+
+<p>The reason that the use of R space is slow is that this space represent<br>
+global dofs that are coupled to all other dofs. This destroys performance. <br>
+Your best bet now, I think, is to assemble this matrix separately<br>
+for instance with cbc.block or directly in the PETSc backend. </p>
+</div>
+												</div>
+												<span class="qa-a-item-avatar-meta">
+													<span class="qa-a-item-meta">
+														<a href="../../10218/slow-assemble-for-real-valued-space?show=10220#a10220" class="qa-a-item-what">answered</a>
+														<span class="qa-a-item-when">
+															<span class="qa-a-item-when-data"><span class="published"><span class="value-title" title="2016-05-31T08:59:53+0000"></span>May 31, 2016</span></span>
+														</span>
+														<span class="qa-a-item-who">
+															<span class="qa-a-item-who-pad">by </span>
+															<span class="qa-a-item-who-data"><span class="vcard author"><a href="../../user/Kent-Andre+Mardal" class="qa-user-link url nickname">Kent-Andre Mardal</a></span></span>
+															<span class="qa-a-item-who-title">FEniCS Expert</span>
+															<span class="qa-a-item-who-points">
+																<span class="qa-a-item-who-points-pad">(</span><span class="qa-a-item-who-points-data">14,380</span><span class="qa-a-item-who-points-pad"> points)</span>
+															</span>
+														</span>
+														<br>
+														<span class="qa-a-item-what">selected</span>
+														<span class="qa-a-item-when">
+															<span class="qa-a-item-when-data"><span class="updated"><span class="value-title" title="2016-06-01T10:58:06+0000"></span>Jun 1, 2016</span></span>
+														</span>
+														<span class="qa-a-item-who">
+															<span class="qa-a-item-who-pad">by </span><span class="qa-a-item-who-data"><a href="../../user/hgar" class="qa-user-link url nickname">hgar</a></span>
+														</span>
+													</span>
+												</span>
+											</div>
+											<div class="qa-a-item-buttons">
+												</div>
+											
+											<div class="qa-a-item-c-list" id="c10220_list">
+												<div class="qa-c-list-item  hentry comment" id="c10221">
+													<div class="qa-c-item-content">
+														<a name="10221"></a><div class="entry-content"><p>I am not sure it is possible to separate the two spaces in the forms on E_1 and E_2, at least I do not see any way to separate the reals U and V from the CG1 u and v.</p>
+</div>
+													</div>
+													<div class="qa-c-item-footer">
+														<span class="qa-c-item-avatar-meta">
+															<span class="qa-c-item-meta">
+																<a href="../../10218/slow-assemble-for-real-valued-space?show=10221#c10221" class="qa-c-item-what">commented</a>
+																<span class="qa-c-item-when">
+																	<span class="qa-c-item-when-data"><span class="published"><span class="value-title" title="2016-05-31T09:08:47+0000"></span>May 31, 2016</span></span>
+																</span>
+																<span class="qa-c-item-who">
+																	<span class="qa-c-item-who-pad">by </span>
+																	<span class="qa-c-item-who-data"><span class="vcard author"><a href="../../user/hgar" class="qa-user-link url nickname">hgar</a></span></span>
+																	<span class="qa-c-item-who-title">FEniCS Novice</span>
+																	<span class="qa-c-item-who-points">
+																		<span class="qa-c-item-who-points-pad">(</span><span class="qa-c-item-who-points-data">770</span><span class="qa-c-item-who-points-pad"> points)</span>
+																	</span>
+																</span>
+															</span>
+														</span>
+														<div class="qa-c-item-buttons">
+														</div>
+													</div>
+													<div class="qa-c-item-clear">
+													</div>
+												</div> <!-- END qa-c-item -->
+												<div class="qa-c-list-item  hentry comment" id="c10222">
+													<div class="qa-c-item-content">
+														<a name="10222"></a><div class="entry-content"><p>It is simple. You get the A00 matrix by <br>
+using trial and test functions (u,0) and (v,0) in your form. <br>
+The A01 block is obtained by using (u,0) and (0, V).</p>
+</div>
+													</div>
+													<div class="qa-c-item-footer">
+														<span class="qa-c-item-avatar-meta">
+															<span class="qa-c-item-meta">
+																<a href="../../10218/slow-assemble-for-real-valued-space?show=10222#c10222" class="qa-c-item-what">commented</a>
+																<span class="qa-c-item-when">
+																	<span class="qa-c-item-when-data"><span class="published"><span class="value-title" title="2016-05-31T09:13:17+0000"></span>May 31, 2016</span></span>
+																</span>
+																<span class="qa-c-item-who">
+																	<span class="qa-c-item-who-pad">by </span>
+																	<span class="qa-c-item-who-data"><span class="vcard author"><a href="../../user/Kent-Andre+Mardal" class="qa-user-link url nickname">Kent-Andre Mardal</a></span></span>
+																	<span class="qa-c-item-who-title">FEniCS Expert</span>
+																	<span class="qa-c-item-who-points">
+																		<span class="qa-c-item-who-points-pad">(</span><span class="qa-c-item-who-points-data">14,380</span><span class="qa-c-item-who-points-pad"> points)</span>
+																	</span>
+																</span>
+															</span>
+														</span>
+														<div class="qa-c-item-buttons">
+														</div>
+													</div>
+													<div class="qa-c-item-clear">
+													</div>
+												</div> <!-- END qa-c-item -->
+												<div class="qa-c-list-item  hentry comment" id="c10228">
+													<div class="qa-c-item-content">
+														<a name="10228"></a><div class="entry-content"><p>Of course, you are completely right, honestly I do not know what I was thinking. Thank you for the help.</p>
+</div>
+													</div>
+													<div class="qa-c-item-footer">
+														<span class="qa-c-item-avatar-meta">
+															<span class="qa-c-item-meta">
+																<a href="../../10218/slow-assemble-for-real-valued-space?show=10228#c10228" class="qa-c-item-what">commented</a>
+																<span class="qa-c-item-when">
+																	<span class="qa-c-item-when-data"><span class="published"><span class="value-title" title="2016-06-01T10:58:50+0000"></span>Jun 1, 2016</span></span>
+																</span>
+																<span class="qa-c-item-who">
+																	<span class="qa-c-item-who-pad">by </span>
+																	<span class="qa-c-item-who-data"><span class="vcard author"><a href="../../user/hgar" class="qa-user-link url nickname">hgar</a></span></span>
+																	<span class="qa-c-item-who-title">FEniCS Novice</span>
+																	<span class="qa-c-item-who-points">
+																		<span class="qa-c-item-who-points-pad">(</span><span class="qa-c-item-who-points-data">770</span><span class="qa-c-item-who-points-pad"> points)</span>
+																	</span>
+																</span>
+															</span>
+														</span>
+														<div class="qa-c-item-buttons">
+														</div>
+													</div>
+													<div class="qa-c-item-clear">
+													</div>
+												</div> <!-- END qa-c-item -->
+											</div> <!-- END qa-c-list -->
+											
+											<input type="hidden" name="code" value="0-1516467047-2e59c9dccc0a0c25efd844c05a31fe00c41f29c4">
+											<input type="hidden" name="qa_click" value="">
+										</form>
+										<div class="qa-c-form">
+										</div> <!-- END qa-c-form -->
+										
+									</div> <!-- END qa-a-item-main -->
+									<div class="qa-a-item-clear">
+									</div>
+								</div> <!-- END qa-a-list-item -->
+								
+							</div> <!-- END qa-a-list -->
+							
+						</div>
+					</div> <!-- END qa-main -->
+					
+				</div> <!-- END main-wrapper -->
+			</div> <!-- END main-shadow -->
+		</div> <!-- END body-wrapper -->
+		<!-- END footer-bottom-group -->
+		
+		<div style="position:absolute; left:-9999px; top:-9999px;">
+			<span id="qa-waiting-template" class="qa-waiting">...</span>
+		</div>
+	
+	
+
+</body><!-- Powered by Question2Answer - http://www.question2answer.org/ --></html>

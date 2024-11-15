@@ -1,0 +1,338 @@
+<html><!-- Powered by Question2Answer - http://www.question2answer.org/ --><head>
+		<meta http-equiv="content-type" content="text/html; charset=utf-8">
+		<title>Attribute multiple processes to independent solve (2-layer of parallelism) - FEniCS Q&amp;A</title>
+		<meta name="description" content="Hello there, Consider the following code (fenics 2016.1), that allow to solve two probem in parallel, attributing ... ( ??? , 20, 20) etc. until solve">
+		<meta name="keywords" content="mpi,parallel">
+		<link rel="stylesheet" type="text/css" href="../../qa-theme/Snow/qa-styles.css">
+		<link rel="canonical" href="http://fenicsproject.org/qa/13074/attribute-multiple-processes-independent-layer-parallelism">
+		<script type="text/x-mathjax-config">
+  MathJax.Hub.Config({
+    extensions: ["tex2jax.js"],
+    jax: ["input/TeX","output/HTML-CSS"],
+    tex2jax: {inlineMath: [["$","$"],["\\(","\\)"]]},
+    TeX: { extensions: ["AMSmath.js","AMSsymbols.js"]}
+  });
+</script>
+<script type="text/javascript" src="../../mathjax/MathJax.js"></script>
+		<script src="../../jquery-1.7.2.min.js" type="text/javascript"></script>
+		<script src="../../highlight.min.js"></script>
+<script type="text/javascript">
+$(function(){
+	$('.wmd-input').keypress(function(){
+		window.clearTimeout(hljs.Timeout);
+		hljs.Timeout = window.setTimeout(function() {
+			hljs.initHighlighting.called = false;
+			hljs.initHighlighting();
+		}, 500);
+	});
+	window.setTimeout(function() {
+		hljs.initHighlighting.called = false;
+		hljs.initHighlighting();
+	}, 500);
+});
+</script>
+
+
+	</head>
+	<body class="qa-template-question qa-body-js-off">
+		<div class="qa-body-wrapper">
+			
+			<div class="qa-header">
+				<div class="qa-logo">
+					<a href="../../" class="qa-logo-link" title="FEniCS Q&amp;A"><img src="../../qa-theme/fenics_qa.png" border="0" alt="FEniCS Q&amp;A"></a>
+				</div>
+				<div class="qa-header-clear">
+				</div>
+			</div> <!-- END qa-header -->
+			
+			<div class="qa-main-shadow">
+				
+				<div class="qa-main-wrapper">
+					
+					<div class="qa-sidepanel">
+						<div class="qa-sidebar">
+							This is a read only copy of the old FEniCS QA forum. Please visit the <a href="https://www.allanswered.com/community/s/fenics-project/">new QA forum</a> to ask questions
+						</div>
+						
+					</div>
+					
+					<div class="qa-main">
+						<h1>
+							<span class="entry-title">Attribute multiple processes to independent solve (2-layer of parallelism)</span>
+						</h1>
+						<div class="qa-part-q-view">
+							<div class="qa-q-view  hentry question" id="q13074">
+								<form method="post" action="../../13074/attribute-multiple-processes-independent-layer-parallelism">
+									<div class="qa-q-view-stats">
+										<div class="qa-voting qa-voting-net" id="voting_13074">
+											<div class="qa-vote-count qa-vote-count-net">
+												<span class="qa-netvote-count">
+													<span class="qa-netvote-count-data">+1<span class="votes-up"><span class="value-title" title="1"></span></span><span class="votes-down"><span class="value-title" title="0"></span></span></span><span class="qa-netvote-count-pad"> vote</span>
+												</span>
+											</div>
+											<div class="qa-vote-clear">
+											</div>
+										</div>
+									</div>
+									<input type="hidden" name="code" value="0-1516467852-fa0243182f464ee47bb80db1a153a4e3862fddeb">
+								</form>
+								<div class="qa-q-view-main">
+									<form method="post" action="../../13074/attribute-multiple-processes-independent-layer-parallelism">
+										<div class="qa-q-view-content">
+											<a name="13074"></a><div class="entry-content"><p>Hello there,</p>
+
+<p>Consider the following code (fenics 2016.1), that allow to solve two probem in parallel, attributing a MPI communicator for each mesh:  <br>
+(<a rel="nofollow" href="https://fenicsproject.org/qa/2682/solve-independent-equations-on-different-cores)">https://fenicsproject.org/qa/2682/solve-independent-equations-on-different-cores)</a></p>
+
+<p>with mpirun -n 2 python program.py:</p>
+
+<pre><code>from dolfin import *
+from mpi4py import MPI
+
+# Communicator
+mpi_comm = MPI.COMM_WORLD
+# Rank 
+rank_process = mpi_comm.rank
+
+# Create mesh: one for each process
+# create a mesh with a given MPI communicator is the key
+if rank_process==0:
+    mesh = UnitSquareMesh(mpi_comm_self(), 10, 10)
+if rank_process==1:
+    mesh = UnitSquareMesh(mpi_comm_self(), 20, 20)
+
+# Plot mesh
+plot_title= 'MESH for the process: {value}'.format(value=rank_process)
+plot(mesh, title=plot_title, interactive=True)
+
+# Function space and functions
+V = FunctionSpace(mesh, "CG", 1)
+u = TrialFunction(V)
+v = TestFunction(V)
+u_ = Function(V)
+
+# Set source
+if rank_process==0:
+    source = Constant(1)
+if rank_process==1: 
+    source = Constant(-1)   
+
+# Solve
+solve(inner(grad(u), grad(v))*dx == source*v*dx, u_, bcs=DirichletBC(V, 0, "on_boundary"))
+
+# Plot
+plot(u_, title="Solution of the Proces {}".format(rank_process))
+interactive()
+</code></pre>
+
+<p>Now, i would like that each problem (let's call them problem 1 and problem 2) use several process:</p>
+
+<p>pseudo-code: of what i want to acheive:</p>
+
+<pre><code>mpirun - n NP python program.py
+
+# Get number of DOF for each problem
+DOF of probem 1
+DOF of probem 2
+
+# Attribute the number of process proportionally to the number of DOF
+NP_for_problem1 = DOF of probem 1 / (DOF of probem 1 + DOF of probem 2) * NP 
+NP_for_problem2 = DOF of probem 2 / (DOF of probem 1 + DOF of probem 2) * NP 
+
+# Create mesh
+# How to attribute multiple process to each mesh?
+mesh_problem_1 = UnitSquareMesh(  ??? ,10, 10)  
+mesh_problem_1 = UnitSquareMesh(  ??? , 20, 20)
+</code></pre>
+
+<p>etc. until solve</p>
+</div>
+										</div>
+										<div class="qa-q-view-tags">
+											<ul class="qa-q-view-tag-list">
+												<li class="qa-q-view-tag-item"><a href="../../tag/mpi" rel="tag" class="qa-tag-link">mpi</a></li>
+												<li class="qa-q-view-tag-item"><a href="../../tag/parallel" rel="tag" class="qa-tag-link">parallel</a></li>
+											</ul>
+										</div>
+										<span class="qa-q-view-avatar-meta">
+											<span class="qa-q-view-meta">
+												<a href="../../13074/attribute-multiple-processes-independent-layer-parallelism" class="qa-q-view-what">asked</a>
+												<span class="qa-q-view-when">
+													<span class="qa-q-view-when-data"><span class="published"><span class="value-title" title="2017-04-14T20:48:33+0000"></span>Apr 14, 2017</span></span>
+												</span>
+												<span class="qa-q-view-who">
+													<span class="qa-q-view-who-pad">by </span>
+													<span class="qa-q-view-who-data"><span class="vcard author"><a href="../../user/fussegli" class="qa-user-link url nickname">fussegli</a></span></span>
+													<span class="qa-q-view-who-title">FEniCS Novice</span>
+													<span class="qa-q-view-who-points">
+														<span class="qa-q-view-who-points-pad">(</span><span class="qa-q-view-who-points-data">700</span><span class="qa-q-view-who-points-pad"> points)</span>
+													</span>
+												</span>
+											</span>
+										</span>
+										<div class="qa-q-view-buttons">
+										</div>
+										
+										<div class="qa-q-view-c-list" id="c13074_list">
+											<div class="qa-c-list-item  hentry comment" id="c13096">
+												<div class="qa-c-item-content">
+													<a name="13096"></a><div class="entry-content"><p>Do you need the solution for something else in your code? If not, have you tried setting the script to receive a parameter? You could use something like</p>
+
+<pre><code>mpirun -n 2 python main.py 1
+mpirun -n 2 python main.py 2
+</code></pre>
+
+<p>and put that in a bash script (or windows or mac).</p>
+</div>
+												</div>
+												<div class="qa-c-item-footer">
+													<span class="qa-c-item-avatar-meta">
+														<span class="qa-c-item-avatar">
+															<a href="../../user/nabarnaf" class="qa-avatar-link"><img src="../../?qa=image&amp;qa_blobid=6623124104544180019&amp;qa_size=20" width="20" height="14" class="qa-avatar-image" alt=""></a>
+														</span>
+														<span class="qa-c-item-meta">
+															<a href="../../13074/attribute-multiple-processes-independent-layer-parallelism?show=13096#c13096" class="qa-c-item-what">commented</a>
+															<span class="qa-c-item-when">
+																<span class="qa-c-item-when-data"><span class="published"><span class="value-title" title="2017-04-16T15:03:20+0000"></span>Apr 16, 2017</span></span>
+															</span>
+															<span class="qa-c-item-who">
+																<span class="qa-c-item-who-pad">by </span>
+																<span class="qa-c-item-who-data"><span class="vcard author"><a href="../../user/nabarnaf" class="qa-user-link url nickname">nabarnaf</a></span></span>
+																<span class="qa-c-item-who-title">FEniCS User</span>
+																<span class="qa-c-item-who-points">
+																	<span class="qa-c-item-who-points-pad">(</span><span class="qa-c-item-who-points-data">2,940</span><span class="qa-c-item-who-points-pad"> points)</span>
+																</span>
+															</span>
+														</span>
+													</span>
+													<div class="qa-c-item-buttons">
+													</div>
+												</div>
+												<div class="qa-c-item-clear">
+												</div>
+											</div> <!-- END qa-c-item -->
+											<div class="qa-c-list-item  hentry comment" id="c13105">
+												<div class="qa-c-item-content">
+													<a name="13105"></a><div class="entry-content"><p>That's another way to do indeed.<br>
+However, later in the code these two independent calculations are analyzed together. So, i would prefer to stick to one unique program if possible.<br>
+Any hints how to do it?</p>
+</div>
+												</div>
+												<div class="qa-c-item-footer">
+													<span class="qa-c-item-avatar-meta">
+														<span class="qa-c-item-meta">
+															<a href="../../13074/attribute-multiple-processes-independent-layer-parallelism?show=13105#c13105" class="qa-c-item-what">commented</a>
+															<span class="qa-c-item-when">
+																<span class="qa-c-item-when-data"><span class="published"><span class="value-title" title="2017-04-17T16:08:59+0000"></span>Apr 17, 2017</span></span>
+															</span>
+															<span class="qa-c-item-who">
+																<span class="qa-c-item-who-pad">by </span>
+																<span class="qa-c-item-who-data"><span class="vcard author"><a href="../../user/fussegli" class="qa-user-link url nickname">fussegli</a></span></span>
+																<span class="qa-c-item-who-title">FEniCS Novice</span>
+																<span class="qa-c-item-who-points">
+																	<span class="qa-c-item-who-points-pad">(</span><span class="qa-c-item-who-points-data">700</span><span class="qa-c-item-who-points-pad"> points)</span>
+																</span>
+															</span>
+														</span>
+													</span>
+													<div class="qa-c-item-buttons">
+													</div>
+												</div>
+												<div class="qa-c-item-clear">
+												</div>
+											</div> <!-- END qa-c-item -->
+											<div class="qa-c-list-item  hentry comment" id="c13107">
+												<div class="qa-c-item-content">
+													<a name="13107"></a><div class="entry-content"><p>No clue on how to do it in a single code. For it, I would export the solution in each code and then use another script for the analysis. Regards!</p>
+</div>
+												</div>
+												<div class="qa-c-item-footer">
+													<span class="qa-c-item-avatar-meta">
+														<span class="qa-c-item-avatar">
+															<a href="../../user/nabarnaf" class="qa-avatar-link"><img src="../../?qa=image&amp;qa_blobid=6623124104544180019&amp;qa_size=20" width="20" height="14" class="qa-avatar-image" alt=""></a>
+														</span>
+														<span class="qa-c-item-meta">
+															<a href="../../13074/attribute-multiple-processes-independent-layer-parallelism?show=13107#c13107" class="qa-c-item-what">commented</a>
+															<span class="qa-c-item-when">
+																<span class="qa-c-item-when-data"><span class="published"><span class="value-title" title="2017-04-17T18:24:26+0000"></span>Apr 17, 2017</span></span>
+															</span>
+															<span class="qa-c-item-who">
+																<span class="qa-c-item-who-pad">by </span>
+																<span class="qa-c-item-who-data"><span class="vcard author"><a href="../../user/nabarnaf" class="qa-user-link url nickname">nabarnaf</a></span></span>
+																<span class="qa-c-item-who-title">FEniCS User</span>
+																<span class="qa-c-item-who-points">
+																	<span class="qa-c-item-who-points-pad">(</span><span class="qa-c-item-who-points-data">2,940</span><span class="qa-c-item-who-points-pad"> points)</span>
+																</span>
+															</span>
+														</span>
+													</span>
+													<div class="qa-c-item-buttons">
+													</div>
+												</div>
+												<div class="qa-c-item-clear">
+												</div>
+											</div> <!-- END qa-c-item -->
+											<div class="qa-c-list-item  hentry comment" id="c13167">
+												<div class="qa-c-item-content">
+													<a name="13167"></a><div class="entry-content"><p>Just a guess, but maybe the python <code>multiprocessing</code> module could help you, instead of using MPI (apparently no communication is needed between processes?).<br>
+See here: <a rel="nofollow" href="https://docs.python.org/3/library/multiprocessing.html">https://docs.python.org/3/library/multiprocessing.html</a></p>
+</div>
+												</div>
+												<div class="qa-c-item-footer">
+													<span class="qa-c-item-avatar-meta">
+														<span class="qa-c-item-meta">
+															<a href="../../13074/attribute-multiple-processes-independent-layer-parallelism?show=13167#c13167" class="qa-c-item-what">commented</a>
+															<span class="qa-c-item-when">
+																<span class="qa-c-item-when-data"><span class="published"><span class="value-title" title="2017-04-22T01:13:50+0000"></span>Apr 22, 2017</span></span>
+															</span>
+															<span class="qa-c-item-who">
+																<span class="qa-c-item-who-pad">by </span>
+																<span class="qa-c-item-who-data"><span class="vcard author"><a href="../../user/dajuno" class="qa-user-link url nickname">dajuno</a></span></span>
+																<span class="qa-c-item-who-title">FEniCS User</span>
+																<span class="qa-c-item-who-points">
+																	<span class="qa-c-item-who-points-pad">(</span><span class="qa-c-item-who-points-data">4,140</span><span class="qa-c-item-who-points-pad"> points)</span>
+																</span>
+															</span>
+														</span>
+													</span>
+													<div class="qa-c-item-buttons">
+													</div>
+												</div>
+												<div class="qa-c-item-clear">
+												</div>
+											</div> <!-- END qa-c-item -->
+										</div> <!-- END qa-c-list -->
+										
+										<input type="hidden" name="code" value="0-1516467852-37a0fbef144ea5618a4f8ed0a07abf2ebf2666e4">
+										<input type="hidden" name="qa_click" value="">
+									</form>
+									<div class="qa-c-form">
+									</div> <!-- END qa-c-form -->
+									
+								</div> <!-- END qa-q-view-main -->
+								<div class="qa-q-view-clear">
+								</div>
+							</div> <!-- END qa-q-view -->
+							
+						</div>
+						<div class="qa-part-a-list">
+							<h2 id="a_list_title" style="display:none;"></h2>
+							<div class="qa-a-list" id="a_list">
+								
+							</div> <!-- END qa-a-list -->
+							
+						</div>
+					</div> <!-- END qa-main -->
+					
+				</div> <!-- END main-wrapper -->
+			</div> <!-- END main-shadow -->
+		</div> <!-- END body-wrapper -->
+		<!-- END footer-bottom-group -->
+		
+		<div style="position:absolute; left:-9999px; top:-9999px;">
+			<span id="qa-waiting-template" class="qa-waiting">...</span>
+		</div>
+	
+	
+
+</body><!-- Powered by Question2Answer - http://www.question2answer.org/ --></html>

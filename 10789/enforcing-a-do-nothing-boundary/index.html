@@ -1,0 +1,474 @@
+<html><!-- Powered by Question2Answer - http://www.question2answer.org/ --><head>
+		<meta http-equiv="content-type" content="text/html; charset=utf-8">
+		<title>Enforcing a Do-Nothing Boundary - FEniCS Q&amp;A</title>
+		<meta name="description" content="I'm solving a simple 2-D time-dependent navier-stokes problem with an obstruction (circle)  ... . Any help would be greatly appreciated. Thanks!">
+		<meta name="keywords" content="navier-stokes,boundary-conditions,neumann">
+		<link rel="stylesheet" type="text/css" href="../../qa-theme/Snow/qa-styles.css">
+		<link rel="canonical" href="http://fenicsproject.org/qa/10789/enforcing-a-do-nothing-boundary">
+		<script type="text/x-mathjax-config">
+  MathJax.Hub.Config({
+    extensions: ["tex2jax.js"],
+    jax: ["input/TeX","output/HTML-CSS"],
+    tex2jax: {inlineMath: [["$","$"],["\\(","\\)"]]},
+    TeX: { extensions: ["AMSmath.js","AMSsymbols.js"]}
+  });
+</script>
+<script type="text/javascript" src="../../mathjax/MathJax.js"></script>
+		<script src="../../jquery-1.7.2.min.js" type="text/javascript"></script>
+		<script src="../../highlight.min.js"></script>
+<script type="text/javascript">
+$(function(){
+	$('.wmd-input').keypress(function(){
+		window.clearTimeout(hljs.Timeout);
+		hljs.Timeout = window.setTimeout(function() {
+			hljs.initHighlighting.called = false;
+			hljs.initHighlighting();
+		}, 500);
+	});
+	window.setTimeout(function() {
+		hljs.initHighlighting.called = false;
+		hljs.initHighlighting();
+	}, 500);
+});
+</script>
+
+
+	</head>
+	<body class="qa-template-question qa-body-js-off">
+		<div class="qa-body-wrapper">
+			
+			<div class="qa-header">
+				<div class="qa-logo">
+					<a href="../../" class="qa-logo-link" title="FEniCS Q&amp;A"><img src="../../qa-theme/fenics_qa.png" border="0" alt="FEniCS Q&amp;A"></a>
+				</div>
+				<div class="qa-header-clear">
+				</div>
+			</div> <!-- END qa-header -->
+			
+			<div class="qa-main-shadow">
+				
+				<div class="qa-main-wrapper">
+					
+					<div class="qa-sidepanel">
+						<div class="qa-sidebar">
+							This is a read only copy of the old FEniCS QA forum. Please visit the <a href="https://www.allanswered.com/community/s/fenics-project/">new QA forum</a> to ask questions
+						</div>
+						
+					</div>
+					
+					<div class="qa-main">
+						<h1>
+							<span class="entry-title">Enforcing a Do-Nothing Boundary</span>
+						</h1>
+						<div class="qa-part-q-view">
+							<div class="qa-q-view  hentry question" id="q10789">
+								<form method="post" action="../../10789/enforcing-a-do-nothing-boundary">
+									<div class="qa-q-view-stats">
+										<div class="qa-voting qa-voting-net" id="voting_10789">
+											<div class="qa-vote-count qa-vote-count-net">
+												<span class="qa-netvote-count">
+													<span class="qa-netvote-count-data">0<span class="votes-up"><span class="value-title" title="0"></span></span><span class="votes-down"><span class="value-title" title="0"></span></span></span><span class="qa-netvote-count-pad"> votes</span>
+												</span>
+											</div>
+											<div class="qa-vote-clear">
+											</div>
+										</div>
+									</div>
+									<input type="hidden" name="code" value="0-1516467079-2c96caf45b16c50cf47d9a238c4867e891aa1c5f">
+								</form>
+								<div class="qa-q-view-main">
+									<form method="post" action="../../10789/enforcing-a-do-nothing-boundary">
+										<div class="qa-q-view-content">
+											<a name="10789"></a><div class="entry-content"><p>I'm solving a simple 2-D time-dependent navier-stokes problem with an obstruction (circle) located near the inlet. The scheme is crank-nicholson in time, and P2,P1DC (scott vogelius) in space. (Normally, I use a special mesh with these elements, but I can actually reproduce my issue using a delaunay mesh and Taylor Hood elements.)  I use Picard iteration for the nonlinear term, which is in rotational form (rot(u)*u).</p>
+
+<p>I have (very) simplified code that reproduces my exact issue below. </p>
+
+<p>My five boundaries are Inflow, Outflow, Top, Bottom, and On the circle. My boundary conditions are no-slip for the circle, top, and bottom boundaries, forced inflow (parabolic), and do-nothing outflow. </p>
+
+<p>It's my (likely incorrect) understanding that I shouldn't have to actually include a term for the do-nothing boundary. However, my results show that my behavior on outflow boundary is strange. If you plot the solution at t=4.0s, you'll see the velocity grows significantly at the center of the outflow. If you <em>force</em> the outflow to have the same condition as the inflow, this problem goes away. (It's easy to add/remove the forced outflow term in the code.)</p>
+
+<pre><code>from dolfin import *
+from mshr import *
+import numpy as np
+
+set_log_active(False) #Mutes the system messages
+
+cx, cy, radius = 0.2, 0.2, 0.05
+lx, ly = 2.2, 0.41
+
+resolution = 32
+
+class circle(SubDomain):
+    def inside(self, x, on_boundary):
+        return pow(x[0] - cx, 2) + pow(x[1] - cy, 2) &lt;= pow(radius, 2) + DOLFIN_EPS
+
+# Define 2D geometry
+domain1 = Rectangle(Point(0.0, 0.0), Point(lx, ly))
+domain2 = Circle(Point(cx,cy),radius, resolution)
+domain = domain1 - domain2
+
+# Generate mesh
+mesh = generate_mesh(domain, resolution)
+
+#Establish Finite Element Space
+V = VectorFunctionSpace(mesh, "CG", 2, dim=2)
+Q = FunctionSpace(mesh, "CG", 1)
+W = V*Q
+w = Function(W)
+(v,q) = TestFunctions(W)
+(u,p) = TrialFunctions(W)
+
+#Problem Settings
+t = 0.0 #t-start
+t_max = 4.0
+n_steps = 100
+reynolds = 600.0
+delta_t = (t_max / n_steps)
+invdt = Constant((1.0 / delta_t))
+nu = Constant((1 / reynolds))
+fpi_count_max = 100
+
+um = Function(V)
+uold = Function(V)
+
+zero_function = Expression(('0.0','0.0'))
+inflow = Expression(('x[1]*(0.41 - x[1])*sin(pi*t*0.125)/(0.41*0.41)','0.0'),t=0.0)
+zero_pressure = Expression(('0.0'))
+
+#Define Boundaries
+def right(x): return x[0] &gt; 2.2 - DOLFIN_EPS
+def left(x): return x[0] &lt; DOLFIN_EPS
+def top(x): return x[1] &gt; 0.41 - DOLFIN_EPS
+def bottom(x): return x[1] &lt; DOLFIN_EPS
+def cyl(x): return sqrt((x[0]-0.2)*(x[0]-0.2) + (x[1]-0.2)*(x[1]-0.2)) &lt; 0.05 + DOLFIN_EPS
+
+bc_u_left = DirichletBC(W.sub(0), inflow, left)
+bc_u_top = DirichletBC(W.sub(0), zero_function, top)
+bc_u_bot = DirichletBC(W.sub(0), zero_function, bottom)
+bc_u_cyl = DirichletBC(W.sub(0), zero_function, cyl)
+bc_u_right = DirichletBC(W.sub(1), zero_pressure, right)
+
+
+bcs = [bc_u_left, bc_u_top, bc_u_bot, bc_u_cyl, bc_u_right]
+
+NSECkNs = invdt*(inner(u,v))*dx + 0.5*nu*inner(nabla_grad(u),nabla_grad(v))*dx  - 0.5*((Dx(u[1],0)-Dx(u[0],1))*uold[1])*v[0]*dx + 0.5*((Dx(u[1],0)-Dx(u[0],1))*uold[0])*v[1]*dx + nabla_div(u)*q*dx + p*nabla_div(v)*dx
+
+NSERHS =  invdt*(inner(um,v))*dx - 0.5*nu*inner(nabla_grad(um),nabla_grad(v))*dx + 0.5*((Dx(um[1],0)-Dx(um[0],1))*um[1])*v[0]*dx - 0.5*((Dx(um[1],0)-Dx(um[0],1))*um[0])*v[1]*dx
+
+uold.assign(inflow)
+um.assign(inflow)
+
+for tn in range(n_steps):
+    t = tn*delta_t
+    inflow.t = t
+    print '////// Time: ' + str(t) + '////'
+    for nn in range(fpi_count_max):
+        fpi_error = 1
+        solve(NSECkNs == NSERHS, w, bcs)
+        (u,p) = w.split(True)
+        #Fixed Point Iteration Evaluation
+        if(nn&gt;0):
+            fpi_vals =  u.vector().array() - uold.vector().array()
+            fpi_arr = np.asanyarray(fpi_vals)
+            fpi_error = abs(fpi_arr).max()
+            print 'FPI Error: ' + str(fpi_error) + ' FPI Count: ' + str(nn)
+        if(fpi_error &lt; 1e-08):
+            um.assign(u)
+            uold.assign(u)
+            break
+        else:
+            uold.assign(u)
+
+plot(u)
+</code></pre>
+
+<p>I've used several FE packages before, and have never actually run into this issue, so I know it's user error. Any help would be greatly appreciated. Thanks!</p>
+</div>
+										</div>
+										<div class="qa-q-view-tags">
+											<ul class="qa-q-view-tag-list">
+												<li class="qa-q-view-tag-item"><a href="../../tag/navier-stokes" rel="tag" class="qa-tag-link">navier-stokes</a></li>
+												<li class="qa-q-view-tag-item"><a href="../../tag/boundary-conditions" rel="tag" class="qa-tag-link">boundary-conditions</a></li>
+												<li class="qa-q-view-tag-item"><a href="../../tag/neumann" rel="tag" class="qa-tag-link">neumann</a></li>
+											</ul>
+										</div>
+										<span class="qa-q-view-avatar-meta">
+											<span class="qa-q-view-meta">
+												<a href="../../10789/enforcing-a-do-nothing-boundary" class="qa-q-view-what">asked</a>
+												<span class="qa-q-view-when">
+													<span class="qa-q-view-when-data"><span class="published"><span class="value-title" title="2016-08-02T00:22:57+0000"></span>Aug 2, 2016</span></span>
+												</span>
+												<span class="qa-q-view-who">
+													<span class="qa-q-view-who-pad">by </span>
+													<span class="qa-q-view-who-data"><span class="vcard author"><a href="../../user/qwetico" class="qa-user-link url nickname">qwetico</a></span></span>
+													<span class="qa-q-view-who-title">FEniCS Novice</span>
+													<span class="qa-q-view-who-points">
+														<span class="qa-q-view-who-points-pad">(</span><span class="qa-q-view-who-points-data">360</span><span class="qa-q-view-who-points-pad"> points)</span>
+													</span>
+												</span>
+												<br>
+												<span class="qa-q-view-what">edited</span>
+												<span class="qa-q-view-when">
+													<span class="qa-q-view-when-data"><span class="updated"><span class="value-title" title="2016-08-02T16:22:09+0000"></span>Aug 2, 2016</span></span>
+												</span>
+												<span class="qa-q-view-who">
+													<span class="qa-q-view-who-pad">by </span><span class="qa-q-view-who-data"><a href="../../user/qwetico" class="qa-user-link url nickname">qwetico</a></span>
+												</span>
+											</span>
+										</span>
+										<div class="qa-q-view-buttons">
+										</div>
+										
+										<div class="qa-q-view-c-list" style="display:none;" id="c10789_list">
+										</div> <!-- END qa-c-list -->
+										
+										<input type="hidden" name="code" value="0-1516467079-9d11fd87d9dd3e9dfd2e6259280f3c7d9b08fd42">
+										<input type="hidden" name="qa_click" value="">
+									</form>
+									<div class="qa-c-form">
+									</div> <!-- END qa-c-form -->
+									
+								</div> <!-- END qa-q-view-main -->
+								<div class="qa-q-view-clear">
+								</div>
+							</div> <!-- END qa-q-view -->
+							
+						</div>
+						<div class="qa-part-a-list">
+							<h2 id="a_list_title">1 Answer</h2>
+							<div class="qa-a-list" id="a_list">
+								
+								<div class="qa-a-list-item  hentry answer" id="a10792">
+									<form method="post" action="../../10789/enforcing-a-do-nothing-boundary">
+										<div class="qa-voting qa-voting-net" id="voting_10792">
+											<div class="qa-vote-count qa-vote-count-net">
+												<span class="qa-netvote-count">
+													<span class="qa-netvote-count-data">0<span class="votes-up"><span class="value-title" title="0"></span></span><span class="votes-down"><span class="value-title" title="0"></span></span></span><span class="qa-netvote-count-pad"> votes</span>
+												</span>
+											</div>
+											<div class="qa-vote-clear">
+											</div>
+										</div>
+										<input type="hidden" name="code" value="0-1516467079-2c96caf45b16c50cf47d9a238c4867e891aa1c5f">
+									</form>
+									<div class="qa-a-item-main">
+										<form method="post" action="../../10789/enforcing-a-do-nothing-boundary">
+											<div class="qa-a-selection">
+											</div>
+											<div class="qa-a-item-content">
+												<a name="10792"></a><div class="entry-content"><p>How do you expect the pressure to be defined, if you do not have pressure boundary conditions?</p>
+
+<p>I do not think it make sense to prescribe the velocity on the outlet. You can avoid a weak term on the outlet that way, but something very similar can be achieved by setting the pressure to zero on the outlet This is equivalent to zero normal stress.</p>
+</div>
+											</div>
+											<span class="qa-a-item-avatar-meta">
+												<span class="qa-a-item-avatar">
+													<a href="../../user/KristianE" class="qa-avatar-link"><img src="https://www.gravatar.com/avatar/8e8c30d82e263e44bd8fe50055a60421?s=40" width="40" height="40" class="qa-avatar-image" alt=""></a>
+												</span>
+												<span class="qa-a-item-meta">
+													<a href="../../10789/enforcing-a-do-nothing-boundary?show=10792#a10792" class="qa-a-item-what">answered</a>
+													<span class="qa-a-item-when">
+														<span class="qa-a-item-when-data"><span class="published"><span class="value-title" title="2016-08-02T09:45:09+0000"></span>Aug 2, 2016</span></span>
+													</span>
+													<span class="qa-a-item-who">
+														<span class="qa-a-item-who-pad">by </span>
+														<span class="qa-a-item-who-data"><span class="vcard author"><a href="../../user/KristianE" class="qa-user-link url nickname">KristianE</a></span></span>
+														<span class="qa-a-item-who-title">FEniCS Expert</span>
+														<span class="qa-a-item-who-points">
+															<span class="qa-a-item-who-points-pad">(</span><span class="qa-a-item-who-points-data">12,900</span><span class="qa-a-item-who-points-pad"> points)</span>
+														</span>
+													</span>
+												</span>
+											</span>
+											<div class="qa-a-item-buttons">
+												</div>
+											
+											<div class="qa-a-item-c-list" id="c10792_list">
+												<div class="qa-c-list-item  hentry comment" id="c10799">
+													<div class="qa-c-item-content">
+														<a name="10799"></a><div class="entry-content"><p>I've actually already investigated that --it doesn't appear to change anything. I'll ammend the code above to reflect that, but it produces the same velocity plot. (Typically, I prescribe pressure at a single point somewhere on the boundary... I forgot to include it after I removed it previously.)</p>
+</div>
+													</div>
+													<div class="qa-c-item-footer">
+														<span class="qa-c-item-avatar-meta">
+															<span class="qa-c-item-meta">
+																<a href="../../10789/enforcing-a-do-nothing-boundary?show=10799#c10799" class="qa-c-item-what">commented</a>
+																<span class="qa-c-item-when">
+																	<span class="qa-c-item-when-data"><span class="published"><span class="value-title" title="2016-08-02T16:20:28+0000"></span>Aug 2, 2016</span></span>
+																</span>
+																<span class="qa-c-item-who">
+																	<span class="qa-c-item-who-pad">by </span>
+																	<span class="qa-c-item-who-data"><span class="vcard author"><a href="../../user/qwetico" class="qa-user-link url nickname">qwetico</a></span></span>
+																	<span class="qa-c-item-who-title">FEniCS Novice</span>
+																	<span class="qa-c-item-who-points">
+																		<span class="qa-c-item-who-points-pad">(</span><span class="qa-c-item-who-points-data">360</span><span class="qa-c-item-who-points-pad"> points)</span>
+																	</span>
+																</span>
+															</span>
+														</span>
+														<div class="qa-c-item-buttons">
+														</div>
+													</div>
+													<div class="qa-c-item-clear">
+													</div>
+												</div> <!-- END qa-c-item -->
+												<div class="qa-c-list-item  hentry comment" id="c10803">
+													<div class="qa-c-item-content">
+														<a name="10803"></a><div class="entry-content"><p>I think you are just pushing it too far with the Reynolds number. It looks OK with </p>
+
+<pre><code>Re = 60.
+nsteps = 1000
+</code></pre>
+</div>
+													</div>
+													<div class="qa-c-item-footer">
+														<span class="qa-c-item-avatar-meta">
+															<span class="qa-c-item-avatar">
+																<a href="../../user/KristianE" class="qa-avatar-link"><img src="https://www.gravatar.com/avatar/8e8c30d82e263e44bd8fe50055a60421?s=20" width="20" height="20" class="qa-avatar-image" alt=""></a>
+															</span>
+															<span class="qa-c-item-meta">
+																<a href="../../10789/enforcing-a-do-nothing-boundary?show=10803#c10803" class="qa-c-item-what">commented</a>
+																<span class="qa-c-item-when">
+																	<span class="qa-c-item-when-data"><span class="published"><span class="value-title" title="2016-08-02T19:58:23+0000"></span>Aug 2, 2016</span></span>
+																</span>
+																<span class="qa-c-item-who">
+																	<span class="qa-c-item-who-pad">by </span>
+																	<span class="qa-c-item-who-data"><span class="vcard author"><a href="../../user/KristianE" class="qa-user-link url nickname">KristianE</a></span></span>
+																	<span class="qa-c-item-who-title">FEniCS Expert</span>
+																	<span class="qa-c-item-who-points">
+																		<span class="qa-c-item-who-points-pad">(</span><span class="qa-c-item-who-points-data">12,900</span><span class="qa-c-item-who-points-pad"> points)</span>
+																	</span>
+																</span>
+															</span>
+														</span>
+														<div class="qa-c-item-buttons">
+														</div>
+													</div>
+													<div class="qa-c-item-clear">
+													</div>
+												</div> <!-- END qa-c-item -->
+												<div class="qa-c-list-item  hentry comment" id="c10805">
+													<div class="qa-c-item-content">
+														<a name="10805"></a><div class="entry-content"><p>Tracing back the citations to the orginal benchmark paper (Volker, John -- Reference values for drag and lift of a two-dimensional time-dependent flow around a cylinder) he actually forces the outflow. </p>
+
+<p>I was trying to reproduce the results from a paper, and it appears they misremembered their own settings, claiming a do-nothing boundary. When I force the outflow I get precisely their results.</p>
+</div>
+													</div>
+													<div class="qa-c-item-footer">
+														<span class="qa-c-item-avatar-meta">
+															<span class="qa-c-item-meta">
+																<a href="../../10789/enforcing-a-do-nothing-boundary?show=10805#c10805" class="qa-c-item-what">commented</a>
+																<span class="qa-c-item-when">
+																	<span class="qa-c-item-when-data"><span class="published"><span class="value-title" title="2016-08-02T21:06:19+0000"></span>Aug 2, 2016</span></span>
+																</span>
+																<span class="qa-c-item-who">
+																	<span class="qa-c-item-who-pad">by </span>
+																	<span class="qa-c-item-who-data"><span class="vcard author"><a href="../../user/qwetico" class="qa-user-link url nickname">qwetico</a></span></span>
+																	<span class="qa-c-item-who-title">FEniCS Novice</span>
+																	<span class="qa-c-item-who-points">
+																		<span class="qa-c-item-who-points-pad">(</span><span class="qa-c-item-who-points-data">360</span><span class="qa-c-item-who-points-pad"> points)</span>
+																	</span>
+																</span>
+															</span>
+														</span>
+														<div class="qa-c-item-buttons">
+														</div>
+													</div>
+													<div class="qa-c-item-clear">
+													</div>
+												</div> <!-- END qa-c-item -->
+												<div class="qa-c-list-item  hentry comment" id="c10807">
+													<div class="qa-c-item-content">
+														<a name="10807"></a><div class="entry-content"><p>There is no such thing as a do-nothing boundary. </p>
+
+<p>If you do not add a weak term for the boundary, it corresponds to zero force on that boundary - unless you prescribe a Dirichlet boundary condition, in which case the test function is zero on the boundary.</p>
+
+<p>In any case the length scales for a Re=600 flow are orders of magnitude smaller than the elements in your mesh, so the results are total garbage. You will see that very clearly, when you test the convergence.</p>
+</div>
+													</div>
+													<div class="qa-c-item-footer">
+														<span class="qa-c-item-avatar-meta">
+															<span class="qa-c-item-avatar">
+																<a href="../../user/KristianE" class="qa-avatar-link"><img src="https://www.gravatar.com/avatar/8e8c30d82e263e44bd8fe50055a60421?s=20" width="20" height="20" class="qa-avatar-image" alt=""></a>
+															</span>
+															<span class="qa-c-item-meta">
+																<a href="../../10789/enforcing-a-do-nothing-boundary?show=10807#c10807" class="qa-c-item-what">commented</a>
+																<span class="qa-c-item-when">
+																	<span class="qa-c-item-when-data"><span class="published"><span class="value-title" title="2016-08-03T07:16:20+0000"></span>Aug 3, 2016</span></span>
+																</span>
+																<span class="qa-c-item-who">
+																	<span class="qa-c-item-who-pad">by </span>
+																	<span class="qa-c-item-who-data"><span class="vcard author"><a href="../../user/KristianE" class="qa-user-link url nickname">KristianE</a></span></span>
+																	<span class="qa-c-item-who-title">FEniCS Expert</span>
+																	<span class="qa-c-item-who-points">
+																		<span class="qa-c-item-who-points-pad">(</span><span class="qa-c-item-who-points-data">12,900</span><span class="qa-c-item-who-points-pad"> points)</span>
+																	</span>
+																</span>
+															</span>
+														</span>
+														<div class="qa-c-item-buttons">
+														</div>
+													</div>
+													<div class="qa-c-item-clear">
+													</div>
+												</div> <!-- END qa-c-item -->
+												<div class="qa-c-list-item  hentry comment" id="c10812">
+													<div class="qa-c-item-content">
+														<a name="10812"></a><div class="entry-content"><p>You're correct, but I was choosing a large length scale that produced a plot of the "issue" I was complaining about so someone wouldn't spend a half hour running the problem at the correct scale. In this case, my attempt at politeness got in my own way. Point taken. (I'm investigating an LES model, so I spend a lot of time above appropriate length scale.) </p>
+
+<p>When I adjusted my settings to the ones prescribed in the Volker paper I get the results I expected to see. Thanks for your help.</p>
+</div>
+													</div>
+													<div class="qa-c-item-footer">
+														<span class="qa-c-item-avatar-meta">
+															<span class="qa-c-item-meta">
+																<a href="../../10789/enforcing-a-do-nothing-boundary?show=10812#c10812" class="qa-c-item-what">commented</a>
+																<span class="qa-c-item-when">
+																	<span class="qa-c-item-when-data"><span class="published"><span class="value-title" title="2016-08-03T19:13:53+0000"></span>Aug 3, 2016</span></span>
+																</span>
+																<span class="qa-c-item-who">
+																	<span class="qa-c-item-who-pad">by </span>
+																	<span class="qa-c-item-who-data"><span class="vcard author"><a href="../../user/qwetico" class="qa-user-link url nickname">qwetico</a></span></span>
+																	<span class="qa-c-item-who-title">FEniCS Novice</span>
+																	<span class="qa-c-item-who-points">
+																		<span class="qa-c-item-who-points-pad">(</span><span class="qa-c-item-who-points-data">360</span><span class="qa-c-item-who-points-pad"> points)</span>
+																	</span>
+																</span>
+															</span>
+														</span>
+														<div class="qa-c-item-buttons">
+														</div>
+													</div>
+													<div class="qa-c-item-clear">
+													</div>
+												</div> <!-- END qa-c-item -->
+											</div> <!-- END qa-c-list -->
+											
+											<input type="hidden" name="code" value="0-1516467079-86fdb331d7319e0c08076ff144c82e99afe6f9c6">
+											<input type="hidden" name="qa_click" value="">
+										</form>
+										<div class="qa-c-form">
+										</div> <!-- END qa-c-form -->
+										
+									</div> <!-- END qa-a-item-main -->
+									<div class="qa-a-item-clear">
+									</div>
+								</div> <!-- END qa-a-list-item -->
+								
+							</div> <!-- END qa-a-list -->
+							
+						</div>
+					</div> <!-- END qa-main -->
+					
+				</div> <!-- END main-wrapper -->
+			</div> <!-- END main-shadow -->
+		</div> <!-- END body-wrapper -->
+		<!-- END footer-bottom-group -->
+		
+		<div style="position:absolute; left:-9999px; top:-9999px;">
+			<span id="qa-waiting-template" class="qa-waiting">...</span>
+		</div>
+	
+	
+
+</body><!-- Powered by Question2Answer - http://www.question2answer.org/ --></html>

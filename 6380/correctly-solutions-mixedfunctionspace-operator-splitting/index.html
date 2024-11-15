@@ -1,0 +1,327 @@
+<html><!-- Powered by Question2Answer - http://www.question2answer.org/ --><head>
+		<meta http-equiv="content-type" content="text/html; charset=utf-8">
+		<title>How to correctly update solutions in a dynamic problem using MixedFunctionSpace and operator splitting ? - FEniCS Q&amp;A</title>
+		<meta name="description" content="Hello I am trying to solve a mixed variational formulation for a dynamic FSI type of  ... solver2 = LinearVariationalSolver(problem2) end() while tNow">
+		<meta name="keywords" content="mixed-function-space,mixed-formulation,dynamic">
+		<link rel="stylesheet" type="text/css" href="../../qa-theme/Snow/qa-styles.css">
+		<link rel="canonical" href="http://fenicsproject.org/qa/6380/correctly-solutions-mixedfunctionspace-operator-splitting">
+		<script type="text/x-mathjax-config">
+  MathJax.Hub.Config({
+    extensions: ["tex2jax.js"],
+    jax: ["input/TeX","output/HTML-CSS"],
+    tex2jax: {inlineMath: [["$","$"],["\\(","\\)"]]},
+    TeX: { extensions: ["AMSmath.js","AMSsymbols.js"]}
+  });
+</script>
+<script type="text/javascript" src="../../mathjax/MathJax.js"></script>
+		<script src="../../jquery-1.7.2.min.js" type="text/javascript"></script>
+		<script src="../../highlight.min.js"></script>
+<script type="text/javascript">
+$(function(){
+	$('.wmd-input').keypress(function(){
+		window.clearTimeout(hljs.Timeout);
+		hljs.Timeout = window.setTimeout(function() {
+			hljs.initHighlighting.called = false;
+			hljs.initHighlighting();
+		}, 500);
+	});
+	window.setTimeout(function() {
+		hljs.initHighlighting.called = false;
+		hljs.initHighlighting();
+	}, 500);
+});
+</script>
+
+
+	</head>
+	<body class="qa-template-question qa-body-js-off">
+		<div class="qa-body-wrapper">
+			
+			<div class="qa-header">
+				<div class="qa-logo">
+					<a href="../../" class="qa-logo-link" title="FEniCS Q&amp;A"><img src="../../qa-theme/fenics_qa.png" border="0" alt="FEniCS Q&amp;A"></a>
+				</div>
+				<div class="qa-header-clear">
+				</div>
+			</div> <!-- END qa-header -->
+			
+			<div class="qa-main-shadow">
+				
+				<div class="qa-main-wrapper">
+					
+					<div class="qa-sidepanel">
+						<div class="qa-sidebar">
+							This is a read only copy of the old FEniCS QA forum. Please visit the <a href="https://www.allanswered.com/community/s/fenics-project/">new QA forum</a> to ask questions
+						</div>
+						
+					</div>
+					
+					<div class="qa-main">
+						<h1>
+							<span class="entry-title">How to correctly update solutions in a dynamic problem using MixedFunctionSpace and operator splitting ?</span>
+						</h1>
+						<div class="qa-part-q-view">
+							<div class="qa-q-view  hentry question" id="q6380">
+								<form method="post" action="../../6380/correctly-solutions-mixedfunctionspace-operator-splitting">
+									<div class="qa-q-view-stats">
+										<div class="qa-voting qa-voting-net" id="voting_6380">
+											<div class="qa-vote-count qa-vote-count-net">
+												<span class="qa-netvote-count">
+													<span class="qa-netvote-count-data">+1<span class="votes-up"><span class="value-title" title="1"></span></span><span class="votes-down"><span class="value-title" title="0"></span></span></span><span class="qa-netvote-count-pad"> vote</span>
+												</span>
+											</div>
+											<div class="qa-vote-clear">
+											</div>
+										</div>
+									</div>
+									<input type="hidden" name="code" value="0-1516468069-53f26ded4d12f0af793df3f0d994a8808968ef18">
+								</form>
+								<div class="qa-q-view-main">
+									<form method="post" action="../../6380/correctly-solutions-mixedfunctionspace-operator-splitting">
+										<div class="qa-q-view-content">
+											<a name="6380"></a><div class="entry-content"><p>Hello</p>
+
+<p>I am trying to solve a mixed variational formulation for a dynamic FSI type of application, and I am using operator splitting techniques to set-up my problem. I have been able to set the basics (boundary conditions, initial conditions etc.) all okay. However, I think I do not really understand the way <code>MixedFunctionSpace</code> in FEniCS handles updates to the functions. My solution variables do not change with time at all - they seem to be remaining at the same value. To be precise only <code>Vp</code> seems to be getting updated - the variables for <code>U</code> and <code>P</code> and <code>Lp</code> are not.</p>
+
+<p>I present here a minimal example (which may still be relatively long, but kindly bear with me please).</p>
+
+<p>I first set up the spaces as follows:</p>
+
+<pre><code>from dolfin import *
+
+V   = VectorFunctionSpace(mesh, "CG", 2, dim=2)
+P   = FunctionSpace(mesh, "CG", 1)
+Up  = VectorFunctionSpace(mesh, "R", 0, dim=2)
+Lp  = VectorFunctionSpace(mesh, "R", 0, dim=2)
+
+# for operator splitting step 1
+M1          = MixedFunctionSpace([V,P])
+U1, P1      = TrialFunctions(M1)  
+W1, Q1      = TestFunctions(M1)
+
+Solution_M1         = Function(M1)
+(U1_sol, P1_sol)    = Solution_M1.split(True)
+
+# for operator splitting step 2
+U2          = TrialFunction(V)  
+W2          = TestFunction(V) 
+
+U2_sol = Function(V)
+
+# for operator splitting step 3
+combinedSpace     = MixedFunctionSpace([V,P,Up,Lp])
+U3, P3, Vp3, Lp3  = TrialFunctions(combinedSpace) 
+W3, Q3, Up3, Mp3  = TestFunctions(combinedSpace)
+
+Solution_M3       = Function(combinedSpace)
+(U3_sol, P3_sol, Vp3_sol, Lp3_sol) = Solution_M3.split()
+</code></pre>
+
+<p>Following this, I set up the initial values:</p>
+
+<pre><code># additionally we need an initial space for solution
+U_old   = Function(V)
+P_old   = Function(P)
+Vp_old  = Function(Up)
+
+initVel   = InitialVelocity()
+initPres  = InitialPressure()
+
+U_old.interpolate(initVel)
+P_old.interpolate(initPres)
+
+Vx_old = 0.0
+Vy_old = 0.0
+
+Vp_old.vector()[0] = Vx_old
+Vp_old.vector()[1] = Vy_old
+</code></pre>
+
+<p>Then the form definitions and the time-loop for solution:</p>
+
+<pre><code>begin("Form compilation operator splitting step 1")
+
+# ... code to define form for B1(U1,P1; W1,Q1; U_old) ...
+
+a1 = lhs(B1)
+b1 = rhs(B1)
+problem1    = LinearVariationalProblem(a1, b1, Solution_M1, bcs=M1_bcD)
+solver1     = LinearVariationalSolver(problem1)
+
+end()
+
+begin("Form compilation operator splitting step 2")
+
+# ... code to define form for B2(U2; W2; U1_sol) ...
+
+a2 = lhs(B2)
+b2 = rhs(B2)
+problem2    = LinearVariationalProblem(a2, b2, U2_sol, bcs=U2_bcD)
+solver2     = LinearVariationalSolver(problem2)
+
+end()
+
+while tNow &lt;= tStop:
+
+   solver1.solve()
+
+   solver2.solve()
+
+   Vx_old = Vp_old.vector()[0]
+   Vy_old = Vp_old.vector()[1]
+
+   # ... code to change Vx_old, Vy_old to Vx_new, Vy_new ...
+
+   Vp_old.vector()[0] = Vx_new
+   Vp_old.vector()[1] = Vy_new
+
+   # ... code to define form for B3(U3,Vp3,Lp3; W3,Up3,Mp3; U2_sol,Vp_old) ...
+
+   a3 = lhs(B3)
+   b3 = rhs(B3)
+   problem3    = LinearVariationalProblem(a3, b3, Solution_M3, bcs=M3_bcD)
+   solver3     = LinearVariationalSolver(problem3)
+
+   assign(U_old, Solution_M3.sub(0))
+
+   tNow += dt
+</code></pre>
+
+<p>Any help, tips, or suggestions will be very helpful.</p>
+
+<p>Thanks.</p>
+</div>
+										</div>
+										<div class="qa-q-view-tags">
+											<ul class="qa-q-view-tag-list">
+												<li class="qa-q-view-tag-item"><a href="../../tag/mixed-function-space" rel="tag" class="qa-tag-link">mixed-function-space</a></li>
+												<li class="qa-q-view-tag-item"><a href="../../tag/mixed-formulation" rel="tag" class="qa-tag-link">mixed-formulation</a></li>
+												<li class="qa-q-view-tag-item"><a href="../../tag/dynamic" rel="tag" class="qa-tag-link">dynamic</a></li>
+											</ul>
+										</div>
+										<span class="qa-q-view-avatar-meta">
+											<span class="qa-q-view-meta">
+												<a href="../../6380/correctly-solutions-mixedfunctionspace-operator-splitting" class="qa-q-view-what">asked</a>
+												<span class="qa-q-view-when">
+													<span class="qa-q-view-when-data"><span class="published"><span class="value-title" title="2015-01-24T23:37:18+0000"></span>Jan 25, 2015</span></span>
+												</span>
+												<span class="qa-q-view-who">
+													<span class="qa-q-view-who-pad">by </span>
+													<span class="qa-q-view-who-data"><span class="vcard author"><a href="../../user/debmukh" class="qa-user-link url nickname">debmukh</a></span></span>
+													<span class="qa-q-view-who-title">FEniCS Novice</span>
+													<span class="qa-q-view-who-points">
+														<span class="qa-q-view-who-points-pad">(</span><span class="qa-q-view-who-points-data">880</span><span class="qa-q-view-who-points-pad"> points)</span>
+													</span>
+												</span>
+											</span>
+										</span>
+										<div class="qa-q-view-buttons">
+										</div>
+										
+										<div class="qa-q-view-c-list" id="c6380_list">
+											<div class="qa-c-list-item  hentry comment" id="c6388">
+												<div class="qa-c-item-content">
+													<a name="6388"></a><div class="entry-content"><p>Sorry but this minimum working example is a) quite complex and b) not complete. eg: It doesn't state what B1, B2, etc are, so the problem could be in how you pass your '_old' variables between them. </p>
+
+<p>Have you tried a simple problem (ie: only one function / form) and building up your complex model piece by piece? That would help develop your understanding...</p>
+</div>
+												</div>
+												<div class="qa-c-item-footer">
+													<span class="qa-c-item-avatar-meta">
+														<span class="qa-c-item-avatar">
+															<a href="../../user/mwelland" class="qa-avatar-link"><img src="https://www.gravatar.com/avatar/af936799ea3fe5bd1cb6abb922ebbe83?s=20" width="20" height="20" class="qa-avatar-image" alt=""></a>
+														</span>
+														<span class="qa-c-item-meta">
+															<a href="../../6380/correctly-solutions-mixedfunctionspace-operator-splitting?show=6388#c6388" class="qa-c-item-what">commented</a>
+															<span class="qa-c-item-when">
+																<span class="qa-c-item-when-data"><span class="published"><span class="value-title" title="2015-01-27T16:09:36+0000"></span>Jan 27, 2015</span></span>
+															</span>
+															<span class="qa-c-item-who">
+																<span class="qa-c-item-who-pad">by </span>
+																<span class="qa-c-item-who-data"><span class="vcard author"><a href="../../user/mwelland" class="qa-user-link url nickname">mwelland</a></span></span>
+																<span class="qa-c-item-who-title">FEniCS User</span>
+																<span class="qa-c-item-who-points">
+																	<span class="qa-c-item-who-points-pad">(</span><span class="qa-c-item-who-points-data">8,410</span><span class="qa-c-item-who-points-pad"> points)</span>
+																</span>
+															</span>
+														</span>
+													</span>
+													<div class="qa-c-item-buttons">
+													</div>
+												</div>
+												<div class="qa-c-item-clear">
+												</div>
+											</div> <!-- END qa-c-item -->
+											<div class="qa-c-list-item  hentry comment" id="c6391">
+												<div class="qa-c-item-content">
+													<a name="6391"></a><div class="entry-content"><p>Thanks a lot for your response, and apologies if the example above was too complex. I have broken down the issue into a smaller sub-issue, and further worked on this to isolate a more specific example. </p>
+
+<p>I will repost the question - please ignore the previous version of the comment which had the link to another question. </p>
+</div>
+												</div>
+												<div class="qa-c-item-footer">
+													<span class="qa-c-item-avatar-meta">
+														<span class="qa-c-item-meta">
+															<a href="../../6380/correctly-solutions-mixedfunctionspace-operator-splitting?show=6391#c6391" class="qa-c-item-what">commented</a>
+															<span class="qa-c-item-when">
+																<span class="qa-c-item-when-data"><span class="published"><span class="value-title" title="2015-01-27T19:40:43+0000"></span>Jan 27, 2015</span></span>
+															</span>
+															<span class="qa-c-item-who">
+																<span class="qa-c-item-who-pad">by </span>
+																<span class="qa-c-item-who-data"><span class="vcard author"><a href="../../user/debmukh" class="qa-user-link url nickname">debmukh</a></span></span>
+																<span class="qa-c-item-who-title">FEniCS Novice</span>
+																<span class="qa-c-item-who-points">
+																	<span class="qa-c-item-who-points-pad">(</span><span class="qa-c-item-who-points-data">880</span><span class="qa-c-item-who-points-pad"> points)</span>
+																</span>
+															</span>
+															<br>
+															<span class="qa-c-item-what">edited</span>
+															<span class="qa-c-item-when">
+																<span class="qa-c-item-when-data"><span class="updated"><span class="value-title" title="2015-01-27T20:10:43+0000"></span>Jan 27, 2015</span></span>
+															</span>
+															<span class="qa-c-item-who">
+																<span class="qa-c-item-who-pad">by </span><span class="qa-c-item-who-data"><a href="../../user/debmukh" class="qa-user-link url nickname">debmukh</a></span>
+															</span>
+														</span>
+													</span>
+													<div class="qa-c-item-buttons">
+													</div>
+												</div>
+												<div class="qa-c-item-clear">
+												</div>
+											</div> <!-- END qa-c-item -->
+										</div> <!-- END qa-c-list -->
+										
+										<input type="hidden" name="code" value="0-1516468069-8ed2b31cf9ad93b5703e8c5c4d4bcf8ac281d051">
+										<input type="hidden" name="qa_click" value="">
+									</form>
+									<div class="qa-c-form">
+									</div> <!-- END qa-c-form -->
+									
+								</div> <!-- END qa-q-view-main -->
+								<div class="qa-q-view-clear">
+								</div>
+							</div> <!-- END qa-q-view -->
+							
+						</div>
+						<div class="qa-part-a-list">
+							<h2 id="a_list_title" style="display:none;"></h2>
+							<div class="qa-a-list" id="a_list">
+								
+							</div> <!-- END qa-a-list -->
+							
+						</div>
+					</div> <!-- END qa-main -->
+					
+				</div> <!-- END main-wrapper -->
+			</div> <!-- END main-shadow -->
+		</div> <!-- END body-wrapper -->
+		<!-- END footer-bottom-group -->
+		
+		<div style="position:absolute; left:-9999px; top:-9999px;">
+			<span id="qa-waiting-template" class="qa-waiting">...</span>
+		</div>
+	
+	
+
+</body><!-- Powered by Question2Answer - http://www.question2answer.org/ --></html>

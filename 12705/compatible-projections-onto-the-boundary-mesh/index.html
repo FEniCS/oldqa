@@ -1,0 +1,246 @@
+<html><!-- Powered by Question2Answer - http://www.question2answer.org/ --><head>
+		<meta http-equiv="content-type" content="text/html; charset=utf-8">
+		<title>Compatible projections onto the boundary mesh - FEniCS Q&amp;A</title>
+		<meta name="description" content="Hello, I have been trying to find a way around the following problem: Given a scalar field $ ... of curlw_tang_b along boundary :: ' + str(integral_2)">
+		<meta name="keywords" content="boundary,mesh,compatible,normal,tangential">
+		<link rel="stylesheet" type="text/css" href="../../qa-theme/Snow/qa-styles.css">
+		<link rel="canonical" href="http://fenicsproject.org/qa/12705/compatible-projections-onto-the-boundary-mesh">
+		<script type="text/x-mathjax-config">
+  MathJax.Hub.Config({
+    extensions: ["tex2jax.js"],
+    jax: ["input/TeX","output/HTML-CSS"],
+    tex2jax: {inlineMath: [["$","$"],["\\(","\\)"]]},
+    TeX: { extensions: ["AMSmath.js","AMSsymbols.js"]}
+  });
+</script>
+<script type="text/javascript" src="../../mathjax/MathJax.js"></script>
+		<script src="../../jquery-1.7.2.min.js" type="text/javascript"></script>
+		<script src="../../highlight.min.js"></script>
+<script type="text/javascript">
+$(function(){
+	$('.wmd-input').keypress(function(){
+		window.clearTimeout(hljs.Timeout);
+		hljs.Timeout = window.setTimeout(function() {
+			hljs.initHighlighting.called = false;
+			hljs.initHighlighting();
+		}, 500);
+	});
+	window.setTimeout(function() {
+		hljs.initHighlighting.called = false;
+		hljs.initHighlighting();
+	}, 500);
+});
+</script>
+
+
+	</head>
+	<body class="qa-template-question qa-body-js-off">
+		<div class="qa-body-wrapper">
+			
+			<div class="qa-header">
+				<div class="qa-logo">
+					<a href="../../" class="qa-logo-link" title="FEniCS Q&amp;A"><img src="../../qa-theme/fenics_qa.png" border="0" alt="FEniCS Q&amp;A"></a>
+				</div>
+				<div class="qa-header-clear">
+				</div>
+			</div> <!-- END qa-header -->
+			
+			<div class="qa-main-shadow">
+				
+				<div class="qa-main-wrapper">
+					
+					<div class="qa-sidepanel">
+						<div class="qa-sidebar">
+							This is a read only copy of the old FEniCS QA forum. Please visit the <a href="https://www.allanswered.com/community/s/fenics-project/">new QA forum</a> to ask questions
+						</div>
+						
+					</div>
+					
+					<div class="qa-main">
+						<h1>
+							<span class="entry-title">Compatible projections onto the boundary mesh</span>
+						</h1>
+						<div class="qa-part-q-view">
+							<div class="qa-q-view  hentry question" id="q12705">
+								<form method="post" action="../../12705/compatible-projections-onto-the-boundary-mesh">
+									<div class="qa-q-view-stats">
+										<div class="qa-voting qa-voting-net" id="voting_12705">
+											<div class="qa-vote-count qa-vote-count-net">
+												<span class="qa-netvote-count">
+													<span class="qa-netvote-count-data">+2<span class="votes-up"><span class="value-title" title="2"></span></span><span class="votes-down"><span class="value-title" title="0"></span></span></span><span class="qa-netvote-count-pad"> votes</span>
+												</span>
+											</div>
+											<div class="qa-vote-clear">
+											</div>
+										</div>
+									</div>
+									<input type="hidden" name="code" value="0-1516467835-0b8d57855a49fc79dfb8d45a4110774fd309e228">
+								</form>
+								<div class="qa-q-view-main">
+									<form method="post" action="../../12705/compatible-projections-onto-the-boundary-mesh">
+										<div class="qa-q-view-content">
+											<a name="12705"></a><div class="entry-content"><p>Hello,</p>
+
+<p>I have been trying to find a way around the following problem:</p>
+
+<p>Given a scalar field $ \omega $ defined in a 2D mesh, I wish to compute the form \( ( \nabla \times \omega ) \times \vec{n} \) on the boundary mesh, for the purpose of solving a 1D ODE further on.</p>
+
+<p>$\nabla\times\omega\times\vec{n}$ along the boundary will be a DG function. I would expect to be able to reconstruct it exactly using DG basis functions along the boundary. </p>
+
+<p>I have attempted to do this using CG and DG elements, as can be observed in the example code I have included below. Difficulties arise when considering the components of the normal vector $\vec{n}$ on the boundary mesh. I have had to define two expressions which correspond with the components of $\vec{n}$, such that I can compute the tangential component of $\nabla \times \omega$. </p>
+
+<p>However, I have found that errors appear on the corners, probably because I do not distinguish between the different normal vectors of each adjacent element to the corner.</p>
+
+<p>I would really appreciate if somebody could suggest a better way of carrying out this computation, as I am out of ideas at the moment. How can the components of the normal vector to the mesh be included in an integration along the boundary mesh?</p>
+
+<p>Thank you very much.</p>
+
+<p>Gonzalo</p>
+
+<pre><code>from dolfin import *
+
+# Discretization parameters
+p = 2
+N = 20
+
+# Arbitrary scalar field
+w_exp = Expression('x[0]*sin(2*pi*x[0]*x[1])', degree = p)
+
+# Generation of mesh
+mesh = UnitSquareMesh(N,N,'left')
+n = FacetNormal(mesh)
+n_perp = as_vector((n[1], -n[0]))
+
+# Definition of function spaces
+W = FunctionSpace(mesh,'CG',p)
+P = FunctionSpace(mesh,'DG',p)
+
+# Interpolate scalar field
+w = interpolate(w_exp, W)
+
+# Integrate tangential component of curl w along the boundary
+curlw_tang = dot(curl(w), n_perp)
+integral_1 = dolfin.assemble(curlw_tang*ds)
+print 'Integral of curlw_tang along boundary :: ' + str(integral_1)
+
+# Initialize boundary mesh
+boundary_mesh = BoundaryMesh(mesh, "exterior")   
+
+# Initialize Discontinous Lagrange elements on boundary
+P_b = FunctionSpace(boundary_mesh, 'DG', p)
+
+# Project components of curlw onto P
+curlw_x = project(curl(w)[0],P)
+curlw_y = project(curl(w)[1],P)
+
+# Project components of curlw onto P_b
+curlw_x_b = interpolate(curlw_x, P_b)
+curlw_y_b = interpolate(curlw_y, P_b)
+
+# Define components of outwards facing normal vector as dolfin expressions
+class n1_exp(Expression):
+    def __init__(self, degree = 0):
+        self.degree = degree
+
+    def eval(self, value, x):
+        if x[0] == 0: # Left boundary
+            value[0] = -1
+        elif x[0] == 1: # Right boundary
+            value[0] = 1
+        else:
+            value[0] = 0        
+
+class n2_exp(Expression):
+    def __init__(self, degree = 0):
+        self.degree = degree
+    def eval(self, value, x):
+        if x[1] == 0: # Lower boundary
+            value[0] = -1
+        elif x[1] == 1: # Upper boundary
+            value[0] = 1
+        else:
+            value[0] = 0
+
+
+n1_b = n1_exp(degree = 0)
+n2_b = n2_exp(degree = 0)
+
+# Integrate tangential component of w_b (defined in boundary mesh) along the boundary
+curlw_tang_b = project(curlw_x_b*n2_b - curlw_y_b*n1_b, P_b)
+integral_2 = dolfin.assemble(curlw_tang_b*dx)
+print 'Integral of curlw_tang_b along boundary :: ' + str(integral_2)  
+</code></pre>
+</div>
+										</div>
+										<div class="qa-q-view-tags">
+											<ul class="qa-q-view-tag-list">
+												<li class="qa-q-view-tag-item"><a href="../../tag/boundary" rel="tag" class="qa-tag-link">boundary</a></li>
+												<li class="qa-q-view-tag-item"><a href="../../tag/mesh" rel="tag" class="qa-tag-link">mesh</a></li>
+												<li class="qa-q-view-tag-item"><a href="../../tag/compatible" rel="tag" class="qa-tag-link">compatible</a></li>
+												<li class="qa-q-view-tag-item"><a href="../../tag/normal" rel="tag" class="qa-tag-link">normal</a></li>
+												<li class="qa-q-view-tag-item"><a href="../../tag/tangential" rel="tag" class="qa-tag-link">tangential</a></li>
+											</ul>
+										</div>
+										<span class="qa-q-view-avatar-meta">
+											<span class="qa-q-view-meta">
+												<a href="../../12705/compatible-projections-onto-the-boundary-mesh" class="qa-q-view-what">asked</a>
+												<span class="qa-q-view-when">
+													<span class="qa-q-view-when-data"><span class="published"><span class="value-title" title="2017-03-14T21:47:20+0000"></span>Mar 14, 2017</span></span>
+												</span>
+												<span class="qa-q-view-who">
+													<span class="qa-q-view-who-pad">by </span>
+													<span class="qa-q-view-who-data"><span class="vcard author"><a href="../../user/gonzalogddiego" class="qa-user-link url nickname">gonzalogddiego</a></span></span>
+													<span class="qa-q-view-who-title">FEniCS Novice</span>
+													<span class="qa-q-view-who-points">
+														<span class="qa-q-view-who-points-pad">(</span><span class="qa-q-view-who-points-data">140</span><span class="qa-q-view-who-points-pad"> points)</span>
+													</span>
+												</span>
+												<br>
+												<span class="qa-q-view-what">edited</span>
+												<span class="qa-q-view-when">
+													<span class="qa-q-view-when-data"><span class="updated"><span class="value-title" title="2017-03-15T12:21:58+0000"></span>Mar 15, 2017</span></span>
+												</span>
+												<span class="qa-q-view-who">
+													<span class="qa-q-view-who-pad">by </span><span class="qa-q-view-who-data"><a href="../../user/gonzalogddiego" class="qa-user-link url nickname">gonzalogddiego</a></span>
+												</span>
+											</span>
+										</span>
+										<div class="qa-q-view-buttons">
+										</div>
+										
+										<div class="qa-q-view-c-list" style="display:none;" id="c12705_list">
+										</div> <!-- END qa-c-list -->
+										
+										<input type="hidden" name="code" value="0-1516467835-4d68321d6e2a3a3a6b2199847707d040a70513fc">
+										<input type="hidden" name="qa_click" value="">
+									</form>
+									<div class="qa-c-form">
+									</div> <!-- END qa-c-form -->
+									
+								</div> <!-- END qa-q-view-main -->
+								<div class="qa-q-view-clear">
+								</div>
+							</div> <!-- END qa-q-view -->
+							
+						</div>
+						<div class="qa-part-a-list">
+							<h2 id="a_list_title" style="display:none;"></h2>
+							<div class="qa-a-list" id="a_list">
+								
+							</div> <!-- END qa-a-list -->
+							
+						</div>
+					</div> <!-- END qa-main -->
+					
+				</div> <!-- END main-wrapper -->
+			</div> <!-- END main-shadow -->
+		</div> <!-- END body-wrapper -->
+		<!-- END footer-bottom-group -->
+		
+		<div style="position:absolute; left:-9999px; top:-9999px;">
+			<span id="qa-waiting-template" class="qa-waiting">...</span>
+		</div>
+	
+	
+
+</body><!-- Powered by Question2Answer - http://www.question2answer.org/ --></html>

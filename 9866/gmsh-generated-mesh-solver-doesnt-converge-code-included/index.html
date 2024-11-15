@@ -1,0 +1,420 @@
+<html><!-- Powered by Question2Answer - http://www.question2answer.org/ --><head>
+		<meta http-equiv="content-type" content="text/html; charset=utf-8">
+		<title>Gmsh generated mesh - solver doesnt converge -code included - FEniCS Q&amp;A</title>
+		<meta name="description" content="Hi, I am solving a simple 2d Navier Stokes problem. I import a mesh exported from gmsh as shown, ![ ...  advance. [1]: http://i.imgur.com/NzQlrxL.png">
+		<meta name="keywords" content="navier-stokes,gmsh,diverge">
+		<link rel="stylesheet" type="text/css" href="../../qa-theme/Snow/qa-styles.css">
+		<link rel="canonical" href="http://fenicsproject.org/qa/9866/gmsh-generated-mesh-solver-doesnt-converge-code-included">
+		<script type="text/x-mathjax-config">
+  MathJax.Hub.Config({
+    extensions: ["tex2jax.js"],
+    jax: ["input/TeX","output/HTML-CSS"],
+    tex2jax: {inlineMath: [["$","$"],["\\(","\\)"]]},
+    TeX: { extensions: ["AMSmath.js","AMSsymbols.js"]}
+  });
+</script>
+<script type="text/javascript" src="../../mathjax/MathJax.js"></script>
+		<script src="../../jquery-1.7.2.min.js" type="text/javascript"></script>
+		<script src="../../highlight.min.js"></script>
+<script type="text/javascript">
+$(function(){
+	$('.wmd-input').keypress(function(){
+		window.clearTimeout(hljs.Timeout);
+		hljs.Timeout = window.setTimeout(function() {
+			hljs.initHighlighting.called = false;
+			hljs.initHighlighting();
+		}, 500);
+	});
+	window.setTimeout(function() {
+		hljs.initHighlighting.called = false;
+		hljs.initHighlighting();
+	}, 500);
+});
+</script>
+
+
+	</head>
+	<body class="qa-template-question qa-body-js-off">
+		<div class="qa-body-wrapper">
+			
+			<div class="qa-header">
+				<div class="qa-logo">
+					<a href="../../" class="qa-logo-link" title="FEniCS Q&amp;A"><img src="../../qa-theme/fenics_qa.png" border="0" alt="FEniCS Q&amp;A"></a>
+				</div>
+				<div class="qa-header-clear">
+				</div>
+			</div> <!-- END qa-header -->
+			
+			<div class="qa-main-shadow">
+				
+				<div class="qa-main-wrapper">
+					
+					<div class="qa-sidepanel">
+						<div class="qa-sidebar">
+							This is a read only copy of the old FEniCS QA forum. Please visit the <a href="https://www.allanswered.com/community/s/fenics-project/">new QA forum</a> to ask questions
+						</div>
+						
+					</div>
+					
+					<div class="qa-main">
+						<h1>
+							<span class="entry-title">Gmsh generated mesh - solver doesnt converge -code included</span>
+						</h1>
+						<div class="qa-part-q-view">
+							<div class="qa-q-view  hentry question" id="q9866">
+								<form method="post" action="../../9866/gmsh-generated-mesh-solver-doesnt-converge-code-included">
+									<div class="qa-q-view-stats">
+										<div class="qa-voting qa-voting-net" id="voting_9866">
+											<div class="qa-vote-count qa-vote-count-net">
+												<span class="qa-netvote-count">
+													<span class="qa-netvote-count-data">0<span class="votes-up"><span class="value-title" title="0"></span></span><span class="votes-down"><span class="value-title" title="0"></span></span></span><span class="qa-netvote-count-pad"> votes</span>
+												</span>
+											</div>
+											<div class="qa-vote-clear">
+											</div>
+										</div>
+									</div>
+									<input type="hidden" name="code" value="0-1516468242-9d234fcbba66cabc0afc023abaf545b21fb92c52">
+								</form>
+								<div class="qa-q-view-main">
+									<form method="post" action="../../9866/gmsh-generated-mesh-solver-doesnt-converge-code-included">
+										<div class="qa-q-view-content">
+											<a name="9866"></a><div class="entry-content"><p>Hi, I am solving a simple 2d Navier Stokes problem.  I import a mesh exported from gmsh as shown,</p>
+
+<p><img src="http://i.imgur.com/NzQlrxL.png" alt="enter image description here"></p>
+
+<p>My solver crashes with error:    <code>Solution failed to converge in 0 iterations (PETSc reason DIVERGED_NANORINF, residual norm ||r|| = -nan).</code> </p>
+
+<p>The code,</p>
+
+<pre><code> from dolfin import *
+import numpy as np
+set_log_level(WARNING)
+nx=1250.
+ny=750.
+class NoslipBoundary(SubDomain):
+    def inside(self, x, on_boundary):
+        return on_boundary #and (near(x[1],0) or near(x[1],ny))
+
+class InflowBoundary(SubDomain):
+    def inside(self, x, on_boundary):        
+        return near(x[0],0) and on_boundary
+class OutflowBoundary(SubDomain):
+    def inside(self, x, on_boundary):        
+        return near(x[0],nx) and on_boundary
+
+
+def flowin():  
+
+  mesh = Mesh("square.xml")
+  print Mesh.num_cells(mesh)
+  h = mesh.hmin()
+  f = Constant((0., 0.))         # force
+  nu = Constant(1./10)           # kinematic viscosity  
+  dt = 0.2*h/0.3               # time step CFL with 1 = max. velocity
+  k = Constant(dt)               # time step 
+  T = 200.0                       # total simulation time
+  u0 = Constant((0., 0.))        # initial velocity
+  p0 = Constant(0.)             # initial pressure
+
+
+  V = VectorFunctionSpace(mesh, 'CG', 2)
+  Q = FunctionSpace(mesh, 'CG', 1)
+
+  u = TrialFunction(V)
+  v = TestFunction(V)
+  p = TrialFunction(Q)
+  q = TestFunction(Q)
+
+  u0 = interpolate(u0, V)  
+  p0 = interpolate(p0, Q)
+  us = Function(V)
+  u1 = Function(V)
+  p1 = Function(Q)
+
+  # tentative velocity
+  F0 = (1./k)*inner(u - u0, v)*dx + inner(dot(grad(u0), u0), v)*dx\
+       + nu*inner(grad(u), grad(v))*dx - inner(f, v)*dx
+  a0, L0 = system(F0)
+
+  # projection
+  F1 = inner(grad(p), grad(q))*dx + (1./k)*q*div(us)*dx
+  a1, L1 = system(F1)
+
+  # finalize
+  F2 = (1./k)*inner(u - us, v)*dx + inner(grad(p1), v)*dx 
+  a2, L2 = system(F2)
+
+  # bcs
+  b_v = DirichletBC(V, Constant((0., 0.0)), NoslipBoundary())  
+  b_v1 = DirichletBC(V, Constant((0.01,0)), InflowBoundary())
+
+  b_p1 = DirichletBC(Q, Constant(0.),  OutflowBoundary())
+
+  bcs_v = [b_v,b_v1]
+  bcs_p = [b_p1]
+
+  A0 = assemble(a0)
+  A1 = assemble(a1)
+  A2 = assemble(a2)
+  prec = "amg" if has_krylov_solver_preconditioner("amg") else "default" 
+  solver02 = KrylovSolver('gmres', 'ilu')
+  solver1 = KrylovSolver('gmres', 'petsc_amg')
+  solver3 = KrylovSolver('gmres', 'ilu')
+  t = 0
+  count=0
+  while t &lt; T:
+
+    count=count+1
+    b = assemble(L0)
+    [bc.apply(A0, b) for bc in bcs_v]
+    solver02.solve(A0, us.vector(), b)
+
+    b = assemble(L1)
+    [bc.apply(A1, b) for bc in bcs_p]
+    solver1.solve(A1, p1.vector(), b)
+
+
+    b = assemble(L2)
+    [bc.apply(A2, b) for bc in bcs_v]
+    solver02.solve(A2, u1.vector(), b)
+    u0.assign(u1)
+
+    t += dt
+    plot(u0, title="Velocity", rescale=True, interactive=True)     
+  return u0, p1
+
+#----------------------------------------------------------------------
+
+if __name__ == '__main__':
+  u, p = flowin()
+</code></pre>
+
+<p>The code works fine if I just have a rectangular domain without the hole at the center. I have tried reducing the inlet velocity and time step, but no change. Could someone help me find the mistake with the code or solver? Thanks in advance.</p>
+</div>
+										</div>
+										<div class="qa-q-view-tags">
+											<ul class="qa-q-view-tag-list">
+												<li class="qa-q-view-tag-item"><a href="../../tag/navier-stokes" rel="tag" class="qa-tag-link">navier-stokes</a></li>
+												<li class="qa-q-view-tag-item"><a href="../../tag/gmsh" rel="tag" class="qa-tag-link">gmsh</a></li>
+												<li class="qa-q-view-tag-item"><a href="../../tag/diverge" rel="tag" class="qa-tag-link">diverge</a></li>
+											</ul>
+										</div>
+										<span class="qa-q-view-avatar-meta">
+											<span class="qa-q-view-meta">
+												<a href="../../9866/gmsh-generated-mesh-solver-doesnt-converge-code-included" class="qa-q-view-what">asked</a>
+												<span class="qa-q-view-when">
+													<span class="qa-q-view-when-data"><span class="published"><span class="value-title" title="2016-04-14T04:13:13+0000"></span>Apr 14, 2016</span></span>
+												</span>
+												<span class="qa-q-view-who">
+													<span class="qa-q-view-who-pad">by </span>
+													<span class="qa-q-view-who-data"><span class="vcard author"><a href="../../user/newcommer" class="qa-user-link url nickname">newcommer</a></span></span>
+													<span class="qa-q-view-who-title">FEniCS Novice</span>
+													<span class="qa-q-view-who-points">
+														<span class="qa-q-view-who-points-pad">(</span><span class="qa-q-view-who-points-data">310</span><span class="qa-q-view-who-points-pad"> points)</span>
+													</span>
+												</span>
+											</span>
+										</span>
+										<div class="qa-q-view-buttons">
+										</div>
+										
+										<div class="qa-q-view-c-list" style="display:none;" id="c9866_list">
+										</div> <!-- END qa-c-list -->
+										
+										<input type="hidden" name="code" value="0-1516468242-6d609438f6e01e20e7acf5c17b2566b2e26ac732">
+										<input type="hidden" name="qa_click" value="">
+									</form>
+									<div class="qa-c-form">
+									</div> <!-- END qa-c-form -->
+									
+								</div> <!-- END qa-q-view-main -->
+								<div class="qa-q-view-clear">
+								</div>
+							</div> <!-- END qa-q-view -->
+							
+						</div>
+						<div class="qa-part-a-list">
+							<h2 id="a_list_title">1 Answer</h2>
+							<div class="qa-a-list" id="a_list">
+								
+								<div class="qa-a-list-item  hentry answer answer-selected qa-a-list-item-selected" id="a9867">
+									<form method="post" action="../../9866/gmsh-generated-mesh-solver-doesnt-converge-code-included">
+										<div class="qa-voting qa-voting-net" id="voting_9867">
+											<div class="qa-vote-count qa-vote-count-net">
+												<span class="qa-netvote-count">
+													<span class="qa-netvote-count-data">0<span class="votes-up"><span class="value-title" title="0"></span></span><span class="votes-down"><span class="value-title" title="0"></span></span></span><span class="qa-netvote-count-pad"> votes</span>
+												</span>
+											</div>
+											<div class="qa-vote-clear">
+											</div>
+										</div>
+										<input type="hidden" name="code" value="0-1516468242-9d234fcbba66cabc0afc023abaf545b21fb92c52">
+									</form>
+									<div class="qa-a-item-main">
+										<form method="post" action="../../9866/gmsh-generated-mesh-solver-doesnt-converge-code-included">
+											<div class="qa-a-item-selected">
+												<div class="qa-a-selection">
+													<div class="qa-a-selected">&#160;</div>
+													<div class="qa-a-selected-text">Best answer</div>
+												</div>
+												<div class="qa-a-item-content">
+													<a name="9867"></a><div class="entry-content"><p>Your boundary conditions are wrong, you are enforcing noslip on the outlet. Otherwise your code works for me on a similar mesh generated with mshr.</p>
+</div>
+												</div>
+												<span class="qa-a-item-avatar-meta">
+													<span class="qa-a-item-meta">
+														<a href="../../9866/gmsh-generated-mesh-solver-doesnt-converge-code-included?show=9867#a9867" class="qa-a-item-what">answered</a>
+														<span class="qa-a-item-when">
+															<span class="qa-a-item-when-data"><span class="published"><span class="value-title" title="2016-04-14T06:06:27+0000"></span>Apr 14, 2016</span></span>
+														</span>
+														<span class="qa-a-item-who">
+															<span class="qa-a-item-who-pad">by </span>
+															<span class="qa-a-item-who-data"><span class="vcard author"><a href="../../user/Magne+Nordaas" class="qa-user-link url nickname">Magne Nordaas</a></span></span>
+															<span class="qa-a-item-who-title">FEniCS Expert</span>
+															<span class="qa-a-item-who-points">
+																<span class="qa-a-item-who-points-pad">(</span><span class="qa-a-item-who-points-data">13,820</span><span class="qa-a-item-who-points-pad"> points)</span>
+															</span>
+														</span>
+														<br>
+														<span class="qa-a-item-what">selected</span>
+														<span class="qa-a-item-when">
+															<span class="qa-a-item-when-data"><span class="updated"><span class="value-title" title="2016-04-14T08:07:04+0000"></span>Apr 14, 2016</span></span>
+														</span>
+														<span class="qa-a-item-who">
+															<span class="qa-a-item-who-pad">by </span><span class="qa-a-item-who-data"><a href="../../user/newcommer" class="qa-user-link url nickname">newcommer</a></span>
+														</span>
+													</span>
+												</span>
+											</div>
+											<div class="qa-a-item-buttons">
+												</div>
+											
+											<div class="qa-a-item-c-list" id="c9867_list">
+												<div class="qa-c-list-item  hentry comment" id="c9868">
+													<div class="qa-c-item-content">
+														<a name="9868"></a><div class="entry-content"><p>Thank you, I will check my outlet boundary conditions.</p>
+</div>
+													</div>
+													<div class="qa-c-item-footer">
+														<span class="qa-c-item-avatar-meta">
+															<span class="qa-c-item-meta">
+																<a href="../../9866/gmsh-generated-mesh-solver-doesnt-converge-code-included?show=9868#c9868" class="qa-c-item-what">commented</a>
+																<span class="qa-c-item-when">
+																	<span class="qa-c-item-when-data"><span class="published"><span class="value-title" title="2016-04-14T07:55:23+0000"></span>Apr 14, 2016</span></span>
+																</span>
+																<span class="qa-c-item-who">
+																	<span class="qa-c-item-who-pad">by </span>
+																	<span class="qa-c-item-who-data"><span class="vcard author"><a href="../../user/newcommer" class="qa-user-link url nickname">newcommer</a></span></span>
+																	<span class="qa-c-item-who-title">FEniCS Novice</span>
+																	<span class="qa-c-item-who-points">
+																		<span class="qa-c-item-who-points-pad">(</span><span class="qa-c-item-who-points-data">310</span><span class="qa-c-item-who-points-pad"> points)</span>
+																	</span>
+																</span>
+																<br>
+																<span class="qa-c-item-what">edited</span>
+																<span class="qa-c-item-when">
+																	<span class="qa-c-item-when-data"><span class="updated"><span class="value-title" title="2016-04-14T08:06:57+0000"></span>Apr 14, 2016</span></span>
+																</span>
+																<span class="qa-c-item-who">
+																	<span class="qa-c-item-who-pad">by </span><span class="qa-c-item-who-data"><a href="../../user/newcommer" class="qa-user-link url nickname">newcommer</a></span>
+																</span>
+															</span>
+														</span>
+														<div class="qa-c-item-buttons">
+														</div>
+													</div>
+													<div class="qa-c-item-clear">
+													</div>
+												</div> <!-- END qa-c-item -->
+												<div class="qa-c-list-item  hentry comment" id="c9871">
+													<div class="qa-c-item-content">
+														<a name="9871"></a><div class="entry-content"><p>You could try</p>
+
+<pre><code>class NoslipBoundary(SubDomain):
+    def inside(self, x, on_boundary):
+        return on_boundary and not (near(x[0],0) or near(x[0],nx))
+</code></pre>
+</div>
+													</div>
+													<div class="qa-c-item-footer">
+														<span class="qa-c-item-avatar-meta">
+															<span class="qa-c-item-meta">
+																<a href="../../9866/gmsh-generated-mesh-solver-doesnt-converge-code-included?show=9871#c9871" class="qa-c-item-what">commented</a>
+																<span class="qa-c-item-when">
+																	<span class="qa-c-item-when-data"><span class="published"><span class="value-title" title="2016-04-14T08:12:19+0000"></span>Apr 14, 2016</span></span>
+																</span>
+																<span class="qa-c-item-who">
+																	<span class="qa-c-item-who-pad">by </span>
+																	<span class="qa-c-item-who-data"><span class="vcard author"><a href="../../user/Magne+Nordaas" class="qa-user-link url nickname">Magne Nordaas</a></span></span>
+																	<span class="qa-c-item-who-title">FEniCS Expert</span>
+																	<span class="qa-c-item-who-points">
+																		<span class="qa-c-item-who-points-pad">(</span><span class="qa-c-item-who-points-data">13,820</span><span class="qa-c-item-who-points-pad"> points)</span>
+																	</span>
+																</span>
+															</span>
+														</span>
+														<div class="qa-c-item-buttons">
+														</div>
+													</div>
+													<div class="qa-c-item-clear">
+													</div>
+												</div> <!-- END qa-c-item -->
+												<div class="qa-c-list-item  hentry comment" id="c9873">
+													<div class="qa-c-item-content">
+														<a name="9873"></a><div class="entry-content"><p>Now, it works perfectly. Thank you</p>
+</div>
+													</div>
+													<div class="qa-c-item-footer">
+														<span class="qa-c-item-avatar-meta">
+															<span class="qa-c-item-meta">
+																<a href="../../9866/gmsh-generated-mesh-solver-doesnt-converge-code-included?show=9873#c9873" class="qa-c-item-what">commented</a>
+																<span class="qa-c-item-when">
+																	<span class="qa-c-item-when-data"><span class="published"><span class="value-title" title="2016-04-14T09:00:54+0000"></span>Apr 14, 2016</span></span>
+																</span>
+																<span class="qa-c-item-who">
+																	<span class="qa-c-item-who-pad">by </span>
+																	<span class="qa-c-item-who-data"><span class="vcard author"><a href="../../user/newcommer" class="qa-user-link url nickname">newcommer</a></span></span>
+																	<span class="qa-c-item-who-title">FEniCS Novice</span>
+																	<span class="qa-c-item-who-points">
+																		<span class="qa-c-item-who-points-pad">(</span><span class="qa-c-item-who-points-data">310</span><span class="qa-c-item-who-points-pad"> points)</span>
+																	</span>
+																</span>
+															</span>
+														</span>
+														<div class="qa-c-item-buttons">
+														</div>
+													</div>
+													<div class="qa-c-item-clear">
+													</div>
+												</div> <!-- END qa-c-item -->
+											</div> <!-- END qa-c-list -->
+											
+											<input type="hidden" name="code" value="0-1516468242-1dee6298d01ef5dadcafb355a9e8be5b4a349473">
+											<input type="hidden" name="qa_click" value="">
+										</form>
+										<div class="qa-c-form">
+										</div> <!-- END qa-c-form -->
+										
+									</div> <!-- END qa-a-item-main -->
+									<div class="qa-a-item-clear">
+									</div>
+								</div> <!-- END qa-a-list-item -->
+								
+							</div> <!-- END qa-a-list -->
+							
+						</div>
+					</div> <!-- END qa-main -->
+					
+				</div> <!-- END main-wrapper -->
+			</div> <!-- END main-shadow -->
+		</div> <!-- END body-wrapper -->
+		<!-- END footer-bottom-group -->
+		
+		<div style="position:absolute; left:-9999px; top:-9999px;">
+			<span id="qa-waiting-template" class="qa-waiting">...</span>
+		</div>
+	
+	
+
+</body><!-- Powered by Question2Answer - http://www.question2answer.org/ --></html>

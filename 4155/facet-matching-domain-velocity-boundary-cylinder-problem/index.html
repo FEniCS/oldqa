@@ -1,0 +1,435 @@
+<html><!-- Powered by Question2Answer - http://www.question2answer.org/ --><head>
+		<meta http-equiv="content-type" content="text/html; charset=utf-8">
+		<title>No facet matching domain for velocity boundary in cylinder problem - FEniCS Q&amp;A</title>
+		<meta name="description" content="Hello every body I have just started to learn FEniCS and I am an amateur. I'm trying to implement  ... =&quot;Velocity&quot;, rescale=True) # Save to file ufile">
+		<link rel="stylesheet" type="text/css" href="../../qa-theme/Snow/qa-styles.css">
+		<link rel="canonical" href="http://fenicsproject.org/qa/4155/facet-matching-domain-velocity-boundary-cylinder-problem">
+		<script type="text/x-mathjax-config">
+  MathJax.Hub.Config({
+    extensions: ["tex2jax.js"],
+    jax: ["input/TeX","output/HTML-CSS"],
+    tex2jax: {inlineMath: [["$","$"],["\\(","\\)"]]},
+    TeX: { extensions: ["AMSmath.js","AMSsymbols.js"]}
+  });
+</script>
+<script type="text/javascript" src="../../mathjax/MathJax.js"></script>
+		<script src="../../jquery-1.7.2.min.js" type="text/javascript"></script>
+		<script src="../../highlight.min.js"></script>
+<script type="text/javascript">
+$(function(){
+	$('.wmd-input').keypress(function(){
+		window.clearTimeout(hljs.Timeout);
+		hljs.Timeout = window.setTimeout(function() {
+			hljs.initHighlighting.called = false;
+			hljs.initHighlighting();
+		}, 500);
+	});
+	window.setTimeout(function() {
+		hljs.initHighlighting.called = false;
+		hljs.initHighlighting();
+	}, 500);
+});
+</script>
+
+
+	</head>
+	<body class="qa-template-question qa-body-js-off">
+		<div class="qa-body-wrapper">
+			
+			<div class="qa-header">
+				<div class="qa-logo">
+					<a href="../../" class="qa-logo-link" title="FEniCS Q&amp;A"><img src="../../qa-theme/fenics_qa.png" border="0" alt="FEniCS Q&amp;A"></a>
+				</div>
+				<div class="qa-header-clear">
+				</div>
+			</div> <!-- END qa-header -->
+			
+			<div class="qa-main-shadow">
+				
+				<div class="qa-main-wrapper">
+					
+					<div class="qa-sidepanel">
+						<div class="qa-sidebar">
+							This is a read only copy of the old FEniCS QA forum. Please visit the <a href="https://www.allanswered.com/community/s/fenics-project/">new QA forum</a> to ask questions
+						</div>
+						
+					</div>
+					
+					<div class="qa-main">
+						<h1>
+							<span class="entry-title">No facet matching domain for velocity boundary in cylinder problem</span>
+						</h1>
+						<div class="qa-part-q-view">
+							<div class="qa-q-view  hentry question" id="q4155">
+								<form method="post" action="../../4155/facet-matching-domain-velocity-boundary-cylinder-problem">
+									<div class="qa-q-view-stats">
+										<div class="qa-voting qa-voting-net" id="voting_4155">
+											<div class="qa-vote-count qa-vote-count-net">
+												<span class="qa-netvote-count">
+													<span class="qa-netvote-count-data">0<span class="votes-up"><span class="value-title" title="0"></span></span><span class="votes-down"><span class="value-title" title="0"></span></span></span><span class="qa-netvote-count-pad"> votes</span>
+												</span>
+											</div>
+											<div class="qa-vote-clear">
+											</div>
+										</div>
+									</div>
+									<input type="hidden" name="code" value="0-1516468003-dc68b91af7d0de9ef3a1f054a3e02c78fa38a381">
+								</form>
+								<div class="qa-q-view-main">
+									<form method="post" action="../../4155/facet-matching-domain-velocity-boundary-cylinder-problem">
+										<div class="qa-q-view-content">
+											<a name="4155"></a><div class="entry-content"><p>Hello every body<br>
+I have just started to learn FEniCS and I am an amateur. I'm trying to implement the Flow past a cylinder (2D) problem with the Stokes equations. I encountered this error for tentative velocity and computing velocity update:<br>
+<strong>warning: found no facet matching domain for boundary</strong><br>
+and the velocity plot disappear after a while. could you please guide me how to solve it?</p>
+
+<p>here is my code:</p>
+
+<pre><code>from dolfin import*
+</code></pre>
+
+<h2>Set parameter values</h2>
+
+<pre><code>dt = 0.01
+T = 1
+nu = 0.001
+tol= 1e-10
+</code></pre>
+
+<h2>mesh domain</h2>
+
+<pre><code>mesh = Mesh("cylinder.xml")
+</code></pre>
+
+<p>## boundary condition </p>
+
+<pre><code>class Left(SubDomain):
+def inside(self, x, on_boundary):
+  return near(x[0], 0.0,tol)
+
+
+class Right(SubDomain):
+def inside(self, x, on_boundary):
+    return near(x[0], 2.4,tol)
+
+class Bottom(SubDomain):
+def inside(self, x, on_boundary):
+    return near(x[1], 0.0,tol)
+
+
+class Top(SubDomain):
+def inside(self, x, on_boundary):
+    return near(x[1], 0.4,tol)
+
+class Cylinder(SubDomain):
+def inside(self,x,on_boundary):
+    r = sqrt((x[0] - 0.2)**2 + (x[1] -0.2)**2)
+    return on_boundary and near(r, 0.05,tol)
+
+left = Left()
+top = Top()
+right = Right()
+bottom = Bottom()
+cylindr = Cylinder()
+</code></pre>
+
+<h2>Define function spaces (P2-P1)</h2>
+
+<pre><code>V = VectorFunctionSpace(mesh, "CG", 2)
+Q = FunctionSpace(mesh, "CG", 1)
+</code></pre>
+
+<h2>Define trial and test functions</h2>
+
+<pre><code>u = TrialFunction(V)
+p = TrialFunction(Q)
+v = TestFunction(V)
+q = TestFunction(Q)
+</code></pre>
+
+<h2>Define time-dependent pressure and velocity boundary condition</h2>
+
+<pre><code>v_in = Expression(('(6*(x[1]*(0.41-x[1]))*sin(pi*t/8.0))/0.0283','0'), t=0.0)
+</code></pre>
+
+<h2>Define boundary conditions</h2>
+
+<pre><code>inflowv= DirichletBC(V,v_in, left, method='pointwise')
+noslip1=DirichletBC(V,(0,0), top, method='pointwise')
+noslip2=DirichletBC(V,(0,0), bottom, method='pointwise')
+noslip3=DirichletBC(V,(0,0), right, method='pointwise')
+noslip4=DirichletBC(V,(0,0), cylindr, method='pointwise')
+outflowp = DirichletBC(Q, 0, right, method='pointwise')
+
+bcu = [inflowv,noslip1,noslip2,noslip3,noslip4]
+bcp = [outflowp]
+</code></pre>
+
+<h2>Create functions</h2>
+
+<pre><code>u0 = Function(V)
+u1 = Function(V)
+p1 = Function(Q)
+</code></pre>
+
+<h2>Define coefficients</h2>
+
+<pre><code>k = Constant(dt)
+f = Constant((0, 0))
+</code></pre>
+
+<h2>Tentative velocity step</h2>
+
+<pre><code>F1 = (1/k)*inner(u - u0, v)*dx + inner(grad(u0)*u0, v)*dx + \
+ nu*inner(grad(u), grad(v))*dx - inner(f, v)*dx
+
+a1 = lhs(F1)
+L1 = rhs(F1)
+</code></pre>
+
+<h2>Pressure update</h2>
+
+<pre><code>a2 = inner(grad(p), grad(q))*dx
+L2 = -(1/k)*div(u1)*q*dx
+</code></pre>
+
+<h2>Velocity update</h2>
+
+<pre><code>a3 = inner(u, v)*dx
+L3 = inner(u1, v)*dx - k*inner(grad(p1), v)*dx
+</code></pre>
+
+<h2>Assemble matrices</h2>
+
+<pre><code>A1 = assemble(a1)
+A2 = assemble(a2)
+A3 = assemble(a3)
+</code></pre>
+
+<h2>Create files for storing solution</h2>
+
+<pre><code>ufile = File("results/velocity.pvd")
+pfile = File("results/pressure.pvd")
+</code></pre>
+
+<h2>Time-stepping</h2>
+
+<pre><code>t = dt
+while t &lt; T + DOLFIN_EPS:
+</code></pre>
+
+<h3># Update pressure boundary condition</h3>
+
+<pre><code>v_in.t = t
+
+# Compute tentative velocity step
+begin("Computing tentative velocity")
+b1 = assemble(L1)
+[bc.apply(A1, b1) for bc in bcu]
+solve(A1, u1.vector(), b1, "gmres", "default")
+end()
+
+# Pressure correction
+begin("Computing pressure correction")
+b2 = assemble(L2)
+[bc.apply(A2, b2) for bc in bcp]
+solve(A2, p1.vector(), b2, "gmres", "default")
+end()
+
+# Velocity correction
+begin("Computing velocity correction")
+b3 = assemble(L3)
+[bc.apply(A3, b3) for bc in bcu]
+solve(A3, u1.vector(), b3, "gmres", "default")
+end()
+
+# Plot solution
+plot(p1, title="Pressure", rescale=True)
+plot(u1, title="Velocity", rescale=True)
+
+# Save to file
+ufile &lt;&lt; u1
+pfile &lt;&lt; p1
+
+# Move to next time step
+u0.assign(u1)
+t += dt
+print "t =", t
+</code></pre>
+
+<h2>Hold plot</h2>
+
+<pre><code>interactive()
+</code></pre>
+</div>
+										</div>
+										<span class="qa-q-view-avatar-meta">
+											<span class="qa-q-view-meta">
+												<a href="../../4155/facet-matching-domain-velocity-boundary-cylinder-problem" class="qa-q-view-what">asked</a>
+												<span class="qa-q-view-when">
+													<span class="qa-q-view-when-data"><span class="published"><span class="value-title" title="2014-07-16T14:55:08+0000"></span>Jul 16, 2014</span></span>
+												</span>
+												<span class="qa-q-view-who">
+													<span class="qa-q-view-who-pad">by </span>
+													<span class="qa-q-view-who-data"><span class="vcard author"><a href="../../user/saeedeh" class="qa-user-link url nickname">saeedeh</a></span></span>
+													<span class="qa-q-view-who-title">FEniCS Novice</span>
+													<span class="qa-q-view-who-points">
+														<span class="qa-q-view-who-points-pad">(</span><span class="qa-q-view-who-points-data">170</span><span class="qa-q-view-who-points-pad"> points)</span>
+													</span>
+												</span>
+												<br>
+												<span class="qa-q-view-what">edited</span>
+												<span class="qa-q-view-when">
+													<span class="qa-q-view-when-data"><span class="updated"><span class="value-title" title="2014-07-18T13:10:16+0000"></span>Jul 18, 2014</span></span>
+												</span>
+												<span class="qa-q-view-who">
+													<span class="qa-q-view-who-pad">by </span><span class="qa-q-view-who-data"><a href="../../user/saeedeh" class="qa-user-link url nickname">saeedeh</a></span>
+												</span>
+											</span>
+										</span>
+										<div class="qa-q-view-buttons">
+										</div>
+										
+										<div class="qa-q-view-c-list" style="display:none;" id="c4155_list">
+										</div> <!-- END qa-c-list -->
+										
+										<input type="hidden" name="code" value="0-1516468003-709e87bb0bc3c22b78ec767f4e50bdb1b6883762">
+										<input type="hidden" name="qa_click" value="">
+									</form>
+									<div class="qa-c-form">
+									</div> <!-- END qa-c-form -->
+									
+								</div> <!-- END qa-q-view-main -->
+								<div class="qa-q-view-clear">
+								</div>
+							</div> <!-- END qa-q-view -->
+							
+						</div>
+						<div class="qa-part-a-list">
+							<h2 id="a_list_title">1 Answer</h2>
+							<div class="qa-a-list" id="a_list">
+								
+								<div class="qa-a-list-item  hentry answer" id="a4159">
+									<form method="post" action="../../4155/facet-matching-domain-velocity-boundary-cylinder-problem">
+										<div class="qa-voting qa-voting-net" id="voting_4159">
+											<div class="qa-vote-count qa-vote-count-net">
+												<span class="qa-netvote-count">
+													<span class="qa-netvote-count-data">+3<span class="votes-up"><span class="value-title" title="3"></span></span><span class="votes-down"><span class="value-title" title="0"></span></span></span><span class="qa-netvote-count-pad"> votes</span>
+												</span>
+											</div>
+											<div class="qa-vote-clear">
+											</div>
+										</div>
+										<input type="hidden" name="code" value="0-1516468003-dc68b91af7d0de9ef3a1f054a3e02c78fa38a381">
+									</form>
+									<div class="qa-a-item-main">
+										<form method="post" action="../../4155/facet-matching-domain-velocity-boundary-cylinder-problem">
+											<div class="qa-a-selection">
+											</div>
+											<div class="qa-a-item-content">
+												<a name="4159"></a><div class="entry-content"><p>Hi, <br>
+First off, next time you post a question, please use the "Code sample" button (see other questions for an example) so that the question is easier to read. Also, please post only a minimum working example again for the same reason. (Usually in writing the MWE, you solve your own problem). The way it is here ^ is pretty confusing, and a few lines, like when you define a mesh and them immediately load a different mesh, seem strange. </p>
+
+<p>I get that error when no facets match a boundary I define.  In your case I suspect it is with this block (since the others look simple enough):</p>
+
+<pre><code>class Cylinder(SubDomain):
+def inside(self,x,on_boundary):
+r = sqrt((x[0] - 0.2)2 + (x[1] -0.2)2)
+return on_boundary and near(r,0.04, tol)
+</code></pre>
+
+<p>Without seeing your mesh file, there isn't much I can help you with, but to solve it I would suggest you try systematically eliminating parts of your code and seeing where the error starts exactly. You could also try increasing 'tol' in the above snipit. If the cylinder in your mesh is actually comprised of straight lines (a polygon, which I suspect it is), such a small tolerance is going to be nigh impossible to satisfy for any facet) </p>
+</div>
+											</div>
+											<span class="qa-a-item-avatar-meta">
+												<span class="qa-a-item-avatar">
+													<a href="../../user/mwelland" class="qa-avatar-link"><img src="https://www.gravatar.com/avatar/af936799ea3fe5bd1cb6abb922ebbe83?s=40" width="40" height="40" class="qa-avatar-image" alt=""></a>
+												</span>
+												<span class="qa-a-item-meta">
+													<a href="../../4155/facet-matching-domain-velocity-boundary-cylinder-problem?show=4159#a4159" class="qa-a-item-what">answered</a>
+													<span class="qa-a-item-when">
+														<span class="qa-a-item-when-data"><span class="published"><span class="value-title" title="2014-07-17T17:32:52+0000"></span>Jul 17, 2014</span></span>
+													</span>
+													<span class="qa-a-item-who">
+														<span class="qa-a-item-who-pad">by </span>
+														<span class="qa-a-item-who-data"><span class="vcard author"><a href="../../user/mwelland" class="qa-user-link url nickname">mwelland</a></span></span>
+														<span class="qa-a-item-who-title">FEniCS User</span>
+														<span class="qa-a-item-who-points">
+															<span class="qa-a-item-who-points-pad">(</span><span class="qa-a-item-who-points-data">8,410</span><span class="qa-a-item-who-points-pad"> points)</span>
+														</span>
+													</span>
+												</span>
+											</span>
+											<div class="qa-a-item-buttons">
+												</div>
+											
+											<div class="qa-a-item-c-list" id="c4159_list">
+												<div class="qa-c-list-item  hentry comment" id="c4164">
+													<div class="qa-c-item-content">
+														<a name="4164"></a><div class="entry-content"><p>Thanks for replying. I  am sorry for the mistakes and bad writting. I changed the code above as you suggested. In fact, I have commented the first lines but after copy, they became parts of codes. I should eliminate them first.<br>
+About the code, I have <strong>warning: found no facet matching domain for boundary</strong>.  it can calculate pressure correctly but I really don't understand why it cant compute tentative velocity and velocity update. I have tried "pointwise" boundary condition but the velocity disappears again. could you please guide me how to debug it?<br>
+Best Regards<br>
+Saeedeh</p>
+</div>
+													</div>
+													<div class="qa-c-item-footer">
+														<span class="qa-c-item-avatar-meta">
+															<span class="qa-c-item-meta">
+																<a href="../../4155/facet-matching-domain-velocity-boundary-cylinder-problem?show=4164#c4164" class="qa-c-item-what">commented</a>
+																<span class="qa-c-item-when">
+																	<span class="qa-c-item-when-data"><span class="published"><span class="value-title" title="2014-07-18T08:30:35+0000"></span>Jul 18, 2014</span></span>
+																</span>
+																<span class="qa-c-item-who">
+																	<span class="qa-c-item-who-pad">by </span>
+																	<span class="qa-c-item-who-data"><span class="vcard author"><a href="../../user/saeedeh" class="qa-user-link url nickname">saeedeh</a></span></span>
+																	<span class="qa-c-item-who-title">FEniCS Novice</span>
+																	<span class="qa-c-item-who-points">
+																		<span class="qa-c-item-who-points-pad">(</span><span class="qa-c-item-who-points-data">170</span><span class="qa-c-item-who-points-pad"> points)</span>
+																	</span>
+																</span>
+																<br>
+																<span class="qa-c-item-what">edited</span>
+																<span class="qa-c-item-when">
+																	<span class="qa-c-item-when-data"><span class="updated"><span class="value-title" title="2014-07-18T10:33:13+0000"></span>Jul 18, 2014</span></span>
+																</span>
+																<span class="qa-c-item-who">
+																	<span class="qa-c-item-who-pad">by </span><span class="qa-c-item-who-data"><a href="../../user/saeedeh" class="qa-user-link url nickname">saeedeh</a></span>
+																</span>
+															</span>
+														</span>
+														<div class="qa-c-item-buttons">
+														</div>
+													</div>
+													<div class="qa-c-item-clear">
+													</div>
+												</div> <!-- END qa-c-item -->
+											</div> <!-- END qa-c-list -->
+											
+											<input type="hidden" name="code" value="0-1516468003-098eb4737444e5dead10604fc28e37a9d8ec66b3">
+											<input type="hidden" name="qa_click" value="">
+										</form>
+										<div class="qa-c-form">
+										</div> <!-- END qa-c-form -->
+										
+									</div> <!-- END qa-a-item-main -->
+									<div class="qa-a-item-clear">
+									</div>
+								</div> <!-- END qa-a-list-item -->
+								
+							</div> <!-- END qa-a-list -->
+							
+						</div>
+					</div> <!-- END qa-main -->
+					
+				</div> <!-- END main-wrapper -->
+			</div> <!-- END main-shadow -->
+		</div> <!-- END body-wrapper -->
+		<!-- END footer-bottom-group -->
+		
+		<div style="position:absolute; left:-9999px; top:-9999px;">
+			<span id="qa-waiting-template" class="qa-waiting">...</span>
+		</div>
+	
+	
+
+</body><!-- Powered by Question2Answer - http://www.question2answer.org/ --></html>

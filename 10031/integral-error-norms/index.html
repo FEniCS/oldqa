@@ -1,0 +1,221 @@
+<html><!-- Powered by Question2Answer - http://www.question2answer.org/ --><head>
+		<meta http-equiv="content-type" content="text/html; charset=utf-8">
+		<title>Integral error norms - FEniCS Q&amp;A</title>
+		<meta name="description" content="Hi, I am trying to verify that my FEniCS code is correct with respect to the errors. I  ... = TableTitles) pd.set_option('precision',3) print Table">
+		<meta name="keywords" content="assemble-error,errornorm,error">
+		<link rel="stylesheet" type="text/css" href="../../qa-theme/Snow/qa-styles.css">
+		<link rel="canonical" href="http://fenicsproject.org/qa/10031/integral-error-norms">
+		<script type="text/x-mathjax-config">
+  MathJax.Hub.Config({
+    extensions: ["tex2jax.js"],
+    jax: ["input/TeX","output/HTML-CSS"],
+    tex2jax: {inlineMath: [["$","$"],["\\(","\\)"]]},
+    TeX: { extensions: ["AMSmath.js","AMSsymbols.js"]}
+  });
+</script>
+<script type="text/javascript" src="../../mathjax/MathJax.js"></script>
+		<script src="../../jquery-1.7.2.min.js" type="text/javascript"></script>
+		<script src="../../highlight.min.js"></script>
+<script type="text/javascript">
+$(function(){
+	$('.wmd-input').keypress(function(){
+		window.clearTimeout(hljs.Timeout);
+		hljs.Timeout = window.setTimeout(function() {
+			hljs.initHighlighting.called = false;
+			hljs.initHighlighting();
+		}, 500);
+	});
+	window.setTimeout(function() {
+		hljs.initHighlighting.called = false;
+		hljs.initHighlighting();
+	}, 500);
+});
+</script>
+
+
+	</head>
+	<body class="qa-template-question qa-body-js-off">
+		<div class="qa-body-wrapper">
+			
+			<div class="qa-header">
+				<div class="qa-logo">
+					<a href="../../" class="qa-logo-link" title="FEniCS Q&amp;A"><img src="../../qa-theme/fenics_qa.png" border="0" alt="FEniCS Q&amp;A"></a>
+				</div>
+				<div class="qa-header-clear">
+				</div>
+			</div> <!-- END qa-header -->
+			
+			<div class="qa-main-shadow">
+				
+				<div class="qa-main-wrapper">
+					
+					<div class="qa-sidepanel">
+						<div class="qa-sidebar">
+							This is a read only copy of the old FEniCS QA forum. Please visit the <a href="https://www.allanswered.com/community/s/fenics-project/">new QA forum</a> to ask questions
+						</div>
+						
+					</div>
+					
+					<div class="qa-main">
+						<h1>
+							<span class="entry-title">Integral error norms</span>
+						</h1>
+						<div class="qa-part-q-view">
+							<div class="qa-q-view  hentry question" id="q10031">
+								<form method="post" action="../../10031/integral-error-norms">
+									<div class="qa-q-view-stats">
+										<div class="qa-voting qa-voting-net" id="voting_10031">
+											<div class="qa-vote-count qa-vote-count-net">
+												<span class="qa-netvote-count">
+													<span class="qa-netvote-count-data">0<span class="votes-up"><span class="value-title" title="0"></span></span><span class="votes-down"><span class="value-title" title="0"></span></span></span><span class="qa-netvote-count-pad"> votes</span>
+												</span>
+											</div>
+											<div class="qa-vote-clear">
+											</div>
+										</div>
+									</div>
+									<input type="hidden" name="code" value="0-1516467036-86fefe29a3022780167ca27901bf2ad3048ad6f0">
+								</form>
+								<div class="qa-q-view-main">
+									<form method="post" action="../../10031/integral-error-norms">
+										<div class="qa-q-view-content">
+											<a name="10031"></a><div class="entry-content"><p>Hi,</p>
+
+<p>I am trying to verify that my FEniCS code is correct with respect to the errors. I have attached a piece of code which solves the Laplacian on a unit square domain with Dirichlet boundary conditions. The boundary conditions are prescribed by u(x,y) = (1,1) so the forcing term is F(x,y) = (0,0). I would expect the errors to be roughly 1e-12 or smaller for both the L2 and H1 integral norms. Where am I going wrong in my code?</p>
+
+<p>Thanks!</p>
+
+<pre><code>from dolfin import *
+import numpy as np
+import pandas as pd
+n = 6
+Dim = np.zeros((n,1))
+ErrorL2 = np.zeros((n,1))
+ErrorH1 = np.zeros((n,1))
+OrderL2 = np.zeros((n,1))
+OrderH1 = np.zeros((n,1))
+
+for x in range(1,n+1):
+
+    mesh = UnitSquareMesh(2**x,2**x)
+    V = VectorFunctionSpace(mesh, "CG", 2)
+
+    class u_in(Expression):
+        def __init__(self):
+            self.p = 1
+        def eval_cell(self, values, x, ufc_cell):
+            values[0] = 1.0
+            values[1] = 2.0
+        def value_shape(self):
+            return (2,)
+    class F_in(Expression):
+        def __init__(self):
+            self.p = 1
+        def eval_cell(self, values, x, ufc_cell):
+            values[0] = 0.0
+            values[1] = 0.0
+        def value_shape(self):
+            return (2,)
+
+    u0 = u_in()
+    F = F_in()
+
+    u = TrialFunction(V)
+    v = TestFunction(V)
+
+    a = inner(grad(u), grad(v))*dx
+    L = inner(F, v)*dx
+
+    def boundary(x, on_boundary):
+        return on_boundary
+
+    bc = DirichletBC(V, u0, boundary)
+    u = Function(V)
+
+    solve(a == L, u, bcs=bc,
+      solver_parameters={"linear_solver": "lu"},
+      form_compiler_parameters={"optimize": True})
+
+    Vexact = VectorFunctionSpace(mesh, "CG", 4)
+    ue = interpolate(u0, Vexact)
+
+    e = ue - u
+    Dim[x-1] = V.dim()
+    ErrorL2[x-1] = sqrt(abs(assemble(inner(e,e)*dx)))
+    ErrorH1[x-1] = sqrt(abs(assemble(inner(grad(e),grad(e))*dx)))
+
+    if (x &gt; 1):
+        OrderL2[x-1] = np.log2(ErrorL2[x-1]/ErrorL2[x-2])
+        OrderH1[x-1] = np.log2(ErrorH1[x-1]/ErrorH1[x-2])
+
+
+TableTitles = ["DoF","L2-erro","L2-order","H1-error","H1-order"]
+TableValues = np.concatenate((Dim,ErrorL2,OrderL2,ErrorH1,OrderH1),axis=1)
+Table = pd.DataFrame(TableValues, columns = TableTitles)
+pd.set_option('precision',3)
+print Table
+</code></pre>
+</div>
+										</div>
+										<div class="qa-q-view-tags">
+											<ul class="qa-q-view-tag-list">
+												<li class="qa-q-view-tag-item"><a href="../../tag/assemble-error" rel="tag" class="qa-tag-link">assemble-error</a></li>
+												<li class="qa-q-view-tag-item"><a href="../../tag/errornorm" rel="tag" class="qa-tag-link">errornorm</a></li>
+												<li class="qa-q-view-tag-item"><a href="../../tag/error" rel="tag" class="qa-tag-link">error</a></li>
+											</ul>
+										</div>
+										<span class="qa-q-view-avatar-meta">
+											<span class="qa-q-view-meta">
+												<a href="../../10031/integral-error-norms" class="qa-q-view-what">asked</a>
+												<span class="qa-q-view-when">
+													<span class="qa-q-view-when-data"><span class="published"><span class="value-title" title="2016-05-06T22:27:23+0000"></span>May 7, 2016</span></span>
+												</span>
+												<span class="qa-q-view-who">
+													<span class="qa-q-view-who-pad">by </span>
+													<span class="qa-q-view-who-data"><span class="vcard author"><a href="../../user/mwathen" class="qa-user-link url nickname">mwathen</a></span></span>
+													<span class="qa-q-view-who-title">FEniCS Novice</span>
+													<span class="qa-q-view-who-points">
+														<span class="qa-q-view-who-points-pad">(</span><span class="qa-q-view-who-points-data">710</span><span class="qa-q-view-who-points-pad"> points)</span>
+													</span>
+												</span>
+											</span>
+										</span>
+										<div class="qa-q-view-buttons">
+										</div>
+										
+										<div class="qa-q-view-c-list" style="display:none;" id="c10031_list">
+										</div> <!-- END qa-c-list -->
+										
+										<input type="hidden" name="code" value="0-1516467036-ca23b13b25e13a1e13412d286402d69294892520">
+										<input type="hidden" name="qa_click" value="">
+									</form>
+									<div class="qa-c-form">
+									</div> <!-- END qa-c-form -->
+									
+								</div> <!-- END qa-q-view-main -->
+								<div class="qa-q-view-clear">
+								</div>
+							</div> <!-- END qa-q-view -->
+							
+						</div>
+						<div class="qa-part-a-list">
+							<h2 id="a_list_title" style="display:none;"></h2>
+							<div class="qa-a-list" id="a_list">
+								
+							</div> <!-- END qa-a-list -->
+							
+						</div>
+					</div> <!-- END qa-main -->
+					
+				</div> <!-- END main-wrapper -->
+			</div> <!-- END main-shadow -->
+		</div> <!-- END body-wrapper -->
+		<!-- END footer-bottom-group -->
+		
+		<div style="position:absolute; left:-9999px; top:-9999px;">
+			<span id="qa-waiting-template" class="qa-waiting">...</span>
+		</div>
+	
+	
+
+</body><!-- Powered by Question2Answer - http://www.question2answer.org/ --></html>

@@ -1,0 +1,492 @@
+<html><!-- Powered by Question2Answer - http://www.question2answer.org/ --><head>
+		<meta http-equiv="content-type" content="text/html; charset=utf-8">
+		<title>Integral in a weak form - FEniCS Q&amp;A</title>
+		<meta name="description" content="Hi, I am modeling a waveguide in 3D in frequency domain using Nedelec finite elements. The problem is ... . Can I solve this problem with UFL/FEniCS?">
+		<meta name="keywords" content="form,integral,ufl,ffc">
+		<link rel="stylesheet" type="text/css" href="../../qa-theme/Snow/qa-styles.css">
+		<link rel="canonical" href="http://fenicsproject.org/qa/9823/integral-in-a-weak-form">
+		<script type="text/x-mathjax-config">
+  MathJax.Hub.Config({
+    extensions: ["tex2jax.js"],
+    jax: ["input/TeX","output/HTML-CSS"],
+    tex2jax: {inlineMath: [["$","$"],["\\(","\\)"]]},
+    TeX: { extensions: ["AMSmath.js","AMSsymbols.js"]}
+  });
+</script>
+<script type="text/javascript" src="../../mathjax/MathJax.js"></script>
+		<script src="../../jquery-1.7.2.min.js" type="text/javascript"></script>
+		<script src="../../highlight.min.js"></script>
+<script type="text/javascript">
+$(function(){
+	$('.wmd-input').keypress(function(){
+		window.clearTimeout(hljs.Timeout);
+		hljs.Timeout = window.setTimeout(function() {
+			hljs.initHighlighting.called = false;
+			hljs.initHighlighting();
+		}, 500);
+	});
+	window.setTimeout(function() {
+		hljs.initHighlighting.called = false;
+		hljs.initHighlighting();
+	}, 500);
+});
+</script>
+
+
+	</head>
+	<body class="qa-template-question qa-body-js-off">
+		<div class="qa-body-wrapper">
+			
+			<div class="qa-header">
+				<div class="qa-logo">
+					<a href="../../" class="qa-logo-link" title="FEniCS Q&amp;A"><img src="../../qa-theme/fenics_qa.png" border="0" alt="FEniCS Q&amp;A"></a>
+				</div>
+				<div class="qa-header-clear">
+				</div>
+			</div> <!-- END qa-header -->
+			
+			<div class="qa-main-shadow">
+				
+				<div class="qa-main-wrapper">
+					
+					<div class="qa-sidepanel">
+						<div class="qa-sidebar">
+							This is a read only copy of the old FEniCS QA forum. Please visit the <a href="https://www.allanswered.com/community/s/fenics-project/">new QA forum</a> to ask questions
+						</div>
+						
+					</div>
+					
+					<div class="qa-main">
+						<h1>
+							<span class="entry-title">Integral in a weak form</span>
+						</h1>
+						<div class="qa-part-q-view">
+							<div class="qa-q-view  hentry question" id="q9823">
+								<form method="post" action="../../9823/integral-in-a-weak-form">
+									<div class="qa-q-view-stats">
+										<div class="qa-voting qa-voting-net" id="voting_9823">
+											<div class="qa-vote-count qa-vote-count-net">
+												<span class="qa-netvote-count">
+													<span class="qa-netvote-count-data">0<span class="votes-up"><span class="value-title" title="0"></span></span><span class="votes-down"><span class="value-title" title="0"></span></span></span><span class="qa-netvote-count-pad"> votes</span>
+												</span>
+											</div>
+											<div class="qa-vote-clear">
+											</div>
+										</div>
+									</div>
+									<input type="hidden" name="code" value="0-1516468240-8c34b5c8a6daa8899df934a3585736628ab2e49e">
+								</form>
+								<div class="qa-q-view-main">
+									<form method="post" action="../../9823/integral-in-a-weak-form">
+										<div class="qa-q-view-content">
+											<a name="9823"></a><div class="entry-content"><p>Hi,<br>
+I am modeling a waveguide in 3D in frequency domain using Nedelec finite elements.<br>
+The problem is that I can't assemble the following form:</p>
+
+<p>$$\int_S v \cdot w \cdot \left(\int_S w \cdot u\,dS \right)\,dS$$</p>
+
+<p>where:</p>
+
+<pre><code>class MyExpression(Expression):
+    ...
+    def eval_cell(self, values, x, ufc_cell):
+        ...
+    def value_shape(self):
+        return (3,)
+
+V = FunctionSpace(mesh, "N2curl", 1)
+u = TrialFunction(V)
+v = TestFunction(V)
+w= MyExpression()
+</code></pre>
+
+<p>I've found <a rel="nofollow" href="http://fenicsproject.org/qa/7535/use-integral-coefficient-in-ufl-formulation">http://fenicsproject.org/qa/7535/use-integral-coefficient-in-ufl-formulation</a> which seems to describe what I want to achieve, but using UFL's Integral object lead me to:</p>
+
+<pre><code>a0 = ufl.Integral(inner(v,w), ds.integral_type(), ds.domain(), ds.subdomain_id(), ds.metadata(), ds.subdomain_data())
+assemble(inner(v,w)*a0*ds)
+An integral can only be multiplied by a globally constant scalar expression.
+*** UFLException: An integral can only be multiplied by a globally constant scalar expression.
+</code></pre>
+
+<p>I've been reading about UFL to write this kind of form, and in FEniCS book I read:</p>
+
+<blockquote>
+  <p>Each term of a valid form expression must be a scalar-valued expression integrated exactly once, and they must be linear [...]</p>
+</blockquote>
+
+<p>which lead me to the idea that I have to calculate $a0 = \int_S w \cdot u\,dS$ first,<br>
+and then calculate $\int_S v \cdot w \cdot a0\,dS$.</p>
+
+<p>It should work because $u = \sum_{j=1}^{DOF} N_j \cdot U_j$ and $v = \sum_{i=1}^{DOF} N_i$.</p>
+
+<p>My plan was to do:</p>
+
+<pre><code>a0 = Function(V)
+# below I use the fact that basis functions are used as testing functions
+# and I can't write assemble(inner(u, w) * ds)
+a0.vector()[:] = assemble(inner(v, w) * ds)
+P = inner(v, w) * a0 * ds
+</code></pre>
+
+<p>But it won't work, because I want a0 to be <em>constant</em> over all edges/DOFS (this is also the reason I can't use Discontinous Lagrange function space - because I don't know how to define it over edges of the mesh).</p>
+
+<p>My fallback plan was to work it out on the matrix level:</p>
+
+<pre><code>a0 = assemble(inner(v, w) * ds).array()
+p = assemble(inner(v, w) * ds).array() # assume a0 = 1
+DOF = len(a0)
+a0 = a0.reshape((1, DOF))
+p = p.reshape((DOF, 1))
+P = np.mat(p) * np.mat(a0)
+</code></pre>
+
+<p>but it works very slow (because I don't use the fact that the matrices are sparse I guess), and it is not elegant at all.</p>
+
+<p>In general it would be great if I could write something like:</p>
+
+<pre><code>a0 = ... #?
+a0.vector()[:] = assemble(inner(v, w) * ds)
+assemble(inner(v[i], w) * a0[j] * dS)
+</code></pre>
+
+<p>which will generate a matrix $K_{i,j}$ where v[i] represents $N_i$ basis function and a0[j] represents a coefficient corresponding to $N_j$ basis function.</p>
+
+<p>Can I solve this problem with UFL/FEniCS?</p>
+</div>
+										</div>
+										<div class="qa-q-view-tags">
+											<ul class="qa-q-view-tag-list">
+												<li class="qa-q-view-tag-item"><a href="../../tag/form" rel="tag" class="qa-tag-link">form</a></li>
+												<li class="qa-q-view-tag-item"><a href="../../tag/integral" rel="tag" class="qa-tag-link">integral</a></li>
+												<li class="qa-q-view-tag-item"><a href="../../tag/ufl" rel="tag" class="qa-tag-link">ufl</a></li>
+												<li class="qa-q-view-tag-item"><a href="../../tag/ffc" rel="tag" class="qa-tag-link">ffc</a></li>
+											</ul>
+										</div>
+										<span class="qa-q-view-avatar-meta">
+											<span class="qa-q-view-meta">
+												<a href="../../9823/integral-in-a-weak-form" class="qa-q-view-what">asked</a>
+												<span class="qa-q-view-when">
+													<span class="qa-q-view-when-data"><span class="published"><span class="value-title" title="2016-04-09T10:55:53+0000"></span>Apr 9, 2016</span></span>
+												</span>
+												<span class="qa-q-view-who">
+													<span class="qa-q-view-who-pad">by </span>
+													<span class="qa-q-view-who-data"><span class="vcard author"><a href="../../user/bach" class="qa-user-link url nickname">bach</a></span></span>
+													<span class="qa-q-view-who-title">FEniCS Novice</span>
+													<span class="qa-q-view-who-points">
+														<span class="qa-q-view-who-points-pad">(</span><span class="qa-q-view-who-points-data">150</span><span class="qa-q-view-who-points-pad"> points)</span>
+													</span>
+												</span>
+												<br>
+												<span class="qa-q-view-what">edited</span>
+												<span class="qa-q-view-when">
+													<span class="qa-q-view-when-data"><span class="updated"><span class="value-title" title="2016-04-10T18:59:09+0000"></span>Apr 10, 2016</span></span>
+												</span>
+												<span class="qa-q-view-who">
+													<span class="qa-q-view-who-pad">by </span><span class="qa-q-view-who-data"><a href="../../user/bach" class="qa-user-link url nickname">bach</a></span>
+												</span>
+											</span>
+										</span>
+										<div class="qa-q-view-buttons">
+										</div>
+										
+										<div class="qa-q-view-c-list" style="display:none;" id="c9823_list">
+										</div> <!-- END qa-c-list -->
+										
+										<input type="hidden" name="code" value="0-1516468240-05b4ab41ce117c1c832812fb88a3fd86d019ea81">
+										<input type="hidden" name="qa_click" value="">
+									</form>
+									<div class="qa-c-form">
+									</div> <!-- END qa-c-form -->
+									
+								</div> <!-- END qa-q-view-main -->
+								<div class="qa-q-view-clear">
+								</div>
+							</div> <!-- END qa-q-view -->
+							
+						</div>
+						<div class="qa-part-a-list">
+							<h2 id="a_list_title">2 Answers</h2>
+							<div class="qa-a-list" id="a_list">
+								
+								<div class="qa-a-list-item  hentry answer" id="a9826">
+									<form method="post" action="../../9823/integral-in-a-weak-form">
+										<div class="qa-voting qa-voting-net" id="voting_9826">
+											<div class="qa-vote-count qa-vote-count-net">
+												<span class="qa-netvote-count">
+													<span class="qa-netvote-count-data">0<span class="votes-up"><span class="value-title" title="0"></span></span><span class="votes-down"><span class="value-title" title="0"></span></span></span><span class="qa-netvote-count-pad"> votes</span>
+												</span>
+											</div>
+											<div class="qa-vote-clear">
+											</div>
+										</div>
+										<input type="hidden" name="code" value="0-1516468240-8c34b5c8a6daa8899df934a3585736628ab2e49e">
+									</form>
+									<div class="qa-a-item-main">
+										<form method="post" action="../../9823/integral-in-a-weak-form">
+											<div class="qa-a-selection">
+											</div>
+											<div class="qa-a-item-content">
+												<a name="9826"></a><div class="entry-content"><p>As you have already noted, the bilinear operator in question is<br>
+of rank one with matrix representation $B = b \otimes b$, where</p>
+
+<pre><code>b = assemble(inner(v, w) * ds)
+</code></pre>
+
+<p>You can form the matrix representation of $B$ explicitly, but a matrix-free implementation may be better. A Krylov subspace solver only requires that action of the operator is implemented, i.e. $$ B x = (b\cdot x)b.$$</p>
+
+<p>An alternative approach may be to introduce an auxilliary variable<br>
+$$ \lambda = \int w\cdot u \,dx$$<br>
+and solve the constrained problem normally.</p>
+
+<p>See the answers to the related question <a rel="nofollow" href="http://fenicsproject.org/qa/7541/ufl-unsupported-operand-type-s-for-form-and-form">7541</a> for some implementation details.</p>
+</div>
+											</div>
+											<span class="qa-a-item-avatar-meta">
+												<span class="qa-a-item-meta">
+													<a href="../../9823/integral-in-a-weak-form?show=9826#a9826" class="qa-a-item-what">answered</a>
+													<span class="qa-a-item-when">
+														<span class="qa-a-item-when-data"><span class="published"><span class="value-title" title="2016-04-09T16:09:21+0000"></span>Apr 9, 2016</span></span>
+													</span>
+													<span class="qa-a-item-who">
+														<span class="qa-a-item-who-pad">by </span>
+														<span class="qa-a-item-who-data"><span class="vcard author"><a href="../../user/Magne+Nordaas" class="qa-user-link url nickname">Magne Nordaas</a></span></span>
+														<span class="qa-a-item-who-title">FEniCS Expert</span>
+														<span class="qa-a-item-who-points">
+															<span class="qa-a-item-who-points-pad">(</span><span class="qa-a-item-who-points-data">13,820</span><span class="qa-a-item-who-points-pad"> points)</span>
+														</span>
+													</span>
+													<br>
+													<span class="qa-a-item-what">edited</span>
+													<span class="qa-a-item-when">
+														<span class="qa-a-item-when-data"><span class="updated"><span class="value-title" title="2016-04-09T16:18:23+0000"></span>Apr 9, 2016</span></span>
+													</span>
+													<span class="qa-a-item-who">
+														<span class="qa-a-item-who-pad">by </span><span class="qa-a-item-who-data"><a href="../../user/Magne+Nordaas" class="qa-user-link url nickname">Magne Nordaas</a></span>
+													</span>
+												</span>
+											</span>
+											<div class="qa-a-item-buttons">
+												</div>
+											
+											<div class="qa-a-item-c-list" id="c9826_list">
+												<div class="qa-c-list-item  hentry comment" id="c9828">
+													<div class="qa-c-item-content">
+														<a name="9828"></a><div class="entry-content"><p>Both approaches look great. To go the matrix-free way, I have to implement an operator like CompositeOperator from the linked question, but then I can't use MUMPS or any other non-Krylov subspace solver, right?</p>
+
+<p>I personaly rather use the approach with the auxilliary variable, but should it be a Function, an Argument, VectorConstant? It would be the best to find a type that is evaluated for each DOF, rather than coordinates.</p>
+</div>
+													</div>
+													<div class="qa-c-item-footer">
+														<span class="qa-c-item-avatar-meta">
+															<span class="qa-c-item-meta">
+																<a href="../../9823/integral-in-a-weak-form?show=9828#c9828" class="qa-c-item-what">commented</a>
+																<span class="qa-c-item-when">
+																	<span class="qa-c-item-when-data"><span class="published"><span class="value-title" title="2016-04-09T21:43:30+0000"></span>Apr 9, 2016</span></span>
+																</span>
+																<span class="qa-c-item-who">
+																	<span class="qa-c-item-who-pad">by </span>
+																	<span class="qa-c-item-who-data"><span class="vcard author"><a href="../../user/bach" class="qa-user-link url nickname">bach</a></span></span>
+																	<span class="qa-c-item-who-title">FEniCS Novice</span>
+																	<span class="qa-c-item-who-points">
+																		<span class="qa-c-item-who-points-pad">(</span><span class="qa-c-item-who-points-data">150</span><span class="qa-c-item-who-points-pad"> points)</span>
+																	</span>
+																</span>
+															</span>
+														</span>
+														<div class="qa-c-item-buttons">
+														</div>
+													</div>
+													<div class="qa-c-item-clear">
+													</div>
+												</div> <!-- END qa-c-item -->
+												<div class="qa-c-list-item  hentry comment" id="c9841">
+													<div class="qa-c-item-content">
+														<a name="9841"></a><div class="entry-content"><p>The auxiliary variable is handled as an additional unknown, implemented using mixed element method with the additional variable being a scalar:</p>
+
+<pre><code>E = FiniteElement("N1curl", mesh.ufl_cell(), 2)
+R = FiniteElement("R", mesh.ufl_cell(), 0)
+
+W = FunctionSpace(mesh, E * R)
+
+u, r = TrialFunctions(W)
+v, s = TestFunctions(W)
+
+C = Constant(assemble(1 * ds(domain = mesh))**-1)
+
+a = ... # part of the form that can be handled normally
+L = ... 
+
+b = r * inner(w, v) * ds + s * inner(w, u) * ds - C * r * s * ds
+
+solve(a + b == L, ...) 
+</code></pre>
+</div>
+													</div>
+													<div class="qa-c-item-footer">
+														<span class="qa-c-item-avatar-meta">
+															<span class="qa-c-item-meta">
+																<a href="../../9823/integral-in-a-weak-form?show=9841#c9841" class="qa-c-item-what">commented</a>
+																<span class="qa-c-item-when">
+																	<span class="qa-c-item-when-data"><span class="published"><span class="value-title" title="2016-04-11T07:48:00+0000"></span>Apr 11, 2016</span></span>
+																</span>
+																<span class="qa-c-item-who">
+																	<span class="qa-c-item-who-pad">by </span>
+																	<span class="qa-c-item-who-data"><span class="vcard author"><a href="../../user/Magne+Nordaas" class="qa-user-link url nickname">Magne Nordaas</a></span></span>
+																	<span class="qa-c-item-who-title">FEniCS Expert</span>
+																	<span class="qa-c-item-who-points">
+																		<span class="qa-c-item-who-points-pad">(</span><span class="qa-c-item-who-points-data">13,820</span><span class="qa-c-item-who-points-pad"> points)</span>
+																	</span>
+																</span>
+															</span>
+														</span>
+														<div class="qa-c-item-buttons">
+														</div>
+													</div>
+													<div class="qa-c-item-clear">
+													</div>
+												</div> <!-- END qa-c-item -->
+												<div class="qa-c-list-item  hentry comment" id="c9842">
+													<div class="qa-c-item-content">
+														<a name="9842"></a><div class="entry-content"><p>Magne, it will introduce one additional degree of freedom (i.e. E1, E2, E3, ..., En, R1), right?. But for each edge in my mesh I should have different coefficient (R1, R2, R3, ..., Rn).</p>
+</div>
+													</div>
+													<div class="qa-c-item-footer">
+														<span class="qa-c-item-avatar-meta">
+															<span class="qa-c-item-meta">
+																<a href="../../9823/integral-in-a-weak-form?show=9842#c9842" class="qa-c-item-what">commented</a>
+																<span class="qa-c-item-when">
+																	<span class="qa-c-item-when-data"><span class="published"><span class="value-title" title="2016-04-11T10:18:03+0000"></span>Apr 11, 2016</span></span>
+																</span>
+																<span class="qa-c-item-who">
+																	<span class="qa-c-item-who-pad">by </span>
+																	<span class="qa-c-item-who-data"><span class="vcard author"><a href="../../user/bach" class="qa-user-link url nickname">bach</a></span></span>
+																	<span class="qa-c-item-who-title">FEniCS Novice</span>
+																	<span class="qa-c-item-who-points">
+																		<span class="qa-c-item-who-points-pad">(</span><span class="qa-c-item-who-points-data">150</span><span class="qa-c-item-who-points-pad"> points)</span>
+																	</span>
+																</span>
+															</span>
+														</span>
+														<div class="qa-c-item-buttons">
+														</div>
+													</div>
+													<div class="qa-c-item-clear">
+													</div>
+												</div> <!-- END qa-c-item -->
+												<div class="qa-c-list-item  hentry comment" id="c9848">
+													<div class="qa-c-item-content">
+														<a name="9848"></a><div class="entry-content"><p>You would need one additional degree of freedom for each term<br>
+$$ \int_S w\cdot u\, ds \int_S w\cdot v \, ds, $$<br>
+i.e. one for each $S$. If you have one such integral over the boundary, then approaches outlined above are viable. If this is not the case you need a different solution.</p>
+</div>
+													</div>
+													<div class="qa-c-item-footer">
+														<span class="qa-c-item-avatar-meta">
+															<span class="qa-c-item-meta">
+																<a href="../../9823/integral-in-a-weak-form?show=9848#c9848" class="qa-c-item-what">commented</a>
+																<span class="qa-c-item-when">
+																	<span class="qa-c-item-when-data"><span class="published"><span class="value-title" title="2016-04-12T06:20:02+0000"></span>Apr 12, 2016</span></span>
+																</span>
+																<span class="qa-c-item-who">
+																	<span class="qa-c-item-who-pad">by </span>
+																	<span class="qa-c-item-who-data"><span class="vcard author"><a href="../../user/Magne+Nordaas" class="qa-user-link url nickname">Magne Nordaas</a></span></span>
+																	<span class="qa-c-item-who-title">FEniCS Expert</span>
+																	<span class="qa-c-item-who-points">
+																		<span class="qa-c-item-who-points-pad">(</span><span class="qa-c-item-who-points-data">13,820</span><span class="qa-c-item-who-points-pad"> points)</span>
+																	</span>
+																</span>
+															</span>
+														</span>
+														<div class="qa-c-item-buttons">
+														</div>
+													</div>
+													<div class="qa-c-item-clear">
+													</div>
+												</div> <!-- END qa-c-item -->
+											</div> <!-- END qa-c-list -->
+											
+											<input type="hidden" name="code" value="0-1516468240-9da5d0611bf58066f438d2b4119a6bd137922cd4">
+											<input type="hidden" name="qa_click" value="">
+										</form>
+										<div class="qa-c-form">
+										</div> <!-- END qa-c-form -->
+										
+									</div> <!-- END qa-a-item-main -->
+									<div class="qa-a-item-clear">
+									</div>
+								</div> <!-- END qa-a-list-item -->
+								
+								<div class="qa-a-list-item  hentry answer" id="a9843">
+									<form method="post" action="../../9823/integral-in-a-weak-form">
+										<div class="qa-voting qa-voting-net" id="voting_9843">
+											<div class="qa-vote-count qa-vote-count-net">
+												<span class="qa-netvote-count">
+													<span class="qa-netvote-count-data">0<span class="votes-up"><span class="value-title" title="0"></span></span><span class="votes-down"><span class="value-title" title="0"></span></span></span><span class="qa-netvote-count-pad"> votes</span>
+												</span>
+											</div>
+											<div class="qa-vote-clear">
+											</div>
+										</div>
+										<input type="hidden" name="code" value="0-1516468240-8c34b5c8a6daa8899df934a3585736628ab2e49e">
+									</form>
+									<div class="qa-a-item-main">
+										<form method="post" action="../../9823/integral-in-a-weak-form">
+											<div class="qa-a-selection">
+											</div>
+											<div class="qa-a-item-content">
+												<a name="9843"></a><div class="entry-content"><p>Judging from the weak form, it looks like you are trying to do something very similar as I tried here:<br>
+<a rel="nofollow" href="http://fenicsproject.org/qa/7541/ufl-unsupported-operand-type-s-for-form-and-form">http://fenicsproject.org/qa/7541/ufl-unsupported-operand-type-s-for-form-and-form</a></p>
+
+<p>There are a few possible solutions suggested, including the ones from the answer by Magne Nordaas. But as an easy first proof-of-concept I would recommend the very last one. It is basically assembles the term you are after as a product of an Nx1 and a 1xN matrix.</p>
+</div>
+											</div>
+											<span class="qa-a-item-avatar-meta">
+												<span class="qa-a-item-meta">
+													<a href="../../9823/integral-in-a-weak-form?show=9843#a9843" class="qa-a-item-what">answered</a>
+													<span class="qa-a-item-when">
+														<span class="qa-a-item-when-data"><span class="published"><span class="value-title" title="2016-04-11T10:32:13+0000"></span>Apr 11, 2016</span></span>
+													</span>
+													<span class="qa-a-item-who">
+														<span class="qa-a-item-who-pad">by </span>
+														<span class="qa-a-item-who-data"><span class="vcard author"><a href="../../user/maartent" class="qa-user-link url nickname">maartent</a></span></span>
+														<span class="qa-a-item-who-title">FEniCS User</span>
+														<span class="qa-a-item-who-points">
+															<span class="qa-a-item-who-points-pad">(</span><span class="qa-a-item-who-points-data">3,910</span><span class="qa-a-item-who-points-pad"> points)</span>
+														</span>
+													</span>
+												</span>
+											</span>
+											<div class="qa-a-item-buttons">
+												</div>
+											
+											<div class="qa-a-item-c-list" style="display:none;" id="c9843_list">
+											</div> <!-- END qa-c-list -->
+											
+											<input type="hidden" name="code" value="0-1516468240-6d9c1443c615fab99d2c9c7b2f3d49cb713dab3c">
+											<input type="hidden" name="qa_click" value="">
+										</form>
+										<div class="qa-c-form">
+										</div> <!-- END qa-c-form -->
+										
+									</div> <!-- END qa-a-item-main -->
+									<div class="qa-a-item-clear">
+									</div>
+								</div> <!-- END qa-a-list-item -->
+								
+							</div> <!-- END qa-a-list -->
+							
+						</div>
+					</div> <!-- END qa-main -->
+					
+				</div> <!-- END main-wrapper -->
+			</div> <!-- END main-shadow -->
+		</div> <!-- END body-wrapper -->
+		<!-- END footer-bottom-group -->
+		
+		<div style="position:absolute; left:-9999px; top:-9999px;">
+			<span id="qa-waiting-template" class="qa-waiting">...</span>
+		</div>
+	
+	
+
+</body><!-- Powered by Question2Answer - http://www.question2answer.org/ --></html>

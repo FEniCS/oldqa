@@ -1,0 +1,735 @@
+<html><!-- Powered by Question2Answer - http://www.question2answer.org/ --><head>
+		<meta http-equiv="content-type" content="text/html; charset=utf-8">
+		<title>Some advice requested to decrease solution time - FEniCS Q&amp;A</title>
+		<meta name="description" content="I wrote some software using FEniCS for the finite element related parts and, although I am happy with  ... appreciated. ps I am stuck with version 1.4">
+		<meta name="keywords" content="linear-solver,krylov-solver,solver,petsc4py">
+		<link rel="stylesheet" type="text/css" href="../../qa-theme/Snow/qa-styles.css">
+		<link rel="canonical" href="http://fenicsproject.org/qa/9641/some-advice-requested-to-decrease-solution-time">
+		<script type="text/x-mathjax-config">
+  MathJax.Hub.Config({
+    extensions: ["tex2jax.js"],
+    jax: ["input/TeX","output/HTML-CSS"],
+    tex2jax: {inlineMath: [["$","$"],["\\(","\\)"]]},
+    TeX: { extensions: ["AMSmath.js","AMSsymbols.js"]}
+  });
+</script>
+<script type="text/javascript" src="../../mathjax/MathJax.js"></script>
+		<script src="../../jquery-1.7.2.min.js" type="text/javascript"></script>
+		<script src="../../highlight.min.js"></script>
+<script type="text/javascript">
+$(function(){
+	$('.wmd-input').keypress(function(){
+		window.clearTimeout(hljs.Timeout);
+		hljs.Timeout = window.setTimeout(function() {
+			hljs.initHighlighting.called = false;
+			hljs.initHighlighting();
+		}, 500);
+	});
+	window.setTimeout(function() {
+		hljs.initHighlighting.called = false;
+		hljs.initHighlighting();
+	}, 500);
+});
+</script>
+
+
+	</head>
+	<body class="qa-template-question qa-body-js-off">
+		<div class="qa-body-wrapper">
+			
+			<div class="qa-header">
+				<div class="qa-logo">
+					<a href="../../" class="qa-logo-link" title="FEniCS Q&amp;A"><img src="../../qa-theme/fenics_qa.png" border="0" alt="FEniCS Q&amp;A"></a>
+				</div>
+				<div class="qa-header-clear">
+				</div>
+			</div> <!-- END qa-header -->
+			
+			<div class="qa-main-shadow">
+				
+				<div class="qa-main-wrapper">
+					
+					<div class="qa-sidepanel">
+						<div class="qa-sidebar">
+							This is a read only copy of the old FEniCS QA forum. Please visit the <a href="https://www.allanswered.com/community/s/fenics-project/">new QA forum</a> to ask questions
+						</div>
+						
+					</div>
+					
+					<div class="qa-main">
+						<h1>
+							<span class="entry-title">Some advice requested to decrease solution time</span>
+						</h1>
+						<div class="qa-part-q-view">
+							<div class="qa-q-view  hentry question" id="q9641">
+								<form method="post" action="../../9641/some-advice-requested-to-decrease-solution-time">
+									<div class="qa-q-view-stats">
+										<div class="qa-voting qa-voting-net" id="voting_9641">
+											<div class="qa-vote-count qa-vote-count-net">
+												<span class="qa-netvote-count">
+													<span class="qa-netvote-count-data">0<span class="votes-up"><span class="value-title" title="0"></span></span><span class="votes-down"><span class="value-title" title="0"></span></span></span><span class="qa-netvote-count-pad"> votes</span>
+												</span>
+											</div>
+											<div class="qa-vote-clear">
+											</div>
+										</div>
+									</div>
+									<input type="hidden" name="code" value="0-1516468231-4c1697195156522d5e70af8037841b9764e2eeee">
+								</form>
+								<div class="qa-q-view-main">
+									<form method="post" action="../../9641/some-advice-requested-to-decrease-solution-time">
+										<div class="qa-q-view-content">
+											<a name="9641"></a><div class="entry-content"><p>I wrote some software using FEniCS for the finite element related parts and, although I am happy with the result, I have the feeling it could run a lot faster.</p>
+
+<p>The time-consuming part can be boiled down to this:</p>
+
+<blockquote>
+  <p>Repeatedly solve the following system for (a few thousand) different values of a scalar $\varepsilon$: <br>
+  $\quad \quad \qquad A + \varepsilon B= 0$<br>
+  where A and B are known, non-symmetric matrices; I will spare you the weak form they originate from.</p>
+</blockquote>
+
+<p>I used to re-assemble every time that $\varepsilon$ changed, but that is silly of course. So now I assemble $A$ and $B$ once, cast as a <code>petsc4py</code> matrix, and add using <code>A.axpy(epsilon, B, 1)</code>, where the <code>1</code> makes sure the nonzero pattern is not recalculated every time. This works, but a few things bother me:</p>
+
+<ul>
+<li><p>For every different $\epsilon$, it takes approximately 0.05 seconds to solve this say 9500x9500 sparse system. I tried <code>LUSolver('petsc')</code> and <code>LUSolver('umfpack')</code> as those are the options available to me. If I cast the sparse matrix to a scipy type (i.e. <code>scipy.sparse.csr_matrix(A.array())</code> it solves a factor 6x or even 500x faster, using <code>spsolve</code> and <code>bicg</code> respectively. This is not worth doing as the casting itself takes too much time. Hence the questions: 1) Is there an efficient way to cast to a scipy-friendly format, ie. without the need for a dense array? 2) Any idea where the difference comes from, since PETSc should be on equal footing with scipy's libraries?</p></li>
+<li><p>If I try the same with <code>KrylovSolver</code> every solution takes several<br>
+seconds. Is a Krylov-solver recommended for this kind of problem? I<br>
+tried using the solution of the previous iteration as an initial<br>
+guess for the next, but that didn't do a lot. Probably my<br>
+preconditioner is badly chosen but I don't really have an idea how to<br>
+choose it here. Any lights on the matter would be greatly<br>
+appreciated.</p></li>
+</ul>
+
+<p>ps I am stuck with version 1.4</p>
+</div>
+										</div>
+										<div class="qa-q-view-tags">
+											<ul class="qa-q-view-tag-list">
+												<li class="qa-q-view-tag-item"><a href="../../tag/linear-solver" rel="tag" class="qa-tag-link">linear-solver</a></li>
+												<li class="qa-q-view-tag-item"><a href="../../tag/krylov-solver" rel="tag" class="qa-tag-link">krylov-solver</a></li>
+												<li class="qa-q-view-tag-item"><a href="../../tag/solver" rel="tag" class="qa-tag-link">solver</a></li>
+												<li class="qa-q-view-tag-item"><a href="../../tag/petsc4py" rel="tag" class="qa-tag-link">petsc4py</a></li>
+											</ul>
+										</div>
+										<span class="qa-q-view-avatar-meta">
+											<span class="qa-q-view-meta">
+												<a href="../../9641/some-advice-requested-to-decrease-solution-time" class="qa-q-view-what">asked</a>
+												<span class="qa-q-view-when">
+													<span class="qa-q-view-when-data"><span class="published"><span class="value-title" title="2016-03-22T15:52:16+0000"></span>Mar 22, 2016</span></span>
+												</span>
+												<span class="qa-q-view-who">
+													<span class="qa-q-view-who-pad">by </span>
+													<span class="qa-q-view-who-data"><span class="vcard author"><a href="../../user/maartent" class="qa-user-link url nickname">maartent</a></span></span>
+													<span class="qa-q-view-who-title">FEniCS User</span>
+													<span class="qa-q-view-who-points">
+														<span class="qa-q-view-who-points-pad">(</span><span class="qa-q-view-who-points-data">3,910</span><span class="qa-q-view-who-points-pad"> points)</span>
+													</span>
+												</span>
+												<br>
+												<span class="qa-q-view-what">edited</span>
+												<span class="qa-q-view-when">
+													<span class="qa-q-view-when-data"><span class="updated"><span class="value-title" title="2016-03-22T17:18:06+0000"></span>Mar 22, 2016</span></span>
+												</span>
+												<span class="qa-q-view-who">
+													<span class="qa-q-view-who-pad">by </span><span class="qa-q-view-who-data"><a href="../../user/maartent" class="qa-user-link url nickname">maartent</a></span>
+												</span>
+											</span>
+										</span>
+										<div class="qa-q-view-buttons">
+										</div>
+										
+										<div class="qa-q-view-c-list" id="c9641_list">
+											<div class="qa-c-list-item  hentry comment" id="c9701">
+												<div class="qa-c-item-content">
+													<a name="9701"></a><div class="entry-content"><p>If I understand correctly, solving with bicg in scipy is very fast. This is a Krylov method without any preconditioner, right? Why don't you just use an unpreconditioned BiCGstab Krylov solver from PETSc?</p>
+</div>
+												</div>
+												<div class="qa-c-item-footer">
+													<span class="qa-c-item-avatar-meta">
+														<span class="qa-c-item-avatar">
+															<a href="../../user/Gregor+Mitscha-Baude" class="qa-avatar-link"><img src="../../?qa=image&amp;qa_blobid=3856551404141824203&amp;qa_size=20" width="16" height="20" class="qa-avatar-image" alt=""></a>
+														</span>
+														<span class="qa-c-item-meta">
+															<a href="../../9641/some-advice-requested-to-decrease-solution-time?show=9701#c9701" class="qa-c-item-what">commented</a>
+															<span class="qa-c-item-when">
+																<span class="qa-c-item-when-data"><span class="published"><span class="value-title" title="2016-03-30T08:05:00+0000"></span>Mar 30, 2016</span></span>
+															</span>
+															<span class="qa-c-item-who">
+																<span class="qa-c-item-who-pad">by </span>
+																<span class="qa-c-item-who-data"><span class="vcard author"><a href="../../user/Gregor+Mitscha-Baude" class="qa-user-link url nickname">Gregor Mitscha-Baude</a></span></span>
+																<span class="qa-c-item-who-title">FEniCS User</span>
+																<span class="qa-c-item-who-points">
+																	<span class="qa-c-item-who-points-pad">(</span><span class="qa-c-item-who-points-data">2,280</span><span class="qa-c-item-who-points-pad"> points)</span>
+																</span>
+															</span>
+														</span>
+													</span>
+													<div class="qa-c-item-buttons">
+													</div>
+												</div>
+												<div class="qa-c-item-clear">
+												</div>
+											</div> <!-- END qa-c-item -->
+											<div class="qa-c-list-item  hentry comment" id="c9711">
+												<div class="qa-c-item-content">
+													<a name="9711"></a><div class="entry-content"><p>Thanks for the comment. I noticed later that, although bicg in scipy was much faster, the solutions were wrong... so in conclusion there is no Krylov solver working, except very slow ones. The direct solvers in scipy are a few times faster than those of PETSc, but the conversion to a scipy matrix format copies data, which makes it the total solution time longer.</p>
+</div>
+												</div>
+												<div class="qa-c-item-footer">
+													<span class="qa-c-item-avatar-meta">
+														<span class="qa-c-item-meta">
+															<a href="../../9641/some-advice-requested-to-decrease-solution-time?show=9711#c9711" class="qa-c-item-what">commented</a>
+															<span class="qa-c-item-when">
+																<span class="qa-c-item-when-data"><span class="published"><span class="value-title" title="2016-03-30T12:59:14+0000"></span>Mar 30, 2016</span></span>
+															</span>
+															<span class="qa-c-item-who">
+																<span class="qa-c-item-who-pad">by </span>
+																<span class="qa-c-item-who-data"><span class="vcard author"><a href="../../user/maartent" class="qa-user-link url nickname">maartent</a></span></span>
+																<span class="qa-c-item-who-title">FEniCS User</span>
+																<span class="qa-c-item-who-points">
+																	<span class="qa-c-item-who-points-pad">(</span><span class="qa-c-item-who-points-data">3,910</span><span class="qa-c-item-who-points-pad"> points)</span>
+																</span>
+															</span>
+														</span>
+													</span>
+													<div class="qa-c-item-buttons">
+													</div>
+												</div>
+												<div class="qa-c-item-clear">
+												</div>
+											</div> <!-- END qa-c-item -->
+											<div class="qa-c-list-item  hentry comment" id="c10444">
+												<div class="qa-c-item-content">
+													<a name="10444"></a><div class="entry-content"><p>Hi Maartent, I am stuck with using the solution of the previous iteration as an initial<br>
+guess for the next and ask a question <a rel="nofollow" href="http://fenicsproject.org/qa/10426/solution-last-step-initial-guess-nonlinear-variation-problem">here</a>. Could you please give me a example of how to implement this? Thank you very much in advance.</p>
+</div>
+												</div>
+												<div class="qa-c-item-footer">
+													<span class="qa-c-item-avatar-meta">
+														<span class="qa-c-item-meta">
+															<a href="../../9641/some-advice-requested-to-decrease-solution-time?show=10444#c10444" class="qa-c-item-what">commented</a>
+															<span class="qa-c-item-when">
+																<span class="qa-c-item-when-data"><span class="published"><span class="value-title" title="2016-06-20T19:02:28+0000"></span>Jun 20, 2016</span></span>
+															</span>
+															<span class="qa-c-item-who">
+																<span class="qa-c-item-who-pad">by </span>
+																<span class="qa-c-item-who-data"><span class="vcard author"><a href="../../user/Wilhelm" class="qa-user-link url nickname">Wilhelm</a></span></span>
+																<span class="qa-c-item-who-title">FEniCS Novice</span>
+																<span class="qa-c-item-who-points">
+																	<span class="qa-c-item-who-points-pad">(</span><span class="qa-c-item-who-points-data">410</span><span class="qa-c-item-who-points-pad"> points)</span>
+																</span>
+															</span>
+														</span>
+													</span>
+													<div class="qa-c-item-buttons">
+													</div>
+												</div>
+												<div class="qa-c-item-clear">
+												</div>
+											</div> <!-- END qa-c-item -->
+										</div> <!-- END qa-c-list -->
+										
+										<input type="hidden" name="code" value="0-1516468231-a493abab1cbd0614834ac51c015ebb1f6eb8906e">
+										<input type="hidden" name="qa_click" value="">
+									</form>
+									<div class="qa-c-form">
+									</div> <!-- END qa-c-form -->
+									
+								</div> <!-- END qa-q-view-main -->
+								<div class="qa-q-view-clear">
+								</div>
+							</div> <!-- END qa-q-view -->
+							
+						</div>
+						<div class="qa-part-a-list">
+							<h2 id="a_list_title">1 Answer</h2>
+							<div class="qa-a-list" id="a_list">
+								
+								<div class="qa-a-list-item  hentry answer answer-selected qa-a-list-item-selected" id="a9642">
+									<form method="post" action="../../9641/some-advice-requested-to-decrease-solution-time">
+										<div class="qa-voting qa-voting-net" id="voting_9642">
+											<div class="qa-vote-count qa-vote-count-net">
+												<span class="qa-netvote-count">
+													<span class="qa-netvote-count-data">0<span class="votes-up"><span class="value-title" title="0"></span></span><span class="votes-down"><span class="value-title" title="0"></span></span></span><span class="qa-netvote-count-pad"> votes</span>
+												</span>
+											</div>
+											<div class="qa-vote-clear">
+											</div>
+										</div>
+										<input type="hidden" name="code" value="0-1516468231-4c1697195156522d5e70af8037841b9764e2eeee">
+									</form>
+									<div class="qa-a-item-main">
+										<form method="post" action="../../9641/some-advice-requested-to-decrease-solution-time">
+											<div class="qa-a-item-selected">
+												<div class="qa-a-selection">
+													<div class="qa-a-selected">&#160;</div>
+													<div class="qa-a-selected-text">Best answer</div>
+												</div>
+												<div class="qa-a-item-content">
+													<a name="9642"></a><div class="entry-content"><p>For such small systems, I don't think Krylov solvers will help you without<br>
+you doing something smart. There are things like reuse of search <br>
+vectors that may be possible but it depend on A, B and eps and<br>
+may not be straightforward to implement. <br>
+Any way to reduce the number of epsilons would be the simplest approach, I guess. </p>
+</div>
+												</div>
+												<span class="qa-a-item-avatar-meta">
+													<span class="qa-a-item-meta">
+														<a href="../../9641/some-advice-requested-to-decrease-solution-time?show=9642#a9642" class="qa-a-item-what">answered</a>
+														<span class="qa-a-item-when">
+															<span class="qa-a-item-when-data"><span class="published"><span class="value-title" title="2016-03-22T16:52:32+0000"></span>Mar 22, 2016</span></span>
+														</span>
+														<span class="qa-a-item-who">
+															<span class="qa-a-item-who-pad">by </span>
+															<span class="qa-a-item-who-data"><span class="vcard author"><a href="../../user/Kent-Andre+Mardal" class="qa-user-link url nickname">Kent-Andre Mardal</a></span></span>
+															<span class="qa-a-item-who-title">FEniCS Expert</span>
+															<span class="qa-a-item-who-points">
+																<span class="qa-a-item-who-points-pad">(</span><span class="qa-a-item-who-points-data">14,380</span><span class="qa-a-item-who-points-pad"> points)</span>
+															</span>
+														</span>
+														<br>
+														<span class="qa-a-item-what">selected</span>
+														<span class="qa-a-item-when">
+															<span class="qa-a-item-when-data"><span class="updated"><span class="value-title" title="2016-03-23T11:25:11+0000"></span>Mar 23, 2016</span></span>
+														</span>
+														<span class="qa-a-item-who">
+															<span class="qa-a-item-who-pad">by </span><span class="qa-a-item-who-data"><a href="../../user/maartent" class="qa-user-link url nickname">maartent</a></span>
+														</span>
+													</span>
+												</span>
+											</div>
+											<div class="qa-a-item-buttons">
+												</div>
+											
+											<div class="qa-a-item-c-list" id="c9642_list">
+												<div class="qa-c-list-item  hentry comment" id="c9643">
+													<div class="qa-c-item-content">
+														<a name="9643"></a><div class="entry-content"><p>Reducing the number of epsilons is not an option I am afraid :-)<br>
+I will soon try the same for 3D geometries, and compare with direct solvers again. Is there a rule of thumb from which sizes on to use a Krylov solver?</p>
+
+<p>I am still in the dark as to why direct solvers of PETSc are so slow compared to scipy (LAPACK?). It sometimes also takes slepc more than a second to solve a 20x20 eigenvalue problem. Are they just not meant to be used for small systems or is there another possible culprit?</p>
+</div>
+													</div>
+													<div class="qa-c-item-footer">
+														<span class="qa-c-item-avatar-meta">
+															<span class="qa-c-item-meta">
+																<a href="../../9641/some-advice-requested-to-decrease-solution-time?show=9643#c9643" class="qa-c-item-what">commented</a>
+																<span class="qa-c-item-when">
+																	<span class="qa-c-item-when-data"><span class="published"><span class="value-title" title="2016-03-22T17:34:58+0000"></span>Mar 22, 2016</span></span>
+																</span>
+																<span class="qa-c-item-who">
+																	<span class="qa-c-item-who-pad">by </span>
+																	<span class="qa-c-item-who-data"><span class="vcard author"><a href="../../user/maartent" class="qa-user-link url nickname">maartent</a></span></span>
+																	<span class="qa-c-item-who-title">FEniCS User</span>
+																	<span class="qa-c-item-who-points">
+																		<span class="qa-c-item-who-points-pad">(</span><span class="qa-c-item-who-points-data">3,910</span><span class="qa-c-item-who-points-pad"> points)</span>
+																	</span>
+																</span>
+															</span>
+														</span>
+														<div class="qa-c-item-buttons">
+														</div>
+													</div>
+													<div class="qa-c-item-clear">
+													</div>
+												</div> <!-- END qa-c-item -->
+												<div class="qa-c-list-item  hentry comment" id="c9648">
+													<div class="qa-c-item-content">
+														<a name="9648"></a><div class="entry-content"><p>Hi, there is no need to use a dense array and then convert to CSR matrices. Depending on your backend you can use <code>sparray</code> or the conversion function shown <a rel="nofollow" href="http://fenicsproject.org/qa/9356/exporting-a-matrix-from-fenics-1-problems-with-eigenmatrix?show=9356#q9356">here</a>. Without A, B answering 2) or the second question is very difficult. As for SLEPc - you are right, it needs large scale eigenvalue problems to shine.</p>
+</div>
+													</div>
+													<div class="qa-c-item-footer">
+														<span class="qa-c-item-avatar-meta">
+															<span class="qa-c-item-avatar">
+																<a href="../../user/MiroK" class="qa-avatar-link"><img src="https://www.gravatar.com/avatar/f566be3274ec73e3a6dda27bca11631c?s=20" width="20" height="20" class="qa-avatar-image" alt=""></a>
+															</span>
+															<span class="qa-c-item-meta">
+																<a href="../../9641/some-advice-requested-to-decrease-solution-time?show=9648#c9648" class="qa-c-item-what">commented</a>
+																<span class="qa-c-item-when">
+																	<span class="qa-c-item-when-data"><span class="published"><span class="value-title" title="2016-03-22T19:39:55+0000"></span>Mar 22, 2016</span></span>
+																</span>
+																<span class="qa-c-item-who">
+																	<span class="qa-c-item-who-pad">by </span>
+																	<span class="qa-c-item-who-data"><span class="vcard author"><a href="../../user/MiroK" class="qa-user-link url nickname">MiroK</a></span></span>
+																	<span class="qa-c-item-who-title">FEniCS Expert</span>
+																	<span class="qa-c-item-who-points">
+																		<span class="qa-c-item-who-points-pad">(</span><span class="qa-c-item-who-points-data">80,920</span><span class="qa-c-item-who-points-pad"> points)</span>
+																	</span>
+																</span>
+															</span>
+														</span>
+														<div class="qa-c-item-buttons">
+														</div>
+													</div>
+													<div class="qa-c-item-clear">
+													</div>
+												</div> <!-- END qa-c-item -->
+												<div class="qa-c-list-item  hentry comment" id="c9656">
+													<div class="qa-c-item-content">
+														<a name="9656"></a><div class="entry-content"><p>In general, preconditioned Krylov methods should be<br>
+better when you have more than a few hundred thousand unknowns -  <br>
+if you have a good preconditioner. E.g. test the following code: </p>
+
+<p>from dolfin import *<br>
+lu_time = []<br>
+cg_time = []<br>
+cgilu_time = []<br>
+cgamg_time = []<br>
+dofs = []</p>
+
+<p>parameters["krylov_solver"]["relative_tolerance"] = 1.0e-8 <br>
+parameters["krylov_solver"]["absolute_tolerance"] = 1.0e-8 <br>
+for N in [32, 64, 128, 256]:<br>
+     mesh = UnitSquareMesh(N, N)<br>
+    print " N ", N, " dofs ", mesh.num_vertices() <br>
+    dofs.append(mesh.num_vertices())<br>
+    V = FunctionSpace(mesh, "Lagrange", 1)<br>
+    u = TrialFunction(V)<br>
+    v = TestFunction(V)</p>
+
+<pre><code>f = Expression("sin(x[0]*12) - x[1]") 
+a = u*v*dx  + inner(grad(u), grad(v))*dx  
+L = f*v*dx 
+
+U = Function(V)
+
+A = assemble(a) 
+b = assemble(L)
+
+t0 = time()
+solve(A, U.vector(), b, "lu")
+t1 = time()
+print "Time for lu ", t1-t0
+lu_time.append(t1-t0)
+
+t0 = time()
+U.vector()[:] = 0 
+solve(A, U.vector(), b, "cg")
+t1 = time()
+print "Time for cg ", t1-t0
+cg_time.append(t1-t0)
+
+t0 = time()
+U.vector()[:] = 0 
+solve(A, U.vector(), b, "cg", "ilu")
+t1 = time()
+print "Time for cg/ilu ", t1-t0
+cgilu_time.append(t1-t0)
+
+t0 = time()
+U.vector()[:] = 0 
+solve(A, U.vector(), b, "cg", "amg")
+t1 = time()
+print "Time for cg/amg ", t1-t0
+cgamg_time.append(t1-t0)
+</code></pre>
+
+<p>import pylab</p>
+
+<p>pylab.plot(dofs, lu_time)<br>
+pylab.plot(dofs, cg_time)<br>
+pylab.plot(dofs, cgilu_time)<br>
+pylab.plot(dofs, cgamg_time)<br>
+pylab.legend(["lu", "cg", "cg/ilu", "cg/amg"])<br>
+pylab.show()</p>
+</div>
+													</div>
+													<div class="qa-c-item-footer">
+														<span class="qa-c-item-avatar-meta">
+															<span class="qa-c-item-meta">
+																<a href="../../9641/some-advice-requested-to-decrease-solution-time?show=9656#c9656" class="qa-c-item-what">commented</a>
+																<span class="qa-c-item-when">
+																	<span class="qa-c-item-when-data"><span class="published"><span class="value-title" title="2016-03-23T08:17:06+0000"></span>Mar 23, 2016</span></span>
+																</span>
+																<span class="qa-c-item-who">
+																	<span class="qa-c-item-who-pad">by </span>
+																	<span class="qa-c-item-who-data"><span class="vcard author"><a href="../../user/Kent-Andre+Mardal" class="qa-user-link url nickname">Kent-Andre Mardal</a></span></span>
+																	<span class="qa-c-item-who-title">FEniCS Expert</span>
+																	<span class="qa-c-item-who-points">
+																		<span class="qa-c-item-who-points-pad">(</span><span class="qa-c-item-who-points-data">14,380</span><span class="qa-c-item-who-points-pad"> points)</span>
+																	</span>
+																</span>
+															</span>
+														</span>
+														<div class="qa-c-item-buttons">
+														</div>
+													</div>
+													<div class="qa-c-item-clear">
+													</div>
+												</div> <!-- END qa-c-item -->
+												<div class="qa-c-list-item  hentry comment" id="c9658">
+													<div class="qa-c-item-content">
+														<a name="9658"></a><div class="entry-content"><p>Your example shows that for 1000 unknowns, LU solvers are already worse than iterative solvers. In my case (ca. 10 000 unknowns) LU solvers need 0.05 seconds, whereas for cg or cg/ilu or cg/petsc_amg I get:</p>
+
+<blockquote>
+  <p>*** Error:   Unable to solve linear system using PETSc Krylov solver.<br>
+  *** Reason:  Solution failed to converge in 10000 iterations (PETSc reason DIVERGED_ITS, residual norm ||r|| = 7.575692e-08).</p>
+</blockquote>
+
+<p>I guess my system is particularly ill-conditioned or so, and not well-suited for Krylov-solvers. Anything I can do about that by any chance? Since I solve a similar system thousands of times, maybe it is worth finding the inverse once and use that as a preconditioner? My knowledge about iterative solvers is rather sparse so I am just guessing.</p>
+
+<p>On the other hand, is there any explanation why direct solvers of scipy outperform those of PETSc and UMFPACK so much?</p>
+
+<p>Thanks a lot for your time in any case.</p>
+</div>
+													</div>
+													<div class="qa-c-item-footer">
+														<span class="qa-c-item-avatar-meta">
+															<span class="qa-c-item-meta">
+																<a href="../../9641/some-advice-requested-to-decrease-solution-time?show=9658#c9658" class="qa-c-item-what">commented</a>
+																<span class="qa-c-item-when">
+																	<span class="qa-c-item-when-data"><span class="published"><span class="value-title" title="2016-03-23T11:25:06+0000"></span>Mar 23, 2016</span></span>
+																</span>
+																<span class="qa-c-item-who">
+																	<span class="qa-c-item-who-pad">by </span>
+																	<span class="qa-c-item-who-data"><span class="vcard author"><a href="../../user/maartent" class="qa-user-link url nickname">maartent</a></span></span>
+																	<span class="qa-c-item-who-title">FEniCS User</span>
+																	<span class="qa-c-item-who-points">
+																		<span class="qa-c-item-who-points-pad">(</span><span class="qa-c-item-who-points-data">3,910</span><span class="qa-c-item-who-points-pad"> points)</span>
+																	</span>
+																</span>
+															</span>
+														</span>
+														<div class="qa-c-item-buttons">
+														</div>
+													</div>
+													<div class="qa-c-item-clear">
+													</div>
+												</div> <!-- END qa-c-item -->
+												<div class="qa-c-list-item  hentry comment" id="c9659">
+													<div class="qa-c-item-content">
+														<a name="9659"></a><div class="entry-content"><p>@MiroK: I'm a bit in a pickle here. At the moment I cast the matrices A and B to a petsc4py type, add them and then cast to a <code>PETScMatrix</code> to use in the solver. Since I found the scipy sparse solvers to work ~100x faster, I need a scipy.sparse.csr_matrix type. However, I only have PETSc and uBLAS backends. So if I understand it, I could:</p>
+
+<ol>
+<li><p>cast the petsc4py object to a <code>uBLASMatrix</code>, and use the method <code>.sparray()</code>. Unfortunately, I can find <code>PETScMatrix</code> and <code>EigenMatrix</code> in the docs, but nothing related to uBLAS.</p></li>
+<li><p>extract the data from the petsc4py matrix. This will probably be easiest, but I am looking now for a way to do this (preferably without copying the data).</p></li>
+</ol>
+
+<p>The function you linked to works perfectly, but is very slow (50 ms), so not very useful in my case, where the bottleneck is solving the sparse system (0.5 ms). Thanks though.</p>
+
+<p><strong>EDIT</strong><br>
+I followed the second approach. It looks like this (can also be used instead of the function you linked to):</p>
+
+<pre><code>A = assemble(a)  # say A is a PETScMatrix
+A_petsc4py = as_backend_type(A).mat()
+ai, aj, av = A_petsc4py.getValuesCSR()
+Asp = scipy.sparse.csr_matrix((av, aj, ai))
+</code></pre>
+
+<p>Unfortunately, this still copies the data ai, aj and av when creating the sparse scipy matrix</p>
+</div>
+													</div>
+													<div class="qa-c-item-footer">
+														<span class="qa-c-item-avatar-meta">
+															<span class="qa-c-item-meta">
+																<a href="../../9641/some-advice-requested-to-decrease-solution-time?show=9659#c9659" class="qa-c-item-what">commented</a>
+																<span class="qa-c-item-when">
+																	<span class="qa-c-item-when-data"><span class="published"><span class="value-title" title="2016-03-23T13:39:11+0000"></span>Mar 23, 2016</span></span>
+																</span>
+																<span class="qa-c-item-who">
+																	<span class="qa-c-item-who-pad">by </span>
+																	<span class="qa-c-item-who-data"><span class="vcard author"><a href="../../user/maartent" class="qa-user-link url nickname">maartent</a></span></span>
+																	<span class="qa-c-item-who-title">FEniCS User</span>
+																	<span class="qa-c-item-who-points">
+																		<span class="qa-c-item-who-points-pad">(</span><span class="qa-c-item-who-points-data">3,910</span><span class="qa-c-item-who-points-pad"> points)</span>
+																	</span>
+																</span>
+																<br>
+																<span class="qa-c-item-what">edited</span>
+																<span class="qa-c-item-when">
+																	<span class="qa-c-item-when-data"><span class="updated"><span class="value-title" title="2016-03-23T14:07:37+0000"></span>Mar 23, 2016</span></span>
+																</span>
+																<span class="qa-c-item-who">
+																	<span class="qa-c-item-who-pad">by </span><span class="qa-c-item-who-data"><a href="../../user/maartent" class="qa-user-link url nickname">maartent</a></span>
+																</span>
+															</span>
+														</span>
+														<div class="qa-c-item-buttons">
+														</div>
+													</div>
+													<div class="qa-c-item-clear">
+													</div>
+												</div> <!-- END qa-c-item -->
+												<div class="qa-c-list-item  hentry comment" id="c9660">
+													<div class="qa-c-item-content">
+														<a name="9660"></a><div class="entry-content"><p>In the example code, the preconditioner is very efficient because <br>
+the PDE is elliptic.  It is _the_ example where preconditioners really work well. But there<br>
+is only a big difference between the different algorithms when you have<br>
+systems of say 50 K dofs. Your example is quite different <br>
+since you will do thousands of runs and  even a small improvement<br>
+may give significant savings. You should look into  reusing of sparsity patterns<br>
+or preconditioners from previous runs in your example. You could also <br>
+give us some more info on the problem so maybe we can help more.  </p>
+</div>
+													</div>
+													<div class="qa-c-item-footer">
+														<span class="qa-c-item-avatar-meta">
+															<span class="qa-c-item-meta">
+																<a href="../../9641/some-advice-requested-to-decrease-solution-time?show=9660#c9660" class="qa-c-item-what">commented</a>
+																<span class="qa-c-item-when">
+																	<span class="qa-c-item-when-data"><span class="published"><span class="value-title" title="2016-03-23T15:05:20+0000"></span>Mar 23, 2016</span></span>
+																</span>
+																<span class="qa-c-item-who">
+																	<span class="qa-c-item-who-pad">by </span>
+																	<span class="qa-c-item-who-data"><span class="vcard author"><a href="../../user/Kent-Andre+Mardal" class="qa-user-link url nickname">Kent-Andre Mardal</a></span></span>
+																	<span class="qa-c-item-who-title">FEniCS Expert</span>
+																	<span class="qa-c-item-who-points">
+																		<span class="qa-c-item-who-points-pad">(</span><span class="qa-c-item-who-points-data">14,380</span><span class="qa-c-item-who-points-pad"> points)</span>
+																	</span>
+																</span>
+															</span>
+														</span>
+														<div class="qa-c-item-buttons">
+														</div>
+													</div>
+													<div class="qa-c-item-clear">
+													</div>
+												</div> <!-- END qa-c-item -->
+												<div class="qa-c-list-item  hentry comment" id="c9680">
+													<div class="qa-c-item-content">
+														<a name="9680"></a><div class="entry-content"><p>To be a bit more specific, the problem is to solve:<br>
+$\mathbf{A} + \varepsilon \mathbf{B} + \sum_i k_i(\varepsilon) \mathbf{c_i} \mathbf{d_i^T} = 0$</p>
+
+<p>To give an idea, I will give the weak forms of $\mathbf{A}$ and $\mathbf{B}$ below. $\mathbf{c}$'s and $\mathbf{d}$'s are a bit more complicated, but the important part of them is that they make the global matrix non-symmetric</p>
+
+<pre><code>V = FunctionSpace(mesh, 'CG', 1)
+Vc = V * V
+u_real, u_imag = TrialFunctions(Vc)
+v_real, v_imag = TestFunctions(Vc)
+rho = SpatialCoordinate(mesh)[1]
+U = Function(V) # a known function
+a = (u_real.dx(1) * v_real + u_imag.dx(1) * v_imag) / rho * dx \
+    -(u_real.dx(0) * v_real.dx(0) + u_imag.dx(0) * v_imag.dx(0)) * dx \
+    -(u_real.dx(1) * v_real.dx(1) + u_imag.dx(1) * v_imag.dx(1)) * dx
+    -(u_real * v_real + u_imag * v_imag) / rho**2 * dx \
+    + U * (u_real * v_real + u_imag * v_imag) * dx
+b = (u_real * v_real + u_imag * v_imag) * dx
+</code></pre>
+
+<p>For the moment, I assemble $\mathbf{A}$, $\mathbf{B}$ and the different $\mathbf{c}$'s and $\mathbf{d}$'s once in advance. Subsequently, I convert them to petsc4py using <code>dolfin.as_backend_type(x).mat()</code> and then assemble them again for each $\varepsilon$. To this end, I defined a matrix M with a suitable nonzero pattern.</p>
+
+<pre><code>    M.zeroEntries()
+    nonzero_pattern = 1 # `1` stands for `SUBSET_NONZERO_PATTERN`
+    M.axpy(1.0, A, nonzero_pattern)
+    M.axpy(epsilon, B, nonzero_pattern)
+    for i in ...:
+        M.axpy(k, cd, nonzero_pattern)
+</code></pre>
+
+<p>By far the most time-consuming part is to solve this however. I use a LU solver now. The convergence for Krylov solvers is terrible, if at all. The solutions for different $\varepsilon$'s are very similar, so it would be convenient if I could find a suitable preconditioner and use the previous solution as an initial guess. I also considered calculating the inverse of M for the first problem, and then use that as a preconditioner.<br>
+I have little expertise on the world of Krylov solvers though.</p>
+</div>
+													</div>
+													<div class="qa-c-item-footer">
+														<span class="qa-c-item-avatar-meta">
+															<span class="qa-c-item-meta">
+																<a href="../../9641/some-advice-requested-to-decrease-solution-time?show=9680#c9680" class="qa-c-item-what">commented</a>
+																<span class="qa-c-item-when">
+																	<span class="qa-c-item-when-data"><span class="published"><span class="value-title" title="2016-03-24T17:41:14+0000"></span>Mar 24, 2016</span></span>
+																</span>
+																<span class="qa-c-item-who">
+																	<span class="qa-c-item-who-pad">by </span>
+																	<span class="qa-c-item-who-data"><span class="vcard author"><a href="../../user/maartent" class="qa-user-link url nickname">maartent</a></span></span>
+																	<span class="qa-c-item-who-title">FEniCS User</span>
+																	<span class="qa-c-item-who-points">
+																		<span class="qa-c-item-who-points-pad">(</span><span class="qa-c-item-who-points-data">3,910</span><span class="qa-c-item-who-points-pad"> points)</span>
+																	</span>
+																</span>
+															</span>
+														</span>
+														<div class="qa-c-item-buttons">
+														</div>
+													</div>
+													<div class="qa-c-item-clear">
+													</div>
+												</div> <!-- END qa-c-item -->
+												<div class="qa-c-list-item  hentry comment" id="c9862">
+													<div class="qa-c-item-content">
+														<a name="9862"></a><div class="entry-content"><p>@Kent-Andre Mardal<br>
+Can you explain a little bit what you mean by "reusing preconditioners from previous runs?" and perhaps how it works in FEniCS?</p>
+</div>
+													</div>
+													<div class="qa-c-item-footer">
+														<span class="qa-c-item-avatar-meta">
+															<span class="qa-c-item-meta">
+																<a href="../../9641/some-advice-requested-to-decrease-solution-time?show=9862#c9862" class="qa-c-item-what">commented</a>
+																<span class="qa-c-item-when">
+																	<span class="qa-c-item-when-data"><span class="published"><span class="value-title" title="2016-04-13T13:58:24+0000"></span>Apr 13, 2016</span></span>
+																</span>
+																<span class="qa-c-item-who">
+																	<span class="qa-c-item-who-pad">by </span>
+																	<span class="qa-c-item-who-data"><span class="vcard author"><a href="../../user/maartent" class="qa-user-link url nickname">maartent</a></span></span>
+																	<span class="qa-c-item-who-title">FEniCS User</span>
+																	<span class="qa-c-item-who-points">
+																		<span class="qa-c-item-who-points-pad">(</span><span class="qa-c-item-who-points-data">3,910</span><span class="qa-c-item-who-points-pad"> points)</span>
+																	</span>
+																</span>
+															</span>
+														</span>
+														<div class="qa-c-item-buttons">
+														</div>
+													</div>
+													<div class="qa-c-item-clear">
+													</div>
+												</div> <!-- END qa-c-item -->
+												<div class="qa-c-list-item  hentry comment" id="c9865">
+													<div class="qa-c-item-content">
+														<a name="9865"></a><div class="entry-content"><p>The stokes-iterative demo illustrate how to create a preconditioner from<br>
+a matrix that is not the actual matrix you want to invert. </p>
+</div>
+													</div>
+													<div class="qa-c-item-footer">
+														<span class="qa-c-item-avatar-meta">
+															<span class="qa-c-item-meta">
+																<a href="../../9641/some-advice-requested-to-decrease-solution-time?show=9865#c9865" class="qa-c-item-what">commented</a>
+																<span class="qa-c-item-when">
+																	<span class="qa-c-item-when-data"><span class="published"><span class="value-title" title="2016-04-13T20:56:09+0000"></span>Apr 13, 2016</span></span>
+																</span>
+																<span class="qa-c-item-who">
+																	<span class="qa-c-item-who-pad">by </span>
+																	<span class="qa-c-item-who-data"><span class="vcard author"><a href="../../user/Kent-Andre+Mardal" class="qa-user-link url nickname">Kent-Andre Mardal</a></span></span>
+																	<span class="qa-c-item-who-title">FEniCS Expert</span>
+																	<span class="qa-c-item-who-points">
+																		<span class="qa-c-item-who-points-pad">(</span><span class="qa-c-item-who-points-data">14,380</span><span class="qa-c-item-who-points-pad"> points)</span>
+																	</span>
+																</span>
+															</span>
+														</span>
+														<div class="qa-c-item-buttons">
+														</div>
+													</div>
+													<div class="qa-c-item-clear">
+													</div>
+												</div> <!-- END qa-c-item -->
+											</div> <!-- END qa-c-list -->
+											
+											<input type="hidden" name="code" value="0-1516468231-9c6a916fe21206f9aeefaa83f9c091c1c2adf0f6">
+											<input type="hidden" name="qa_click" value="">
+										</form>
+										<div class="qa-c-form">
+										</div> <!-- END qa-c-form -->
+										
+									</div> <!-- END qa-a-item-main -->
+									<div class="qa-a-item-clear">
+									</div>
+								</div> <!-- END qa-a-list-item -->
+								
+							</div> <!-- END qa-a-list -->
+							
+						</div>
+					</div> <!-- END qa-main -->
+					
+				</div> <!-- END main-wrapper -->
+			</div> <!-- END main-shadow -->
+		</div> <!-- END body-wrapper -->
+		<!-- END footer-bottom-group -->
+		
+		<div style="position:absolute; left:-9999px; top:-9999px;">
+			<span id="qa-waiting-template" class="qa-waiting">...</span>
+		</div>
+	
+	
+
+</body><!-- Powered by Question2Answer - http://www.question2answer.org/ --></html>

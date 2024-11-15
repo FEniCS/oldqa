@@ -1,0 +1,338 @@
+<html><!-- Powered by Question2Answer - http://www.question2answer.org/ --><head>
+		<meta http-equiv="content-type" content="text/html; charset=utf-8">
+		<title>Evaluating the residual and Jacobian from a NonlinearVariationalProblem - FEniCS Q&amp;A</title>
+		<meta name="description" content="Hello, How do you obtain the residual and jacobian from a NonlinearVariationalProblem? I realize there are  ... if not, what is the correct way?**">
+		<meta name="keywords" content="newton-solver,jacobian,nonlinear-problem,nonlinearvariationalsolver">
+		<link rel="stylesheet" type="text/css" href="../../qa-theme/Snow/qa-styles.css">
+		<link rel="canonical" href="http://fenicsproject.org/qa/10341/evaluating-residual-jacobian-nonlinearvariationalproblem">
+		<script type="text/x-mathjax-config">
+  MathJax.Hub.Config({
+    extensions: ["tex2jax.js"],
+    jax: ["input/TeX","output/HTML-CSS"],
+    tex2jax: {inlineMath: [["$","$"],["\\(","\\)"]]},
+    TeX: { extensions: ["AMSmath.js","AMSsymbols.js"]}
+  });
+</script>
+<script type="text/javascript" src="../../mathjax/MathJax.js"></script>
+		<script src="../../jquery-1.7.2.min.js" type="text/javascript"></script>
+		<script src="../../highlight.min.js"></script>
+<script type="text/javascript">
+$(function(){
+	$('.wmd-input').keypress(function(){
+		window.clearTimeout(hljs.Timeout);
+		hljs.Timeout = window.setTimeout(function() {
+			hljs.initHighlighting.called = false;
+			hljs.initHighlighting();
+		}, 500);
+	});
+	window.setTimeout(function() {
+		hljs.initHighlighting.called = false;
+		hljs.initHighlighting();
+	}, 500);
+});
+</script>
+
+
+	</head>
+	<body class="qa-template-question qa-body-js-off">
+		<div class="qa-body-wrapper">
+			
+			<div class="qa-header">
+				<div class="qa-logo">
+					<a href="../../" class="qa-logo-link" title="FEniCS Q&amp;A"><img src="../../qa-theme/fenics_qa.png" border="0" alt="FEniCS Q&amp;A"></a>
+				</div>
+				<div class="qa-header-clear">
+				</div>
+			</div> <!-- END qa-header -->
+			
+			<div class="qa-main-shadow">
+				
+				<div class="qa-main-wrapper">
+					
+					<div class="qa-sidepanel">
+						<div class="qa-sidebar">
+							This is a read only copy of the old FEniCS QA forum. Please visit the <a href="https://www.allanswered.com/community/s/fenics-project/">new QA forum</a> to ask questions
+						</div>
+						
+					</div>
+					
+					<div class="qa-main">
+						<h1>
+							<span class="entry-title">Evaluating the residual and Jacobian from a NonlinearVariationalProblem</span>
+						</h1>
+						<div class="qa-part-q-view">
+							<div class="qa-q-view  hentry question" id="q10341">
+								<form method="post" action="../../10341/evaluating-residual-jacobian-nonlinearvariationalproblem">
+									<div class="qa-q-view-stats">
+										<div class="qa-voting qa-voting-net" id="voting_10341">
+											<div class="qa-vote-count qa-vote-count-net">
+												<span class="qa-netvote-count">
+													<span class="qa-netvote-count-data">0<span class="votes-up"><span class="value-title" title="0"></span></span><span class="votes-down"><span class="value-title" title="0"></span></span></span><span class="qa-netvote-count-pad"> votes</span>
+												</span>
+											</div>
+											<div class="qa-vote-clear">
+											</div>
+										</div>
+									</div>
+									<input type="hidden" name="code" value="0-1516467053-7e005f694e1f287ce93ea3774cc7b39b2ff1a29e">
+								</form>
+								<div class="qa-q-view-main">
+									<form method="post" action="../../10341/evaluating-residual-jacobian-nonlinearvariationalproblem">
+										<div class="qa-q-view-content">
+											<a name="10341"></a><div class="entry-content"><p>Hello,<br>
+   How do you obtain the residual and jacobian from a NonlinearVariationalProblem?  I realize there are functions <code>residual_form</code> and <code>jacobian_form</code> that return the forms, and that I can then use the <code>action</code> and <code>assemble_system</code> functions to create the jacobian matrix and residual vector.  However, below is an example that makes me doubt that this is the correct way to do this.  The following code solves a Monge-Ampere PDE using the built-in Newton's method.  I then attempt to evaluate the residual at the solution and print out the L2 norm of the residual:</p>
+
+<pre><code>#Define the weak residual F
+(Sxx, Sxy, Syy, u) = TrialFunction(MixedV)
+(muxx, muxy, muyy, v) = TestFunction(MixedV)
+
+F = inner(Sxx,muxx)*dx + 2*inner(Sxy,muxy)*dx + inner(Syy,muyy)*dx;
+F += inner(Dx(u,0), Dx(muxx,0))*dx + inner(Dx(u,0), Dx(muxy,1))*dx;
+F += inner(Dx(u,1), Dx(muxy,0))*dx + inner(Dx(u,1), Dx(muyy,1))*dx;
+
+F += ( inner(Dx(Sxx,0), Dx(v,0)) + inner(Dx(Sxy,0), Dx(v,1)))*dx;
+F += ( inner(Dx(Sxy,1), Dx(v,0)) + inner(Dx(Syy,1), Dx(v,1)))*dx;
+
+F += (((Sxx*Syy - Sxy*Sxy)-(1 + (Dx(u,0)**2 + Dx(u,1)**2))**(2)) * K)*v*dx;
+
+F -= (-gy*muxy*ds(1) + gx*muxy*ds(2) + gy*muxy*ds(3) - gx*muxy*ds(4));
+
+# Solve the problem
+initial = Function(MixedV)
+R = action(F,initial);
+DR = derivative(R, initial);
+problem = NonlinearVariationalProblem(R,initial,bc,DR);
+solver = NonlinearVariationalSolver(problem);
+solver.solve();
+
+#Evaluate the residual
+Fw = action(F,initial);
+A,b = assemble_system(DR,Fw,bc);
+print "My computed residual = ", b.norm('l2')
+</code></pre>
+
+<p>The output for this program is the following, with <code>set_log_level</code> set high enough to output Newton iteration residual calculations:</p>
+
+<pre><code>Solving nonlinear variational problem.
+Newton iteration 0: r (abs) = 1.149e+01 (tol = 1.000e-10) r (rel) = 1.000e+00 (tol = 1.000e-09)
+Newton iteration 1: r (abs) = 2.535e-03 (tol = 1.000e-10) r (rel) = 2.207e-04 (tol = 1.000e-09)
+Newton iteration 2: r (abs) = 4.556e-09 (tol = 1.000e-10) r (rel) = 3.965e-10 (tol = 1.000e-09)
+Newton solver finished in 2 iterations and 2 linear solver iterations.
+My computed residual =  29.4316515057
+</code></pre>
+
+<p>So the built-in Newton stops because the residual is <code>4.556e-09</code> but my calculated residual is <code>29.43165</code>.  My question then is <strong>am I calculating the residual correctly, and if not, what is the correct way?</strong></p>
+</div>
+										</div>
+										<div class="qa-q-view-tags">
+											<ul class="qa-q-view-tag-list">
+												<li class="qa-q-view-tag-item"><a href="../../tag/newton-solver" rel="tag" class="qa-tag-link">newton-solver</a></li>
+												<li class="qa-q-view-tag-item"><a href="../../tag/jacobian" rel="tag" class="qa-tag-link">jacobian</a></li>
+												<li class="qa-q-view-tag-item"><a href="../../tag/nonlinear-problem" rel="tag" class="qa-tag-link">nonlinear-problem</a></li>
+												<li class="qa-q-view-tag-item"><a href="../../tag/nonlinearvariationalsolver" rel="tag" class="qa-tag-link">nonlinearvariationalsolver</a></li>
+											</ul>
+										</div>
+										<span class="qa-q-view-avatar-meta">
+											<span class="qa-q-view-meta">
+												<a href="../../10341/evaluating-residual-jacobian-nonlinearvariationalproblem" class="qa-q-view-what">asked</a>
+												<span class="qa-q-view-when">
+													<span class="qa-q-view-when-data"><span class="published"><span class="value-title" title="2016-06-13T22:19:40+0000"></span>Jun 14, 2016</span></span>
+												</span>
+												<span class="qa-q-view-who">
+													<span class="qa-q-view-who-pad">by </span>
+													<span class="qa-q-view-who-data"><span class="vcard author"><a href="../../user/jbcolli2" class="qa-user-link url nickname">jbcolli2</a></span></span>
+													<span class="qa-q-view-who-title">FEniCS Novice</span>
+													<span class="qa-q-view-who-points">
+														<span class="qa-q-view-who-points-pad">(</span><span class="qa-q-view-who-points-data">210</span><span class="qa-q-view-who-points-pad"> points)</span>
+													</span>
+												</span>
+											</span>
+										</span>
+										<div class="qa-q-view-buttons">
+										</div>
+										
+										<div class="qa-q-view-c-list" style="display:none;" id="c10341_list">
+										</div> <!-- END qa-c-list -->
+										
+										<input type="hidden" name="code" value="0-1516467053-63d430cf65f5404becbd4732f31b64d2a32f276f">
+										<input type="hidden" name="qa_click" value="">
+									</form>
+									<div class="qa-c-form">
+									</div> <!-- END qa-c-form -->
+									
+								</div> <!-- END qa-q-view-main -->
+								<div class="qa-q-view-clear">
+								</div>
+							</div> <!-- END qa-q-view -->
+							
+						</div>
+						<div class="qa-part-a-list">
+							<h2 id="a_list_title">1 Answer</h2>
+							<div class="qa-a-list" id="a_list">
+								
+								<div class="qa-a-list-item  hentry answer" id="a10357">
+									<form method="post" action="../../10341/evaluating-residual-jacobian-nonlinearvariationalproblem">
+										<div class="qa-voting qa-voting-net" id="voting_10357">
+											<div class="qa-vote-count qa-vote-count-net">
+												<span class="qa-netvote-count">
+													<span class="qa-netvote-count-data">0<span class="votes-up"><span class="value-title" title="0"></span></span><span class="votes-down"><span class="value-title" title="0"></span></span></span><span class="qa-netvote-count-pad"> votes</span>
+												</span>
+											</div>
+											<div class="qa-vote-clear">
+											</div>
+										</div>
+										<input type="hidden" name="code" value="0-1516467053-7e005f694e1f287ce93ea3774cc7b39b2ff1a29e">
+									</form>
+									<div class="qa-a-item-main">
+										<form method="post" action="../../10341/evaluating-residual-jacobian-nonlinearvariationalproblem">
+											<div class="qa-a-selection">
+											</div>
+											<div class="qa-a-item-content">
+												<a name="10357"></a><div class="entry-content"><p>Edit: Maybe my answer wasn't very clear. Edited.<br>
+The line</p>
+
+<pre><code>A,b = assemble_system(DR,Fw,bc);
+</code></pre>
+
+<p>imposes boundary conditions on A and b. So you take the norm of a vector with Dirichlet-BCs for the system A*x = b incorporated. I don't know what your BCs are, but you should impose zero boundary conditions. The system you assembled is in terms of the increment, and given an initial guess satisfying your Dirichlet BCs, zero BCs for the Newton update are justified.<br>
+Setting </p>
+
+<pre><code>bc.homogenize()
+b = assemble(Fw)
+bc.apply(b)
+print('residual: {0}'.format(b.norm('l2')))
+</code></pre>
+
+<p>should give you the same result. Also make sure you to set <code>parameters["newton_solver"]["convergence_criterion"] = "residual"</code>.</p>
+</div>
+											</div>
+											<span class="qa-a-item-avatar-meta">
+												<span class="qa-a-item-meta">
+													<a href="../../10341/evaluating-residual-jacobian-nonlinearvariationalproblem?show=10357#a10357" class="qa-a-item-what">answered</a>
+													<span class="qa-a-item-when">
+														<span class="qa-a-item-when-data"><span class="published"><span class="value-title" title="2016-06-14T19:39:21+0000"></span>Jun 14, 2016</span></span>
+													</span>
+													<span class="qa-a-item-who">
+														<span class="qa-a-item-who-pad">by </span>
+														<span class="qa-a-item-who-data"><span class="vcard author"><a href="../../user/dajuno" class="qa-user-link url nickname">dajuno</a></span></span>
+														<span class="qa-a-item-who-title">FEniCS User</span>
+														<span class="qa-a-item-who-points">
+															<span class="qa-a-item-who-points-pad">(</span><span class="qa-a-item-who-points-data">4,140</span><span class="qa-a-item-who-points-pad"> points)</span>
+														</span>
+													</span>
+													<br>
+													<span class="qa-a-item-what">edited</span>
+													<span class="qa-a-item-when">
+														<span class="qa-a-item-when-data"><span class="updated"><span class="value-title" title="2016-06-15T17:28:22+0000"></span>Jun 15, 2016</span></span>
+													</span>
+													<span class="qa-a-item-who">
+														<span class="qa-a-item-who-pad">by </span><span class="qa-a-item-who-data"><a href="../../user/dajuno" class="qa-user-link url nickname">dajuno</a></span>
+													</span>
+												</span>
+											</span>
+											<div class="qa-a-item-buttons">
+												</div>
+											
+											<div class="qa-a-item-c-list" id="c10357_list">
+												<div class="qa-c-list-item  hentry comment" id="c10378">
+													<div class="qa-c-item-content">
+														<a name="10378"></a><div class="entry-content"><p>I agree, but in looking at this tutorial<br>
+<a rel="nofollow" href="http://fenicsproject.org/documentation/tutorial/nonlinear.html">http://fenicsproject.org/documentation/tutorial/nonlinear.html</a></p>
+
+<p>it looks like when setting up a NonlinearVariationalProblem, you should use the problem boundary conditions, not homogeneous ones.</p>
+</div>
+													</div>
+													<div class="qa-c-item-footer">
+														<span class="qa-c-item-avatar-meta">
+															<span class="qa-c-item-meta">
+																<a href="../../10341/evaluating-residual-jacobian-nonlinearvariationalproblem?show=10378#c10378" class="qa-c-item-what">commented</a>
+																<span class="qa-c-item-when">
+																	<span class="qa-c-item-when-data"><span class="published"><span class="value-title" title="2016-06-15T20:55:29+0000"></span>Jun 15, 2016</span></span>
+																</span>
+																<span class="qa-c-item-who">
+																	<span class="qa-c-item-who-pad">by </span>
+																	<span class="qa-c-item-who-data"><span class="vcard author"><a href="../../user/jbcolli2" class="qa-user-link url nickname">jbcolli2</a></span></span>
+																	<span class="qa-c-item-who-title">FEniCS Novice</span>
+																	<span class="qa-c-item-who-points">
+																		<span class="qa-c-item-who-points-pad">(</span><span class="qa-c-item-who-points-data">210</span><span class="qa-c-item-who-points-pad"> points)</span>
+																	</span>
+																</span>
+															</span>
+														</span>
+														<div class="qa-c-item-buttons">
+														</div>
+													</div>
+													<div class="qa-c-item-clear">
+													</div>
+												</div> <!-- END qa-c-item -->
+												<div class="qa-c-list-item  hentry comment" id="c10387">
+													<div class="qa-c-item-content">
+														<a name="10387"></a><div class="entry-content"><p>But does it work?<br>
+It's true that you pass the problem's bcs to NonlinearVariationProblem. Wondered about this, too, so I checked out the code :) During assembly (SystemAssembler.cpp -&gt; ll. 250), the initial solution is substracted from the bc values before they are applied. Like doing </p>
+
+<pre><code>b = assemble(F) 
+bc.apply(b, x_init.vector())
+</code></pre>
+</div>
+													</div>
+													<div class="qa-c-item-footer">
+														<span class="qa-c-item-avatar-meta">
+															<span class="qa-c-item-meta">
+																<a href="../../10341/evaluating-residual-jacobian-nonlinearvariationalproblem?show=10387#c10387" class="qa-c-item-what">commented</a>
+																<span class="qa-c-item-when">
+																	<span class="qa-c-item-when-data"><span class="published"><span class="value-title" title="2016-06-16T16:21:02+0000"></span>Jun 16, 2016</span></span>
+																</span>
+																<span class="qa-c-item-who">
+																	<span class="qa-c-item-who-pad">by </span>
+																	<span class="qa-c-item-who-data"><span class="vcard author"><a href="../../user/dajuno" class="qa-user-link url nickname">dajuno</a></span></span>
+																	<span class="qa-c-item-who-title">FEniCS User</span>
+																	<span class="qa-c-item-who-points">
+																		<span class="qa-c-item-who-points-pad">(</span><span class="qa-c-item-who-points-data">4,140</span><span class="qa-c-item-who-points-pad"> points)</span>
+																	</span>
+																</span>
+																<br>
+																<span class="qa-c-item-what">edited</span>
+																<span class="qa-c-item-when">
+																	<span class="qa-c-item-when-data"><span class="updated"><span class="value-title" title="2016-06-16T16:28:04+0000"></span>Jun 16, 2016</span></span>
+																</span>
+																<span class="qa-c-item-who">
+																	<span class="qa-c-item-who-pad">by </span><span class="qa-c-item-who-data"><a href="../../user/dajuno" class="qa-user-link url nickname">dajuno</a></span>
+																</span>
+															</span>
+														</span>
+														<div class="qa-c-item-buttons">
+														</div>
+													</div>
+													<div class="qa-c-item-clear">
+													</div>
+												</div> <!-- END qa-c-item -->
+											</div> <!-- END qa-c-list -->
+											
+											<input type="hidden" name="code" value="0-1516467053-6a7b799bf26339cfc663ce7c21ba5ab9eaa0bc15">
+											<input type="hidden" name="qa_click" value="">
+										</form>
+										<div class="qa-c-form">
+										</div> <!-- END qa-c-form -->
+										
+									</div> <!-- END qa-a-item-main -->
+									<div class="qa-a-item-clear">
+									</div>
+								</div> <!-- END qa-a-list-item -->
+								
+							</div> <!-- END qa-a-list -->
+							
+						</div>
+					</div> <!-- END qa-main -->
+					
+				</div> <!-- END main-wrapper -->
+			</div> <!-- END main-shadow -->
+		</div> <!-- END body-wrapper -->
+		<!-- END footer-bottom-group -->
+		
+		<div style="position:absolute; left:-9999px; top:-9999px;">
+			<span id="qa-waiting-template" class="qa-waiting">...</span>
+		</div>
+	
+	
+
+</body><!-- Powered by Question2Answer - http://www.question2answer.org/ --></html>

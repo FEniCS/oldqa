@@ -1,0 +1,331 @@
+<html><!-- Powered by Question2Answer - http://www.question2answer.org/ --><head>
+		<meta http-equiv="content-type" content="text/html; charset=utf-8">
+		<title>Eigenvalue solver in a Mixed Function Space - FEniCS Q&amp;A</title>
+		<meta name="description" content="**edit: I'm using the following parameters, and it seems to work now for some reason ... eigenvalues_imag # SAVE LAST REAL File(&quot;eigenmodes_real.pvd&quot;)">
+		<meta name="keywords" content="eigenvalue-problem,eigenvalue,slepceigensolver,petscmatrix,mixed-function-space">
+		<link rel="stylesheet" type="text/css" href="../../qa-theme/Snow/qa-styles.css">
+		<link rel="canonical" href="http://fenicsproject.org/qa/11850/eigenvalue-solver-in-a-mixed-function-space">
+		<script type="text/x-mathjax-config">
+  MathJax.Hub.Config({
+    extensions: ["tex2jax.js"],
+    jax: ["input/TeX","output/HTML-CSS"],
+    tex2jax: {inlineMath: [["$","$"],["\\(","\\)"]]},
+    TeX: { extensions: ["AMSmath.js","AMSsymbols.js"]}
+  });
+</script>
+<script type="text/javascript" src="../../mathjax/MathJax.js"></script>
+		<script src="../../jquery-1.7.2.min.js" type="text/javascript"></script>
+		<script src="../../highlight.min.js"></script>
+<script type="text/javascript">
+$(function(){
+	$('.wmd-input').keypress(function(){
+		window.clearTimeout(hljs.Timeout);
+		hljs.Timeout = window.setTimeout(function() {
+			hljs.initHighlighting.called = false;
+			hljs.initHighlighting();
+		}, 500);
+	});
+	window.setTimeout(function() {
+		hljs.initHighlighting.called = false;
+		hljs.initHighlighting();
+	}, 500);
+});
+</script>
+
+
+	</head>
+	<body class="qa-template-question qa-body-js-off">
+		<div class="qa-body-wrapper">
+			
+			<div class="qa-header">
+				<div class="qa-logo">
+					<a href="../../" class="qa-logo-link" title="FEniCS Q&amp;A"><img src="../../qa-theme/fenics_qa.png" border="0" alt="FEniCS Q&amp;A"></a>
+				</div>
+				<div class="qa-header-clear">
+				</div>
+			</div> <!-- END qa-header -->
+			
+			<div class="qa-main-shadow">
+				
+				<div class="qa-main-wrapper">
+					
+					<div class="qa-sidepanel">
+						<div class="qa-sidebar">
+							This is a read only copy of the old FEniCS QA forum. Please visit the <a href="https://www.allanswered.com/community/s/fenics-project/">new QA forum</a> to ask questions
+						</div>
+						
+					</div>
+					
+					<div class="qa-main">
+						<h1>
+							<span class="entry-title">Eigenvalue solver in a Mixed Function Space</span>
+						</h1>
+						<div class="qa-part-q-view">
+							<div class="qa-q-view  hentry question" id="q11850">
+								<form method="post" action="../../11850/eigenvalue-solver-in-a-mixed-function-space">
+									<div class="qa-q-view-stats">
+										<div class="qa-voting qa-voting-net" id="voting_11850">
+											<div class="qa-vote-count qa-vote-count-net">
+												<span class="qa-netvote-count">
+													<span class="qa-netvote-count-data">+3<span class="votes-up"><span class="value-title" title="3"></span></span><span class="votes-down"><span class="value-title" title="0"></span></span></span><span class="qa-netvote-count-pad"> votes</span>
+												</span>
+											</div>
+											<div class="qa-vote-clear">
+											</div>
+										</div>
+									</div>
+									<input type="hidden" name="code" value="0-1516467791-b5d05582e5167b5ce08d374e7b3384f53b1a7ab2">
+								</form>
+								<div class="qa-q-view-main">
+									<form method="post" action="../../11850/eigenvalue-solver-in-a-mixed-function-space">
+										<div class="qa-q-view-content">
+											<a name="11850"></a><div class="entry-content"><p><strong>edit: I'm using the following parameters, and it seems to work now for some reason. From what I've read the Cayley preconditioner is similar to shift-and-invert but has an extra term or two in it. I think it's just a stronger preconditioner overall when you know the target value you wish to find. I hope this helps out someone else in the future!</strong><br>
+PETScOptions.set("eps_target_magnitude")<br>
+PETScOptions.set("eps_target", 3.14)<br>
+PETScOptions.set("st_type", "cayley")</p>
+
+<p>Hi all,</p>
+
+<p>I'm having bit of an issue with this eigenvalue problem that I'm working on. I've been using FEniCS for a while now but I'm really stuck. Below, I've posted a reduced version of the problem I'm working on.</p>
+
+<pre><code>from dolfin import *
+from mshr import *
+
+# OPERATORS
+zcross = lambda i: as_vector((-i[1],i[0]))
+
+# BASIN &amp; MESH
+length = 1.0
+width  = 1.0
+resolution = 25
+geometry  = Rectangle(Point(0.0, 0.0), Point(width, length))
+mesh = generate_mesh(geometry, resolution)
+
+# FUNCTION &amp; VECTOR SPACES
+DG = VectorElement("DG", mesh.ufl_cell(), 1)
+CG = FiniteElement("CG", mesh.ufl_cell(), 2)
+G = FunctionSpace(mesh, MixedElement((DG, CG)))
+
+# TRIAL/TEST FUNCTIONS
+(u, eta) = TrialFunctions(G)
+(v, lmbda) = TestFunctions(G)
+
+# EIGENVALUE SOLs
+eigenvalues_real = []
+eigenvalues_imag = []
+
+# VARIABLES
+F    = Constant("1.0")
+Ro   = Constant("1.0")
+Fcor = Constant("0.0")
+#Fcor = Constant("1.0")
+
+# SET-UP EQUATION
+a = inner(v, Fcor*zcross(u))*dx \
+    + inner(v, grad(eta))*dx \
+    - inner(u, grad(lmbda))*dx
+
+m = Ro*inner(v, u)*dx + Ro*F*lmbda*eta*dx
+
+A = PETScMatrix()
+assemble(a, tensor = A)
+M = PETScMatrix()
+assemble(m, tensor = M)
+
+
+# SOLVE
+n = 5
+eigensolver = SLEPcEigenSolver(A, M)
+eigensolver.parameters["spectrum"] = "target imaginary"
+eigensolver.parameters["spectral_transform"] = "shift-and-invert"
+eigensolver.parameters["spectral_shift"] = 1.0
+eigensolver.solve(n)
+
+print ("Number of iterations: "), eigensolver.get_iteration_number()
+nconv = eigensolver.get_number_converged()
+
+for i in range(nconv):
+    lambda_real, lambda_imag, x_real, x_imag = eigensolver.get_eigenpair(i)
+
+    if lambda_imag == 0: # REMOVE ALL ZERO IMAGINARY EIGENVALUES
+        pass
+
+    if lambda_imag != 0:
+        eigenvalues_real.append(lambda_real)
+        eigenvalues_imag.append(lambda_imag)
+
+        # DEFN FUNCTION SPACES
+        eigenmodes_real = Function(G, x_real)
+        eigenmodes_imag = Function(G, x_imag)
+        ur, etar = eigenmodes_real.split()
+        ui, etai = eigenmodes_imag.split()
+
+# LIST EIGENVALUES
+print ("Real Eigenfrequencies:"), eigenvalues_real
+print ("Imaginary Eigenfrequencies:"), eigenvalues_imag
+
+# SAVE LAST REAL
+File("eigenmodes_real.pvd") &lt;&lt; eigenmodes_real
+
+# SAVE LAST IMAGINARY
+File("eigenmodes_imag.pvd") &lt;&lt; eigenmodes_imag
+</code></pre>
+
+<p>Essentially, it works for our test case when Fcor is set to zero. We obtain near zero real eigenvalues and  imaginary values in the form of some constant*pi. This is expected. When we add in a curl term (in this code you can just make Fcor non-zero; I've commented out when Fcor=1) however, it fails to solve for anything. This even includes when Fcor is very small (1E-5), when should expect to see similar values to when Fcor is zero.</p>
+
+<p>We believe this may have something to do with the PETSc matrix becoming anti-symmetric with this additional term, however, we're at a loss as to how to get around this. We've tried using many different SLEPc and PETSc parameters. The only thing that seems to work is using an LAPACK solver but it only solves for very coarse grids (so solutions can be found) but it fails for larger grid sizes.</p>
+
+<p>If anyone could give me any direction on how to fix this, or have any ideas you'd like me to try, please let me know.</p>
+
+<p>Thanks,</p>
+
+<p>cekaufho</p>
+</div>
+										</div>
+										<div class="qa-q-view-tags">
+											<ul class="qa-q-view-tag-list">
+												<li class="qa-q-view-tag-item"><a href="../../tag/eigenvalue-problem" rel="tag" class="qa-tag-link">eigenvalue-problem</a></li>
+												<li class="qa-q-view-tag-item"><a href="../../tag/eigenvalue" rel="tag" class="qa-tag-link">eigenvalue</a></li>
+												<li class="qa-q-view-tag-item"><a href="../../tag/slepceigensolver" rel="tag" class="qa-tag-link">slepceigensolver</a></li>
+												<li class="qa-q-view-tag-item"><a href="../../tag/petscmatrix" rel="tag" class="qa-tag-link">petscmatrix</a></li>
+												<li class="qa-q-view-tag-item"><a href="../../tag/mixed-function-space" rel="tag" class="qa-tag-link">mixed-function-space</a></li>
+											</ul>
+										</div>
+										<span class="qa-q-view-avatar-meta">
+											<span class="qa-q-view-meta">
+												<a href="../../11850/eigenvalue-solver-in-a-mixed-function-space" class="qa-q-view-what">asked</a>
+												<span class="qa-q-view-when">
+													<span class="qa-q-view-when-data"><span class="published"><span class="value-title" title="2016-12-05T21:25:50+0000"></span>Dec 5, 2016</span></span>
+												</span>
+												<span class="qa-q-view-who">
+													<span class="qa-q-view-who-pad">by </span>
+													<span class="qa-q-view-who-data"><span class="vcard author"><a href="../../user/cekaufho" class="qa-user-link url nickname">cekaufho</a></span></span>
+													<span class="qa-q-view-who-title">FEniCS Novice</span>
+													<span class="qa-q-view-who-points">
+														<span class="qa-q-view-who-points-pad">(</span><span class="qa-q-view-who-points-data">540</span><span class="qa-q-view-who-points-pad"> points)</span>
+													</span>
+												</span>
+												<br>
+												<span class="qa-q-view-what">edited</span>
+												<span class="qa-q-view-when">
+													<span class="qa-q-view-when-data"><span class="updated"><span class="value-title" title="2016-12-12T14:37:34+0000"></span>Dec 12, 2016</span></span>
+												</span>
+												<span class="qa-q-view-who">
+													<span class="qa-q-view-who-pad">by </span><span class="qa-q-view-who-data"><a href="../../user/cekaufho" class="qa-user-link url nickname">cekaufho</a></span>
+												</span>
+											</span>
+										</span>
+										<div class="qa-q-view-buttons">
+										</div>
+										
+										<div class="qa-q-view-c-list" id="c11850_list">
+											<div class="qa-c-list-item  hentry comment" id="c12797">
+												<div class="qa-c-item-content">
+													<a name="12797"></a><div class="entry-content"><p>Hello,</p>
+
+<p>I am having a similar issue, but I discover that in my case is not related to PETSc matrix, but with dolfin implementation of 'SLEPcEigenSolver' and with boundary conditions that it apply to the PETSc matrix.</p>
+
+<p>One workaround that I am doing is convert PETSc matrix to Scipy Sparse matrix and then solving the problem using sparse.linalg.eigsn, that use the arpack algorithm.</p>
+
+<p>I compared 'SLEPcEigenSolver' and Scipy 'eigsn' both with the same configuration based on the arpack algorithm and most of the tests Scipy implementation was more efficient and delivering better results and converging with few number of eigenmodes selected to be extracted.</p>
+
+<p>Here is some code sample that I hope that can help you in some way:</p>
+
+<pre><code>petsc_Kt, petsc_phi = FC.PETScMatrix(), FC.PETScVector()
+
+# assembly the matrix
+FC.assemble_system(fc_jac, fc_a, A_tensor=petsc_Kt, b_tensor=petsc_phi)
+mat_Kt = FC.as_backend_type(petsc_Kt).mat()
+
+# scipy sparse matrix
+sc_Kt  = sc.sparse.csr_matrix(mat_Kt.getValuesCSR()[::-1], shape=mat_Kt.size)
+
+# get all dofs ids
+np_Kt_ids = fc_sp_fun.sub.dofmap().dofs()
+
+# implementation that I did to get the dofs where dolfin apply the bcs with bc.apply()
+np_bcs_ids = get_bcs_ids(fc_bcs)
+
+# select the free dofs
+np_free_ids = np.delete(np_Kt_ids, np_bcs_ids)
+
+# slice the stiffness matrix
+sc_Kt_sld = sc_Kt[np_idx, :][:, np_idx]
+
+# Number of eigenvalues to be extracted
+eign_num = 20
+
+# Scipy Eigen package
+eig_vals, eig_vecs = sc.sparse.linalg.eigsh(sc_Kt_sld, k=eign_num, which='SA', mode='buckling')
+</code></pre>
+</div>
+												</div>
+												<div class="qa-c-item-footer">
+													<span class="qa-c-item-avatar-meta">
+														<span class="qa-c-item-avatar">
+															<a href="../../user/RDOLL" class="qa-avatar-link"><img src="../../?qa=image&amp;qa_blobid=7500326985274084040&amp;qa_size=20" width="20" height="11" class="qa-avatar-image" alt=""></a>
+														</span>
+														<span class="qa-c-item-meta">
+															<a href="../../11850/eigenvalue-solver-in-a-mixed-function-space?show=12797#c12797" class="qa-c-item-what">commented</a>
+															<span class="qa-c-item-when">
+																<span class="qa-c-item-when-data"><span class="published"><span class="value-title" title="2017-03-23T17:34:09+0000"></span>Mar 23, 2017</span></span>
+															</span>
+															<span class="qa-c-item-who">
+																<span class="qa-c-item-who-pad">by </span>
+																<span class="qa-c-item-who-data"><span class="vcard author"><a href="../../user/RDOLL" class="qa-user-link url nickname">RDOLL</a></span></span>
+																<span class="qa-c-item-who-title">FEniCS User</span>
+																<span class="qa-c-item-who-points">
+																	<span class="qa-c-item-who-points-pad">(</span><span class="qa-c-item-who-points-data">2,230</span><span class="qa-c-item-who-points-pad"> points)</span>
+																</span>
+															</span>
+															<br>
+															<span class="qa-c-item-what">edited</span>
+															<span class="qa-c-item-when">
+																<span class="qa-c-item-when-data"><span class="updated"><span class="value-title" title="2017-03-24T01:36:30+0000"></span>Mar 24, 2017</span></span>
+															</span>
+															<span class="qa-c-item-who">
+																<span class="qa-c-item-who-pad">by </span><span class="qa-c-item-who-data"><a href="../../user/RDOLL" class="qa-user-link url nickname">RDOLL</a></span>
+															</span>
+														</span>
+													</span>
+													<div class="qa-c-item-buttons">
+													</div>
+												</div>
+												<div class="qa-c-item-clear">
+												</div>
+											</div> <!-- END qa-c-item -->
+										</div> <!-- END qa-c-list -->
+										
+										<input type="hidden" name="code" value="0-1516467791-c9c2c1afcb7eefb113616607967a0e815fa23a04">
+										<input type="hidden" name="qa_click" value="">
+									</form>
+									<div class="qa-c-form">
+									</div> <!-- END qa-c-form -->
+									
+								</div> <!-- END qa-q-view-main -->
+								<div class="qa-q-view-clear">
+								</div>
+							</div> <!-- END qa-q-view -->
+							
+						</div>
+						<div class="qa-part-a-list">
+							<h2 id="a_list_title" style="display:none;"></h2>
+							<div class="qa-a-list" id="a_list">
+								
+							</div> <!-- END qa-a-list -->
+							
+						</div>
+					</div> <!-- END qa-main -->
+					
+				</div> <!-- END main-wrapper -->
+			</div> <!-- END main-shadow -->
+		</div> <!-- END body-wrapper -->
+		<!-- END footer-bottom-group -->
+		
+		<div style="position:absolute; left:-9999px; top:-9999px;">
+			<span id="qa-waiting-template" class="qa-waiting">...</span>
+		</div>
+	
+	
+
+</body><!-- Powered by Question2Answer - http://www.question2answer.org/ --></html>

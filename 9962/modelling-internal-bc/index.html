@@ -1,0 +1,211 @@
+<html><!-- Powered by Question2Answer - http://www.question2answer.org/ --><head>
+		<meta http-equiv="content-type" content="text/html; charset=utf-8">
+		<title>Modelling internal BC - FEniCS Q&amp;A</title>
+		<meta name="description" content="Hi, I am new to FE and trying to model the following problem. I have an elastic square with the  ... x, bool on_boundary) const{ return (abs(x[0])">
+		<meta name="keywords" content="form,pressure,internal">
+		<link rel="stylesheet" type="text/css" href="../../qa-theme/Snow/qa-styles.css">
+		<link rel="canonical" href="http://fenicsproject.org/qa/9962/modelling-internal-bc">
+		<script type="text/x-mathjax-config">
+  MathJax.Hub.Config({
+    extensions: ["tex2jax.js"],
+    jax: ["input/TeX","output/HTML-CSS"],
+    tex2jax: {inlineMath: [["$","$"],["\\(","\\)"]]},
+    TeX: { extensions: ["AMSmath.js","AMSsymbols.js"]}
+  });
+</script>
+<script type="text/javascript" src="../../mathjax/MathJax.js"></script>
+		<script src="../../jquery-1.7.2.min.js" type="text/javascript"></script>
+		<script src="../../highlight.min.js"></script>
+<script type="text/javascript">
+$(function(){
+	$('.wmd-input').keypress(function(){
+		window.clearTimeout(hljs.Timeout);
+		hljs.Timeout = window.setTimeout(function() {
+			hljs.initHighlighting.called = false;
+			hljs.initHighlighting();
+		}, 500);
+	});
+	window.setTimeout(function() {
+		hljs.initHighlighting.called = false;
+		hljs.initHighlighting();
+	}, 500);
+});
+</script>
+
+
+	</head>
+	<body class="qa-template-question qa-body-js-off">
+		<div class="qa-body-wrapper">
+			
+			<div class="qa-header">
+				<div class="qa-logo">
+					<a href="../../" class="qa-logo-link" title="FEniCS Q&amp;A"><img src="../../qa-theme/fenics_qa.png" border="0" alt="FEniCS Q&amp;A"></a>
+				</div>
+				<div class="qa-header-clear">
+				</div>
+			</div> <!-- END qa-header -->
+			
+			<div class="qa-main-shadow">
+				
+				<div class="qa-main-wrapper">
+					
+					<div class="qa-sidepanel">
+						<div class="qa-sidebar">
+							This is a read only copy of the old FEniCS QA forum. Please visit the <a href="https://www.allanswered.com/community/s/fenics-project/">new QA forum</a> to ask questions
+						</div>
+						
+					</div>
+					
+					<div class="qa-main">
+						<h1>
+							<span class="entry-title">Modelling internal BC</span>
+						</h1>
+						<div class="qa-part-q-view">
+							<div class="qa-q-view  hentry question" id="q9962">
+								<form method="post" action="../../9962/modelling-internal-bc">
+									<div class="qa-q-view-stats">
+										<div class="qa-voting qa-voting-net" id="voting_9962">
+											<div class="qa-vote-count qa-vote-count-net">
+												<span class="qa-netvote-count">
+													<span class="qa-netvote-count-data">0<span class="votes-up"><span class="value-title" title="0"></span></span><span class="votes-down"><span class="value-title" title="0"></span></span></span><span class="qa-netvote-count-pad"> votes</span>
+												</span>
+											</div>
+											<div class="qa-vote-clear">
+											</div>
+										</div>
+									</div>
+									<input type="hidden" name="code" value="0-1516468246-9b5e60d7fadbcf0356a730784fcf0403a56b2451">
+								</form>
+								<div class="qa-q-view-main">
+									<form method="post" action="../../9962/modelling-internal-bc">
+										<div class="qa-q-view-content">
+											<a name="9962"></a><div class="entry-content"><p>Hi, I am new to FE and trying to model the following problem.</p>
+
+<p>I have an elastic square with the following topology:</p>
+
+<p><img src="http://s32.postimg.org/nh9gqiuid/Screen_Shot_2016_04_27_at_16_41_15.png" alt="enter image description here"></p>
+
+<p>where blue and orange domains have different 'pressures', such that the force on the boundary between two domains is  </p>
+
+<p><img src="http://s32.postimg.org/5t4qj5e5t/Screen_Shot_2016_04_27_at_16_50_18.png" alt="enter image description here"></p>
+
+<p>Currently I define pressure as a discontinuous Lagrange element of degree 0, as in The FEniCS book Chapter 1.5.</p>
+
+<p>My uff code looks like this:</p>
+
+<pre><code>V = VectorElement("Lagrange", triangle, 2)
+W = FiniteElement("DG", triangle, 0)
+
+u = TrialFunction(V)
+v = TestFunction(V)
+p = Coefficient(W)
+E = Coefficient(W)
+nu = Coefficient(W)
+
+n = FacetNormal(triangle)
+
+
+mu = E / (2.0*(1.0 + nu))
+
+lmbda =  E*nu / ((1.0+nu) * (1.0 - 2.0*nu))
+
+def sigma(v):
+    return 2.0 * mu * sym(grad(v)) + lmbda*tr(sym(grad(v))) * Identity(2)
+
+a = inner( sigma(u), sym(grad(v)) ) * dx
+L = dot(p*n,v)*ds(0)
+</code></pre>
+
+<p>Since I want boundary integral to be calculated on every element face I define the Neumann BC as </p>
+
+<pre><code>class NeumannBoundary: public SubDomain{
+    bool inside(const Array&lt;double&gt;&amp; x, bool on_boundary) const{
+        return true;
+    }
+};
+</code></pre>
+
+<p>I also use a simple Dirichlet BC:</p>
+
+<pre><code>class DirichletBoundary: public SubDomain{
+    bool inside(const Array&lt;double&gt;&amp; x, bool on_boundary) const{
+        return (abs(x[0]) &lt;= 10 &amp;&amp; on_boundary);
+    }
+};
+</code></pre>
+
+<p>Where I prescribe u = (0,0)</p>
+
+<p>When I run the solver, with zero 'pressure' in the outside (blue) material and 100 on the inside (orange) material, I get u=(0,0) everywhere.</p>
+
+<p>If I set pressure of both regions to 100 I get the following solution:</p>
+
+<p><img src="http://s32.postimg.org/safmcb0tx/Screen_Shot_2016_04_27_at_17_05_25.png" alt="enter image description here"></p>
+
+<p>Which is the same if I set pressure of the outer region to 100 and inner to 0.</p>
+
+<p>So, I guess my boundary condition definition is wrong. Hence is the question: How to define internal surface conditions? (Sorry for the long intro)</p>
+</div>
+										</div>
+										<div class="qa-q-view-tags">
+											<ul class="qa-q-view-tag-list">
+												<li class="qa-q-view-tag-item"><a href="../../tag/form" rel="tag" class="qa-tag-link">form</a></li>
+												<li class="qa-q-view-tag-item"><a href="../../tag/pressure" rel="tag" class="qa-tag-link">pressure</a></li>
+												<li class="qa-q-view-tag-item"><a href="../../tag/internal" rel="tag" class="qa-tag-link">internal</a></li>
+											</ul>
+										</div>
+										<span class="qa-q-view-avatar-meta">
+											<span class="qa-q-view-meta">
+												<a href="../../9962/modelling-internal-bc" class="qa-q-view-what">asked</a>
+												<span class="qa-q-view-when">
+													<span class="qa-q-view-when-data"><span class="published"><span class="value-title" title="2016-04-27T16:16:08+0000"></span>Apr 27, 2016</span></span>
+												</span>
+												<span class="qa-q-view-who">
+													<span class="qa-q-view-who-pad">by </span>
+													<span class="qa-q-view-who-data"><span class="vcard author"><a href="../../user/mdelmans" class="qa-user-link url nickname">mdelmans</a></span></span>
+													<span class="qa-q-view-who-title">FEniCS Novice</span>
+													<span class="qa-q-view-who-points">
+														<span class="qa-q-view-who-points-pad">(</span><span class="qa-q-view-who-points-data">140</span><span class="qa-q-view-who-points-pad"> points)</span>
+													</span>
+												</span>
+											</span>
+										</span>
+										<div class="qa-q-view-buttons">
+										</div>
+										
+										<div class="qa-q-view-c-list" style="display:none;" id="c9962_list">
+										</div> <!-- END qa-c-list -->
+										
+										<input type="hidden" name="code" value="0-1516468246-18039ebe434a7d1051589fb680cd8ff9f587985a">
+										<input type="hidden" name="qa_click" value="">
+									</form>
+									<div class="qa-c-form">
+									</div> <!-- END qa-c-form -->
+									
+								</div> <!-- END qa-q-view-main -->
+								<div class="qa-q-view-clear">
+								</div>
+							</div> <!-- END qa-q-view -->
+							
+						</div>
+						<div class="qa-part-a-list">
+							<h2 id="a_list_title" style="display:none;"></h2>
+							<div class="qa-a-list" id="a_list">
+								
+							</div> <!-- END qa-a-list -->
+							
+						</div>
+					</div> <!-- END qa-main -->
+					
+				</div> <!-- END main-wrapper -->
+			</div> <!-- END main-shadow -->
+		</div> <!-- END body-wrapper -->
+		<!-- END footer-bottom-group -->
+		
+		<div style="position:absolute; left:-9999px; top:-9999px;">
+			<span id="qa-waiting-template" class="qa-waiting">...</span>
+		</div>
+	
+	
+
+</body><!-- Powered by Question2Answer - http://www.question2answer.org/ --></html>

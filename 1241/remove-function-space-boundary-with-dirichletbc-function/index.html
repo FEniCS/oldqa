@@ -1,0 +1,353 @@
+<html><!-- Powered by Question2Answer - http://www.question2answer.org/ --><head>
+		<meta http-equiv="content-type" content="text/html; charset=utf-8">
+		<title>How to remove DOF of function space on boundary with DirichletBC function? - FEniCS Q&amp;A</title>
+		<meta name="description" content="I am considering an eigenvalue problem like this: Let $V$ = { $(p_1,p_2) \in (H^1_0(\Omega))^2| d(p_1 ... (), 'M': M.array() }, oned_as=&quot;column&quot; )">
+		<meta name="keywords" content="boundary-conditions,mixed-function-space">
+		<link rel="stylesheet" type="text/css" href="../../qa-theme/Snow/qa-styles.css">
+		<link rel="canonical" href="http://fenicsproject.org/qa/1241/remove-function-space-boundary-with-dirichletbc-function">
+		<script type="text/x-mathjax-config">
+  MathJax.Hub.Config({
+    extensions: ["tex2jax.js"],
+    jax: ["input/TeX","output/HTML-CSS"],
+    tex2jax: {inlineMath: [["$","$"],["\\(","\\)"]]},
+    TeX: { extensions: ["AMSmath.js","AMSsymbols.js"]}
+  });
+</script>
+<script type="text/javascript" src="../../mathjax/MathJax.js"></script>
+		<script src="../../jquery-1.7.2.min.js" type="text/javascript"></script>
+		<script src="../../highlight.min.js"></script>
+<script type="text/javascript">
+$(function(){
+	$('.wmd-input').keypress(function(){
+		window.clearTimeout(hljs.Timeout);
+		hljs.Timeout = window.setTimeout(function() {
+			hljs.initHighlighting.called = false;
+			hljs.initHighlighting();
+		}, 500);
+	});
+	window.setTimeout(function() {
+		hljs.initHighlighting.called = false;
+		hljs.initHighlighting();
+	}, 500);
+});
+</script>
+
+
+	</head>
+	<body class="qa-template-question qa-body-js-off">
+		<div class="qa-body-wrapper">
+			
+			<div class="qa-header">
+				<div class="qa-logo">
+					<a href="../../" class="qa-logo-link" title="FEniCS Q&amp;A"><img src="../../qa-theme/fenics_qa.png" border="0" alt="FEniCS Q&amp;A"></a>
+				</div>
+				<div class="qa-header-clear">
+				</div>
+			</div> <!-- END qa-header -->
+			
+			<div class="qa-main-shadow">
+				
+				<div class="qa-main-wrapper">
+					
+					<div class="qa-sidepanel">
+						<div class="qa-sidebar">
+							This is a read only copy of the old FEniCS QA forum. Please visit the <a href="https://www.allanswered.com/community/s/fenics-project/">new QA forum</a> to ask questions
+						</div>
+						
+					</div>
+					
+					<div class="qa-main">
+						<h1>
+							<span class="entry-title">How to remove DOF of function space on boundary with DirichletBC function?</span>
+						</h1>
+						<div class="qa-part-q-view">
+							<div class="qa-q-view  hentry question" id="q1241">
+								<form method="post" action="../../1241/remove-function-space-boundary-with-dirichletbc-function">
+									<div class="qa-q-view-stats">
+										<div class="qa-voting qa-voting-net" id="voting_1241">
+											<div class="qa-vote-count qa-vote-count-net">
+												<span class="qa-netvote-count">
+													<span class="qa-netvote-count-data">+2<span class="votes-up"><span class="value-title" title="2"></span></span><span class="votes-down"><span class="value-title" title="0"></span></span></span><span class="qa-netvote-count-pad"> votes</span>
+												</span>
+											</div>
+											<div class="qa-vote-clear">
+											</div>
+										</div>
+									</div>
+									<input type="hidden" name="code" value="0-1516467822-27fd765a9583bec77e18e7efd95f45162345d62d">
+								</form>
+								<div class="qa-q-view-main">
+									<form method="post" action="../../1241/remove-function-space-boundary-with-dirichletbc-function">
+										<div class="qa-q-view-content">
+											<a name="1241"></a><div class="entry-content"><p>I am considering an eigenvalue problem like this:</p>
+
+<p>Let $V$ = { $(p_1,p_2) \in (H^1_0(\Omega))^2|  d(p_1)/dy-d(p_2)/dx=0$ }. <br>
+Find $p=(p_1,p_2)$ from V and $\lambda$ s.t.<br>
+$$<br>
+(\nabla p_1, \nabla  q_1) + (\nabla  p_2, \nabla  q_2) = \lambda (p,q),  \forall  q=(q_1,q_2) \in V<br>
+$$</p>
+
+<p>I need to export the matrix from DOLFIN to MATLAB since the provided solver of DOLFIN gives error in computing.  As the boundary condition removes the DOF of functions space, <br>
+when solving the eigenvalue problem Ax=lambda Mx, we can take sub-matrices of A and M to compute the eigenvalues with much smaller matrices.</p>
+
+<p>The question is that how can I find the DOF on boundaries and then create sub-matrices of A and B using only the interior DOFs.</p>
+
+<p>P.S.<br>
+In the code below, if the function space W is  defined as W = ConfV (Of course, the eig-problem will change), then the columns and rows of matrix A and M corresponding to the DOFs on boundary should be zero. In this case, the sub-matrices are easily obtained by removing these zero columns and zero rows. But as below, W=ConfV*DG, the obtained matrices A and M have no zeros columns or rows. This seems little strange to me.</p>
+
+<pre><code>from dolfin import *
+import scipy.io
+import numpy as np
+import sys
+
+
+degree= 2
+
+# Define mesh, function space
+mesh = Mesh("domain.xml")
+
+ConfV = VectorFunctionSpace(mesh, "CG", degree,2)
+DG = FunctionSpace(mesh, "DG", degree-1)
+W=ConfV*DG
+
+(p,u) = TrialFunctions(W)
+(q,v) = TestFunctions(W)
+
+a = div(p)*div(q)*dx  - (p[0].dx(1)-p[1].dx(0))*v*dx - u*(q[0].dx(1)-q[1].dx(0))*dx
+b = inner( p, q )*dx
+vec = inner( Constant((0,0)), q)*dx
+
+def bdry(x, on_boundary):   return on_boundary
+
+bc1 = DirichletBC(ConfV.sub(0), Constant(0.0), bdry)
+bc2 = DirichletBC(ConfV.sub(1), Constant(0.0), bdry)
+
+A, _ = assemble_system(a,vec,[bc1,bc2])
+M, _ = assemble_system(b,vec,[bc1,bc2])
+
+bc1.zero(A); bc2.zero(A)
+bc1.zero(M); bc2.zero(M)
+
+A =  as_backend_type(A);
+M =  as_backend_type(M);
+
+## ------------------ Export Matrices --------------------------
+scipy.io.savemat('matrix.mat', {'A': A.array(), 'M': M.array()  }, oned_as="column" )
+</code></pre>
+</div>
+										</div>
+										<div class="qa-q-view-tags">
+											<ul class="qa-q-view-tag-list">
+												<li class="qa-q-view-tag-item"><a href="../../tag/boundary-conditions" rel="tag" class="qa-tag-link">boundary-conditions</a></li>
+												<li class="qa-q-view-tag-item"><a href="../../tag/mixed-function-space" rel="tag" class="qa-tag-link">mixed-function-space</a></li>
+											</ul>
+										</div>
+										<span class="qa-q-view-avatar-meta">
+											<span class="qa-q-view-meta">
+												<a href="../../1241/remove-function-space-boundary-with-dirichletbc-function" class="qa-q-view-what">asked</a>
+												<span class="qa-q-view-when">
+													<span class="qa-q-view-when-data"><span class="published"><span class="value-title" title="2013-09-20T18:33:02+0000"></span>Sep 20, 2013</span></span>
+												</span>
+												<span class="qa-q-view-who">
+													<span class="qa-q-view-who-pad">by </span>
+													<span class="qa-q-view-who-data"><span class="vcard author"><a href="../../user/Xuefeng+LIU" class="qa-user-link url nickname">Xuefeng LIU</a></span></span>
+													<span class="qa-q-view-who-title">FEniCS Novice</span>
+													<span class="qa-q-view-who-points">
+														<span class="qa-q-view-who-points-pad">(</span><span class="qa-q-view-who-points-data">240</span><span class="qa-q-view-who-points-pad"> points)</span>
+													</span>
+												</span>
+												<br>
+												<span class="qa-q-view-what">edited</span>
+												<span class="qa-q-view-when">
+													<span class="qa-q-view-when-data"><span class="updated"><span class="value-title" title="2013-09-20T22:54:43+0000"></span>Sep 21, 2013</span></span>
+												</span>
+												<span class="qa-q-view-who">
+													<span class="qa-q-view-who-pad">by </span><span class="qa-q-view-who-data"><a href="../../user/Xuefeng+LIU" class="qa-user-link url nickname">Xuefeng LIU</a></span>
+												</span>
+											</span>
+										</span>
+										<div class="qa-q-view-buttons">
+										</div>
+										
+										<div class="qa-q-view-c-list" style="display:none;" id="c1241_list">
+										</div> <!-- END qa-c-list -->
+										
+										<input type="hidden" name="code" value="0-1516467822-c59e1718a778394b4a477fac6cd5ed04deea3611">
+										<input type="hidden" name="qa_click" value="">
+									</form>
+									<div class="qa-c-form">
+									</div> <!-- END qa-c-form -->
+									
+								</div> <!-- END qa-q-view-main -->
+								<div class="qa-q-view-clear">
+								</div>
+							</div> <!-- END qa-q-view -->
+							
+						</div>
+						<div class="qa-part-a-list">
+							<h2 id="a_list_title">2 Answers</h2>
+							<div class="qa-a-list" id="a_list">
+								
+								<div class="qa-a-list-item  hentry answer" id="a1243">
+									<form method="post" action="../../1241/remove-function-space-boundary-with-dirichletbc-function">
+										<div class="qa-voting qa-voting-net" id="voting_1243">
+											<div class="qa-vote-count qa-vote-count-net">
+												<span class="qa-netvote-count">
+													<span class="qa-netvote-count-data">+1<span class="votes-up"><span class="value-title" title="2"></span></span><span class="votes-down"><span class="value-title" title="1"></span></span></span><span class="qa-netvote-count-pad"> vote</span>
+												</span>
+											</div>
+											<div class="qa-vote-clear">
+											</div>
+										</div>
+										<input type="hidden" name="code" value="0-1516467822-27fd765a9583bec77e18e7efd95f45162345d62d">
+									</form>
+									<div class="qa-a-item-main">
+										<form method="post" action="../../1241/remove-function-space-boundary-with-dirichletbc-function">
+											<div class="qa-a-selection">
+											</div>
+											<div class="qa-a-item-content">
+												<a name="1243"></a><div class="entry-content"><p>DOLFIN does not support the removal of constrained/Dirichlet dofs from a system.</p>
+</div>
+											</div>
+											<span class="qa-a-item-avatar-meta">
+												<span class="qa-a-item-meta">
+													<a href="../../1241/remove-function-space-boundary-with-dirichletbc-function?show=1243#a1243" class="qa-a-item-what">answered</a>
+													<span class="qa-a-item-when">
+														<span class="qa-a-item-when-data"><span class="published"><span class="value-title" title="2013-09-21T15:48:31+0000"></span>Sep 21, 2013</span></span>
+													</span>
+													<span class="qa-a-item-who">
+														<span class="qa-a-item-who-pad">by </span>
+														<span class="qa-a-item-who-data"><span class="vcard author"><a href="../../user/Garth+N.+Wells" class="qa-user-link url nickname">Garth N. Wells</a></span></span>
+														<span class="qa-a-item-who-title">FEniCS Expert</span>
+														<span class="qa-a-item-who-points">
+															<span class="qa-a-item-who-points-pad">(</span><span class="qa-a-item-who-points-data">35,930</span><span class="qa-a-item-who-points-pad"> points)</span>
+														</span>
+													</span>
+												</span>
+											</span>
+											<div class="qa-a-item-buttons">
+												</div>
+											
+											<div class="qa-a-item-c-list" style="display:none;" id="c1243_list">
+											</div> <!-- END qa-c-list -->
+											
+											<input type="hidden" name="code" value="0-1516467822-224a7c0195b4542e28c95b7b27200c4db32a2396">
+											<input type="hidden" name="qa_click" value="">
+										</form>
+										<div class="qa-c-form">
+										</div> <!-- END qa-c-form -->
+										
+									</div> <!-- END qa-a-item-main -->
+									<div class="qa-a-item-clear">
+									</div>
+								</div> <!-- END qa-a-list-item -->
+								
+								<div class="qa-a-list-item  hentry answer" id="a1244">
+									<form method="post" action="../../1241/remove-function-space-boundary-with-dirichletbc-function">
+										<div class="qa-voting qa-voting-net" id="voting_1244">
+											<div class="qa-vote-count qa-vote-count-net">
+												<span class="qa-netvote-count">
+													<span class="qa-netvote-count-data">+3<span class="votes-up"><span class="value-title" title="3"></span></span><span class="votes-down"><span class="value-title" title="0"></span></span></span><span class="qa-netvote-count-pad"> votes</span>
+												</span>
+											</div>
+											<div class="qa-vote-clear">
+											</div>
+										</div>
+										<input type="hidden" name="code" value="0-1516467822-27fd765a9583bec77e18e7efd95f45162345d62d">
+									</form>
+									<div class="qa-a-item-main">
+										<form method="post" action="../../1241/remove-function-space-boundary-with-dirichletbc-function">
+											<div class="qa-a-selection">
+											</div>
+											<div class="qa-a-item-content">
+												<a name="1244"></a><div class="entry-content"><p>What you can/need do is to extract the submatrices 'manually'.</p>
+
+<p>I have done this for Navier-Stokes Equations in the (python) function <code>condense_sysmatsbybcs</code> <a rel="nofollow" href="https://github.com/highlando/optconpy/blob/71dff98549b3312a13b930ebca677d04aa1a6672/dolfin_to_nparrays.py#L171">(line 171)</a>.</p>
+</div>
+											</div>
+											<span class="qa-a-item-avatar-meta">
+												<span class="qa-a-item-avatar">
+													<a href="../../user/Jan" class="qa-avatar-link"><img src="https://www.gravatar.com/avatar/c71e1343e533ab01bcce8649718574fa?s=40" width="40" height="40" class="qa-avatar-image" alt=""></a>
+												</span>
+												<span class="qa-a-item-meta">
+													<a href="../../1241/remove-function-space-boundary-with-dirichletbc-function?show=1244#a1244" class="qa-a-item-what">answered</a>
+													<span class="qa-a-item-when">
+														<span class="qa-a-item-when-data"><span class="published"><span class="value-title" title="2013-09-21T16:56:03+0000"></span>Sep 21, 2013</span></span>
+													</span>
+													<span class="qa-a-item-who">
+														<span class="qa-a-item-who-pad">by </span>
+														<span class="qa-a-item-who-data"><span class="vcard author"><a href="../../user/Jan" class="qa-user-link url nickname">Jan</a></span></span>
+														<span class="qa-a-item-who-title">FEniCS User</span>
+														<span class="qa-a-item-who-points">
+															<span class="qa-a-item-who-points-pad">(</span><span class="qa-a-item-who-points-data">8,290</span><span class="qa-a-item-who-points-pad"> points)</span>
+														</span>
+													</span>
+												</span>
+											</span>
+											<div class="qa-a-item-buttons">
+												</div>
+											
+											<div class="qa-a-item-c-list" id="c1244_list">
+												<div class="qa-c-list-item  hentry comment" id="c1251">
+													<div class="qa-c-item-content">
+														<a name="1251"></a><div class="entry-content"><p>Thanks a lot! This is just what I needed.</p>
+
+<pre><code>bc.get_boundary_values()
+</code></pre>
+
+<p>By using this function, I can get the index for DOF on boundary and then extract submatrix.</p>
+</div>
+													</div>
+													<div class="qa-c-item-footer">
+														<span class="qa-c-item-avatar-meta">
+															<span class="qa-c-item-meta">
+																<a href="../../1241/remove-function-space-boundary-with-dirichletbc-function?show=1251#c1251" class="qa-c-item-what">commented</a>
+																<span class="qa-c-item-when">
+																	<span class="qa-c-item-when-data"><span class="published"><span class="value-title" title="2013-09-23T09:28:52+0000"></span>Sep 23, 2013</span></span>
+																</span>
+																<span class="qa-c-item-who">
+																	<span class="qa-c-item-who-pad">by </span>
+																	<span class="qa-c-item-who-data"><span class="vcard author"><a href="../../user/Xuefeng+LIU" class="qa-user-link url nickname">Xuefeng LIU</a></span></span>
+																	<span class="qa-c-item-who-title">FEniCS Novice</span>
+																	<span class="qa-c-item-who-points">
+																		<span class="qa-c-item-who-points-pad">(</span><span class="qa-c-item-who-points-data">240</span><span class="qa-c-item-who-points-pad"> points)</span>
+																	</span>
+																</span>
+															</span>
+														</span>
+														<div class="qa-c-item-buttons">
+														</div>
+													</div>
+													<div class="qa-c-item-clear">
+													</div>
+												</div> <!-- END qa-c-item -->
+											</div> <!-- END qa-c-list -->
+											
+											<input type="hidden" name="code" value="0-1516467822-f24ca92d4db15047783d03d809d07876ae443e7d">
+											<input type="hidden" name="qa_click" value="">
+										</form>
+										<div class="qa-c-form">
+										</div> <!-- END qa-c-form -->
+										
+									</div> <!-- END qa-a-item-main -->
+									<div class="qa-a-item-clear">
+									</div>
+								</div> <!-- END qa-a-list-item -->
+								
+							</div> <!-- END qa-a-list -->
+							
+						</div>
+					</div> <!-- END qa-main -->
+					
+				</div> <!-- END main-wrapper -->
+			</div> <!-- END main-shadow -->
+		</div> <!-- END body-wrapper -->
+		<!-- END footer-bottom-group -->
+		
+		<div style="position:absolute; left:-9999px; top:-9999px;">
+			<span id="qa-waiting-template" class="qa-waiting">...</span>
+		</div>
+	
+	
+
+</body><!-- Powered by Question2Answer - http://www.question2answer.org/ --></html>

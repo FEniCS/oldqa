@@ -1,0 +1,265 @@
+<html><!-- Powered by Question2Answer - http://www.question2answer.org/ --><head>
+		<meta http-equiv="content-type" content="text/html; charset=utf-8">
+		<title>Mixed problem pressure computation - FEniCS Q&amp;A</title>
+		<meta name="description" content='Hi, I was trying to implement a mixed formulation solver for the Stokes equations as done in the  ...  mesh, axes=True, title="pex") interactive()'>
+		<meta name="keywords" content="mixed-formulation,mixed-function-space,pressure,stokes,boundary-conditions">
+		<link rel="stylesheet" type="text/css" href="../../qa-theme/Snow/qa-styles.css">
+		<link rel="canonical" href="http://fenicsproject.org/qa/3520/mixed-problem-pressure-computation">
+		<script type="text/x-mathjax-config">
+  MathJax.Hub.Config({
+    extensions: ["tex2jax.js"],
+    jax: ["input/TeX","output/HTML-CSS"],
+    tex2jax: {inlineMath: [["$","$"],["\\(","\\)"]]},
+    TeX: { extensions: ["AMSmath.js","AMSsymbols.js"]}
+  });
+</script>
+<script type="text/javascript" src="../../mathjax/MathJax.js"></script>
+		<script src="../../jquery-1.7.2.min.js" type="text/javascript"></script>
+		<script src="../../highlight.min.js"></script>
+<script type="text/javascript">
+$(function(){
+	$('.wmd-input').keypress(function(){
+		window.clearTimeout(hljs.Timeout);
+		hljs.Timeout = window.setTimeout(function() {
+			hljs.initHighlighting.called = false;
+			hljs.initHighlighting();
+		}, 500);
+	});
+	window.setTimeout(function() {
+		hljs.initHighlighting.called = false;
+		hljs.initHighlighting();
+	}, 500);
+});
+</script>
+
+
+	</head>
+	<body class="qa-template-question qa-body-js-off">
+		<div class="qa-body-wrapper">
+			
+			<div class="qa-header">
+				<div class="qa-logo">
+					<a href="../../" class="qa-logo-link" title="FEniCS Q&amp;A"><img src="../../qa-theme/fenics_qa.png" border="0" alt="FEniCS Q&amp;A"></a>
+				</div>
+				<div class="qa-header-clear">
+				</div>
+			</div> <!-- END qa-header -->
+			
+			<div class="qa-main-shadow">
+				
+				<div class="qa-main-wrapper">
+					
+					<div class="qa-sidepanel">
+						<div class="qa-sidebar">
+							This is a read only copy of the old FEniCS QA forum. Please visit the <a href="https://www.allanswered.com/community/s/fenics-project/">new QA forum</a> to ask questions
+						</div>
+						
+					</div>
+					
+					<div class="qa-main">
+						<h1>
+							<span class="entry-title">Mixed problem pressure computation</span>
+						</h1>
+						<div class="qa-part-q-view">
+							<div class="qa-q-view  hentry question" id="q3520">
+								<form method="post" action="../../3520/mixed-problem-pressure-computation">
+									<div class="qa-q-view-stats">
+										<div class="qa-voting qa-voting-net" id="voting_3520">
+											<div class="qa-vote-count qa-vote-count-net">
+												<span class="qa-netvote-count">
+													<span class="qa-netvote-count-data">+3<span class="votes-up"><span class="value-title" title="3"></span></span><span class="votes-down"><span class="value-title" title="0"></span></span></span><span class="qa-netvote-count-pad"> votes</span>
+												</span>
+											</div>
+											<div class="qa-vote-clear">
+											</div>
+										</div>
+									</div>
+									<input type="hidden" name="code" value="0-1516467974-919bd09222cf821a2cdada94b16cf8374bad491d">
+								</form>
+								<div class="qa-q-view-main">
+									<form method="post" action="../../3520/mixed-problem-pressure-computation">
+										<div class="qa-q-view-content">
+											<a name="3520"></a><div class="entry-content"><p>Hi,</p>
+
+<p>I was trying to implement a mixed formulation solver for the Stokes equations as done in the FEniCS book on pp. 385-... Unfortunately I could not view the same results. The results for the velocity were quite good, while the ones of the pressure were not. In some cases the pressure seemed just to be displaced in "z"-direction although I had set up boundary conditions for the pressure as well (neither the "pinpoint" solution used in the book, nor setting the exact pressure solution on the whole boundary worked). Could you explain to me why the boundary conditions seem sometimes to be ignored completely?<br>
+Besides, how could I implement something like \int_\Omega p dx = 0 as restriction for my pressure function space ?</p>
+
+<p>My minimal example is as follows:</p>
+
+<pre><code>from dolfin import *
+
+class DirichletBoundary(SubDomain):
+    def inside(self, x, on_boundary):
+        return on_boundary
+
+class PinPoint(SubDomain):
+    def inside(self, x, on_boundary):
+        return x[0] &lt; DOLFIN_EPS and x[1] &lt; DOLFIN_EPS
+
+n = 16
+mesh = UnitSquareMesh(n, n, "crossed")
+
+V = VectorFunctionSpace(mesh, "Lagrange", 2)
+Q = FunctionSpace(mesh, "Lagrange", 1)
+W = V*Q
+
+gammaD = DirichletBoundary()
+u_ex = Expression(("sin(4*pi*x[0])*cos(4*pi*x[1])","-cos(4*pi*x[0])*sin(4*pi*x[1])"))
+pinpoint = PinPoint()
+p_ex = Expression("pi*cos(4*pi*x[0])*sin(4*pi*x[1])")
+
+bc0 = DirichletBC(W.sub(0), u_ex, gammaD)
+bc1 = DirichletBC(W.sub(1), p_ex, pinpoint, "pointwise")
+bc = [bc0, bc1]
+
+f = Expression(("28*pi*pi*sin(4*pi*x[0])*cos(4*pi*x[1])","-36*pi*pi*cos(4*pi*x[0])*sin(4*pi*x[1])"))
+
+u_exInt = interpolate(u_ex, V)    
+p_exInt = interpolate(p_ex, Q)
+
+
+(u, p) = TrialFunctions(W)
+(v, q) = TestFunctions(W)
+
+a = inner(grad(u), grad(v))*dx-p*div(v)*dx+div(u)*q*dx
+L = inner(f,v)*dx
+
+w = Function(W)
+solve(a == L, w, bc)
+
+(u, p) = w.split()
+
+print "e_u", errornorm(u_ex,u,norm_type="L2")
+print "e_p", errornorm(p_ex,p,norm_type="L2")
+
+print "e_u2 = %e" % assemble(inner(u_exInt-u,u_exInt-u)*dx)
+print "e_p2 = %e" % assemble(inner(p_exInt-p,p_exInt-p)*dx)
+
+plot(u, axes=True, title="uh")
+plot(u_ex, mesh, axes=True, title="uex")
+plot(p, axes=True, title="ph")
+plot(p_ex, mesh, axes=True, title="pex")
+interactive()
+</code></pre>
+</div>
+										</div>
+										<div class="qa-q-view-tags">
+											<ul class="qa-q-view-tag-list">
+												<li class="qa-q-view-tag-item"><a href="../../tag/mixed-formulation" rel="tag" class="qa-tag-link">mixed-formulation</a></li>
+												<li class="qa-q-view-tag-item"><a href="../../tag/mixed-function-space" rel="tag" class="qa-tag-link">mixed-function-space</a></li>
+												<li class="qa-q-view-tag-item"><a href="../../tag/pressure" rel="tag" class="qa-tag-link">pressure</a></li>
+												<li class="qa-q-view-tag-item"><a href="../../tag/stokes" rel="tag" class="qa-tag-link">stokes</a></li>
+												<li class="qa-q-view-tag-item"><a href="../../tag/boundary-conditions" rel="tag" class="qa-tag-link">boundary-conditions</a></li>
+											</ul>
+										</div>
+										<span class="qa-q-view-avatar-meta">
+											<span class="qa-q-view-meta">
+												<a href="../../3520/mixed-problem-pressure-computation" class="qa-q-view-what">asked</a>
+												<span class="qa-q-view-when">
+													<span class="qa-q-view-when-data"><span class="published"><span class="value-title" title="2014-05-13T09:53:00+0000"></span>May 13, 2014</span></span>
+												</span>
+												<span class="qa-q-view-who">
+													<span class="qa-q-view-who-pad">by </span>
+													<span class="qa-q-view-who-data"><span class="vcard author"><a href="../../user/mfer" class="qa-user-link url nickname">mfer</a></span></span>
+													<span class="qa-q-view-who-title">FEniCS Novice</span>
+													<span class="qa-q-view-who-points">
+														<span class="qa-q-view-who-points-pad">(</span><span class="qa-q-view-who-points-data">160</span><span class="qa-q-view-who-points-pad"> points)</span>
+													</span>
+												</span>
+												<br>
+												<span class="qa-q-view-what">edited</span>
+												<span class="qa-q-view-when">
+													<span class="qa-q-view-when-data"><span class="updated"><span class="value-title" title="2014-05-14T09:51:25+0000"></span>May 14, 2014</span></span>
+												</span>
+												<span class="qa-q-view-who">
+													<span class="qa-q-view-who-pad">by </span><span class="qa-q-view-who-data"><a href="../../user/mfer" class="qa-user-link url nickname">mfer</a></span>
+												</span>
+											</span>
+										</span>
+										<div class="qa-q-view-buttons">
+										</div>
+										
+										<div class="qa-q-view-c-list" id="c3520_list">
+											<div class="qa-c-list-item  hentry comment" id="c3671">
+												<div class="qa-c-item-content">
+													<a name="3671"></a><div class="entry-content"><p>For giving at least an update: I decided to implement an additional Lagrange multiplier after having looked at the discrete problem but I can't give an analytical proof for the <strong>continuous</strong> case. So far it worked fine to change/add the following lines:</p>
+
+<pre><code>    ...
+
+    V = VectorFunctionSpace(mesh, elemVeloc, degPolVeloc)
+    Q = FunctionSpace(mesh, elemPress, degPolPressure)
+    R = FunctionSpace(mesh, "R", 0)
+    W = MixedFunctionSpace([V,Q,R])
+
+   ...
+
+    (u, p, c) = TrialFunctions(W)
+    (v, q, d) = TestFunctions(W)
+
+    a = inner(grad(u), grad(v))*dx-p*div(v)*dx+div(u)*q*dx+c*q*dx+p*d*dx
+    L = inner(f,v)*dx
+
+   ....
+</code></pre>
+
+<p>(elemVeloc, degPolVeloc, etc. are the corresponding finite elements specifications)</p>
+</div>
+												</div>
+												<div class="qa-c-item-footer">
+													<span class="qa-c-item-avatar-meta">
+														<span class="qa-c-item-meta">
+															<a href="../../3520/mixed-problem-pressure-computation?show=3671#c3671" class="qa-c-item-what">commented</a>
+															<span class="qa-c-item-when">
+																<span class="qa-c-item-when-data"><span class="published"><span class="value-title" title="2014-05-27T12:31:56+0000"></span>May 27, 2014</span></span>
+															</span>
+															<span class="qa-c-item-who">
+																<span class="qa-c-item-who-pad">by </span>
+																<span class="qa-c-item-who-data"><span class="vcard author"><a href="../../user/mfer" class="qa-user-link url nickname">mfer</a></span></span>
+																<span class="qa-c-item-who-title">FEniCS Novice</span>
+																<span class="qa-c-item-who-points">
+																	<span class="qa-c-item-who-points-pad">(</span><span class="qa-c-item-who-points-data">160</span><span class="qa-c-item-who-points-pad"> points)</span>
+																</span>
+															</span>
+														</span>
+													</span>
+													<div class="qa-c-item-buttons">
+													</div>
+												</div>
+												<div class="qa-c-item-clear">
+												</div>
+											</div> <!-- END qa-c-item -->
+										</div> <!-- END qa-c-list -->
+										
+										<input type="hidden" name="code" value="0-1516467974-b7693a71acb74f5834cb40c833cb15bcbc5d04e1">
+										<input type="hidden" name="qa_click" value="">
+									</form>
+									<div class="qa-c-form">
+									</div> <!-- END qa-c-form -->
+									
+								</div> <!-- END qa-q-view-main -->
+								<div class="qa-q-view-clear">
+								</div>
+							</div> <!-- END qa-q-view -->
+							
+						</div>
+						<div class="qa-part-a-list">
+							<h2 id="a_list_title" style="display:none;"></h2>
+							<div class="qa-a-list" id="a_list">
+								
+							</div> <!-- END qa-a-list -->
+							
+						</div>
+					</div> <!-- END qa-main -->
+					
+				</div> <!-- END main-wrapper -->
+			</div> <!-- END main-shadow -->
+		</div> <!-- END body-wrapper -->
+		<!-- END footer-bottom-group -->
+		
+		<div style="position:absolute; left:-9999px; top:-9999px;">
+			<span id="qa-waiting-template" class="qa-waiting">...</span>
+		</div>
+	
+	
+
+</body><!-- Powered by Question2Answer - http://www.question2answer.org/ --></html>

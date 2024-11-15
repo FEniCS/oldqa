@@ -1,0 +1,457 @@
+<html><!-- Powered by Question2Answer - http://www.question2answer.org/ --><head>
+		<meta http-equiv="content-type" content="text/html; charset=utf-8">
+		<title>Exporting a matrix from FEniCS 1.6.0 / Problems with EigenMatrix - FEniCS Q&amp;A</title>
+		<meta name="description" content="My problem is with exporting sparse matrices created in FEniCS, (e.g., to SciPy or Matlab). I know  ...  the `M.sparray()` data to handle it properly?">
+		<meta name="keywords" content="160release,eigenmatrix,linear-algebra-backend,export-matrix">
+		<link rel="stylesheet" type="text/css" href="../../qa-theme/Snow/qa-styles.css">
+		<link rel="canonical" href="http://fenicsproject.org/qa/9356/exporting-a-matrix-from-fenics-1-problems-with-eigenmatrix">
+		<script type="text/x-mathjax-config">
+  MathJax.Hub.Config({
+    extensions: ["tex2jax.js"],
+    jax: ["input/TeX","output/HTML-CSS"],
+    tex2jax: {inlineMath: [["$","$"],["\\(","\\)"]]},
+    TeX: { extensions: ["AMSmath.js","AMSsymbols.js"]}
+  });
+</script>
+<script type="text/javascript" src="../../mathjax/MathJax.js"></script>
+		<script src="../../jquery-1.7.2.min.js" type="text/javascript"></script>
+		<script src="../../highlight.min.js"></script>
+<script type="text/javascript">
+$(function(){
+	$('.wmd-input').keypress(function(){
+		window.clearTimeout(hljs.Timeout);
+		hljs.Timeout = window.setTimeout(function() {
+			hljs.initHighlighting.called = false;
+			hljs.initHighlighting();
+		}, 500);
+	});
+	window.setTimeout(function() {
+		hljs.initHighlighting.called = false;
+		hljs.initHighlighting();
+	}, 500);
+});
+</script>
+
+
+	</head>
+	<body class="qa-template-question qa-body-js-off">
+		<div class="qa-body-wrapper">
+			
+			<div class="qa-header">
+				<div class="qa-logo">
+					<a href="../../" class="qa-logo-link" title="FEniCS Q&amp;A"><img src="../../qa-theme/fenics_qa.png" border="0" alt="FEniCS Q&amp;A"></a>
+				</div>
+				<div class="qa-header-clear">
+				</div>
+			</div> <!-- END qa-header -->
+			
+			<div class="qa-main-shadow">
+				
+				<div class="qa-main-wrapper">
+					
+					<div class="qa-sidepanel">
+						<div class="qa-sidebar">
+							This is a read only copy of the old FEniCS QA forum. Please visit the <a href="https://www.allanswered.com/community/s/fenics-project/">new QA forum</a> to ask questions
+						</div>
+						
+					</div>
+					
+					<div class="qa-main">
+						<h1>
+							<span class="entry-title">Exporting a matrix from FEniCS 1.6.0 / Problems with EigenMatrix</span>
+						</h1>
+						<div class="qa-part-q-view">
+							<div class="qa-q-view  hentry question" id="q9356">
+								<form method="post" action="../../9356/exporting-a-matrix-from-fenics-1-problems-with-eigenmatrix">
+									<div class="qa-q-view-stats">
+										<div class="qa-voting qa-voting-net" id="voting_9356">
+											<div class="qa-vote-count qa-vote-count-net">
+												<span class="qa-netvote-count">
+													<span class="qa-netvote-count-data">+2<span class="votes-up"><span class="value-title" title="2"></span></span><span class="votes-down"><span class="value-title" title="0"></span></span></span><span class="qa-netvote-count-pad"> votes</span>
+												</span>
+											</div>
+											<div class="qa-vote-clear">
+											</div>
+										</div>
+									</div>
+									<input type="hidden" name="code" value="0-1516468219-91343876e6b1463e7c5b06b70f41aa15f709b609">
+								</form>
+								<div class="qa-q-view-main">
+									<form method="post" action="../../9356/exporting-a-matrix-from-fenics-1-problems-with-eigenmatrix">
+										<div class="qa-q-view-content">
+											<a name="9356"></a><div class="entry-content"><p>My problem is with exporting sparse matrices created in FEniCS, (e.g., to SciPy or Matlab). <br>
+I know that there were Q&amp;As on the issue, but it seems that the solutions I have found:<br>
+<a rel="nofollow" href="http://fenicsproject.org/qa/8400/csr-representation-of-ublas-matrix">http://fenicsproject.org/qa/8400/csr-representation-of-ublas-matrix</a> <br>
+<a rel="nofollow" href="http://fenicsproject.org/qa/2257/how-to-read-data-from-class-matrix">http://fenicsproject.org/qa/2257/how-to-read-data-from-class-matrix</a> <br>
+<a rel="nofollow" href="http://fenicsproject.org/qa/3221/how-to-import-matrix-in-matlab-to-fenics">http://fenicsproject.org/qa/3221/how-to-import-matrix-in-matlab-to-fenics</a> <br>
+no longer apply in FEniCS 1.6.0.</p>
+
+<p>I also know that the <code>uBLAS</code> linear algebra backend is no longer supported and it is advised to use the <code>Eigen</code> backend instead: <br>
+<a rel="nofollow" href="http://fenicsproject.org/qa/8166/query-on-parameters-linear_algebra_backend-ublas">http://fenicsproject.org/qa/8166/query-on-parameters-linear_algebra_backend-ublas</a> <br>
+However, it seems that the <code>Eigen</code> backend is not working properly. In the below code, I'm trying to assemble a matrix using the <code>Eigen</code> backend and then access its data:</p>
+
+<pre><code>from dolfin import *
+
+parameters['linear_algebra_backend'] = 'Eigen'
+
+N    = 4
+mesh = UnitSquareMesh(N,N)
+V    = FunctionSpace(mesh,"Lagrange",1)
+u, v = TrialFunction(V), TestFunction(V)
+
+MassMat = assemble(u*v*dx)
+
+print MassMat.data()
+</code></pre>
+
+<p>getting an error:</p>
+
+<pre><code>Traceback (most recent call last):
+  File "error.py", line 15, in &lt;module&gt;
+    print MassMat.data()
+AttributeError: 'Matrix' object has no attribute 'data'
+</code></pre>
+
+<p>It seems that <code>MassMat</code> is not recognized as an <code>EigenMatrix</code> class instance.</p>
+
+<p>However, the class <code>EigenMatrix</code> itself works correctly. Running the below gives no errors:</p>
+
+<pre><code>from dolfin import *
+
+M = EigenMatrix(3,3)
+
+print M.data()
+</code></pre>
+
+<p>But what I want is to play with the <code>MassMat</code> created with the <code>assemble</code> function. Is there anything I'm doing wrong or is it a bug? If a bug, is there any other method to export a sparse matrix created in FEniCS 1.6.0? If not, the only option seems to be downgrading to older FEniCS releases, with <code>uBLAS</code> support, which is not a solution I dream of. </p>
+
+<p>=====<br>
+P.S. There is also an issue concerning the <code>sparray()</code> method which I don't understand. The below code:</p>
+
+<pre><code>from dolfin import *
+
+M  = EigenMatrix(3,3)
+
+print M.sparray()
+</code></pre>
+
+<p>gives an error:</p>
+
+<pre><code>Traceback (most recent call last):
+  File "error.py", line 8, in &lt;module&gt;
+    print M.sparray()
+  File "/usr/lib/python2.7/dist-packages/dolfin/cpp/la.py", line 2245, in sparray
+    C = csr_matrix((data[2], data[1], data[0]))
+  File "/usr/lib/python2.7/dist-packages/scipy/sparse/compressed.py", line 77, in __init__
+    raise ValueError('unable to infer matrix dimensions')
+ValueError: unable to infer matrix dimensions
+</code></pre>
+
+<p>is there something more I need to do with the <code>M.sparray()</code> data to handle it properly?</p>
+</div>
+										</div>
+										<div class="qa-q-view-tags">
+											<ul class="qa-q-view-tag-list">
+												<li class="qa-q-view-tag-item"><a href="../../tag/160release" rel="tag" class="qa-tag-link">160release</a></li>
+												<li class="qa-q-view-tag-item"><a href="../../tag/eigenmatrix" rel="tag" class="qa-tag-link">eigenmatrix</a></li>
+												<li class="qa-q-view-tag-item"><a href="../../tag/linear-algebra-backend" rel="tag" class="qa-tag-link">linear-algebra-backend</a></li>
+												<li class="qa-q-view-tag-item"><a href="../../tag/export-matrix" rel="tag" class="qa-tag-link">export-matrix</a></li>
+											</ul>
+										</div>
+										<span class="qa-q-view-avatar-meta">
+											<span class="qa-q-view-meta">
+												<a href="../../9356/exporting-a-matrix-from-fenics-1-problems-with-eigenmatrix" class="qa-q-view-what">asked</a>
+												<span class="qa-q-view-when">
+													<span class="qa-q-view-when-data"><span class="published"><span class="value-title" title="2016-02-18T13:41:55+0000"></span>Feb 18, 2016</span></span>
+												</span>
+												<span class="qa-q-view-who">
+													<span class="qa-q-view-who-pad">by </span>
+													<span class="qa-q-view-who-data"><span class="vcard author"><a href="../../user/gdudziuk" class="qa-user-link url nickname">gdudziuk</a></span></span>
+													<span class="qa-q-view-who-title">FEniCS Novice</span>
+													<span class="qa-q-view-who-points">
+														<span class="qa-q-view-who-points-pad">(</span><span class="qa-q-view-who-points-data">150</span><span class="qa-q-view-who-points-pad"> points)</span>
+													</span>
+												</span>
+											</span>
+										</span>
+										<div class="qa-q-view-buttons">
+										</div>
+										
+										<div class="qa-q-view-c-list" style="display:none;" id="c9356_list">
+										</div> <!-- END qa-c-list -->
+										
+										<input type="hidden" name="code" value="0-1516468219-36e074b817bdb7b696e4666d5f91486bca164159">
+										<input type="hidden" name="qa_click" value="">
+									</form>
+									<div class="qa-c-form">
+									</div> <!-- END qa-c-form -->
+									
+								</div> <!-- END qa-q-view-main -->
+								<div class="qa-q-view-clear">
+								</div>
+							</div> <!-- END qa-q-view -->
+							
+						</div>
+						<div class="qa-part-a-list">
+							<h2 id="a_list_title">2 Answers</h2>
+							<div class="qa-a-list" id="a_list">
+								
+								<div class="qa-a-list-item  hentry answer" id="a9454">
+									<form method="post" action="../../9356/exporting-a-matrix-from-fenics-1-problems-with-eigenmatrix">
+										<div class="qa-voting qa-voting-net" id="voting_9454">
+											<div class="qa-vote-count qa-vote-count-net">
+												<span class="qa-netvote-count">
+													<span class="qa-netvote-count-data">+1<span class="votes-up"><span class="value-title" title="1"></span></span><span class="votes-down"><span class="value-title" title="0"></span></span></span><span class="qa-netvote-count-pad"> vote</span>
+												</span>
+											</div>
+											<div class="qa-vote-clear">
+											</div>
+										</div>
+										<input type="hidden" name="code" value="0-1516468219-91343876e6b1463e7c5b06b70f41aa15f709b609">
+									</form>
+									<div class="qa-a-item-main">
+										<form method="post" action="../../9356/exporting-a-matrix-from-fenics-1-problems-with-eigenmatrix">
+											<div class="qa-a-selection">
+											</div>
+											<div class="qa-a-item-content">
+												<a name="9454"></a><div class="entry-content"><p>Hi,</p>
+
+<p>To get an EigenMatrix from a Matrix try this (not tested)</p>
+
+<pre><code>M2 = M.as_backend_type()
+</code></pre>
+
+<p>Another option is this code which I got from MiroK:</p>
+
+<pre><code>def mat_to_csr(dolfin_matrix):
+    """
+    Convert any dolfin.Matrix to csr matrix in scipy.
+    Based on code by Miroslav Kuchta
+    """
+    assert df.MPI.size(df.mpi_comm_world()) == 1, 'mat_to_csr assumes single process'
+
+    rows = [0]
+    cols = []
+    values = []
+    for irow in range(dolfin_matrix.size(0)):
+        indices, values_ = dolfin_matrix.getrow(irow)
+        rows.append(len(indices)+rows[-1])
+        cols.extend(indices)
+        values.extend(values_)
+
+    shape = dolfin_matrix.size(0), dolfin_matrix.size(1)
+
+    return scipy.sparse.csr_matrix((numpy.array(values, dtype='float'),
+                                    numpy.array(cols, dtype='int'),
+                                    numpy.array(rows, dtype='int')),
+                                    shape)
+</code></pre>
+</div>
+											</div>
+											<span class="qa-a-item-avatar-meta">
+												<span class="qa-a-item-meta">
+													<a href="../../9356/exporting-a-matrix-from-fenics-1-problems-with-eigenmatrix?show=9454#a9454" class="qa-a-item-what">answered</a>
+													<span class="qa-a-item-when">
+														<span class="qa-a-item-when-data"><span class="published"><span class="value-title" title="2016-03-01T15:24:46+0000"></span>Mar 1, 2016</span></span>
+													</span>
+													<span class="qa-a-item-who">
+														<span class="qa-a-item-who-pad">by </span>
+														<span class="qa-a-item-who-data"><span class="vcard author"><a href="../../user/Tormod+Landet" class="qa-user-link url nickname">Tormod Landet</a></span></span>
+														<span class="qa-a-item-who-title">FEniCS User</span>
+														<span class="qa-a-item-who-points">
+															<span class="qa-a-item-who-points-pad">(</span><span class="qa-a-item-who-points-data">5,130</span><span class="qa-a-item-who-points-pad"> points)</span>
+														</span>
+													</span>
+												</span>
+											</span>
+											<div class="qa-a-item-buttons">
+												</div>
+											
+											<div class="qa-a-item-c-list" id="c9454_list">
+												<div class="qa-c-list-item  hentry comment" id="c14320">
+													<div class="qa-c-item-content">
+														<a name="14320"></a><div class="entry-content"><p>Sorry for a year too late response, I had decided to downgrade to 1.5.0 before you posted your answer. Now that I have finally decided to upgrade and installed the latest release (2017.1.0), I can test your solution. </p>
+
+<p>Yes, <code>as_backend_type</code> solved my problem. However, it seems that it should be called in a function form, not as a method (as your answer suggests). At least in 2017.1.0, the following does not work</p>
+
+<pre><code>MassMat.as_backend_type()
+</code></pre>
+
+<p>Instead, it is legal to do </p>
+
+<pre><code>as_backend_type(MassMat)
+</code></pre>
+
+<p>To sum up, assuming the use of the <code>Eigen</code> backend and 2017.1.0 release, the CSR data of the matrix <code>MassMat</code> can be extracted with</p>
+
+<pre><code>rows,cols,vals = as_backend_type(MassMat).data()
+</code></pre>
+</div>
+													</div>
+													<div class="qa-c-item-footer">
+														<span class="qa-c-item-avatar-meta">
+															<span class="qa-c-item-meta">
+																<a href="../../9356/exporting-a-matrix-from-fenics-1-problems-with-eigenmatrix?show=14320#c14320" class="qa-c-item-what">commented</a>
+																<span class="qa-c-item-when">
+																	<span class="qa-c-item-when-data"><span class="published"><span class="value-title" title="2017-07-12T13:47:25+0000"></span>Jul 12, 2017</span></span>
+																</span>
+																<span class="qa-c-item-who">
+																	<span class="qa-c-item-who-pad">by </span>
+																	<span class="qa-c-item-who-data"><span class="vcard author"><a href="../../user/gdudziuk" class="qa-user-link url nickname">gdudziuk</a></span></span>
+																	<span class="qa-c-item-who-title">FEniCS Novice</span>
+																	<span class="qa-c-item-who-points">
+																		<span class="qa-c-item-who-points-pad">(</span><span class="qa-c-item-who-points-data">150</span><span class="qa-c-item-who-points-pad"> points)</span>
+																	</span>
+																</span>
+																<br>
+																<span class="qa-c-item-what">edited</span>
+																<span class="qa-c-item-when">
+																	<span class="qa-c-item-when-data"><span class="updated"><span class="value-title" title="2017-07-14T10:14:28+0000"></span>Jul 14, 2017</span></span>
+																</span>
+																<span class="qa-c-item-who">
+																	<span class="qa-c-item-who-pad">by </span><span class="qa-c-item-who-data"><a href="../../user/gdudziuk" class="qa-user-link url nickname">gdudziuk</a></span>
+																</span>
+															</span>
+														</span>
+														<div class="qa-c-item-buttons">
+														</div>
+													</div>
+													<div class="qa-c-item-clear">
+													</div>
+												</div> <!-- END qa-c-item -->
+											</div> <!-- END qa-c-list -->
+											
+											<input type="hidden" name="code" value="0-1516468219-bdf55aa3fcd9c709299b6f50e01943a3f430a837">
+											<input type="hidden" name="qa_click" value="">
+										</form>
+										<div class="qa-c-form">
+										</div> <!-- END qa-c-form -->
+										
+									</div> <!-- END qa-a-item-main -->
+									<div class="qa-a-item-clear">
+									</div>
+								</div> <!-- END qa-a-list-item -->
+								
+								<div class="qa-a-list-item  hentry answer" id="a9456">
+									<form method="post" action="../../9356/exporting-a-matrix-from-fenics-1-problems-with-eigenmatrix">
+										<div class="qa-voting qa-voting-net" id="voting_9456">
+											<div class="qa-vote-count qa-vote-count-net">
+												<span class="qa-netvote-count">
+													<span class="qa-netvote-count-data">+1<span class="votes-up"><span class="value-title" title="1"></span></span><span class="votes-down"><span class="value-title" title="0"></span></span></span><span class="qa-netvote-count-pad"> vote</span>
+												</span>
+											</div>
+											<div class="qa-vote-clear">
+											</div>
+										</div>
+										<input type="hidden" name="code" value="0-1516468219-91343876e6b1463e7c5b06b70f41aa15f709b609">
+									</form>
+									<div class="qa-a-item-main">
+										<form method="post" action="../../9356/exporting-a-matrix-from-fenics-1-problems-with-eigenmatrix">
+											<div class="qa-a-selection">
+											</div>
+											<div class="qa-a-item-content">
+												<a name="9456"></a><div class="entry-content"><p>You can't get sparrray() from an uniniitialised EigenMatrix (maybe there should be better error checks here).</p>
+
+<p>What you need is</p>
+
+<pre><code>as_backend_type(MassMat).sparray()
+</code></pre>
+</div>
+											</div>
+											<span class="qa-a-item-avatar-meta">
+												<span class="qa-a-item-avatar">
+													<a href="../../user/chris_richardson" class="qa-avatar-link"><img src="https://www.gravatar.com/avatar/d779daeb727bcec8f6b2c505810042db?s=40" width="40" height="40" class="qa-avatar-image" alt=""></a>
+												</span>
+												<span class="qa-a-item-meta">
+													<a href="../../9356/exporting-a-matrix-from-fenics-1-problems-with-eigenmatrix?show=9456#a9456" class="qa-a-item-what">answered</a>
+													<span class="qa-a-item-when">
+														<span class="qa-a-item-when-data"><span class="published"><span class="value-title" title="2016-03-01T20:32:54+0000"></span>Mar 1, 2016</span></span>
+													</span>
+													<span class="qa-a-item-who">
+														<span class="qa-a-item-who-pad">by </span>
+														<span class="qa-a-item-who-data"><span class="vcard author"><a href="../../user/chris_richardson" class="qa-user-link url nickname">chris_richardson</a></span></span>
+														<span class="qa-a-item-who-title">FEniCS Expert</span>
+														<span class="qa-a-item-who-points">
+															<span class="qa-a-item-who-points-pad">(</span><span class="qa-a-item-who-points-data">31,740</span><span class="qa-a-item-who-points-pad"> points)</span>
+														</span>
+													</span>
+												</span>
+											</span>
+											<div class="qa-a-item-buttons">
+												</div>
+											
+											<div class="qa-a-item-c-list" id="c9456_list">
+												<div class="qa-c-list-item  hentry comment" id="c14322">
+													<div class="qa-c-item-content">
+														<a name="14322"></a><div class="entry-content"><p>I didn't response a year ago because prior to your answer I decided to downgraded to 1.5.0 and stick to the <code>uBLAS</code> backend. Please excuse me. Now I have upgraded to 2017.1.0 and become forced to abandon <code>uBLAS</code>, so here I write again.</p>
+
+<p>Yes, <code>as_backend_type</code> is what I missed. Both of these two lines works as expected:</p>
+
+<pre><code>rows,cols,vals = as_backend_type(MassMat).data() # Get CSR data
+M = as_backend_type(MassMat).sparray() # Get SciPy sparse matrix
+</code></pre>
+
+<p>The only thing I wonder about is as follows. One can directly get the SciPy sparse matrix from a dolfin <code>EigenMatrix</code> using the <code>sparray()</code> method. So why it is so frequently advised to get the SciPy sparse matrix by using the <code>data()</code> method which subsequently involves an additional operation of manually creating a SciPy sparse matrix from the data? Using <code>data()</code> is the most frequent solution in the links I provided in my original post and appears even in the FEniCS book (Chap. 10.4, p. 223).</p>
+</div>
+													</div>
+													<div class="qa-c-item-footer">
+														<span class="qa-c-item-avatar-meta">
+															<span class="qa-c-item-meta">
+																<a href="../../9356/exporting-a-matrix-from-fenics-1-problems-with-eigenmatrix?show=14322#c14322" class="qa-c-item-what">commented</a>
+																<span class="qa-c-item-when">
+																	<span class="qa-c-item-when-data"><span class="published"><span class="value-title" title="2017-07-12T14:15:00+0000"></span>Jul 12, 2017</span></span>
+																</span>
+																<span class="qa-c-item-who">
+																	<span class="qa-c-item-who-pad">by </span>
+																	<span class="qa-c-item-who-data"><span class="vcard author"><a href="../../user/gdudziuk" class="qa-user-link url nickname">gdudziuk</a></span></span>
+																	<span class="qa-c-item-who-title">FEniCS Novice</span>
+																	<span class="qa-c-item-who-points">
+																		<span class="qa-c-item-who-points-pad">(</span><span class="qa-c-item-who-points-data">150</span><span class="qa-c-item-who-points-pad"> points)</span>
+																	</span>
+																</span>
+																<br>
+																<span class="qa-c-item-what">edited</span>
+																<span class="qa-c-item-when">
+																	<span class="qa-c-item-when-data"><span class="updated"><span class="value-title" title="2017-07-14T10:15:55+0000"></span>Jul 14, 2017</span></span>
+																</span>
+																<span class="qa-c-item-who">
+																	<span class="qa-c-item-who-pad">by </span><span class="qa-c-item-who-data"><a href="../../user/gdudziuk" class="qa-user-link url nickname">gdudziuk</a></span>
+																</span>
+															</span>
+														</span>
+														<div class="qa-c-item-buttons">
+														</div>
+													</div>
+													<div class="qa-c-item-clear">
+													</div>
+												</div> <!-- END qa-c-item -->
+											</div> <!-- END qa-c-list -->
+											
+											<input type="hidden" name="code" value="0-1516468219-2e69508f38abb7249da5cbc293d64be81eb60876">
+											<input type="hidden" name="qa_click" value="">
+										</form>
+										<div class="qa-c-form">
+										</div> <!-- END qa-c-form -->
+										
+									</div> <!-- END qa-a-item-main -->
+									<div class="qa-a-item-clear">
+									</div>
+								</div> <!-- END qa-a-list-item -->
+								
+							</div> <!-- END qa-a-list -->
+							
+						</div>
+					</div> <!-- END qa-main -->
+					
+				</div> <!-- END main-wrapper -->
+			</div> <!-- END main-shadow -->
+		</div> <!-- END body-wrapper -->
+		<!-- END footer-bottom-group -->
+		
+		<div style="position:absolute; left:-9999px; top:-9999px;">
+			<span id="qa-waiting-template" class="qa-waiting">...</span>
+		</div>
+	
+	
+
+</body><!-- Powered by Question2Answer - http://www.question2answer.org/ --></html>

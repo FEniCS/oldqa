@@ -1,0 +1,317 @@
+<html><!-- Powered by Question2Answer - http://www.question2answer.org/ --><head>
+		<meta http-equiv="content-type" content="text/html; charset=utf-8">
+		<title>Free Convection - FEniCS Q&amp;A</title>
+		<meta name="description" content='Dear all, i tried to implement a method to solve Boussinesq equation for square cavity, but i I ... , it, "iterations." break Best reguards. Francesco'>
+		<link rel="stylesheet" type="text/css" href="../../qa-theme/Snow/qa-styles.css">
+		<link rel="canonical" href="http://fenicsproject.org/qa/11450/free-convection">
+		<script type="text/x-mathjax-config">
+  MathJax.Hub.Config({
+    extensions: ["tex2jax.js"],
+    jax: ["input/TeX","output/HTML-CSS"],
+    tex2jax: {inlineMath: [["$","$"],["\\(","\\)"]]},
+    TeX: { extensions: ["AMSmath.js","AMSsymbols.js"]}
+  });
+</script>
+<script type="text/javascript" src="../../mathjax/MathJax.js"></script>
+		<script src="../../jquery-1.7.2.min.js" type="text/javascript"></script>
+		<script src="../../highlight.min.js"></script>
+<script type="text/javascript">
+$(function(){
+	$('.wmd-input').keypress(function(){
+		window.clearTimeout(hljs.Timeout);
+		hljs.Timeout = window.setTimeout(function() {
+			hljs.initHighlighting.called = false;
+			hljs.initHighlighting();
+		}, 500);
+	});
+	window.setTimeout(function() {
+		hljs.initHighlighting.called = false;
+		hljs.initHighlighting();
+	}, 500);
+});
+</script>
+
+
+	</head>
+	<body class="qa-template-question qa-body-js-off">
+		<div class="qa-body-wrapper">
+			
+			<div class="qa-header">
+				<div class="qa-logo">
+					<a href="../../" class="qa-logo-link" title="FEniCS Q&amp;A"><img src="../../qa-theme/fenics_qa.png" border="0" alt="FEniCS Q&amp;A"></a>
+				</div>
+				<div class="qa-header-clear">
+				</div>
+			</div> <!-- END qa-header -->
+			
+			<div class="qa-main-shadow">
+				
+				<div class="qa-main-wrapper">
+					
+					<div class="qa-sidepanel">
+						<div class="qa-sidebar">
+							This is a read only copy of the old FEniCS QA forum. Please visit the <a href="https://www.allanswered.com/community/s/fenics-project/">new QA forum</a> to ask questions
+						</div>
+						
+					</div>
+					
+					<div class="qa-main">
+						<h1>
+							<span class="entry-title">Free Convection</span>
+						</h1>
+						<div class="qa-part-q-view">
+							<div class="qa-q-view  hentry question" id="q11450">
+								<form method="post" action="../../11450/free-convection">
+									<div class="qa-q-view-stats">
+										<div class="qa-voting qa-voting-net" id="voting_11450">
+											<div class="qa-vote-count qa-vote-count-net">
+												<span class="qa-netvote-count">
+													<span class="qa-netvote-count-data">&#8211;1<span class="votes-up"><span class="value-title" title="0"></span></span><span class="votes-down"><span class="value-title" title="1"></span></span></span><span class="qa-netvote-count-pad"> vote</span>
+												</span>
+											</div>
+											<div class="qa-vote-clear">
+											</div>
+										</div>
+									</div>
+									<input type="hidden" name="code" value="0-1516467767-57e9b3d8da371051f39013c3be8c58bae3f777cd">
+								</form>
+								<div class="qa-q-view-main">
+									<form method="post" action="../../11450/free-convection">
+										<div class="qa-q-view-content">
+											<a name="11450"></a><div class="entry-content"><p>Dear all,<br>
+i tried to implement a method to solve Boussinesq equation for square  cavity, but i I can not understand the type of error.</p>
+
+<p>import os <br>
+import shutil <br>
+import numpy as np<br>
+from dolfin import *<br>
+from RBniCS import *<br>
+from sys import argv<br>
+from distutils.version import LooseVersion as version<br>
+import scipy.io as sio</p>
+
+<h2>Mesh</h2>
+
+<p>mesh = UnitSquareMesh(20,20)</p>
+
+<h2>Function space</h2>
+
+<p>if version(dolfin_version()) &lt; version("1.7.0"):<br>
+    V = VectorFunctionSpace(mesh, "Lagrange", 2)<br>
+    Q = FunctionSpace(mesh, "Lagrange", 1)<br>
+    E = FunctionSpace(mesh, "Lagrange", 1)<br>
+    W = MixedFunctionSpace([V, Q, E])<br>
+else:<br>
+    V_element = VectorElement('Lagrange', mesh.ufl_cell(), 2)<br>
+    Q_element = FiniteElement('Lagrange', mesh.ufl_cell(), 1)<br>
+    E_element = FiniteElement('Lagrange', mesh.ufl_cell(), 1)<br>
+    W_element = MixedElement(V_element, Q_element, E_element)<br>
+    W = FunctionSpace(mesh, W_element)</p>
+
+<h2>Boundary conditions</h2>
+
+<p>noslip = DirichletBC(W.sub(0), (0, 0), "x[0] &lt; DOLFIN_EPS || x[0] &gt; 1.0 - DOLFIN_EPS || x[1] &lt; DOLFIN_EPS || x[1] &gt; 1 - DOLFIN_EPS")<br>
+pref = DirichletBC(W.sub(1), 0, "x[0] &lt; DOLFIN_EPS &amp;&amp; x[1] &lt; DOLFIN_EPS", "pointwise")</p>
+
+<p>t_hot = Constant(1.0)<br>
+t_cold = Constant(0.0)<br>
+Th = DirichletBC(W.sub(2), t_hot, "x[0] &lt; DOLFIN_EPS")<br>
+Tc = DirichletBC(W.sub(2), t_cold, "x[0] &gt; 1.0 - DOLFIN_EPS")</p>
+
+<h2>Collect BCs</h2>
+
+<p>bc_list = [noslip, pref, Th, Tc]</p>
+
+<h2>Define unknown and test function(s)</h2>
+
+<p>(v, q, z) = TestFunctions(W)   # v: velocity, q: pressure, z: temperature</p>
+
+<h2>Define trial functions</h2>
+
+<p>w = TrialFunction(W)<br>
+(u, p, e) = split(w)</p>
+
+<h2>current unknown time step</h2>
+
+<p>w1 = Function(W)<br>
+(u1, p1, e1) = split(w1)</p>
+
+<h2>previous known time step</h2>
+
+<p>w0 = Function(W)<br>
+(u0, p0, e0) = split(w0)</p>
+
+<h2>Fixed point iterations</h2>
+
+<p>w_prev = Function(W)<br>
+(u_prev, p_prev, e_prev) = split(w_prev)</p>
+
+<h2>Dimentionless numbers</h2>
+
+<p>Re = Constant(30)<br>
+Ra = Constant(1000)<br>
+Pr = Constant(0.71)</p>
+
+<p>dt = Constant(0.1)<br>
+T = Constant(0.6)</p>
+
+<p>uy = Expression(('0.0','1'))<br>
+eps = 1.0<br>
+tol = 1.0e-4<br>
+niter = 0<br>
+maxit = 1000<br>
+counter = 0<br>
+cost1 = Ra/(Pr<em>Re</em>Re)<br>
+cost2 = sqrt(Ra*Pr)</p>
+
+<p>f = cost1<em>uy</em>e0</p>
+
+<h2>Variational forms</h2>
+
+<p>Fa = (   Constant(1./dt)<em>inner(u, v)</em>dx<br>
+        + Constant(1./dt)<em>e</em>z<em>dx<br>
+        + Constant(1./Re)</em>inner(grad(u), grad(v))<em>dx<br>
+        + Constant(cost2)</em>inner(grad(e), grad(z))<em>dx<br>
+        + inner(grad(u)</em>u_prev, v)<em>dx<br>
+        - div(v)</em>p<em>dx<br>
+        + div(u)</em>q<em>dx<br>
+        + inner(u, grad(e))</em>z*dx<br>
+      )</p>
+
+<p>FL = (   inner(f, v)<em>dx<br>
+        + Constant(1./dt)</em>inner(e0, z)*dx<br>
+      )</p>
+
+<p>F = Fa + FL<br>
+a = lhs(F)<br>
+L = rhs(F)<br>
+print type(lhs)<br>
+print type(rhs)</p>
+
+<h2>Define inner product matrices for stopping criterion</h2>
+
+<p>x_u = inner(u, v)*dx<br>
+X_u = assemble(x_u)</p>
+
+<h2>XXX Fixed-point loop</h2>
+
+<p>norm_increment_u = 2<em>tol<br>
+norm_increment_p = 2</em>tol</p>
+
+<p>w = Function(W)<br>
+delta_upt = Function(W) # Function in the mixed space to store the increment<br>
+it = 0</p>
+
+<p>for it in range(maxit):<br>
+    # Solve<br>
+    solve(a == L, w, bc_list)<br>
+    # Extract solutions:<br>
+    (u, p, e) = w.split()<br>
+    # Compute the (relative) norm of the increment<br>
+    delta_upt.vector().zero()<br>
+    delta_upt.vector().add_local(w.vector().array())<br>
+    delta_upt.vector().add_local(- w_prev.vector().array())<br>
+    delta_upt.vector().apply("")<br>
+    print type(delta_upt)<br>
+    #delta_upt.vector()[:] = upt.vector()[:] - upt_prev.vector()[:]<br>
+    norm_increment_u = delta_upt.vector().inner(X_u*delta_upt.vector())<br>
+    print type(norm_increment_u)<br>
+    print norm_increment_u<br>
+    # Update the previous value<br>
+    assign(w_prev, w)<br>
+    # Print to screen    <br>
+    print "Iteration", it, \<br>
+    "|| delta_u||_V =", norm_increment_u<br>
+    # Check stopping criterion<br>
+    if (norm_increment_u &lt; tol and norm_increment_u &lt; tol):<br>
+        print "Fixed point loop has converged after", it, "iterations."<br>
+        break</p>
+
+<p>Best reguards.</p>
+
+<p>Francesco</p>
+</div>
+										</div>
+										<span class="qa-q-view-avatar-meta">
+											<span class="qa-q-view-meta">
+												<a href="../../11450/free-convection" class="qa-q-view-what">asked</a>
+												<span class="qa-q-view-when">
+													<span class="qa-q-view-when-data"><span class="published"><span class="value-title" title="2016-10-24T13:30:38+0000"></span>Oct 24, 2016</span></span>
+												</span>
+												<span class="qa-q-view-who">
+													<span class="qa-q-view-who-pad">by </span>
+													<span class="qa-q-view-who-data"><span class="vcard author"><a href="../../user/Francesco_nuke_91" class="qa-user-link url nickname">Francesco_nuke_91</a></span></span>
+													<span class="qa-q-view-who-title">FEniCS Novice</span>
+													<span class="qa-q-view-who-points">
+														<span class="qa-q-view-who-points-pad">(</span><span class="qa-q-view-who-points-data">280</span><span class="qa-q-view-who-points-pad"> points)</span>
+													</span>
+												</span>
+											</span>
+										</span>
+										<div class="qa-q-view-buttons">
+										</div>
+										
+										<div class="qa-q-view-c-list" id="c11450_list">
+											<div class="qa-c-list-item  hentry comment" id="c11453">
+												<div class="qa-c-item-content">
+													<a name="11453"></a><div class="entry-content"><p>Please use proper code formatting and describe the kind of error you are experiencing.</p>
+</div>
+												</div>
+												<div class="qa-c-item-footer">
+													<span class="qa-c-item-avatar-meta">
+														<span class="qa-c-item-meta">
+															<a href="../../11450/free-convection?show=11453#c11453" class="qa-c-item-what">commented</a>
+															<span class="qa-c-item-when">
+																<span class="qa-c-item-when-data"><span class="published"><span class="value-title" title="2016-10-24T16:27:21+0000"></span>Oct 24, 2016</span></span>
+															</span>
+															<span class="qa-c-item-who">
+																<span class="qa-c-item-who-pad">by </span>
+																<span class="qa-c-item-who-data"><span class="vcard author"><a href="../../user/Christian+Waluga" class="qa-user-link url nickname">Christian Waluga</a></span></span>
+																<span class="qa-c-item-who-title">FEniCS Expert</span>
+																<span class="qa-c-item-who-points">
+																	<span class="qa-c-item-who-points-pad">(</span><span class="qa-c-item-who-points-data">12,310</span><span class="qa-c-item-who-points-pad"> points)</span>
+																</span>
+															</span>
+														</span>
+													</span>
+													<div class="qa-c-item-buttons">
+													</div>
+												</div>
+												<div class="qa-c-item-clear">
+												</div>
+											</div> <!-- END qa-c-item -->
+										</div> <!-- END qa-c-list -->
+										
+										<input type="hidden" name="code" value="0-1516467767-080d3a1589ed1de8f1cab7123b8d139def74592f">
+										<input type="hidden" name="qa_click" value="">
+									</form>
+									<div class="qa-c-form">
+									</div> <!-- END qa-c-form -->
+									
+								</div> <!-- END qa-q-view-main -->
+								<div class="qa-q-view-clear">
+								</div>
+							</div> <!-- END qa-q-view -->
+							
+						</div>
+						<div class="qa-part-a-list">
+							<h2 id="a_list_title" style="display:none;"></h2>
+							<div class="qa-a-list" id="a_list">
+								
+							</div> <!-- END qa-a-list -->
+							
+						</div>
+					</div> <!-- END qa-main -->
+					
+				</div> <!-- END main-wrapper -->
+			</div> <!-- END main-shadow -->
+		</div> <!-- END body-wrapper -->
+		<!-- END footer-bottom-group -->
+		
+		<div style="position:absolute; left:-9999px; top:-9999px;">
+			<span id="qa-waiting-template" class="qa-waiting">...</span>
+		</div>
+	
+	
+
+</body><!-- Powered by Question2Answer - http://www.question2answer.org/ --></html>

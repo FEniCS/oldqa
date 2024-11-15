@@ -1,0 +1,461 @@
+<html><!-- Powered by Question2Answer - http://www.question2answer.org/ --><head>
+		<meta http-equiv="content-type" content="text/html; charset=utf-8">
+		<title>Interior facet integration not working properly in parallel - FEniCS Q&amp;A</title>
+		<meta name="description" content="Hello, I have some difficulties solving a simple transient solid/acoustic problem in parallel. I have made a  ...  b = assemble(L) t = dt while t">
+		<meta name="keywords" content="interior-facet-integral,parallel,mpi,multiphysics,transient">
+		<link rel="stylesheet" type="text/css" href="../../qa-theme/Snow/qa-styles.css">
+		<link rel="canonical" href="http://fenicsproject.org/qa/12719/interior-facet-integration-not-working-properly-parallel">
+		<script type="text/x-mathjax-config">
+  MathJax.Hub.Config({
+    extensions: ["tex2jax.js"],
+    jax: ["input/TeX","output/HTML-CSS"],
+    tex2jax: {inlineMath: [["$","$"],["\\(","\\)"]]},
+    TeX: { extensions: ["AMSmath.js","AMSsymbols.js"]}
+  });
+</script>
+<script type="text/javascript" src="../../mathjax/MathJax.js"></script>
+		<script src="../../jquery-1.7.2.min.js" type="text/javascript"></script>
+		<script src="../../highlight.min.js"></script>
+<script type="text/javascript">
+$(function(){
+	$('.wmd-input').keypress(function(){
+		window.clearTimeout(hljs.Timeout);
+		hljs.Timeout = window.setTimeout(function() {
+			hljs.initHighlighting.called = false;
+			hljs.initHighlighting();
+		}, 500);
+	});
+	window.setTimeout(function() {
+		hljs.initHighlighting.called = false;
+		hljs.initHighlighting();
+	}, 500);
+});
+</script>
+
+
+	</head>
+	<body class="qa-template-question qa-body-js-off">
+		<div class="qa-body-wrapper">
+			
+			<div class="qa-header">
+				<div class="qa-logo">
+					<a href="../../" class="qa-logo-link" title="FEniCS Q&amp;A"><img src="../../qa-theme/fenics_qa.png" border="0" alt="FEniCS Q&amp;A"></a>
+				</div>
+				<div class="qa-header-clear">
+				</div>
+			</div> <!-- END qa-header -->
+			
+			<div class="qa-main-shadow">
+				
+				<div class="qa-main-wrapper">
+					
+					<div class="qa-sidepanel">
+						<div class="qa-sidebar">
+							This is a read only copy of the old FEniCS QA forum. Please visit the <a href="https://www.allanswered.com/community/s/fenics-project/">new QA forum</a> to ask questions
+						</div>
+						
+					</div>
+					
+					<div class="qa-main">
+						<h1>
+							<span class="entry-title">Interior facet integration not working properly in parallel</span>
+						</h1>
+						<div class="qa-part-q-view">
+							<div class="qa-q-view  hentry question" id="q12719">
+								<form method="post" action="../../12719/interior-facet-integration-not-working-properly-parallel">
+									<div class="qa-q-view-stats">
+										<div class="qa-voting qa-voting-net" id="voting_12719">
+											<div class="qa-vote-count qa-vote-count-net">
+												<span class="qa-netvote-count">
+													<span class="qa-netvote-count-data">+1<span class="votes-up"><span class="value-title" title="1"></span></span><span class="votes-down"><span class="value-title" title="0"></span></span></span><span class="qa-netvote-count-pad"> vote</span>
+												</span>
+											</div>
+											<div class="qa-vote-clear">
+											</div>
+										</div>
+									</div>
+									<input type="hidden" name="code" value="0-1516467836-d715ea1d68b5ba48759e372f1682ce7f7a992862">
+								</form>
+								<div class="qa-q-view-main">
+									<form method="post" action="../../12719/interior-facet-integration-not-working-properly-parallel">
+										<div class="qa-q-view-content">
+											<a name="12719"></a><div class="entry-content"><p>Hello,</p>
+
+<p>I have some difficulties solving a simple transient solid/acoustic problem in parallel. I have made a simple example of what I'm using:</p>
+
+<pre><code>from dolfin import *
+from math import *
+import numpy as np
+import time
+
+set_log_level(PROGRESS)
+parameters["std_out_all_processes"] = False
+
+##Parameters
+#MPI
+comm = mpi_comm_world()
+rank = MPI.rank(comm)
+
+#Mesh
+m_l = 0.02
+m_h = 0.008
+nx = 200
+ny = 80
+
+#Material indices
+i_s = 0 #Solid region
+i_f = 1 #Fluid region
+
+#Time
+f = 360E3
+dt = 25E-9
+tf = 10E-6
+u_in = Expression('1E-6*sin(2*3.14*f*t)', t=0.0, f=f, degree=1)
+
+#Solver parameters
+parameters['krylov_solver']['nonzero_initial_guess'] = True
+parameters['krylov_solver']['relative_tolerance'] = 1E-6
+parameters['krylov_solver']['monitor_convergence'] = False
+
+##Output
+upfile = XDMFFile(comm, "results/up.xdmf")
+upfile.parameters['rewrite_function_mesh'] = False
+upfile.parameters['flush_output'] = True
+
+pfile = XDMFFile(comm, "results/p.xdmf")
+pfile.parameters['rewrite_function_mesh'] = False
+pfile.parameters['flush_output'] = True
+
+##Materials
+#Support - ABS
+rho_s = Constant(1.17E3)
+
+E_s = 3.0E9
+nu_s = 0.33 
+
+C11_s = Constant((1.0-nu_s)*E_s/((1.0+nu_s)*(1-2*nu_s)))
+C12_s = Constant(nu_s*E_s/((1.0+nu_s)*(1-2*nu_s)))
+C44_s = Constant(E_s/(1.0+nu_s))
+
+zz = Constant(0.0)
+
+C_s = as_matrix([[C11_s,C12_s,C12_s,zz],\
+                 [C12_s,C11_s,C12_s,zz],\
+                 [C12_s,C12_s,C11_s,zz],\
+                 [zz,zz,zz,C44_s]])
+
+#Water
+c_w = Constant(1480.0)
+rho_w = Constant(1000.0)
+
+##Load mesh
+mesh = RectangleMesh(Point(0.0,0.0), Point(m_l, m_h), nx, ny)
+
+##Load material map
+#Physical regions markers
+cell_markers = CellFunction("uint", mesh)
+
+class SolidRegion(SubDomain):
+    def inside(self, x, on_boundary):
+        return (x[1] &lt; m_h/2 + DOLFIN_EPS) and (x[0] &lt; m_l + DOLFIN_EPS)
+SolidRegion().mark(cell_markers, i_s)
+
+class FluidRegion(SubDomain):
+    def inside(self, x, on_boundary):
+        return (x[1] &gt; m_h/2 - DOLFIN_EPS) and (x[0] &lt; m_l + DOLFIN_EPS)
+FluidRegion().mark(cell_markers, i_f)
+
+XDMFFile('phys_reg.xdmf').write(cell_markers)
+
+#BC + FSI markers
+boundaries = FacetFunction("uint", mesh)
+
+class Bottom(SubDomain):
+    def inside(self, x, on_boundary):
+        return (x[1] &lt; DOLFIN_EPS) and (x[0] &lt; 0.8*m_l + DOLFIN_EPS) and on_boundary
+Bottom().mark(boundaries, 1)
+
+class Interface(SubDomain):
+    def inside(self, x, on_boundary):
+        return (x[1] &lt; 0.5*m_h+0.5*(m_h/ny)) and (x[1] &gt; 0.5*m_h-0.5*(m_h/ny)) and (x[0] &lt; m_l + DOLFIN_EPS)
+Interface().mark(boundaries, 2)
+
+XDMFFile('BCs.xdmf').write(boundaries)
+
+#Save the mesh partitioning 
+if MPI.size(comm) &gt; 1:
+    XDMFFile("partitions.xdmf").write(CellFunction("size_t", mesh, rank))
+
+##Weak form
+#Operators
+def Lu(u):
+    r = Expression("x[0]", degree=1)
+    V = as_vector([[u[0].dx(0)],[u[0]/r],[u[1].dx(1)],[u[0].dx(1)+u[1].dx(0)]])
+    return V
+
+U = VectorElement("CG", mesh.ufl_cell(), 1)
+P = FiniteElement("CG", mesh.ufl_cell(), 1)
+
+W = FunctionSpace(mesh, MixedElement([U, P]))
+(u, p) = TrialFunctions(W)
+(v, dp) = TestFunctions(W)
+
+w = Function(W)
+w1 = Function(W)
+wp1 = Function(W)
+w0 = Function(W)
+
+bc_u = DirichletBC(W.sub(0).sub(1),u_in,boundaries,1)
+
+r = Expression("x[0]", degree=1) #Axisymm
+k = Constant(1.0/dt) #BFD
+
+dx = Measure("dx")[cell_markers]
+ds = Measure("ds")[boundaries]
+dS = Measure("dS")[boundaries]
+
+#Solid wf
+a_s = inner(Lu(v),dot(C_s,Lu(u)))*r*dx(i_s)
+m_s = rho_s*k*k*inner(v,u)*r*dx(i_s)
+L_s = rho_s*k*k*inner(Constant(2.0)*split(w1)[0]-split(w0)[0],v)*r*dx(i_s) 
+
+#Fluid wf
+a_f = c_w*c_w*inner(grad(p),grad(dp))*r*dx(i_f)
+m_f = k*k*p*dp*r*dx(i_f)
+L_f = (Constant(2.0)*k*k*split(w1)[1]-k*k*split(w0)[1])*dp*r*dx(i_f) 
+
+#FSI
+a_fsi = -avg(rho_w*c_w*c_w*k*k*u[1]*dp*r)*dS(2) +avg(p*v[1]*r)*dS(2)
+L_fsi = -avg(rho_w*c_w*c_w*(Constant(2.0)*k*k*split(w1)[0][1]-k*k*split(w0)[0][2])*dp*r)*dS(2)
+
+a = a_s+a_f+a_fsi
+m = m_s+m_f
+L = L_s+L_f+L_fsi
+
+##Solve
+A = assemble(a+m)
+b = assemble(L)
+
+t = dt
+while t&lt;tf:
+    if rank == 0:
+        t1 = time.clock()
+    if t &lt; 1.0/(4.0*f):
+        u_in.t = t
+    else:
+        u_in.t = 1.0/(4.0*f)
+    b = assemble(L)
+    bc_u.apply(A,b)
+
+    solve(A, w.vector(), b, "bicgstab", "hypre_amg")
+
+    w10,w20= w.split()
+    wp1.vector()[:] = (1.0/dt)*(w.vector().array()-w1.vector().array())
+    wp10,wp20 = wp1.split()
+    w20.rename('p', 'pressure')
+    wp10.rename('up', 'particle velocity')
+    upfile.write(wp10,t)
+    pfile.write(w20,t)
+
+    w0.vector()[:] = w1.vector().array()
+    w1.vector()[:] = w.vector().array()
+    if rank == 0:
+        print (time.clock()-t1)
+    if rank == 0:
+        print t
+    t += dt
+</code></pre>
+
+<p>The fluid structure interface (FSI) is made by integrating on the interior facets (here at the middle of the mesh, on line 2). It's working nicely if I run it on a single process, as shown here on the following picture:</p>
+
+<p><img src="http://i.imgur.com/EiYT2ge.png" alt="Result for mpiexec -n 1"></p>
+
+<p>But when I run it in parallel, like for exemple here with the command 'mpiexec -n 8', I have this kind of result:</p>
+
+<p><img src="http://i.imgur.com/Kc9pe7I.png" alt="Result for mpiexec -n 8"></p>
+
+<p>The fluid structure interface does not compute on some parts of the interface. After inspection, the problem comes from the partitioning: if the interior facets of the interface are cut by the partitioning (ie the interior facets are on two separate partitions), then the FSI does not work. Below a picture of the partitioning for 'mpiexec -n 8':</p>
+
+<p><img src="http://i.imgur.com/QboRa3N.png" alt="Partitioning for mpiexec -n 8"></p>
+
+<p>If the partitioning does not cut the interior facets, then the problem solves fine (for example with mpiexec -n 4).</p>
+
+<p>Is this a bug or am I doing something wrong? I am using the 2016.2 version, downloaded on the ubuntu deposit. Is there a possibility to control SCOTCH in order to avoid partitioning over the interior facets of interest? Or another possible work around?</p>
+
+<p>Thank you.</p>
+</div>
+										</div>
+										<div class="qa-q-view-tags">
+											<ul class="qa-q-view-tag-list">
+												<li class="qa-q-view-tag-item"><a href="../../tag/interior-facet-integral" rel="tag" class="qa-tag-link">interior-facet-integral</a></li>
+												<li class="qa-q-view-tag-item"><a href="../../tag/parallel" rel="tag" class="qa-tag-link">parallel</a></li>
+												<li class="qa-q-view-tag-item"><a href="../../tag/mpi" rel="tag" class="qa-tag-link">mpi</a></li>
+												<li class="qa-q-view-tag-item"><a href="../../tag/multiphysics" rel="tag" class="qa-tag-link">multiphysics</a></li>
+												<li class="qa-q-view-tag-item"><a href="../../tag/transient" rel="tag" class="qa-tag-link">transient</a></li>
+											</ul>
+										</div>
+										<span class="qa-q-view-avatar-meta">
+											<span class="qa-q-view-meta">
+												<a href="../../12719/interior-facet-integration-not-working-properly-parallel" class="qa-q-view-what">asked</a>
+												<span class="qa-q-view-when">
+													<span class="qa-q-view-when-data"><span class="published"><span class="value-title" title="2017-03-16T15:05:51+0000"></span>Mar 16, 2017</span></span>
+												</span>
+												<span class="qa-q-view-who">
+													<span class="qa-q-view-who-pad">by </span>
+													<span class="qa-q-view-who-data"><span class="vcard author"><a href="../../user/gthomas" class="qa-user-link url nickname">gthomas</a></span></span>
+													<span class="qa-q-view-who-title">FEniCS Novice</span>
+													<span class="qa-q-view-who-points">
+														<span class="qa-q-view-who-points-pad">(</span><span class="qa-q-view-who-points-data">170</span><span class="qa-q-view-who-points-pad"> points)</span>
+													</span>
+												</span>
+												<br>
+												<span class="qa-q-view-what">edited</span>
+												<span class="qa-q-view-when">
+													<span class="qa-q-view-when-data"><span class="updated"><span class="value-title" title="2017-03-16T16:39:21+0000"></span>Mar 16, 2017</span></span>
+												</span>
+												<span class="qa-q-view-who">
+													<span class="qa-q-view-who-pad">by </span><span class="qa-q-view-who-data"><a href="../../user/gthomas" class="qa-user-link url nickname">gthomas</a></span>
+												</span>
+											</span>
+										</span>
+										<div class="qa-q-view-buttons">
+										</div>
+										
+										<div class="qa-q-view-c-list" style="display:none;" id="c12719_list">
+										</div> <!-- END qa-c-list -->
+										
+										<input type="hidden" name="code" value="0-1516467836-baddd91ef153603adf8bb988553a167d125f4b34">
+										<input type="hidden" name="qa_click" value="">
+									</form>
+									<div class="qa-c-form">
+									</div> <!-- END qa-c-form -->
+									
+								</div> <!-- END qa-q-view-main -->
+								<div class="qa-q-view-clear">
+								</div>
+							</div> <!-- END qa-q-view -->
+							
+						</div>
+						<div class="qa-part-a-list">
+							<h2 id="a_list_title">1 Answer</h2>
+							<div class="qa-a-list" id="a_list">
+								
+								<div class="qa-a-list-item  hentry answer answer-selected qa-a-list-item-selected" id="a12721">
+									<form method="post" action="../../12719/interior-facet-integration-not-working-properly-parallel">
+										<div class="qa-voting qa-voting-net" id="voting_12721">
+											<div class="qa-vote-count qa-vote-count-net">
+												<span class="qa-netvote-count">
+													<span class="qa-netvote-count-data">+1<span class="votes-up"><span class="value-title" title="1"></span></span><span class="votes-down"><span class="value-title" title="0"></span></span></span><span class="qa-netvote-count-pad"> vote</span>
+												</span>
+											</div>
+											<div class="qa-vote-clear">
+											</div>
+										</div>
+										<input type="hidden" name="code" value="0-1516467836-d715ea1d68b5ba48759e372f1682ce7f7a992862">
+									</form>
+									<div class="qa-a-item-main">
+										<form method="post" action="../../12719/interior-facet-integration-not-working-properly-parallel">
+											<div class="qa-a-item-selected">
+												<div class="qa-a-selection">
+													<div class="qa-a-selected">&#160;</div>
+													<div class="qa-a-selected-text">Best answer</div>
+												</div>
+												<div class="qa-a-item-content">
+													<a name="12721"></a><div class="entry-content"><p>You need to share facets between processes:</p>
+
+<pre><code>parameters["ghost_mode"] = "shared_facet"
+</code></pre>
+
+<p>It also looks like you're using an old version of DOLFIN. I highly recommend you update to the latest version to ensure you're using the latest features for running in parallel with interior facet integration.</p>
+</div>
+												</div>
+												<span class="qa-a-item-avatar-meta">
+													<span class="qa-a-item-avatar">
+														<a href="../../user/nate" class="qa-avatar-link"><img src="../../?qa=image&amp;qa_blobid=969593914916706065&amp;qa_size=40" width="40" height="40" class="qa-avatar-image" alt=""></a>
+													</span>
+													<span class="qa-a-item-meta">
+														<a href="../../12719/interior-facet-integration-not-working-properly-parallel?show=12721#a12721" class="qa-a-item-what">answered</a>
+														<span class="qa-a-item-when">
+															<span class="qa-a-item-when-data"><span class="published"><span class="value-title" title="2017-03-16T16:50:20+0000"></span>Mar 16, 2017</span></span>
+														</span>
+														<span class="qa-a-item-who">
+															<span class="qa-a-item-who-pad">by </span>
+															<span class="qa-a-item-who-data"><span class="vcard author"><a href="../../user/nate" class="qa-user-link url nickname">nate</a></span></span>
+															<span class="qa-a-item-who-title">FEniCS Expert</span>
+															<span class="qa-a-item-who-points">
+																<span class="qa-a-item-who-points-pad">(</span><span class="qa-a-item-who-points-data">17,050</span><span class="qa-a-item-who-points-pad"> points)</span>
+															</span>
+														</span>
+														<br>
+														<span class="qa-a-item-what">selected</span>
+														<span class="qa-a-item-when">
+															<span class="qa-a-item-when-data"><span class="updated"><span class="value-title" title="2017-03-16T16:57:41+0000"></span>Mar 16, 2017</span></span>
+														</span>
+														<span class="qa-a-item-who">
+															<span class="qa-a-item-who-pad">by </span><span class="qa-a-item-who-data"><a href="../../user/gthomas" class="qa-user-link url nickname">gthomas</a></span>
+														</span>
+													</span>
+												</span>
+											</div>
+											<div class="qa-a-item-buttons">
+												</div>
+											
+											<div class="qa-a-item-c-list" id="c12721_list">
+												<div class="qa-c-list-item  hentry comment" id="c12722">
+													<div class="qa-c-item-content">
+														<a name="12722"></a><div class="entry-content"><p>That solved my problem, thank you !</p>
+</div>
+													</div>
+													<div class="qa-c-item-footer">
+														<span class="qa-c-item-avatar-meta">
+															<span class="qa-c-item-meta">
+																<a href="../../12719/interior-facet-integration-not-working-properly-parallel?show=12722#c12722" class="qa-c-item-what">commented</a>
+																<span class="qa-c-item-when">
+																	<span class="qa-c-item-when-data"><span class="published"><span class="value-title" title="2017-03-16T16:58:57+0000"></span>Mar 16, 2017</span></span>
+																</span>
+																<span class="qa-c-item-who">
+																	<span class="qa-c-item-who-pad">by </span>
+																	<span class="qa-c-item-who-data"><span class="vcard author"><a href="../../user/gthomas" class="qa-user-link url nickname">gthomas</a></span></span>
+																	<span class="qa-c-item-who-title">FEniCS Novice</span>
+																	<span class="qa-c-item-who-points">
+																		<span class="qa-c-item-who-points-pad">(</span><span class="qa-c-item-who-points-data">170</span><span class="qa-c-item-who-points-pad"> points)</span>
+																	</span>
+																</span>
+															</span>
+														</span>
+														<div class="qa-c-item-buttons">
+														</div>
+													</div>
+													<div class="qa-c-item-clear">
+													</div>
+												</div> <!-- END qa-c-item -->
+											</div> <!-- END qa-c-list -->
+											
+											<input type="hidden" name="code" value="0-1516467836-d7fa950026deb6c625b33d1cc733c679a6f28a08">
+											<input type="hidden" name="qa_click" value="">
+										</form>
+										<div class="qa-c-form">
+										</div> <!-- END qa-c-form -->
+										
+									</div> <!-- END qa-a-item-main -->
+									<div class="qa-a-item-clear">
+									</div>
+								</div> <!-- END qa-a-list-item -->
+								
+							</div> <!-- END qa-a-list -->
+							
+						</div>
+					</div> <!-- END qa-main -->
+					
+				</div> <!-- END main-wrapper -->
+			</div> <!-- END main-shadow -->
+		</div> <!-- END body-wrapper -->
+		<!-- END footer-bottom-group -->
+		
+		<div style="position:absolute; left:-9999px; top:-9999px;">
+			<span id="qa-waiting-template" class="qa-waiting">...</span>
+		</div>
+	
+	
+
+</body><!-- Powered by Question2Answer - http://www.question2answer.org/ --></html>

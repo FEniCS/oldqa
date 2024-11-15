@@ -1,0 +1,425 @@
+<html><!-- Powered by Question2Answer - http://www.question2answer.org/ --><head>
+		<meta http-equiv="content-type" content="text/html; charset=utf-8">
+		<title>Stokes flow simulation by imposing pressure bc does not give sensible results! - FEniCS Q&amp;A</title>
+		<meta name="description" content='I did some Stokes flow simulation with and without stabilization by imposing pressure bc for the ... format ufile_pvd = File("velocity.pvd") ufile_pvd'>
+		<link rel="stylesheet" type="text/css" href="../../qa-theme/Snow/qa-styles.css">
+		<link rel="canonical" href="http://fenicsproject.org/qa/11819/stokes-flow-simulation-imposing-pressure-sensible-results">
+		<script type="text/x-mathjax-config">
+  MathJax.Hub.Config({
+    extensions: ["tex2jax.js"],
+    jax: ["input/TeX","output/HTML-CSS"],
+    tex2jax: {inlineMath: [["$","$"],["\\(","\\)"]]},
+    TeX: { extensions: ["AMSmath.js","AMSsymbols.js"]}
+  });
+</script>
+<script type="text/javascript" src="../../mathjax/MathJax.js"></script>
+		<script src="../../jquery-1.7.2.min.js" type="text/javascript"></script>
+		<script src="../../highlight.min.js"></script>
+<script type="text/javascript">
+$(function(){
+	$('.wmd-input').keypress(function(){
+		window.clearTimeout(hljs.Timeout);
+		hljs.Timeout = window.setTimeout(function() {
+			hljs.initHighlighting.called = false;
+			hljs.initHighlighting();
+		}, 500);
+	});
+	window.setTimeout(function() {
+		hljs.initHighlighting.called = false;
+		hljs.initHighlighting();
+	}, 500);
+});
+</script>
+
+
+	</head>
+	<body class="qa-template-question qa-body-js-off">
+		<div class="qa-body-wrapper">
+			
+			<div class="qa-header">
+				<div class="qa-logo">
+					<a href="../../" class="qa-logo-link" title="FEniCS Q&amp;A"><img src="../../qa-theme/fenics_qa.png" border="0" alt="FEniCS Q&amp;A"></a>
+				</div>
+				<div class="qa-header-clear">
+				</div>
+			</div> <!-- END qa-header -->
+			
+			<div class="qa-main-shadow">
+				
+				<div class="qa-main-wrapper">
+					
+					<div class="qa-sidepanel">
+						<div class="qa-sidebar">
+							This is a read only copy of the old FEniCS QA forum. Please visit the <a href="https://www.allanswered.com/community/s/fenics-project/">new QA forum</a> to ask questions
+						</div>
+						
+					</div>
+					
+					<div class="qa-main">
+						<h1>
+							<span class="entry-title">Stokes flow simulation by imposing pressure bc does not give sensible results!</span>
+						</h1>
+						<div class="qa-part-q-view">
+							<div class="qa-q-view  hentry question" id="q11819">
+								<form method="post" action="../../11819/stokes-flow-simulation-imposing-pressure-sensible-results">
+									<div class="qa-q-view-stats">
+										<div class="qa-voting qa-voting-net" id="voting_11819">
+											<div class="qa-vote-count qa-vote-count-net">
+												<span class="qa-netvote-count">
+													<span class="qa-netvote-count-data">+1<span class="votes-up"><span class="value-title" title="1"></span></span><span class="votes-down"><span class="value-title" title="0"></span></span></span><span class="qa-netvote-count-pad"> vote</span>
+												</span>
+											</div>
+											<div class="qa-vote-clear">
+											</div>
+										</div>
+									</div>
+									<input type="hidden" name="code" value="0-1516467787-8112e66808d7fda36826e5d6ea1c48f50caeb9f0">
+								</form>
+								<div class="qa-q-view-main">
+									<form method="post" action="../../11819/stokes-flow-simulation-imposing-pressure-sensible-results">
+										<div class="qa-q-view-content">
+											<a name="11819"></a><div class="entry-content"><p>I did some Stokes flow simulation with and without stabilization by imposing pressure bc for the inlet and outlet but the results does not seem to be reasonable. It gives me high velocity close to the boundary but very small values for other parts of the mesh. I tested different codes in fenics demo for stokes flow and they gave me similar results. But if I use inlet velocity and some pressure value for the outlet then the results are fine. Here also you can find my code:</p>
+
+<p>from <strong>future</strong> import print_function<br>
+from dolfin import *</p>
+
+<h2>Load mesh and subdomains</h2>
+
+<p>mesh = UnitSquareMesh(50, 50)<br>
+set_log_level(PROGRESS)</p>
+
+<h2>Define function spaces</h2>
+
+<p>V = VectorFunctionSpace(mesh, "CG", 2)<br>
+P = FunctionSpace(mesh, "CG", 1)<br>
+W = MixedFunctionSpace([V, P]) #Taylor-Hood</p>
+
+<h2>No-slip boundary condition for velocity</h2>
+
+<h2>x1 = 0, x1 = 1 and around the dolphin</h2>
+
+<p>noslip = Constant((0, 0))<br>
+inflow = Expression(("100", "0"))<br>
+zero   = Constant(0)</p>
+
+<h2>Inflow boundary condition for velocity</h2>
+
+<h2>x0 = 1</h2>
+
+<p>def inlet_boundary(x, on_boundary):<br>
+    tol = 1E-14<br>
+    return on_boundary and abs(x[0]) &lt; tol</p>
+
+<p>def outlet_boundary(x, on_boundary):<br>
+    tol = 1E-14<br>
+    return on_boundary and abs(x[0]-1) &lt; tol</p>
+
+<p>def wall_boundary(x, on_boundary):<br>
+    tol = 1E-14<br>
+    return on_boundary and abs(x[1])  &lt; tol or abs(x[1]-1) &lt; tol</p>
+
+<h2>Collect boundary conditions</h2>
+
+<p>bc_1 = DirichletBC(W.sub(0),  noslip, wall_boundary)</p>
+
+<h2>Inflow boundary condition for velocity</h2>
+
+<p>bc_2 = DirichletBC(W.sub(1), Constant(0.0), inlet_boundary)<br>
+bc_3 = DirichletBC(W.sub(1), Constant(10.0), outlet_boundary)</p>
+
+<h2>Define variational problem</h2>
+
+<p>(u, p) = TrialFunctions(W)<br>
+(v, q) = TestFunctions(W)<br>
+f = Constant((0, 0))<br>
+a = (inner(grad(u), grad(v)) - div(v)<em>p + q</em>div(u))<em>dx<br>
+L = inner(f, v)</em>dx</p>
+
+<h2>Compute solution</h2>
+
+<p>A, b = assemble_system(a, L)<br>
+bc_2.apply(A,b)<br>
+bc_1.apply(A,b)<br>
+bc_3.apply(A,b)</p>
+
+<p>w = Function(W)<br>
+solve(A, w.vector(), b,'lu')<br>
+u, p = w.split()</p>
+
+<h2># Split the mixed solution using a shallow copy</h2>
+
+<h2>Save solution in VTK format</h2>
+
+<p>ufile_pvd = File("velocity.pvd")<br>
+ufile_pvd &lt;&lt; u<br>
+pfile_pvd = File("pressure.pvd")<br>
+pfile_pvd &lt;&lt; p</p>
+</div>
+										</div>
+										<span class="qa-q-view-avatar-meta">
+											<span class="qa-q-view-meta">
+												<a href="../../11819/stokes-flow-simulation-imposing-pressure-sensible-results" class="qa-q-view-what">asked</a>
+												<span class="qa-q-view-when">
+													<span class="qa-q-view-when-data"><span class="published"><span class="value-title" title="2016-12-02T22:03:43+0000"></span>Dec 2, 2016</span></span>
+												</span>
+												<span class="qa-q-view-who">
+													<span class="qa-q-view-who-pad">by </span>
+													<span class="qa-q-view-who-data"><span class="vcard author"><a href="../../user/Abi" class="qa-user-link url nickname">Abi</a></span></span>
+													<span class="qa-q-view-who-title">FEniCS Novice</span>
+													<span class="qa-q-view-who-points">
+														<span class="qa-q-view-who-points-pad">(</span><span class="qa-q-view-who-points-data">270</span><span class="qa-q-view-who-points-pad"> points)</span>
+													</span>
+												</span>
+												<br>
+												<span class="qa-q-view-what">edited</span>
+												<span class="qa-q-view-when">
+													<span class="qa-q-view-when-data"><span class="updated"><span class="value-title" title="2016-12-03T02:37:35+0000"></span>Dec 3, 2016</span></span>
+												</span>
+												<span class="qa-q-view-who">
+													<span class="qa-q-view-who-pad">by </span><span class="qa-q-view-who-data"><a href="../../user/Abi" class="qa-user-link url nickname">Abi</a></span>
+												</span>
+											</span>
+										</span>
+										<div class="qa-q-view-buttons">
+										</div>
+										
+										<div class="qa-q-view-c-list" style="display:none;" id="c11819_list">
+										</div> <!-- END qa-c-list -->
+										
+										<input type="hidden" name="code" value="0-1516467787-ee6b0933d9bbaed8fabd2fda4a504e7c5b755a39">
+										<input type="hidden" name="qa_click" value="">
+									</form>
+									<div class="qa-c-form">
+									</div> <!-- END qa-c-form -->
+									
+								</div> <!-- END qa-q-view-main -->
+								<div class="qa-q-view-clear">
+								</div>
+							</div> <!-- END qa-q-view -->
+							
+						</div>
+						<div class="qa-part-a-list">
+							<h2 id="a_list_title">1 Answer</h2>
+							<div class="qa-a-list" id="a_list">
+								
+								<div class="qa-a-list-item  hentry answer" id="a11824">
+									<form method="post" action="../../11819/stokes-flow-simulation-imposing-pressure-sensible-results">
+										<div class="qa-voting qa-voting-net" id="voting_11824">
+											<div class="qa-vote-count qa-vote-count-net">
+												<span class="qa-netvote-count">
+													<span class="qa-netvote-count-data">0<span class="votes-up"><span class="value-title" title="0"></span></span><span class="votes-down"><span class="value-title" title="0"></span></span></span><span class="qa-netvote-count-pad"> votes</span>
+												</span>
+											</div>
+											<div class="qa-vote-clear">
+											</div>
+										</div>
+										<input type="hidden" name="code" value="0-1516467787-8112e66808d7fda36826e5d6ea1c48f50caeb9f0">
+									</form>
+									<div class="qa-a-item-main">
+										<form method="post" action="../../11819/stokes-flow-simulation-imposing-pressure-sensible-results">
+											<div class="qa-a-selection">
+											</div>
+											<div class="qa-a-item-content">
+												<a name="11824"></a><div class="entry-content"><p>Hi, <br>
+Pressure conditions have to be imposed weakly as a Neumann condition. <br>
+The stokes demos show you how to do this.  </p>
+</div>
+											</div>
+											<span class="qa-a-item-avatar-meta">
+												<span class="qa-a-item-meta">
+													<a href="../../11819/stokes-flow-simulation-imposing-pressure-sensible-results?show=11824#a11824" class="qa-a-item-what">answered</a>
+													<span class="qa-a-item-when">
+														<span class="qa-a-item-when-data"><span class="published"><span class="value-title" title="2016-12-04T09:12:43+0000"></span>Dec 4, 2016</span></span>
+													</span>
+													<span class="qa-a-item-who">
+														<span class="qa-a-item-who-pad">by </span>
+														<span class="qa-a-item-who-data"><span class="vcard author"><a href="../../user/Kent-Andre+Mardal" class="qa-user-link url nickname">Kent-Andre Mardal</a></span></span>
+														<span class="qa-a-item-who-title">FEniCS Expert</span>
+														<span class="qa-a-item-who-points">
+															<span class="qa-a-item-who-points-pad">(</span><span class="qa-a-item-who-points-data">14,380</span><span class="qa-a-item-who-points-pad"> points)</span>
+														</span>
+													</span>
+												</span>
+											</span>
+											<div class="qa-a-item-buttons">
+												</div>
+											
+											<div class="qa-a-item-c-list" id="c11824_list">
+												<div class="qa-c-list-item  hentry comment" id="c11830">
+													<div class="qa-c-item-content">
+														<a name="11830"></a><div class="entry-content"><p>Hi,</p>
+
+<p>Thanks for your response. I know how to impose Neumann bc, but for stokes flow Neumann bc is "grad(u).n + p.n =g" which is a combination of velocity gradient and pressure. Is there any way to impose only pressure as a bc?</p>
+</div>
+													</div>
+													<div class="qa-c-item-footer">
+														<span class="qa-c-item-avatar-meta">
+															<span class="qa-c-item-meta">
+																<a href="../../11819/stokes-flow-simulation-imposing-pressure-sensible-results?show=11830#c11830" class="qa-c-item-what">commented</a>
+																<span class="qa-c-item-when">
+																	<span class="qa-c-item-when-data"><span class="published"><span class="value-title" title="2016-12-04T20:14:05+0000"></span>Dec 4, 2016</span></span>
+																</span>
+																<span class="qa-c-item-who">
+																	<span class="qa-c-item-who-pad">by </span>
+																	<span class="qa-c-item-who-data"><span class="vcard author"><a href="../../user/Abi" class="qa-user-link url nickname">Abi</a></span></span>
+																	<span class="qa-c-item-who-title">FEniCS Novice</span>
+																	<span class="qa-c-item-who-points">
+																		<span class="qa-c-item-who-points-pad">(</span><span class="qa-c-item-who-points-data">270</span><span class="qa-c-item-who-points-pad"> points)</span>
+																	</span>
+																</span>
+															</span>
+														</span>
+														<div class="qa-c-item-buttons">
+														</div>
+													</div>
+													<div class="qa-c-item-clear">
+													</div>
+												</div> <!-- END qa-c-item -->
+												<div class="qa-c-list-item  hentry comment" id="c11831">
+													<div class="qa-c-item-content">
+														<a name="11831"></a><div class="entry-content"><p>It is common to say that you set the pressure, but actually you set the stress. <br>
+this is the only way. However, pressure is usually the dominating part of <br>
+the stress (or normal stress). </p>
+</div>
+													</div>
+													<div class="qa-c-item-footer">
+														<span class="qa-c-item-avatar-meta">
+															<span class="qa-c-item-meta">
+																<a href="../../11819/stokes-flow-simulation-imposing-pressure-sensible-results?show=11831#c11831" class="qa-c-item-what">commented</a>
+																<span class="qa-c-item-when">
+																	<span class="qa-c-item-when-data"><span class="published"><span class="value-title" title="2016-12-04T20:35:57+0000"></span>Dec 4, 2016</span></span>
+																</span>
+																<span class="qa-c-item-who">
+																	<span class="qa-c-item-who-pad">by </span>
+																	<span class="qa-c-item-who-data"><span class="vcard author"><a href="../../user/Kent-Andre+Mardal" class="qa-user-link url nickname">Kent-Andre Mardal</a></span></span>
+																	<span class="qa-c-item-who-title">FEniCS Expert</span>
+																	<span class="qa-c-item-who-points">
+																		<span class="qa-c-item-who-points-pad">(</span><span class="qa-c-item-who-points-data">14,380</span><span class="qa-c-item-who-points-pad"> points)</span>
+																	</span>
+																</span>
+															</span>
+														</span>
+														<div class="qa-c-item-buttons">
+														</div>
+													</div>
+													<div class="qa-c-item-clear">
+													</div>
+												</div> <!-- END qa-c-item -->
+												<div class="qa-c-list-item  hentry comment" id="c11833">
+													<div class="qa-c-item-content">
+														<a name="11833"></a><div class="entry-content"><p>Yes, you are right. But in some commercial software such as COMSOL it has one option for imposing pressure and another option for imposing normal stress.</p>
+</div>
+													</div>
+													<div class="qa-c-item-footer">
+														<span class="qa-c-item-avatar-meta">
+															<span class="qa-c-item-meta">
+																<a href="../../11819/stokes-flow-simulation-imposing-pressure-sensible-results?show=11833#c11833" class="qa-c-item-what">commented</a>
+																<span class="qa-c-item-when">
+																	<span class="qa-c-item-when-data"><span class="published"><span class="value-title" title="2016-12-04T21:11:45+0000"></span>Dec 4, 2016</span></span>
+																</span>
+																<span class="qa-c-item-who">
+																	<span class="qa-c-item-who-pad">by </span>
+																	<span class="qa-c-item-who-data"><span class="vcard author"><a href="../../user/Abi" class="qa-user-link url nickname">Abi</a></span></span>
+																	<span class="qa-c-item-who-title">FEniCS Novice</span>
+																	<span class="qa-c-item-who-points">
+																		<span class="qa-c-item-who-points-pad">(</span><span class="qa-c-item-who-points-data">270</span><span class="qa-c-item-who-points-pad"> points)</span>
+																	</span>
+																</span>
+															</span>
+														</span>
+														<div class="qa-c-item-buttons">
+														</div>
+													</div>
+													<div class="qa-c-item-clear">
+													</div>
+												</div> <!-- END qa-c-item -->
+												<div class="qa-c-list-item  hentry comment" id="c11834">
+													<div class="qa-c-item-content">
+														<a name="11834"></a><div class="entry-content"><p>If you have a operator splitting scheme for a flow solver you may assign also pressure. <br>
+It is however not correct from a mathematical point of view. But for a Stokes<br>
+solver like the one you propose here, you should do as already stated. Unless you<br>
+want to dwell into deeper mathematical issues with Lagrange multipliers etc which <br>
+may potentially give you more freedom. I am not sure. </p>
+</div>
+													</div>
+													<div class="qa-c-item-footer">
+														<span class="qa-c-item-avatar-meta">
+															<span class="qa-c-item-meta">
+																<a href="../../11819/stokes-flow-simulation-imposing-pressure-sensible-results?show=11834#c11834" class="qa-c-item-what">commented</a>
+																<span class="qa-c-item-when">
+																	<span class="qa-c-item-when-data"><span class="published"><span class="value-title" title="2016-12-04T21:20:28+0000"></span>Dec 4, 2016</span></span>
+																</span>
+																<span class="qa-c-item-who">
+																	<span class="qa-c-item-who-pad">by </span>
+																	<span class="qa-c-item-who-data"><span class="vcard author"><a href="../../user/Kent-Andre+Mardal" class="qa-user-link url nickname">Kent-Andre Mardal</a></span></span>
+																	<span class="qa-c-item-who-title">FEniCS Expert</span>
+																	<span class="qa-c-item-who-points">
+																		<span class="qa-c-item-who-points-pad">(</span><span class="qa-c-item-who-points-data">14,380</span><span class="qa-c-item-who-points-pad"> points)</span>
+																	</span>
+																</span>
+															</span>
+														</span>
+														<div class="qa-c-item-buttons">
+														</div>
+													</div>
+													<div class="qa-c-item-clear">
+													</div>
+												</div> <!-- END qa-c-item -->
+												<div class="qa-c-list-item  hentry comment" id="c11835">
+													<div class="qa-c-item-content">
+														<a name="11835"></a><div class="entry-content"><p>Thanks, got it.</p>
+</div>
+													</div>
+													<div class="qa-c-item-footer">
+														<span class="qa-c-item-avatar-meta">
+															<span class="qa-c-item-meta">
+																<a href="../../11819/stokes-flow-simulation-imposing-pressure-sensible-results?show=11835#c11835" class="qa-c-item-what">commented</a>
+																<span class="qa-c-item-when">
+																	<span class="qa-c-item-when-data"><span class="published"><span class="value-title" title="2016-12-04T21:21:42+0000"></span>Dec 4, 2016</span></span>
+																</span>
+																<span class="qa-c-item-who">
+																	<span class="qa-c-item-who-pad">by </span>
+																	<span class="qa-c-item-who-data"><span class="vcard author"><a href="../../user/Abi" class="qa-user-link url nickname">Abi</a></span></span>
+																	<span class="qa-c-item-who-title">FEniCS Novice</span>
+																	<span class="qa-c-item-who-points">
+																		<span class="qa-c-item-who-points-pad">(</span><span class="qa-c-item-who-points-data">270</span><span class="qa-c-item-who-points-pad"> points)</span>
+																	</span>
+																</span>
+															</span>
+														</span>
+														<div class="qa-c-item-buttons">
+														</div>
+													</div>
+													<div class="qa-c-item-clear">
+													</div>
+												</div> <!-- END qa-c-item -->
+											</div> <!-- END qa-c-list -->
+											
+											<input type="hidden" name="code" value="0-1516467787-1645131df9737692779e43594fd38c8c357e8abe">
+											<input type="hidden" name="qa_click" value="">
+										</form>
+										<div class="qa-c-form">
+										</div> <!-- END qa-c-form -->
+										
+									</div> <!-- END qa-a-item-main -->
+									<div class="qa-a-item-clear">
+									</div>
+								</div> <!-- END qa-a-list-item -->
+								
+							</div> <!-- END qa-a-list -->
+							
+						</div>
+					</div> <!-- END qa-main -->
+					
+				</div> <!-- END main-wrapper -->
+			</div> <!-- END main-shadow -->
+		</div> <!-- END body-wrapper -->
+		<!-- END footer-bottom-group -->
+		
+		<div style="position:absolute; left:-9999px; top:-9999px;">
+			<span id="qa-waiting-template" class="qa-waiting">...</span>
+		</div>
+	
+	
+
+</body><!-- Powered by Question2Answer - http://www.question2answer.org/ --></html>

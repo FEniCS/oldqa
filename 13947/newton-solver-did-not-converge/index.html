@@ -1,0 +1,568 @@
+<html><!-- Powered by Question2Answer - http://www.question2answer.org/ --><head>
+		<meta http-equiv="content-type" content="text/html; charset=utf-8">
+		<title>Newton solver did not converge - FEniCS Q&amp;A</title>
+		<meta name="description" content="Hello. I tried different coding for solving nonlinear variational problem for weeks, however, all do not work.  ... ------- &gt; &gt; Aborted (core dumped)">
+		<meta name="keywords" content="nonlinear-problem,newton-solver,nonlinearvariationalsolver,forced-convective">
+		<link rel="stylesheet" type="text/css" href="../../qa-theme/Snow/qa-styles.css">
+		<link rel="canonical" href="http://fenicsproject.org/qa/13947/newton-solver-did-not-converge">
+		<script type="text/x-mathjax-config">
+  MathJax.Hub.Config({
+    extensions: ["tex2jax.js"],
+    jax: ["input/TeX","output/HTML-CSS"],
+    tex2jax: {inlineMath: [["$","$"],["\\(","\\)"]]},
+    TeX: { extensions: ["AMSmath.js","AMSsymbols.js"]}
+  });
+</script>
+<script type="text/javascript" src="../../mathjax/MathJax.js"></script>
+		<script src="../../jquery-1.7.2.min.js" type="text/javascript"></script>
+		<script src="../../highlight.min.js"></script>
+<script type="text/javascript">
+$(function(){
+	$('.wmd-input').keypress(function(){
+		window.clearTimeout(hljs.Timeout);
+		hljs.Timeout = window.setTimeout(function() {
+			hljs.initHighlighting.called = false;
+			hljs.initHighlighting();
+		}, 500);
+	});
+	window.setTimeout(function() {
+		hljs.initHighlighting.called = false;
+		hljs.initHighlighting();
+	}, 500);
+});
+</script>
+
+
+	</head>
+	<body class="qa-template-question qa-body-js-off">
+		<div class="qa-body-wrapper">
+			
+			<div class="qa-header">
+				<div class="qa-logo">
+					<a href="../../" class="qa-logo-link" title="FEniCS Q&amp;A"><img src="../../qa-theme/fenics_qa.png" border="0" alt="FEniCS Q&amp;A"></a>
+				</div>
+				<div class="qa-header-clear">
+				</div>
+			</div> <!-- END qa-header -->
+			
+			<div class="qa-main-shadow">
+				
+				<div class="qa-main-wrapper">
+					
+					<div class="qa-sidepanel">
+						<div class="qa-sidebar">
+							This is a read only copy of the old FEniCS QA forum. Please visit the <a href="https://www.allanswered.com/community/s/fenics-project/">new QA forum</a> to ask questions
+						</div>
+						
+					</div>
+					
+					<div class="qa-main">
+						<h1>
+							<span class="entry-title">Newton solver did not converge</span>
+						</h1>
+						<div class="qa-part-q-view">
+							<div class="qa-q-view  hentry question" id="q13947">
+								<form method="post" action="../../13947/newton-solver-did-not-converge">
+									<div class="qa-q-view-stats">
+										<div class="qa-voting qa-voting-net" id="voting_13947">
+											<div class="qa-vote-count qa-vote-count-net">
+												<span class="qa-netvote-count">
+													<span class="qa-netvote-count-data">0<span class="votes-up"><span class="value-title" title="0"></span></span><span class="votes-down"><span class="value-title" title="0"></span></span></span><span class="qa-netvote-count-pad"> votes</span>
+												</span>
+											</div>
+											<div class="qa-vote-clear">
+											</div>
+										</div>
+									</div>
+									<input type="hidden" name="code" value="0-1516466500-cbbd8480dcd54e572d07fd05c6c3a96a0d419151">
+								</form>
+								<div class="qa-q-view-main">
+									<form method="post" action="../../13947/newton-solver-did-not-converge">
+										<div class="qa-q-view-content">
+											<a name="13947"></a><div class="entry-content"><p>Hello. I tried different coding for solving nonlinear variational problem for weeks, however, all do not work. Please help me clarify the problem. Briefly, I am working on forced convection flow at vertical plate. Thanks in advance. I really appreciate it. Here is my coding:</p>
+
+<pre><code>from __future__ import print_function
+from fenics import *
+
+#set parameter values
+rho = 997.1 #density water
+mu = 0.00089 #0.890*10^-3 #dynamic viscosity water
+sigma = 0.05501 #electrical conductivity water
+C = 4179 #heat capacitance water
+c = 0.591 #thermal conductivity water
+B_0 = 0
+
+#create mesh
+mesh = UnitSquareMesh(8,8)
+
+#define function space
+V = VectorElement('P', mesh.ufl_cell() , 2)
+Q = FiniteElement('P', mesh.ufl_cell(), 2)
+element = MixedElement([V, Q, Q])
+W = FunctionSpace(mesh, element)
+
+#define boundaries
+walls = 'near(x[1],0) || near(x[1],1)'
+inflow = 'near(x[0],0)'
+outflow = 'near(x[0],1)'
+
+#define boundary condition
+
+#walls
+bcu_walls = DirichletBC(W.sub(0), Constant((0,0)), walls)
+
+#bcp_walls = DirichletBC(W.sub(1), Constant(0), walls) #pressure
+bcT_walls = DirichletBC(W.sub(2), Constant(290), walls) #T_w
+
+#inflow
+bcT_inflow = DirichletBC(W.sub(2), Constant(295), inflow) 
+
+#outflow
+bcp_outflow = DirichletBC(W.sub(1), Constant(0), outflow) #p constant
+bcT_outflow = DirichletBC(W.sub(2), Constant(292), outflow) #uniform temperature
+
+bcu = [bcu_walls]
+bcT = [bcT_walls, bcT_inflow, bcT_outflow] 
+bcp = [bcp_outflow]
+
+bcs = bcu + bcT + bcp
+
+#define test functions
+(v, q, s) = TestFunctions(W)
+
+#define functions
+u = Function(W)
+p = Function(W)
+T = Function(W)
+
+#split functions
+w = Function(W)
+(u, p, T) = split(w)
+
+#define expression used in variational forms
+mu = Constant(mu)
+rho = Constant(rho)
+sigma = Constant(sigma)
+C = Constant(C)
+c = Constant(c)
+B_0 = Constant(B_0)
+
+#define variational problem
+F1 = div(u)*q*dx 
+
+F2 = rho*dot(dot(u,nabla_grad(u)),v)*dx + div(v)*p*dx + mu*inner(nabla_grad(u),nabla_grad(v))*dx \
+   + sigma*pow(B_0,2)*dot(u,v)*dx 
+
+F3 = rho*C*dot(u,grad(T))*s*dx-c*div(grad(T))*s*dx
+
+F = F1 + F2 + F3
+
+# Create VTK files for visualization output
+vtkfile_u = File('steady_system/u.pvd')
+vtkfile_p = File('steady_system/p.pvd')
+vtkfile_T = File('steady_system/T.pvd')
+
+# Solve nonlinear variational problem
+J = derivative(F, w)
+problem = NonlinearVariationalProblem(F, w, bcs, J)
+solver  = NonlinearVariationalSolver(problem)
+solver.solve()
+
+# Save solution to file (VTK)
+(u, p, T) = w.split()
+vtkfile_u &lt;&lt; u
+vtkfile_p &lt;&lt; p
+vtkfile_T &lt;&lt; T
+
+# Plot solution
+plot(u, title='Velocity')
+plot(p, title='Pressure')
+plot(T, title='Temperature')    
+
+# Hold plot
+interactive()
+</code></pre>
+
+<p>and here is the error:</p>
+
+<blockquote>
+  <p>File "steadyforced.py", line 114, in <br>
+      solver.solve() RuntimeError: </p>
+  
+  <p>*** -------------------------------------------------------------------------<br>
+  *** DOLFIN encountered an error. If you are not able to resolve this issue<br>
+  *** using the information listed below, you can ask for help at</p>
+  
+  <hr>
+  
+  <p>***     fenics-support@googlegroups.com</p>
+  
+  <hr>
+  
+  <p>*** Remember to include the error message listed below and, if possible,<br>
+  *** include a <em>minimal</em> running example to reproduce the error.</p>
+  
+  <hr>
+  
+  <p>*** -------------------------------------------------------------------------<br>
+  *** Error:   Unable to solve nonlinear system with NewtonSolver.<br>
+  *** Reason:  Newton solver did not converge because maximum number of iterations reached.<br>
+  *** Where:   This error was encountered inside NewtonSolver.cpp.<br>
+  *** Process: 0</p>
+  
+  <hr>
+  
+  <p>*** DOLFIN version: 2016.2.0<br>
+  *** Git changeset:  unknown<br>
+  *** -------------------------------------------------------------------------</p>
+  
+  <p>Aborted (core dumped)</p>
+</blockquote>
+</div>
+										</div>
+										<div class="qa-q-view-tags">
+											<ul class="qa-q-view-tag-list">
+												<li class="qa-q-view-tag-item"><a href="../../tag/nonlinear-problem" rel="tag" class="qa-tag-link">nonlinear-problem</a></li>
+												<li class="qa-q-view-tag-item"><a href="../../tag/newton-solver" rel="tag" class="qa-tag-link">newton-solver</a></li>
+												<li class="qa-q-view-tag-item"><a href="../../tag/nonlinearvariationalsolver" rel="tag" class="qa-tag-link">nonlinearvariationalsolver</a></li>
+												<li class="qa-q-view-tag-item"><a href="../../tag/forced-convective" rel="tag" class="qa-tag-link">forced-convective</a></li>
+											</ul>
+										</div>
+										<span class="qa-q-view-avatar-meta">
+											<span class="qa-q-view-meta">
+												<a href="../../13947/newton-solver-did-not-converge" class="qa-q-view-what">asked</a>
+												<span class="qa-q-view-when">
+													<span class="qa-q-view-when-data"><span class="published"><span class="value-title" title="2017-06-14T00:48:31+0000"></span>Jun 14, 2017</span></span>
+												</span>
+												<span class="qa-q-view-who">
+													<span class="qa-q-view-who-pad">by </span>
+													<span class="qa-q-view-who-data"><span class="vcard author"><a href="../../user/Raihan" class="qa-user-link url nickname">Raihan</a></span></span>
+													<span class="qa-q-view-who-title">FEniCS Novice</span>
+													<span class="qa-q-view-who-points">
+														<span class="qa-q-view-who-points-pad">(</span><span class="qa-q-view-who-points-data">220</span><span class="qa-q-view-who-points-pad"> points)</span>
+													</span>
+												</span>
+											</span>
+										</span>
+										<div class="qa-q-view-buttons">
+										</div>
+										
+										<div class="qa-q-view-c-list" style="display:none;" id="c13947_list">
+										</div> <!-- END qa-c-list -->
+										
+										<input type="hidden" name="code" value="0-1516466500-f154842992dee8eb8cde9574caed0811f4182c4b">
+										<input type="hidden" name="qa_click" value="">
+									</form>
+									<div class="qa-c-form">
+									</div> <!-- END qa-c-form -->
+									
+								</div> <!-- END qa-q-view-main -->
+								<div class="qa-q-view-clear">
+								</div>
+							</div> <!-- END qa-q-view -->
+							
+						</div>
+						<div class="qa-part-a-list">
+							<h2 id="a_list_title">1 Answer</h2>
+							<div class="qa-a-list" id="a_list">
+								
+								<div class="qa-a-list-item  hentry answer" id="a13948">
+									<form method="post" action="../../13947/newton-solver-did-not-converge">
+										<div class="qa-voting qa-voting-net" id="voting_13948">
+											<div class="qa-vote-count qa-vote-count-net">
+												<span class="qa-netvote-count">
+													<span class="qa-netvote-count-data">0<span class="votes-up"><span class="value-title" title="0"></span></span><span class="votes-down"><span class="value-title" title="0"></span></span></span><span class="qa-netvote-count-pad"> votes</span>
+												</span>
+											</div>
+											<div class="qa-vote-clear">
+											</div>
+										</div>
+										<input type="hidden" name="code" value="0-1516466500-cbbd8480dcd54e572d07fd05c6c3a96a0d419151">
+									</form>
+									<div class="qa-a-item-main">
+										<form method="post" action="../../13947/newton-solver-did-not-converge">
+											<div class="qa-a-selection">
+											</div>
+											<div class="qa-a-item-content">
+												<a name="13948"></a><div class="entry-content"><p>This are just the steady, incompressible, isothermal Navier-Stokes equations, which don't depend on $T$, and the heat equation. Why don't you solve the flow problem and the heat transport (with $u$ given) separately?</p>
+
+<p>Anyways, I assume the Newton method does not converge because your discretization of the flow problem is unstable. Try using P2 for the velocity and P1 for the pressure space, check the tutorial: <a rel="nofollow" href="https://fenicsproject.org/pub/tutorial/html/._ftut1009.html#ftut1:NS">https://fenicsproject.org/pub/tutorial/html/._ftut1009.html#ftut1:NS</a></p>
+
+<p>Also, Newton's method has a small radius of convergence (your initial value needs to be "close" to the solution) which depends on the Reynolds number. You might need to perform some Picard iterations (or fixed point) first, in order to achieve convergence with Newton's method.</p>
+
+<p>Hope this helps</p>
+</div>
+											</div>
+											<span class="qa-a-item-avatar-meta">
+												<span class="qa-a-item-meta">
+													<a href="../../13947/newton-solver-did-not-converge?show=13948#a13948" class="qa-a-item-what">answered</a>
+													<span class="qa-a-item-when">
+														<span class="qa-a-item-when-data"><span class="published"><span class="value-title" title="2017-06-14T01:17:49+0000"></span>Jun 14, 2017</span></span>
+													</span>
+													<span class="qa-a-item-who">
+														<span class="qa-a-item-who-pad">by </span>
+														<span class="qa-a-item-who-data"><span class="vcard author"><a href="../../user/dajuno" class="qa-user-link url nickname">dajuno</a></span></span>
+														<span class="qa-a-item-who-title">FEniCS User</span>
+														<span class="qa-a-item-who-points">
+															<span class="qa-a-item-who-points-pad">(</span><span class="qa-a-item-who-points-data">4,140</span><span class="qa-a-item-who-points-pad"> points)</span>
+														</span>
+													</span>
+												</span>
+											</span>
+											<div class="qa-a-item-buttons">
+												</div>
+											
+											<div class="qa-a-item-c-list" id="c13948_list">
+												<div class="qa-c-list-item  hentry comment" id="c13949">
+													<div class="qa-c-item-content">
+														<a name="13949"></a><div class="entry-content"><p>I try to omit the temperature and try to solve the flow problem. This is my coding:</p>
+
+<pre><code>from __future__ import print_function
+from fenics import *
+
+#set parameter values
+rho = 997.1 #density water
+mu = 1 #0.890*10^-3 #dynamic viscosity water
+sigma = 0.05501 #electrical conductivity water
+C = 4179 #heat capacitance water
+c = 0.591 #thermal conductivity water
+B_0 = 0
+
+#create mesh
+mesh = UnitSquareMesh(8,8)
+
+#define function space
+V = VectorElement('P', mesh.ufl_cell() , 2)
+Q = FiniteElement('P', mesh.ufl_cell(), 1)
+element = MixedElement([V, Q])
+W = FunctionSpace(mesh, element)
+
+
+#define boundaries
+walls = 'near(x[1],0)'
+inflow = 'near(x[0],0)'
+outflow = 'near(x[0],1)'
+
+#define boundary condition
+
+#walls
+bcu_walls = DirichletBC(W.sub(0), Constant((0,0)), walls)
+
+#inflow
+#bcu_inflow = DirichletBC(W.sub(0), Constant((1,0)), inflow) #u_e=1
+#bcp_inflow = DirichletBC(W.sub(1), Constant(2), inflow)
+
+#outflow
+bcp_outflow = DirichletBC(W.sub(1), Constant(0), outflow) #p constant
+
+bcu = [bcu_walls]
+bcp = [bcp_outflow]
+
+bcs = bcu + bcp
+
+#define test functions
+(v, q) = TestFunctions(W)
+
+#define functions
+u = Function(W)
+p = Function(W)
+
+#split functions
+w =Function(W)
+(u, p) = split(w)
+
+
+#define expression used in variational forms
+n = FacetNormal(mesh)
+mu = Constant(mu)
+rho = Constant(rho)
+sigma = Constant(sigma)
+C = Constant(C)
+c = Constant(c)
+B_0 = Constant(B_0)
+
+#define variational problem
+F1 = div(u)*q*dx 
+
+F2 = rho*dot(dot(u,nabla_grad(u)),v)*dx + div(v)*p*dx + mu*inner(nabla_grad(u),nabla_grad(v))*dx \
+   + sigma*pow(B_0,2)*dot(u,v)*dx 
+
+F = F1 + F2 
+
+# Create VTK files for visualization output
+vtkfile_u = File('steady_system/u.pvd')
+vtkfile_p = File('steady_system/p.pvd')
+
+
+# Solve variational problem for time step
+J = derivative(F, w)
+problem = NonlinearVariationalProblem(F, w, bcs, J)
+solver  = NonlinearVariationalSolver(problem)
+prm = solver.parameters
+prm['newton_solver']['absolute_tolerance'] = 1E-8
+prm['newton_solver']['relative_tolerance'] = 1E-7
+prm['newton_solver']['maximum_iterations'] = 25
+prm['newton_solver']['relaxation_parameter'] = 1.0
+solver.solve()
+
+# Save solution to file (VTK)
+(u, p) = w.split()
+vtkfile_u &lt;&lt; u
+vtkfile_p &lt;&lt; p
+
+# Plot solution
+plot(u, title='Velocity')
+plot(p, title='Pressure')    
+
+# Hold plot
+interactive()
+</code></pre>
+
+<p>However, this occurs in terminal. I cant spot the mistakes. Thanks for your help.</p>
+
+<blockquote>
+<pre><code>Solving nonlinear variational problem.
+  Newton iteration 0: r (abs) = 0.000e+00 (tol = 1.000e-08) r (rel) = -nan (tol = 1.000e-07)
+  Newton solver finished in 0 iterations and 0 linear solver iterations.
+</code></pre>
+</blockquote>
+</div>
+													</div>
+													<div class="qa-c-item-footer">
+														<span class="qa-c-item-avatar-meta">
+															<span class="qa-c-item-meta">
+																<a href="../../13947/newton-solver-did-not-converge?show=13949#c13949" class="qa-c-item-what">commented</a>
+																<span class="qa-c-item-when">
+																	<span class="qa-c-item-when-data"><span class="published"><span class="value-title" title="2017-06-14T01:38:30+0000"></span>Jun 14, 2017</span></span>
+																</span>
+																<span class="qa-c-item-who">
+																	<span class="qa-c-item-who-pad">by </span>
+																	<span class="qa-c-item-who-data"><span class="vcard author"><a href="../../user/Raihan" class="qa-user-link url nickname">Raihan</a></span></span>
+																	<span class="qa-c-item-who-title">FEniCS Novice</span>
+																	<span class="qa-c-item-who-points">
+																		<span class="qa-c-item-who-points-pad">(</span><span class="qa-c-item-who-points-data">220</span><span class="qa-c-item-who-points-pad"> points)</span>
+																	</span>
+																</span>
+															</span>
+														</span>
+														<div class="qa-c-item-buttons">
+														</div>
+													</div>
+													<div class="qa-c-item-clear">
+													</div>
+												</div> <!-- END qa-c-item -->
+												<div class="qa-c-list-item  hentry comment" id="c13950">
+													<div class="qa-c-item-content">
+														<a name="13950"></a><div class="entry-content"><p>In this last example I think that the solution is (0,). Try a non null rhs to debug your code...<br>
+Hope this helps</p>
+</div>
+													</div>
+													<div class="qa-c-item-footer">
+														<span class="qa-c-item-avatar-meta">
+															<span class="qa-c-item-meta">
+																<a href="../../13947/newton-solver-did-not-converge?show=13950#c13950" class="qa-c-item-what">commented</a>
+																<span class="qa-c-item-when">
+																	<span class="qa-c-item-when-data"><span class="published"><span class="value-title" title="2017-06-14T02:27:07+0000"></span>Jun 14, 2017</span></span>
+																</span>
+																<span class="qa-c-item-who">
+																	<span class="qa-c-item-who-pad">by </span>
+																	<span class="qa-c-item-who-data"><span class="vcard author"><a href="../../user/raraya" class="qa-user-link url nickname">raraya</a></span></span>
+																	<span class="qa-c-item-who-title">FEniCS Novice</span>
+																	<span class="qa-c-item-who-points">
+																		<span class="qa-c-item-who-points-pad">(</span><span class="qa-c-item-who-points-data">110</span><span class="qa-c-item-who-points-pad"> points)</span>
+																	</span>
+																</span>
+															</span>
+														</span>
+														<div class="qa-c-item-buttons">
+														</div>
+													</div>
+													<div class="qa-c-item-clear">
+													</div>
+												</div> <!-- END qa-c-item -->
+												<div class="qa-c-list-item  hentry comment" id="c13951">
+													<div class="qa-c-item-content">
+														<a name="13951"></a><div class="entry-content"><p>Sorry raraya, I didnt get what you meant. Could you explain? Thank you so much.</p>
+</div>
+													</div>
+													<div class="qa-c-item-footer">
+														<span class="qa-c-item-avatar-meta">
+															<span class="qa-c-item-meta">
+																<a href="../../13947/newton-solver-did-not-converge?show=13951#c13951" class="qa-c-item-what">commented</a>
+																<span class="qa-c-item-when">
+																	<span class="qa-c-item-when-data"><span class="published"><span class="value-title" title="2017-06-14T02:36:54+0000"></span>Jun 14, 2017</span></span>
+																</span>
+																<span class="qa-c-item-who">
+																	<span class="qa-c-item-who-pad">by </span>
+																	<span class="qa-c-item-who-data"><span class="vcard author"><a href="../../user/Raihan" class="qa-user-link url nickname">Raihan</a></span></span>
+																	<span class="qa-c-item-who-title">FEniCS Novice</span>
+																	<span class="qa-c-item-who-points">
+																		<span class="qa-c-item-who-points-pad">(</span><span class="qa-c-item-who-points-data">220</span><span class="qa-c-item-who-points-pad"> points)</span>
+																	</span>
+																</span>
+															</span>
+														</span>
+														<div class="qa-c-item-buttons">
+														</div>
+													</div>
+													<div class="qa-c-item-clear">
+													</div>
+												</div> <!-- END qa-c-item -->
+												<div class="qa-c-list-item  hentry comment" id="c13960">
+													<div class="qa-c-item-content">
+														<a name="13960"></a><div class="entry-content"><p>I mean that your system (last code) have a null solution (u,p) =(0,0)!! Probably the Newton scheme is dividing for the first residual which is zero, may be that explains "r (rel) = -nan"... Put a different condition (bc o rhs) to have a non zero solution to test your scheme</p>
+</div>
+													</div>
+													<div class="qa-c-item-footer">
+														<span class="qa-c-item-avatar-meta">
+															<span class="qa-c-item-meta">
+																<a href="../../13947/newton-solver-did-not-converge?show=13960#c13960" class="qa-c-item-what">commented</a>
+																<span class="qa-c-item-when">
+																	<span class="qa-c-item-when-data"><span class="published"><span class="value-title" title="2017-06-14T12:30:22+0000"></span>Jun 14, 2017</span></span>
+																</span>
+																<span class="qa-c-item-who">
+																	<span class="qa-c-item-who-pad">by </span>
+																	<span class="qa-c-item-who-data"><span class="vcard author"><a href="../../user/raraya" class="qa-user-link url nickname">raraya</a></span></span>
+																	<span class="qa-c-item-who-title">FEniCS Novice</span>
+																	<span class="qa-c-item-who-points">
+																		<span class="qa-c-item-who-points-pad">(</span><span class="qa-c-item-who-points-data">110</span><span class="qa-c-item-who-points-pad"> points)</span>
+																	</span>
+																</span>
+															</span>
+														</span>
+														<div class="qa-c-item-buttons">
+														</div>
+													</div>
+													<div class="qa-c-item-clear">
+													</div>
+												</div> <!-- END qa-c-item -->
+											</div> <!-- END qa-c-list -->
+											
+											<input type="hidden" name="code" value="0-1516466500-fcdfb3236822341028e716b60bd6f45157301d39">
+											<input type="hidden" name="qa_click" value="">
+										</form>
+										<div class="qa-c-form">
+										</div> <!-- END qa-c-form -->
+										
+									</div> <!-- END qa-a-item-main -->
+									<div class="qa-a-item-clear">
+									</div>
+								</div> <!-- END qa-a-list-item -->
+								
+							</div> <!-- END qa-a-list -->
+							
+						</div>
+					</div> <!-- END qa-main -->
+					
+				</div> <!-- END main-wrapper -->
+			</div> <!-- END main-shadow -->
+		</div> <!-- END body-wrapper -->
+		<!-- END footer-bottom-group -->
+		
+		<div style="position:absolute; left:-9999px; top:-9999px;">
+			<span id="qa-waiting-template" class="qa-waiting">...</span>
+		</div>
+	
+	
+
+</body><!-- Powered by Question2Answer - http://www.question2answer.org/ --></html>

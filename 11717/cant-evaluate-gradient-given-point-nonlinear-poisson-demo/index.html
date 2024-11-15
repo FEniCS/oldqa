@@ -1,0 +1,353 @@
+<html><!-- Powered by Question2Answer - http://www.question2answer.org/ --><head>
+		<meta http-equiv="content-type" content="text/html; charset=utf-8">
+		<title>can't evaluate gradient at given point in nonlinear poisson demo - FEniCS Q&amp;A</title>
+		<meta name="description" content="I have a feeling there's a simple fix for this problem, but evaluating the gradient function is not  ...  = UnitSquareMesh(32, 32) File(&quot;mesh.pvd&quot;)">
+		<meta name="keywords" content="evaluate,grad,vectorfunctionspace">
+		<link rel="stylesheet" type="text/css" href="../../qa-theme/Snow/qa-styles.css">
+		<link rel="canonical" href="http://fenicsproject.org/qa/11717/cant-evaluate-gradient-given-point-nonlinear-poisson-demo">
+		<script type="text/x-mathjax-config">
+  MathJax.Hub.Config({
+    extensions: ["tex2jax.js"],
+    jax: ["input/TeX","output/HTML-CSS"],
+    tex2jax: {inlineMath: [["$","$"],["\\(","\\)"]]},
+    TeX: { extensions: ["AMSmath.js","AMSsymbols.js"]}
+  });
+</script>
+<script type="text/javascript" src="../../mathjax/MathJax.js"></script>
+		<script src="../../jquery-1.7.2.min.js" type="text/javascript"></script>
+		<script src="../../highlight.min.js"></script>
+<script type="text/javascript">
+$(function(){
+	$('.wmd-input').keypress(function(){
+		window.clearTimeout(hljs.Timeout);
+		hljs.Timeout = window.setTimeout(function() {
+			hljs.initHighlighting.called = false;
+			hljs.initHighlighting();
+		}, 500);
+	});
+	window.setTimeout(function() {
+		hljs.initHighlighting.called = false;
+		hljs.initHighlighting();
+	}, 500);
+});
+</script>
+
+
+	</head>
+	<body class="qa-template-question qa-body-js-off">
+		<div class="qa-body-wrapper">
+			
+			<div class="qa-header">
+				<div class="qa-logo">
+					<a href="../../" class="qa-logo-link" title="FEniCS Q&amp;A"><img src="../../qa-theme/fenics_qa.png" border="0" alt="FEniCS Q&amp;A"></a>
+				</div>
+				<div class="qa-header-clear">
+				</div>
+			</div> <!-- END qa-header -->
+			
+			<div class="qa-main-shadow">
+				
+				<div class="qa-main-wrapper">
+					
+					<div class="qa-sidepanel">
+						<div class="qa-sidebar">
+							This is a read only copy of the old FEniCS QA forum. Please visit the <a href="https://www.allanswered.com/community/s/fenics-project/">new QA forum</a> to ask questions
+						</div>
+						
+					</div>
+					
+					<div class="qa-main">
+						<h1>
+							<span class="entry-title">can't evaluate gradient at given point in nonlinear poisson demo</span>
+						</h1>
+						<div class="qa-part-q-view">
+							<div class="qa-q-view  hentry question" id="q11717">
+								<form method="post" action="../../11717/cant-evaluate-gradient-given-point-nonlinear-poisson-demo">
+									<div class="qa-q-view-stats">
+										<div class="qa-voting qa-voting-net" id="voting_11717">
+											<div class="qa-vote-count qa-vote-count-net">
+												<span class="qa-netvote-count">
+													<span class="qa-netvote-count-data">+1<span class="votes-up"><span class="value-title" title="1"></span></span><span class="votes-down"><span class="value-title" title="0"></span></span></span><span class="qa-netvote-count-pad"> vote</span>
+												</span>
+											</div>
+											<div class="qa-vote-clear">
+											</div>
+										</div>
+									</div>
+									<input type="hidden" name="code" value="0-1516467781-c9aeb189b70ee057df629c8a99b536104cdb215f">
+								</form>
+								<div class="qa-q-view-main">
+									<form method="post" action="../../11717/cant-evaluate-gradient-given-point-nonlinear-poisson-demo">
+										<div class="qa-q-view-content">
+											<a name="11717"></a><div class="entry-content"><p>I have a feeling there's a simple fix for this problem, but evaluating the gradient function is not working the way I expect in the standard nonlinear-poisson demo.  I'm trying to evaluate the gradient at a particular point.  I know the solution and the gradient is working fine, since the demo plots it.  But I'm trying to access the specific value at (0,0)  (I then want to test using that value as a Neumann condition).</p>
+
+<p>So I'm adding </p>
+
+<pre><code>print "u(0,0)=", u((0,0))
+gradu = project(grad(u),V)
+print "grad u(0,0)=", gradu((0,0))
+</code></pre>
+
+<p>But projecting the gradient fails with</p>
+
+<pre><code>ufl.log.UFLException: Shape mismatch.
+</code></pre>
+
+<p>Just taking <code>gradu = grad(u)</code> without projecting also fails, with the call to <code>gradu((0,0))</code> then returning the error</p>
+
+<pre><code>    component, i = component[:-1], component[-1]
+IndexError: tuple index out of range
+</code></pre>
+
+<p>I would have expected the projection operator to work as a function, even if the direct grad operator does not.</p>
+
+<p>The full code from demo_nonlinear-poisson.py with the grad reference added, is</p>
+
+<pre><code>from dolfin import *
+
+# Sub domain for Dirichlet boundary condition
+class DirichletBoundary(SubDomain):
+    def inside(self, x, on_boundary):
+        return abs(x[0] - 1.0) &lt; DOLFIN_EPS and on_boundary
+
+# Create mesh and define function space
+mesh = UnitSquareMesh(32, 32)
+File("mesh.pvd") &lt;&lt; mesh
+
+V = FunctionSpace(mesh, "CG", 1)
+
+# Define boundary condition
+g = Constant(1.0)
+bc = DirichletBC(V, g, DirichletBoundary())
+
+# Define variational problem
+u = Function(V)
+v = TestFunction(V)
+f = Expression("x[0]*sin(x[1])", degree=2)
+F = inner((1 + u**2)*grad(u), grad(v))*dx - f*v*dx
+
+# Compute solution
+solve(F == 0, u, bc, solver_parameters={"newton_solver": {"relative_tolerance": 1e-6}})
+
+print "u(0,0)=", u((0,0))
+#gradu = grad(u)
+gradu = project(grad(u),V)
+print "grad u(0,0)=", gradu((0,0))    
+
+# Plot solution and solution gradient
+plot(u, title="Solution")
+plot(grad(u), title="Solution gradient")
+interactive()
+</code></pre>
+
+<p>What am I doing wrong?</p>
+</div>
+										</div>
+										<div class="qa-q-view-tags">
+											<ul class="qa-q-view-tag-list">
+												<li class="qa-q-view-tag-item"><a href="../../tag/evaluate" rel="tag" class="qa-tag-link">evaluate</a></li>
+												<li class="qa-q-view-tag-item"><a href="../../tag/grad" rel="tag" class="qa-tag-link">grad</a></li>
+												<li class="qa-q-view-tag-item"><a href="../../tag/vectorfunctionspace" rel="tag" class="qa-tag-link">vectorfunctionspace</a></li>
+											</ul>
+										</div>
+										<span class="qa-q-view-avatar-meta">
+											<span class="qa-q-view-meta">
+												<a href="../../11717/cant-evaluate-gradient-given-point-nonlinear-poisson-demo" class="qa-q-view-what">asked</a>
+												<span class="qa-q-view-when">
+													<span class="qa-q-view-when-data"><span class="published"><span class="value-title" title="2016-11-23T10:04:58+0000"></span>Nov 23, 2016</span></span>
+												</span>
+												<span class="qa-q-view-who">
+													<span class="qa-q-view-who-pad">by </span>
+													<span class="qa-q-view-who-data"><span class="vcard author"><a href="../../user/dparsons" class="qa-user-link url nickname">dparsons</a></span></span>
+													<span class="qa-q-view-who-title">FEniCS Novice</span>
+													<span class="qa-q-view-who-points">
+														<span class="qa-q-view-who-points-pad">(</span><span class="qa-q-view-who-points-data">490</span><span class="qa-q-view-who-points-pad"> points)</span>
+													</span>
+												</span>
+												<br>
+												<span class="qa-q-view-what">retagged</span>
+												<span class="qa-q-view-when">
+													<span class="qa-q-view-when-data"><span class="updated"><span class="value-title" title="2016-11-23T15:53:32+0000"></span>Nov 23, 2016</span></span>
+												</span>
+												<span class="qa-q-view-who">
+													<span class="qa-q-view-who-pad">by </span><span class="qa-q-view-who-data"><a href="../../user/dparsons" class="qa-user-link url nickname">dparsons</a></span>
+												</span>
+											</span>
+										</span>
+										<div class="qa-q-view-buttons">
+										</div>
+										
+										<div class="qa-q-view-c-list" id="c11717_list">
+											<div class="qa-c-list-item  hentry comment" id="c13214">
+												<div class="qa-c-item-content">
+													<a name="13214"></a><div class="entry-content"><p>Hello&#65292; I have encountered the same problem. Can you tell me how you solved it?<br>
+ Best wishes!</p>
+</div>
+												</div>
+												<div class="qa-c-item-footer">
+													<span class="qa-c-item-avatar-meta">
+														<span class="qa-c-item-meta">
+															<a href="../../11717/cant-evaluate-gradient-given-point-nonlinear-poisson-demo?show=13214#c13214" class="qa-c-item-what">commented</a>
+															<span class="qa-c-item-when">
+																<span class="qa-c-item-when-data"><span class="published"><span class="value-title" title="2017-04-25T12:32:01+0000"></span>Apr 25, 2017</span></span>
+															</span>
+															<span class="qa-c-item-who">
+																<span class="qa-c-item-who-pad">by </span>
+																<span class="qa-c-item-who-data"><span class="vcard author"><a href="../../user/kevin" class="qa-user-link url nickname">kevin</a></span></span>
+																<span class="qa-c-item-who-points">
+																	<span class="qa-c-item-who-points-pad">(</span><span class="qa-c-item-who-points-data">60</span><span class="qa-c-item-who-points-pad"> points)</span>
+																</span>
+															</span>
+															<br>
+															<span class="qa-c-item-what">reshown</span>
+															<span class="qa-c-item-when">
+																<span class="qa-c-item-when-data"><span class="updated"><span class="value-title" title="2017-04-25T12:51:05+0000"></span>Apr 25, 2017</span></span>
+															</span>
+															<span class="qa-c-item-who">
+																<span class="qa-c-item-who-pad">by </span><span class="qa-c-item-who-data"><a href="../../user/kevin" class="qa-user-link url nickname">kevin</a></span>
+															</span>
+														</span>
+													</span>
+													<div class="qa-c-item-buttons">
+													</div>
+												</div>
+												<div class="qa-c-item-clear">
+												</div>
+											</div> <!-- END qa-c-item -->
+										</div> <!-- END qa-c-list -->
+										
+										<input type="hidden" name="code" value="0-1516467781-200c3a6140d2811d512fab4ec70af926fbf7c974">
+										<input type="hidden" name="qa_click" value="">
+									</form>
+									<div class="qa-c-form">
+									</div> <!-- END qa-c-form -->
+									
+								</div> <!-- END qa-q-view-main -->
+								<div class="qa-q-view-clear">
+								</div>
+							</div> <!-- END qa-q-view -->
+							
+						</div>
+						<div class="qa-part-a-list">
+							<h2 id="a_list_title">1 Answer</h2>
+							<div class="qa-a-list" id="a_list">
+								
+								<div class="qa-a-list-item  hentry answer answer-selected qa-a-list-item-selected" id="a11718">
+									<form method="post" action="../../11717/cant-evaluate-gradient-given-point-nonlinear-poisson-demo">
+										<div class="qa-voting qa-voting-net" id="voting_11718">
+											<div class="qa-vote-count qa-vote-count-net">
+												<span class="qa-netvote-count">
+													<span class="qa-netvote-count-data">+1<span class="votes-up"><span class="value-title" title="1"></span></span><span class="votes-down"><span class="value-title" title="0"></span></span></span><span class="qa-netvote-count-pad"> vote</span>
+												</span>
+											</div>
+											<div class="qa-vote-clear">
+											</div>
+										</div>
+										<input type="hidden" name="code" value="0-1516467781-c9aeb189b70ee057df629c8a99b536104cdb215f">
+									</form>
+									<div class="qa-a-item-main">
+										<form method="post" action="../../11717/cant-evaluate-gradient-given-point-nonlinear-poisson-demo">
+											<div class="qa-a-item-selected">
+												<div class="qa-a-selection">
+													<div class="qa-a-selected">&#160;</div>
+													<div class="qa-a-selected-text">Best answer</div>
+												</div>
+												<div class="qa-a-item-content">
+													<a name="11718"></a><div class="entry-content"><p>You were projecting onto a scalar function space. Instead consider projecting onto a vector function space since $\nabla u \in \mathbb{R}^2$ in this problem:</p>
+
+<pre><code>V_vec = VectorFunctionSpace(mesh, "CG", 1)
+gradu = project(grad(u),V_vec)
+print "grad u(0,0)=", gradu((0,0))    
+</code></pre>
+</div>
+												</div>
+												<span class="qa-a-item-avatar-meta">
+													<span class="qa-a-item-avatar">
+														<a href="../../user/nate" class="qa-avatar-link"><img src="../../?qa=image&amp;qa_blobid=969593914916706065&amp;qa_size=40" width="40" height="40" class="qa-avatar-image" alt=""></a>
+													</span>
+													<span class="qa-a-item-meta">
+														<a href="../../11717/cant-evaluate-gradient-given-point-nonlinear-poisson-demo?show=11718#a11718" class="qa-a-item-what">answered</a>
+														<span class="qa-a-item-when">
+															<span class="qa-a-item-when-data"><span class="published"><span class="value-title" title="2016-11-23T10:19:21+0000"></span>Nov 23, 2016</span></span>
+														</span>
+														<span class="qa-a-item-who">
+															<span class="qa-a-item-who-pad">by </span>
+															<span class="qa-a-item-who-data"><span class="vcard author"><a href="../../user/nate" class="qa-user-link url nickname">nate</a></span></span>
+															<span class="qa-a-item-who-title">FEniCS Expert</span>
+															<span class="qa-a-item-who-points">
+																<span class="qa-a-item-who-points-pad">(</span><span class="qa-a-item-who-points-data">17,050</span><span class="qa-a-item-who-points-pad"> points)</span>
+															</span>
+														</span>
+														<br>
+														<span class="qa-a-item-what">selected</span>
+														<span class="qa-a-item-when">
+															<span class="qa-a-item-when-data"><span class="updated"><span class="value-title" title="2016-11-23T12:36:38+0000"></span>Nov 23, 2016</span></span>
+														</span>
+														<span class="qa-a-item-who">
+															<span class="qa-a-item-who-pad">by </span><span class="qa-a-item-who-data"><a href="../../user/dparsons" class="qa-user-link url nickname">dparsons</a></span>
+														</span>
+													</span>
+												</span>
+											</div>
+											<div class="qa-a-item-buttons">
+												</div>
+											
+											<div class="qa-a-item-c-list" id="c11718_list">
+												<div class="qa-c-list-item  hentry comment" id="c11719">
+													<div class="qa-c-item-content">
+														<a name="11719"></a><div class="entry-content"><p>I see it now.  Thanks nate.</p>
+</div>
+													</div>
+													<div class="qa-c-item-footer">
+														<span class="qa-c-item-avatar-meta">
+															<span class="qa-c-item-meta">
+																<a href="../../11717/cant-evaluate-gradient-given-point-nonlinear-poisson-demo?show=11719#c11719" class="qa-c-item-what">commented</a>
+																<span class="qa-c-item-when">
+																	<span class="qa-c-item-when-data"><span class="published"><span class="value-title" title="2016-11-23T12:37:10+0000"></span>Nov 23, 2016</span></span>
+																</span>
+																<span class="qa-c-item-who">
+																	<span class="qa-c-item-who-pad">by </span>
+																	<span class="qa-c-item-who-data"><span class="vcard author"><a href="../../user/dparsons" class="qa-user-link url nickname">dparsons</a></span></span>
+																	<span class="qa-c-item-who-title">FEniCS Novice</span>
+																	<span class="qa-c-item-who-points">
+																		<span class="qa-c-item-who-points-pad">(</span><span class="qa-c-item-who-points-data">490</span><span class="qa-c-item-who-points-pad"> points)</span>
+																	</span>
+																</span>
+															</span>
+														</span>
+														<div class="qa-c-item-buttons">
+														</div>
+													</div>
+													<div class="qa-c-item-clear">
+													</div>
+												</div> <!-- END qa-c-item -->
+											</div> <!-- END qa-c-list -->
+											
+											<input type="hidden" name="code" value="0-1516467781-ce001c8633be8dce98d4754e2ed0977e7e31316f">
+											<input type="hidden" name="qa_click" value="">
+										</form>
+										<div class="qa-c-form">
+										</div> <!-- END qa-c-form -->
+										
+									</div> <!-- END qa-a-item-main -->
+									<div class="qa-a-item-clear">
+									</div>
+								</div> <!-- END qa-a-list-item -->
+								
+							</div> <!-- END qa-a-list -->
+							
+						</div>
+					</div> <!-- END qa-main -->
+					
+				</div> <!-- END main-wrapper -->
+			</div> <!-- END main-shadow -->
+		</div> <!-- END body-wrapper -->
+		<!-- END footer-bottom-group -->
+		
+		<div style="position:absolute; left:-9999px; top:-9999px;">
+			<span id="qa-waiting-template" class="qa-waiting">...</span>
+		</div>
+	
+	
+
+</body><!-- Powered by Question2Answer - http://www.question2answer.org/ --></html>

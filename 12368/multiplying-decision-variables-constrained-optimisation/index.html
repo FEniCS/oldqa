@@ -1,0 +1,234 @@
+<html><!-- Powered by Question2Answer - http://www.question2answer.org/ --><head>
+		<meta http-equiv="content-type" content="text/html; charset=utf-8">
+		<title>Multiplying a sum of gaussian source terms by decision variables in a poisson-constrained pde optimisation problem - FEniCS Q&amp;A</title>
+		<meta name="description" content="Hello, I am new to using FEniCS and dolfin-adjoint and am trying to solve a continuous version  ...  [1]: https://mintoc.de/index.php/Source_Inversion">
+		<meta name="keywords" content="poisson-,dolfin-adjoint,-source,inversion">
+		<link rel="stylesheet" type="text/css" href="../../qa-theme/Snow/qa-styles.css">
+		<link rel="canonical" href="http://fenicsproject.org/qa/12368/multiplying-decision-variables-constrained-optimisation">
+		<script type="text/x-mathjax-config">
+  MathJax.Hub.Config({
+    extensions: ["tex2jax.js"],
+    jax: ["input/TeX","output/HTML-CSS"],
+    tex2jax: {inlineMath: [["$","$"],["\\(","\\)"]]},
+    TeX: { extensions: ["AMSmath.js","AMSsymbols.js"]}
+  });
+</script>
+<script type="text/javascript" src="../../mathjax/MathJax.js"></script>
+		<script src="../../jquery-1.7.2.min.js" type="text/javascript"></script>
+		<script src="../../highlight.min.js"></script>
+<script type="text/javascript">
+$(function(){
+	$('.wmd-input').keypress(function(){
+		window.clearTimeout(hljs.Timeout);
+		hljs.Timeout = window.setTimeout(function() {
+			hljs.initHighlighting.called = false;
+			hljs.initHighlighting();
+		}, 500);
+	});
+	window.setTimeout(function() {
+		hljs.initHighlighting.called = false;
+		hljs.initHighlighting();
+	}, 500);
+});
+</script>
+
+
+	</head>
+	<body class="qa-template-question qa-body-js-off">
+		<div class="qa-body-wrapper">
+			
+			<div class="qa-header">
+				<div class="qa-logo">
+					<a href="../../" class="qa-logo-link" title="FEniCS Q&amp;A"><img src="../../qa-theme/fenics_qa.png" border="0" alt="FEniCS Q&amp;A"></a>
+				</div>
+				<div class="qa-header-clear">
+				</div>
+			</div> <!-- END qa-header -->
+			
+			<div class="qa-main-shadow">
+				
+				<div class="qa-main-wrapper">
+					
+					<div class="qa-sidepanel">
+						<div class="qa-sidebar">
+							This is a read only copy of the old FEniCS QA forum. Please visit the <a href="https://www.allanswered.com/community/s/fenics-project/">new QA forum</a> to ask questions
+						</div>
+						
+					</div>
+					
+					<div class="qa-main">
+						<h1>
+							<span class="entry-title">Multiplying a sum of gaussian source terms by decision variables in a poisson-constrained pde optimisation problem</span>
+						</h1>
+						<div class="qa-part-q-view">
+							<div class="qa-q-view  hentry question" id="q12368">
+								<form method="post" action="../../12368/multiplying-decision-variables-constrained-optimisation">
+									<div class="qa-q-view-stats">
+										<div class="qa-voting qa-voting-net" id="voting_12368">
+											<div class="qa-vote-count qa-vote-count-net">
+												<span class="qa-netvote-count">
+													<span class="qa-netvote-count-data">+1<span class="votes-up"><span class="value-title" title="1"></span></span><span class="votes-down"><span class="value-title" title="0"></span></span></span><span class="qa-netvote-count-pad"> vote</span>
+												</span>
+											</div>
+											<div class="qa-vote-clear">
+											</div>
+										</div>
+									</div>
+									<input type="hidden" name="code" value="0-1516467819-ca3409d15d9247b35920011e92b844c7dfb32990">
+								</form>
+								<div class="qa-q-view-main">
+									<form method="post" action="../../12368/multiplying-decision-variables-constrained-optimisation">
+										<div class="qa-q-view-content">
+											<a name="12368"></a><div class="entry-content"><p>Hello, I am new to using FEniCS and dolfin-adjoint and am trying to solve a continuous version of <a rel="nofollow" href="https://mintoc.de/index.php/Source_Inversion">the source inversion problem</a> in two dimensions. I am having quite a bit of difficulty trying to create the gaussian source terms, as I need to multiply each of K total source terms with a continuous deicison variable in the weak formulation of the poisson equation, after which I need to solve for the decision variables, (and only allowing S out of K of the variables to be nonzero). I have been unable to find any sources on how to formulate these source terms--my code is below, and I think everything else works, except for the weak formulation which I am having trouble creating. Any advice or help would be much appreciated!</p>
+
+<pre><code>from __future__ import print_function
+from fenics import *
+from dolfin import *
+from dolfin_adjoint import *
+import numpy as np
+#import pyipopt as opt
+import random
+import moola
+
+
+#Using an nxn square mesh and S total turned on source terms
+S = 3
+n = 20
+mesh = UnitSquareMesh(n, n)
+
+# Function Space
+
+V = FunctionSpace(mesh, "CG", 1)
+W = FunctionSpace(mesh, "CG", 1)
+
+# Create gaussian source term function and target locations; choose a value for constant sigma
+sigma = .2
+def source_term(xk,yk, sigma, degree, Fspace):
+    return interpolate(Expression('exp(-sqrt(pow(x[0] - xk,2) + pow(x[1] - yk,2)) / 
+            pow(sigma, 2))', xk=xk, yk = yk, sigma=sigma, degree = degree), Fspace)
+
+   # Dirichlet boundary condition
+u0 = Constant(0.0)
+bc = DirichletBC(V, u0, "on_boundary")
+
+# Choosing sources as grid (this is just for visualization purposes)
+nSize = np.linspace(1,n -1,n-1)
+sourceGrid = []
+for a in nSize:
+    for b in nSize:
+        sourceGrid.append([a,b])
+
+
+
+# A list of all source terms, one for each w_kl with source centered at x_kl, y_kl 
+source_expression_list = [source_term(xk, yk, sigma, 2, W) for xk, yk in sourceGrid]
+
+# Each term in list is f_kl * v * dx
+u = Function(V)
+v = TestFunction(V)
+
+# I would like to multiply each term in the list by a decision variable
+# I am not sure how to do this in terms of syntax
+rhs_weakForm = [assemble(-f * v * dx) for f in source_expression_list]
+
+#I need to multiply the RHS of the weak formulation by the decision variables
+F = inner(grad(v), grad(u))*dx - rhs_weakForm
+solve(F == 0, u, bc, solver_parameters={"newton_solver":
+                   {"absolute_tolerance": 1.0e-7,    "maximum_iterations": 20}})
+
+
+if __name__ == "__main__":
+    x_init = np.zeros(len(sourceGrid)) #initial guess for the vector of decision variables
+    u = forward(x_init)
+
+#ubar is the location of the actual source
+ubar = source_term(np.random.random_sample()*n, np.random.random_sample()*n, 2, sigma, W)
+control = Control(u)
+
+
+ #our functional with chosen source ubar (how can we had multiple ubars?
+J = Functional((0.5*inner(u-ubar, u-ubar))*dx)
+
+
+#bounds for each of the decision variables
+lb = 0
+ub = 1
+
+rf = ReducedFunctional(J, control)
+
+problem = MinimizationProblem(rf, bounds=(lb, ub))
+parameters = {"acceptable_tol": 1.0e-3, "maximum_iterations": 100}
+solver = IPOPTSolver(problem, parameters=parameters)
+w_opt = solver.solve()
+xdmf_filename = XDMFFile(mpi_comm_world(), "output/final_solution.xdmf")
+xdmf_filename.write(w_opt)
+
+
+
+enter code here
+</code></pre>
+</div>
+										</div>
+										<div class="qa-q-view-tags">
+											<ul class="qa-q-view-tag-list">
+												<li class="qa-q-view-tag-item"><a href="../../tag/poisson-" rel="tag" class="qa-tag-link">poisson-</a></li>
+												<li class="qa-q-view-tag-item"><a href="../../tag/dolfin-adjoint" rel="tag" class="qa-tag-link">dolfin-adjoint</a></li>
+												<li class="qa-q-view-tag-item"><a href="../../tag/-source" rel="tag" class="qa-tag-link">-source</a></li>
+												<li class="qa-q-view-tag-item"><a href="../../tag/inversion" rel="tag" class="qa-tag-link">inversion</a></li>
+											</ul>
+										</div>
+										<span class="qa-q-view-avatar-meta">
+											<span class="qa-q-view-meta">
+												<a href="../../12368/multiplying-decision-variables-constrained-optimisation" class="qa-q-view-what">asked</a>
+												<span class="qa-q-view-when">
+													<span class="qa-q-view-when-data"><span class="published"><span class="value-title" title="2017-02-06T23:33:38+0000"></span>Feb 7, 2017</span></span>
+												</span>
+												<span class="qa-q-view-who">
+													<span class="qa-q-view-who-pad">by </span>
+													<span class="qa-q-view-who-data"><span class="vcard author"><a href="../../user/cw65" class="qa-user-link url nickname">cw65</a></span></span>
+													<span class="qa-q-view-who-title">FEniCS Novice</span>
+													<span class="qa-q-view-who-points">
+														<span class="qa-q-view-who-points-pad">(</span><span class="qa-q-view-who-points-data">130</span><span class="qa-q-view-who-points-pad"> points)</span>
+													</span>
+												</span>
+											</span>
+										</span>
+										<div class="qa-q-view-buttons">
+										</div>
+										
+										<div class="qa-q-view-c-list" style="display:none;" id="c12368_list">
+										</div> <!-- END qa-c-list -->
+										
+										<input type="hidden" name="code" value="0-1516467819-ef0ba9bd431ed47fdc59ffb420a85b8031408317">
+										<input type="hidden" name="qa_click" value="">
+									</form>
+									<div class="qa-c-form">
+									</div> <!-- END qa-c-form -->
+									
+								</div> <!-- END qa-q-view-main -->
+								<div class="qa-q-view-clear">
+								</div>
+							</div> <!-- END qa-q-view -->
+							
+						</div>
+						<div class="qa-part-a-list">
+							<h2 id="a_list_title" style="display:none;"></h2>
+							<div class="qa-a-list" id="a_list">
+								
+							</div> <!-- END qa-a-list -->
+							
+						</div>
+					</div> <!-- END qa-main -->
+					
+				</div> <!-- END main-wrapper -->
+			</div> <!-- END main-shadow -->
+		</div> <!-- END body-wrapper -->
+		<!-- END footer-bottom-group -->
+		
+		<div style="position:absolute; left:-9999px; top:-9999px;">
+			<span id="qa-waiting-template" class="qa-waiting">...</span>
+		</div>
+	
+	
+
+</body><!-- Powered by Question2Answer - http://www.question2answer.org/ --></html>

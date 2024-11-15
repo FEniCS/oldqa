@@ -1,0 +1,511 @@
+<html><!-- Powered by Question2Answer - http://www.question2answer.org/ --><head>
+		<meta http-equiv="content-type" content="text/html; charset=utf-8">
+		<title>Whatever Young's modulus is, the displacement remain the same in MBB beam problem. - FEniCS Q&amp;A</title>
+		<meta name="description" content="I try to test a MBB beam problem. It is a linear elastic problem in a rectangle domain. And I try to choose  ... (x[0]-2) &lt; tol and abs(x[1]-1)">
+		<meta name="keywords" content="point-wise,point-load,elasticity,neumann">
+		<link rel="stylesheet" type="text/css" href="../../qa-theme/Snow/qa-styles.css">
+		<link rel="canonical" href="http://fenicsproject.org/qa/4424/whatever-youngs-modulus-displacement-remain-beam-problem">
+		<script type="text/x-mathjax-config">
+  MathJax.Hub.Config({
+    extensions: ["tex2jax.js"],
+    jax: ["input/TeX","output/HTML-CSS"],
+    tex2jax: {inlineMath: [["$","$"],["\\(","\\)"]]},
+    TeX: { extensions: ["AMSmath.js","AMSsymbols.js"]}
+  });
+</script>
+<script type="text/javascript" src="../../mathjax/MathJax.js"></script>
+		<script src="../../jquery-1.7.2.min.js" type="text/javascript"></script>
+		<script src="../../highlight.min.js"></script>
+<script type="text/javascript">
+$(function(){
+	$('.wmd-input').keypress(function(){
+		window.clearTimeout(hljs.Timeout);
+		hljs.Timeout = window.setTimeout(function() {
+			hljs.initHighlighting.called = false;
+			hljs.initHighlighting();
+		}, 500);
+	});
+	window.setTimeout(function() {
+		hljs.initHighlighting.called = false;
+		hljs.initHighlighting();
+	}, 500);
+});
+</script>
+
+
+	</head>
+	<body class="qa-template-question qa-body-js-off">
+		<div class="qa-body-wrapper">
+			
+			<div class="qa-header">
+				<div class="qa-logo">
+					<a href="../../" class="qa-logo-link" title="FEniCS Q&amp;A"><img src="../../qa-theme/fenics_qa.png" border="0" alt="FEniCS Q&amp;A"></a>
+				</div>
+				<div class="qa-header-clear">
+				</div>
+			</div> <!-- END qa-header -->
+			
+			<div class="qa-main-shadow">
+				
+				<div class="qa-main-wrapper">
+					
+					<div class="qa-sidepanel">
+						<div class="qa-sidebar">
+							This is a read only copy of the old FEniCS QA forum. Please visit the <a href="https://www.allanswered.com/community/s/fenics-project/">new QA forum</a> to ask questions
+						</div>
+						
+					</div>
+					
+					<div class="qa-main">
+						<h1>
+							<span class="entry-title">Whatever Young's modulus is, the displacement remain the same in MBB beam problem.</span>
+						</h1>
+						<div class="qa-part-q-view">
+							<div class="qa-q-view  hentry question" id="q4424">
+								<form method="post" action="../../4424/whatever-youngs-modulus-displacement-remain-beam-problem">
+									<div class="qa-q-view-stats">
+										<div class="qa-voting qa-voting-net" id="voting_4424">
+											<div class="qa-vote-count qa-vote-count-net">
+												<span class="qa-netvote-count">
+													<span class="qa-netvote-count-data">+2<span class="votes-up"><span class="value-title" title="2"></span></span><span class="votes-down"><span class="value-title" title="0"></span></span></span><span class="qa-netvote-count-pad"> votes</span>
+												</span>
+											</div>
+											<div class="qa-vote-clear">
+											</div>
+										</div>
+									</div>
+									<input type="hidden" name="code" value="0-1516468012-a33eb8dffb406e6ca40ef9587630bfe4119ce875">
+								</form>
+								<div class="qa-q-view-main">
+									<form method="post" action="../../4424/whatever-youngs-modulus-displacement-remain-beam-problem">
+										<div class="qa-q-view-content">
+											<a name="4424"></a><div class="entry-content"><p>I try to test a MBB beam problem. It is a linear elastic problem in a rectangle domain.  And I try to choose different Young's modulus to get the maximum displacement of each problem. However the maximum displacement seems to be the same whatever the young's modulus is. Could you please help me. I really confused. THANKS</p>
+
+<pre><code>""" MBB beam. Impose zero displacement at the centers of the left and the right side, and a point load on the middle of the top."""
+</code></pre>
+
+<p>from dolfin import *</p>
+
+<h2>Create mesh and define function space</h2>
+
+<p>mesh = RectangleMesh(0.0,0.0,4.0,1.0,160,40)<br>
+V = VectorFunctionSpace(mesh, "Lagrange", 1)</p>
+
+<h2>Mark boundary subdomians</h2>
+
+<p>boundary_parts = MeshFunction('size_t', mesh, mesh.topology().dim()-1)<br>
+boundary_parts.set_all(0)</p>
+
+<p>class LeftBoundary(SubDomain):<br>
+    def inside(self, x, on_boundary):<br>
+        tol = 1E-14  # tolerance for coordinate comparisons<br>
+        return abs(x[0]) &lt; tol and abs(x[1]-0.5) &lt; tol<br>
+Gamma_L = LeftBoundary()</p>
+
+<p>class RightBoundary(SubDomain):<br>
+    def inside(self, x, on_boundary):<br>
+        tol = 1E-14  # tolerance for coordinate comparisons<br>
+        return abs(x[0]-4) &lt; tol and abs(x[1]-0.5) &lt; tol<br>
+Gamma_R = RightBoundary()</p>
+
+<p>class PointLoad(SubDomain):<br>
+    def inside(self, x, on_boundary):<br>
+        tol = 1E-14  # tolerance for coordinate comparisons<br>
+        return abs(x[0]-2) &lt; tol and abs(x[1]-1)&lt;tol<br>
+Gamma_P = PointLoad()<br>
+Gamma_P.mark(boundary_parts, 3)</p>
+
+<h2>Define functions</h2>
+
+<p>u  = TrialFunction(V)            # Trial displacement<br>
+v  = TestFunction(V)             # Test function<br>
+B  = Constant((0.0,  0.0))  # Body force per unit volume<br>
+T  = Constant((0.0, -0.2))  # Point load on the boundary</p>
+
+<h2>Kinematics</h2>
+
+<p>d   = u.geometric_dimension()<br>
+I   = Identity(d)               # Identity tensor<br>
+stress  = sym(grad(u))          # Green Lagrange tensor</p>
+
+<h2>Elasticity parameters</h2>
+
+<p>E, nu = 10.0, 0.3<br>
+mu, lmbda = Constant(E/(2<em>(1 + nu))), Constant(E</em>nu/((1 + nu)<em>(1 - 2</em>nu)))</p>
+
+<h2>stress</h2>
+
+<p>def sigma(v):<br>
+    return 2.0<em>mu</em>sym(grad(v)) + lmbda<em>tr(sym(grad(v)))</em>I</p>
+
+<h2>Define Dirichlet boundary (x = 0 or x = 1)</h2>
+
+<p>c = Expression(("0.0", "0.0"))<br>
+bcl = DirichletBC(V, c, Gamma_L, method='pointwise')<br>
+bcr = DirichletBC(V, c, Gamma_R, method='pointwise')<br>
+bcp = DirichletBC(V, T, Gamma_P, method='pointwise')<br>
+bcs = [bcl, bcr, bcp]</p>
+
+<h2>Total potential energy</h2>
+
+<p>dss = ds[boundary_parts]<br>
+a = inner(sigma(u), sym(grad(v)))<em>dx<br>
+L = inner(B, v)</em>dx + inner(T, v)*dss(3)</p>
+
+<h2>Solve variational problem</h2>
+
+<p>A, b = assemble_system(a, L, bcs)<br>
+u  = Function(V)<br>
+U  = u.vector()<br>
+solve(A, U, b)</p>
+
+<h2>Save solution in VTK format</h2>
+
+<h2>file = File("displacement.pvd");</h2>
+
+<h2>file &lt;&lt; u;</h2>
+
+<h2>Plot and hold solution</h2>
+
+<p>print U.array().max()<br>
+plot(u, mode = "displacement", interactive = True)</p>
+</div>
+										</div>
+										<div class="qa-q-view-tags">
+											<ul class="qa-q-view-tag-list">
+												<li class="qa-q-view-tag-item"><a href="../../tag/point-wise" rel="tag" class="qa-tag-link">point-wise</a></li>
+												<li class="qa-q-view-tag-item"><a href="../../tag/point-load" rel="tag" class="qa-tag-link">point-load</a></li>
+												<li class="qa-q-view-tag-item"><a href="../../tag/elasticity" rel="tag" class="qa-tag-link">elasticity</a></li>
+												<li class="qa-q-view-tag-item"><a href="../../tag/neumann" rel="tag" class="qa-tag-link">neumann</a></li>
+											</ul>
+										</div>
+										<span class="qa-q-view-avatar-meta">
+											<span class="qa-q-view-meta">
+												<a href="../../4424/whatever-youngs-modulus-displacement-remain-beam-problem" class="qa-q-view-what">asked</a>
+												<span class="qa-q-view-when">
+													<span class="qa-q-view-when-data"><span class="published"><span class="value-title" title="2014-08-17T12:13:56+0000"></span>Aug 17, 2014</span></span>
+												</span>
+												<span class="qa-q-view-who">
+													<span class="qa-q-view-who-pad">by </span>
+													<span class="qa-q-view-who-data"><span class="vcard author"><a href="../../user/ChrisZhang" class="qa-user-link url nickname">ChrisZhang</a></span></span>
+													<span class="qa-q-view-who-title">FEniCS Novice</span>
+													<span class="qa-q-view-who-points">
+														<span class="qa-q-view-who-points-pad">(</span><span class="qa-q-view-who-points-data">190</span><span class="qa-q-view-who-points-pad"> points)</span>
+													</span>
+												</span>
+											</span>
+										</span>
+										<div class="qa-q-view-buttons">
+										</div>
+										
+										<div class="qa-q-view-c-list" id="c4424_list">
+											<div class="qa-c-list-item  hentry comment" id="c7933">
+												<div class="qa-c-item-content">
+													<a name="7933"></a><div class="entry-content"><p>Hi, Did you solve the problem finally? I am stuck on the same thing.</p>
+
+<p>As per below listed suggestions, when I apply pointwise Drichilet BC on the point, I get a displacement "resulting" from the boundary condition in the viper plot. </p>
+
+<p>So, if the BC is (0,-7,0), the max displacement in the viper plot is near 7. So I feel that I am implying displacement instead of load.</p>
+
+<p>Also, what ChrishZhang says about unchanging displacement w.r.t. elastic modulus but changing displacement w.r.t. point load is correct. Kristian says their is some kind of normalising function running in the background, is that correct?</p>
+
+<p>If your code is verified and working now, pls. post it here to help end this thread. Thanks a lot!</p>
+
+<p><strong>The same code (posted in the question) in proper format for anyone who would like to run it and take a look:</strong></p>
+
+<pre><code>from dolfin import *
+
+#Create mesh and define function space
+
+o = Point(0, 0)
+l = Point(4, 1)
+mesh = RectangleMesh(o, l, 160, 40)
+V = VectorFunctionSpace(mesh, "Lagrange", 1)
+
+#Mark boundary subdomians
+
+boundary_parts = MeshFunction('size_t', mesh, mesh.topology().dim()-1)
+boundary_parts.set_all(0)
+
+#return (abs(x[0]) &lt; tol and abs(x[1]-0.5) &lt; tol)
+
+class LeftBoundary(SubDomain):
+    def inside(self, x, on_boundary):
+        return near(x[0],0.0) and near(x[1],0.5)  
+Gamma_L = LeftBoundary()
+
+tol = 1E-14 # tolerance for coordinate comparisons
+#return near(x[0],4.0) and near(x[1],0.5)
+class RightBoundary(SubDomain):
+    def inside(self, x, on_boundary):
+        return abs(x[0]-4) &lt; tol and abs(x[1]-0.5) &lt; tol  
+Gamma_R = RightBoundary()
+
+class PointLoad(SubDomain):
+    def inside(self, x, on_boundary):
+        return abs(x[0]-2) &lt; tol and abs(x[1]-1)&lt;tol
+Gamma_P = PointLoad()
+Gamma_P.mark(boundary_parts, 3)
+
+#Define functions
+
+u = TrialFunction(V) # Trial displacement
+v = TestFunction(V) # Test function
+B = Constant((0.0, 0.0)) # Body force per unit volume
+T = Constant((0.0, -0.2)) # Point load on the boundary
+
+#Kinematics
+
+d = u.geometric_dimension()
+I = Identity(d) # Identity tensor
+stress = sym(grad(u)) # Green Lagrange tensor
+
+#Elasticity parameters
+
+E, nu = 10.0, 0.3
+mu, lmbda = E/(2.0*(1.0 + nu)), E*nu/((1.0 + nu)*(1.0 - 2.0*nu))
+
+#stress
+
+sigma = 2*mu*sym(grad(u)) + lmbda*tr(grad(u))*Identity(v.cell().d)     
+
+#Define Dirichlet boundary (x = 0 or x = 1)
+
+c = Expression(("0.0", "0.0"))
+bcl = DirichletBC(V, c, Gamma_L, method='pointwise')
+bcr = DirichletBC(V, c, Gamma_R, method='pointwise')
+bcp = DirichletBC(V, T, Gamma_P, method='pointwise')
+bcs = [bcl, bcr, bcp]
+
+#Total potential energy
+
+dss = ds[boundary_parts]   
+a = inner(sigma, grad(v))*dx        
+L = inner(B, v)*dx + inner(T, v)*dss(3)
+
+#Solve variational problem
+
+A, b = assemble_system(a, L, bcs)
+u = Function(V)
+U = u.vector()
+solve(A, U, b)
+
+#Save solution in VTK format
+
+file = File("displacement.pvd");
+
+file &lt;&lt; u;
+
+#Plot and hold solution
+
+print U.array().max()
+plot(u, mode = "displacement", interactive = True)
+</code></pre>
+</div>
+												</div>
+												<div class="qa-c-item-footer">
+													<span class="qa-c-item-avatar-meta">
+														<span class="qa-c-item-avatar">
+															<a href="../../user/Chaitanya_Raj_Goyal" class="qa-avatar-link"><img src="../../?qa=image&amp;qa_blobid=5557427273671820211&amp;qa_size=20" width="20" height="12" class="qa-avatar-image" alt=""></a>
+														</span>
+														<span class="qa-c-item-meta">
+															<a href="../../4424/whatever-youngs-modulus-displacement-remain-beam-problem?show=7933#c7933" class="qa-c-item-what">commented</a>
+															<span class="qa-c-item-when">
+																<span class="qa-c-item-when-data"><span class="published"><span class="value-title" title="2015-08-27T01:46:17+0000"></span>Aug 27, 2015</span></span>
+															</span>
+															<span class="qa-c-item-who">
+																<span class="qa-c-item-who-pad">by </span>
+																<span class="qa-c-item-who-data"><span class="vcard author"><a href="../../user/Chaitanya_Raj_Goyal" class="qa-user-link url nickname">Chaitanya_Raj_Goyal</a></span></span>
+																<span class="qa-c-item-who-title">FEniCS User</span>
+																<span class="qa-c-item-who-points">
+																	<span class="qa-c-item-who-points-pad">(</span><span class="qa-c-item-who-points-data">4,150</span><span class="qa-c-item-who-points-pad"> points)</span>
+																</span>
+															</span>
+														</span>
+													</span>
+													<div class="qa-c-item-buttons">
+													</div>
+												</div>
+												<div class="qa-c-item-clear">
+												</div>
+											</div> <!-- END qa-c-item -->
+										</div> <!-- END qa-c-list -->
+										
+										<input type="hidden" name="code" value="0-1516468012-2afd718dcecb61ddc551fe06cb791abd8b8683e5">
+										<input type="hidden" name="qa_click" value="">
+									</form>
+									<div class="qa-c-form">
+									</div> <!-- END qa-c-form -->
+									
+								</div> <!-- END qa-q-view-main -->
+								<div class="qa-q-view-clear">
+								</div>
+							</div> <!-- END qa-q-view -->
+							
+						</div>
+						<div class="qa-part-a-list">
+							<h2 id="a_list_title">1 Answer</h2>
+							<div class="qa-a-list" id="a_list">
+								
+								<div class="qa-a-list-item  hentry answer" id="a9220">
+									<form method="post" action="../../4424/whatever-youngs-modulus-displacement-remain-beam-problem">
+										<div class="qa-voting qa-voting-net" id="voting_9220">
+											<div class="qa-vote-count qa-vote-count-net">
+												<span class="qa-netvote-count">
+													<span class="qa-netvote-count-data">0<span class="votes-up"><span class="value-title" title="0"></span></span><span class="votes-down"><span class="value-title" title="0"></span></span></span><span class="qa-netvote-count-pad"> votes</span>
+												</span>
+											</div>
+											<div class="qa-vote-clear">
+											</div>
+										</div>
+										<input type="hidden" name="code" value="0-1516468012-a33eb8dffb406e6ca40ef9587630bfe4119ce875">
+									</form>
+									<div class="qa-a-item-main">
+										<form method="post" action="../../4424/whatever-youngs-modulus-displacement-remain-beam-problem">
+											<div class="qa-a-selection">
+											</div>
+											<div class="qa-a-item-content">
+												<a name="9220"></a><div class="entry-content"><p>Hi,<br>
+when you write </p>
+
+<pre><code>bcp = DirichletBC(V, T, Gamma_P, method='pointwise')
+</code></pre>
+
+<p>and then later </p>
+
+<pre><code>A, b = assemble_system(a, L, bcs)
+</code></pre>
+
+<p>you are imposing a displacement at the point PointLoad, since it is Dirichlet boundary conditions, so it is not what you want. What you want is Neumann conditions. The problem is, I don't know how to apply Neumann conditions  at only one point. It seems one could use the function PointSource but  I don't know how to use it for vector-valued functions, so I have the same problem as you. </p>
+
+<p>One solution I found which is not very satisfying is to define a small boundary (but larger than just a point) with Neumann conditions, for instance in this way:</p>
+
+<pre><code>class PointLoad(SubDomain):
+    def inside(self, x, on_boundary):
+        return abs(x[0]-2) &lt; 0.1 and abs(x[1]-1)&lt;0.1
+</code></pre>
+
+<p>then you apply your Neumann conditions as you did </p>
+
+<pre><code>L = inner(B, v)*dx + inner(T, v)*dss(3)
+</code></pre>
+
+<p>However in your case there was a problem because you had both Dirichlet and Neumann conditions at the same point, which means you need to completely remove the following condition </p>
+
+<pre><code>DirichletBC(V, T, Gamma_P, method='pointwise')
+</code></pre>
+
+<p>In fact your Neumann condition was inactive because the Neumann boundary was reduced to a point.</p>
+
+<p>Still, I would be glad if someone could explain how to apply PointSource to a vector function because so far my attempts have failed.<br>
+For instance if I define </p>
+
+<pre><code>V = VectorFunctionSpace(mesh, 'CG', 1)
+delta = PointSource(V.sub(1), Point(0.0,-1.0), -1)
+delta.apply(b) 
+</code></pre>
+
+<p>I get:<br>
+TypeError: in method 'PointSource_apply', argument 2 of type 'dolfin::GenericVector &amp;'</p>
+</div>
+											</div>
+											<span class="qa-a-item-avatar-meta">
+												<span class="qa-a-item-avatar">
+													<a href="../../user/Antoine" class="qa-avatar-link"><img src="../../?qa=image&amp;qa_blobid=2611928258096667348&amp;qa_size=40" width="40" height="26" class="qa-avatar-image" alt=""></a>
+												</span>
+												<span class="qa-a-item-meta">
+													<a href="../../4424/whatever-youngs-modulus-displacement-remain-beam-problem?show=9220#a9220" class="qa-a-item-what">answered</a>
+													<span class="qa-a-item-when">
+														<span class="qa-a-item-when-data"><span class="published"><span class="value-title" title="2016-02-05T18:35:31+0000"></span>Feb 5, 2016</span></span>
+													</span>
+													<span class="qa-a-item-who">
+														<span class="qa-a-item-who-pad">by </span>
+														<span class="qa-a-item-who-data"><span class="vcard author"><a href="../../user/Antoine" class="qa-user-link url nickname">Antoine</a></span></span>
+														<span class="qa-a-item-who-title">FEniCS Novice</span>
+														<span class="qa-a-item-who-points">
+															<span class="qa-a-item-who-points-pad">(</span><span class="qa-a-item-who-points-data">810</span><span class="qa-a-item-who-points-pad"> points)</span>
+														</span>
+													</span>
+													<br>
+													<span class="qa-a-item-what">edited</span>
+													<span class="qa-a-item-when">
+														<span class="qa-a-item-when-data"><span class="updated"><span class="value-title" title="2016-02-05T20:49:29+0000"></span>Feb 5, 2016</span></span>
+													</span>
+													<span class="qa-a-item-who">
+														<span class="qa-a-item-who-pad">by </span><span class="qa-a-item-who-data"><a href="../../user/Antoine" class="qa-user-link url nickname">Antoine</a></span>
+													</span>
+												</span>
+											</span>
+											<div class="qa-a-item-buttons">
+												</div>
+											
+											<div class="qa-a-item-c-list" id="c9220_list">
+												<div class="qa-c-list-item  hentry comment" id="c9240">
+													<div class="qa-c-item-content">
+														<a name="9240"></a><div class="entry-content"><p><a rel="nofollow" href="http://fenicsproject.org/qa/9051/problem-with-creating-a-point-source?show=9051#q9051"><strong><em>This</em></strong></a> is what you want.</p>
+</div>
+													</div>
+													<div class="qa-c-item-footer">
+														<span class="qa-c-item-avatar-meta">
+															<span class="qa-c-item-avatar">
+																<a href="../../user/hernan_mella" class="qa-avatar-link"><img src="../../?qa=image&amp;qa_blobid=14920815903966845416&amp;qa_size=20" width="20" height="11" class="qa-avatar-image" alt=""></a>
+															</span>
+															<span class="qa-c-item-meta">
+																<a href="../../4424/whatever-youngs-modulus-displacement-remain-beam-problem?show=9240#c9240" class="qa-c-item-what">commented</a>
+																<span class="qa-c-item-when">
+																	<span class="qa-c-item-when-data"><span class="published"><span class="value-title" title="2016-02-08T12:04:38+0000"></span>Feb 8, 2016</span></span>
+																</span>
+																<span class="qa-c-item-who">
+																	<span class="qa-c-item-who-pad">by </span>
+																	<span class="qa-c-item-who-data"><span class="vcard author"><a href="../../user/hernan_mella" class="qa-user-link url nickname">hernan_mella</a></span></span>
+																	<span class="qa-c-item-who-title">FEniCS Expert</span>
+																	<span class="qa-c-item-who-points">
+																		<span class="qa-c-item-who-points-pad">(</span><span class="qa-c-item-who-points-data">19,460</span><span class="qa-c-item-who-points-pad"> points)</span>
+																	</span>
+																</span>
+																<br>
+																<span class="qa-c-item-what">edited</span>
+																<span class="qa-c-item-when">
+																	<span class="qa-c-item-when-data"><span class="updated"><span class="value-title" title="2016-02-08T19:28:07+0000"></span>Feb 8, 2016</span></span>
+																</span>
+																<span class="qa-c-item-who">
+																	<span class="qa-c-item-who-pad">by </span><span class="qa-c-item-who-data"><a href="../../user/hernan_mella" class="qa-user-link url nickname">hernan_mella</a></span>
+																</span>
+															</span>
+														</span>
+														<div class="qa-c-item-buttons">
+														</div>
+													</div>
+													<div class="qa-c-item-clear">
+													</div>
+												</div> <!-- END qa-c-item -->
+											</div> <!-- END qa-c-list -->
+											
+											<input type="hidden" name="code" value="0-1516468012-b8f33d9a0fa55058d1ac4f7710a97e6f61afb908">
+											<input type="hidden" name="qa_click" value="">
+										</form>
+										<div class="qa-c-form">
+										</div> <!-- END qa-c-form -->
+										
+									</div> <!-- END qa-a-item-main -->
+									<div class="qa-a-item-clear">
+									</div>
+								</div> <!-- END qa-a-list-item -->
+								
+							</div> <!-- END qa-a-list -->
+							
+						</div>
+					</div> <!-- END qa-main -->
+					
+				</div> <!-- END main-wrapper -->
+			</div> <!-- END main-shadow -->
+		</div> <!-- END body-wrapper -->
+		<!-- END footer-bottom-group -->
+		
+		<div style="position:absolute; left:-9999px; top:-9999px;">
+			<span id="qa-waiting-template" class="qa-waiting">...</span>
+		</div>
+	
+	
+
+</body><!-- Powered by Question2Answer - http://www.question2answer.org/ --></html>

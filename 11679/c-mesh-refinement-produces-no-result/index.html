@@ -1,0 +1,361 @@
+<html><!-- Powered by Question2Answer - http://www.question2answer.org/ --><head>
+		<meta http-equiv="content-type" content="text/html; charset=utf-8">
+		<title>[C++] Mesh refinement produces no result - FEniCS Q&amp;A</title>
+		<meta name="description" content="Hello, In the Poisson demo I tried to refine the mesh in a small circle around  ... /dolfin/dev/cpp/programmers-reference/refinement/refine.html">
+		<meta name="keywords" content="c,mesh,mesh-refinement,refinement">
+		<link rel="stylesheet" type="text/css" href="../../qa-theme/Snow/qa-styles.css">
+		<link rel="canonical" href="http://fenicsproject.org/qa/11679/c-mesh-refinement-produces-no-result">
+		<script type="text/x-mathjax-config">
+  MathJax.Hub.Config({
+    extensions: ["tex2jax.js"],
+    jax: ["input/TeX","output/HTML-CSS"],
+    tex2jax: {inlineMath: [["$","$"],["\\(","\\)"]]},
+    TeX: { extensions: ["AMSmath.js","AMSsymbols.js"]}
+  });
+</script>
+<script type="text/javascript" src="../../mathjax/MathJax.js"></script>
+		<script src="../../jquery-1.7.2.min.js" type="text/javascript"></script>
+		<script src="../../highlight.min.js"></script>
+<script type="text/javascript">
+$(function(){
+	$('.wmd-input').keypress(function(){
+		window.clearTimeout(hljs.Timeout);
+		hljs.Timeout = window.setTimeout(function() {
+			hljs.initHighlighting.called = false;
+			hljs.initHighlighting();
+		}, 500);
+	});
+	window.setTimeout(function() {
+		hljs.initHighlighting.called = false;
+		hljs.initHighlighting();
+	}, 500);
+});
+</script>
+
+
+	</head>
+	<body class="qa-template-question qa-body-js-off">
+		<div class="qa-body-wrapper">
+			
+			<div class="qa-header">
+				<div class="qa-logo">
+					<a href="../../" class="qa-logo-link" title="FEniCS Q&amp;A"><img src="../../qa-theme/fenics_qa.png" border="0" alt="FEniCS Q&amp;A"></a>
+				</div>
+				<div class="qa-header-clear">
+				</div>
+			</div> <!-- END qa-header -->
+			
+			<div class="qa-main-shadow">
+				
+				<div class="qa-main-wrapper">
+					
+					<div class="qa-sidepanel">
+						<div class="qa-sidebar">
+							This is a read only copy of the old FEniCS QA forum. Please visit the <a href="https://www.allanswered.com/community/s/fenics-project/">new QA forum</a> to ask questions
+						</div>
+						
+					</div>
+					
+					<div class="qa-main">
+						<h1>
+							<span class="entry-title">[C++] Mesh refinement produces no result</span>
+						</h1>
+						<div class="qa-part-q-view">
+							<div class="qa-q-view  hentry question" id="q11679">
+								<form method="post" action="../../11679/c-mesh-refinement-produces-no-result">
+									<div class="qa-q-view-stats">
+										<div class="qa-voting qa-voting-net" id="voting_11679">
+											<div class="qa-vote-count qa-vote-count-net">
+												<span class="qa-netvote-count">
+													<span class="qa-netvote-count-data">+1<span class="votes-up"><span class="value-title" title="1"></span></span><span class="votes-down"><span class="value-title" title="0"></span></span></span><span class="qa-netvote-count-pad"> vote</span>
+												</span>
+											</div>
+											<div class="qa-vote-clear">
+											</div>
+										</div>
+									</div>
+									<input type="hidden" name="code" value="0-1516467779-169b4439e1cbac87b74e21346756128ca35ca9c4">
+								</form>
+								<div class="qa-q-view-main">
+									<form method="post" action="../../11679/c-mesh-refinement-produces-no-result">
+										<div class="qa-q-view-content">
+											<a name="11679"></a><div class="entry-content"><p>Hello, </p>
+
+<p>In the Poisson demo I tried to refine the mesh in a small circle around the center of the mesh, using the example I found <a rel="nofollow" href="https://fenicsproject.org/documentation/dolfin/dev/cpp/programmers-reference/refinement/refine.html">here</a>.</p>
+
+<p>First of all, the example left untouched won't compile, I had to change </p>
+
+<pre><code>for (CellIterator cell(mesh); !cell.end(); ++cell)
+--&gt; for (CellIterator cell(*mesh); !cell.end(); ++cell)
+</code></pre>
+
+<p>and</p>
+
+<pre><code>mesh = refine(mesh, cell_markers);
+--&gt; refine(*mesh, cell_markers);
+</code></pre>
+
+<p>to make it compile.</p>
+
+<p>After that, it turns out the mesh is left totally unchanged, although the terminal in which I launched the simulation reads </p>
+
+<pre><code>Number of cells increased from 200 to 312 (56.0% increase).
+</code></pre>
+
+<p>My modifications probably messed up something important so that there is no effect on the mesh.</p>
+
+<p>What is then the correct way to refine a mesh? </p>
+
+<p>Here is the modified main.cpp of the Poisson demo I used.</p>
+
+<pre><code>#include &lt;dolfin.h&gt;
+#include "Poisson.h"
+#include &lt;mshr.h&gt;
+
+using namespace dolfin;
+
+// Source term (right-hand side)
+class Source : public Expression
+{
+  void eval(Array&lt;double&gt;&amp; values, const Array&lt;double&gt;&amp; x) const
+  {
+    double dx = x[0] - 0.5;
+    double dy = x[1] - 0.5;
+    values[0] = 10*exp(-(dx*dx + dy*dy) / 0.02);
+  }
+};
+
+// Normal derivative (Neumann boundary condition)
+class dUdN : public Expression
+{
+  void eval(Array&lt;double&gt;&amp; values, const Array&lt;double&gt;&amp; x) const
+  {
+    values[0] = sin(5*x[0]);
+  }
+};
+
+// Sub domain for Dirichlet boundary condition
+class DirichletBoundary : public SubDomain
+{
+  bool inside(const Array&lt;double&gt;&amp; x, bool on_boundary) const
+  {
+    return x[0] &lt; DOLFIN_EPS or x[0] &gt; 1.0 - DOLFIN_EPS;
+  }
+};
+
+int main()
+{
+    auto mesh = std::make_shared&lt;UnitSquareMesh&gt;(10, 10);
+
+
+        CellFunction&lt;bool&gt; cell_markers(mesh);
+        cell_markers.set_all(false);
+        Point origin(0.5, 0.5, 0.0);
+        for (CellIterator cell(*mesh); !cell.end(); ++cell)
+        {
+            Point p = cell-&gt;midpoint();
+            if (p.distance(origin) &lt; 0.2)
+        cell_markers[*cell] = true;
+        }
+        refine(*mesh, cell_markers);
+
+  auto V = std::make_shared&lt;Poisson::FunctionSpace&gt;(mesh);
+
+  // Define boundary condition
+  auto u0 = std::make_shared&lt;Constant&gt;(0.0);
+  auto boundary = std::make_shared&lt;DirichletBoundary&gt;();
+  DirichletBC bc(V, u0, boundary);
+
+  // Define variational forms
+  Poisson::BilinearForm a(V, V);
+  Poisson::LinearForm L(V);
+
+  auto f = std::make_shared&lt;Source&gt;();
+  auto g = std::make_shared&lt;dUdN&gt;();
+  L.f = f;
+  L.g = g;
+
+  // Compute solution
+  auto u = std::make_shared&lt;Function&gt;(V);
+  solve(a == L, *u, bc);
+
+  // Plot solution
+  plot(u);
+  interactive();
+
+  return 0;
+}
+</code></pre>
+</div>
+										</div>
+										<div class="qa-q-view-tags">
+											<ul class="qa-q-view-tag-list">
+												<li class="qa-q-view-tag-item"><a href="../../tag/c" rel="tag" class="qa-tag-link">c</a></li>
+												<li class="qa-q-view-tag-item"><a href="../../tag/mesh" rel="tag" class="qa-tag-link">mesh</a></li>
+												<li class="qa-q-view-tag-item"><a href="../../tag/mesh-refinement" rel="tag" class="qa-tag-link">mesh-refinement</a></li>
+												<li class="qa-q-view-tag-item"><a href="../../tag/refinement" rel="tag" class="qa-tag-link">refinement</a></li>
+											</ul>
+										</div>
+										<span class="qa-q-view-avatar-meta">
+											<span class="qa-q-view-meta">
+												<a href="../../11679/c-mesh-refinement-produces-no-result" class="qa-q-view-what">asked</a>
+												<span class="qa-q-view-when">
+													<span class="qa-q-view-when-data"><span class="published"><span class="value-title" title="2016-11-18T13:33:39+0000"></span>Nov 18, 2016</span></span>
+												</span>
+												<span class="qa-q-view-who">
+													<span class="qa-q-view-who-pad">by </span>
+													<span class="qa-q-view-who-data"><span class="vcard author"><a href="../../user/anfneub" class="qa-user-link url nickname">anfneub</a></span></span>
+													<span class="qa-q-view-who-title">FEniCS Novice</span>
+													<span class="qa-q-view-who-points">
+														<span class="qa-q-view-who-points-pad">(</span><span class="qa-q-view-who-points-data">580</span><span class="qa-q-view-who-points-pad"> points)</span>
+													</span>
+												</span>
+											</span>
+										</span>
+										<div class="qa-q-view-buttons">
+										</div>
+										
+										<div class="qa-q-view-c-list" style="display:none;" id="c11679_list">
+										</div> <!-- END qa-c-list -->
+										
+										<input type="hidden" name="code" value="0-1516467779-120c2c8c2922a13559ea2c110d73f0c6042e3b03">
+										<input type="hidden" name="qa_click" value="">
+									</form>
+									<div class="qa-c-form">
+									</div> <!-- END qa-c-form -->
+									
+								</div> <!-- END qa-q-view-main -->
+								<div class="qa-q-view-clear">
+								</div>
+							</div> <!-- END qa-q-view -->
+							
+						</div>
+						<div class="qa-part-a-list">
+							<h2 id="a_list_title">1 Answer</h2>
+							<div class="qa-a-list" id="a_list">
+								
+								<div class="qa-a-list-item  hentry answer answer-selected qa-a-list-item-selected" id="a11684">
+									<form method="post" action="../../11679/c-mesh-refinement-produces-no-result">
+										<div class="qa-voting qa-voting-net" id="voting_11684">
+											<div class="qa-vote-count qa-vote-count-net">
+												<span class="qa-netvote-count">
+													<span class="qa-netvote-count-data">+1<span class="votes-up"><span class="value-title" title="1"></span></span><span class="votes-down"><span class="value-title" title="0"></span></span></span><span class="qa-netvote-count-pad"> vote</span>
+												</span>
+											</div>
+											<div class="qa-vote-clear">
+											</div>
+										</div>
+										<input type="hidden" name="code" value="0-1516467779-169b4439e1cbac87b74e21346756128ca35ca9c4">
+									</form>
+									<div class="qa-a-item-main">
+										<form method="post" action="../../11679/c-mesh-refinement-produces-no-result">
+											<div class="qa-a-item-selected">
+												<div class="qa-a-selection">
+													<div class="qa-a-selected">&#160;</div>
+													<div class="qa-a-selected-text">Best answer</div>
+												</div>
+												<div class="qa-a-item-content">
+													<a name="11684"></a><div class="entry-content"><p>When using shared pointers, consider:</p>
+
+<pre><code>auto mesh2 = std::make_shared&lt;Mesh&gt;();
+refine(*mesh2, *mesh, *cell_markers, false);
+mesh = mesh2;
+</code></pre>
+</div>
+												</div>
+												<span class="qa-a-item-avatar-meta">
+													<span class="qa-a-item-avatar">
+														<a href="../../user/nate" class="qa-avatar-link"><img src="../../?qa=image&amp;qa_blobid=969593914916706065&amp;qa_size=40" width="40" height="40" class="qa-avatar-image" alt=""></a>
+													</span>
+													<span class="qa-a-item-meta">
+														<a href="../../11679/c-mesh-refinement-produces-no-result?show=11684#a11684" class="qa-a-item-what">answered</a>
+														<span class="qa-a-item-when">
+															<span class="qa-a-item-when-data"><span class="published"><span class="value-title" title="2016-11-20T20:39:02+0000"></span>Nov 20, 2016</span></span>
+														</span>
+														<span class="qa-a-item-who">
+															<span class="qa-a-item-who-pad">by </span>
+															<span class="qa-a-item-who-data"><span class="vcard author"><a href="../../user/nate" class="qa-user-link url nickname">nate</a></span></span>
+															<span class="qa-a-item-who-title">FEniCS Expert</span>
+															<span class="qa-a-item-who-points">
+																<span class="qa-a-item-who-points-pad">(</span><span class="qa-a-item-who-points-data">17,050</span><span class="qa-a-item-who-points-pad"> points)</span>
+															</span>
+														</span>
+														<br>
+														<span class="qa-a-item-what">selected</span>
+														<span class="qa-a-item-when">
+															<span class="qa-a-item-when-data"><span class="updated"><span class="value-title" title="2016-11-20T21:57:31+0000"></span>Nov 20, 2016</span></span>
+														</span>
+														<span class="qa-a-item-who">
+															<span class="qa-a-item-who-pad">by </span><span class="qa-a-item-who-data"><a href="../../user/anfneub" class="qa-user-link url nickname">anfneub</a></span>
+														</span>
+													</span>
+												</span>
+											</div>
+											<div class="qa-a-item-buttons">
+												</div>
+											
+											<div class="qa-a-item-c-list" id="c11684_list">
+												<div class="qa-c-list-item  hentry comment" id="c11685">
+													<div class="qa-c-item-content">
+														<a name="11685"></a><div class="entry-content"><p>Thank you very much!</p>
+
+<p>Your suggestion works, but I had to change</p>
+
+<pre><code>refine(*mesh2, *mesh, *cell_markers, false);
+--&gt; refine(*mesh2, *mesh, cell_markers, false);
+</code></pre>
+</div>
+													</div>
+													<div class="qa-c-item-footer">
+														<span class="qa-c-item-avatar-meta">
+															<span class="qa-c-item-meta">
+																<a href="../../11679/c-mesh-refinement-produces-no-result?show=11685#c11685" class="qa-c-item-what">commented</a>
+																<span class="qa-c-item-when">
+																	<span class="qa-c-item-when-data"><span class="published"><span class="value-title" title="2016-11-20T21:57:25+0000"></span>Nov 20, 2016</span></span>
+																</span>
+																<span class="qa-c-item-who">
+																	<span class="qa-c-item-who-pad">by </span>
+																	<span class="qa-c-item-who-data"><span class="vcard author"><a href="../../user/anfneub" class="qa-user-link url nickname">anfneub</a></span></span>
+																	<span class="qa-c-item-who-title">FEniCS Novice</span>
+																	<span class="qa-c-item-who-points">
+																		<span class="qa-c-item-who-points-pad">(</span><span class="qa-c-item-who-points-data">580</span><span class="qa-c-item-who-points-pad"> points)</span>
+																	</span>
+																</span>
+															</span>
+														</span>
+														<div class="qa-c-item-buttons">
+														</div>
+													</div>
+													<div class="qa-c-item-clear">
+													</div>
+												</div> <!-- END qa-c-item -->
+											</div> <!-- END qa-c-list -->
+											
+											<input type="hidden" name="code" value="0-1516467779-f9d9c3c1d7f226546f9b386a0a9ae0031388a5c8">
+											<input type="hidden" name="qa_click" value="">
+										</form>
+										<div class="qa-c-form">
+										</div> <!-- END qa-c-form -->
+										
+									</div> <!-- END qa-a-item-main -->
+									<div class="qa-a-item-clear">
+									</div>
+								</div> <!-- END qa-a-list-item -->
+								
+							</div> <!-- END qa-a-list -->
+							
+						</div>
+					</div> <!-- END qa-main -->
+					
+				</div> <!-- END main-wrapper -->
+			</div> <!-- END main-shadow -->
+		</div> <!-- END body-wrapper -->
+		<!-- END footer-bottom-group -->
+		
+		<div style="position:absolute; left:-9999px; top:-9999px;">
+			<span id="qa-waiting-template" class="qa-waiting">...</span>
+		</div>
+	
+	
+
+</body><!-- Powered by Question2Answer - http://www.question2answer.org/ --></html>

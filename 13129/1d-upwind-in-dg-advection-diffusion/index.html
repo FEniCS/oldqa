@@ -1,0 +1,336 @@
+<html><!-- Powered by Question2Answer - http://www.question2answer.org/ --><head>
+		<meta http-equiv="content-type" content="text/html; charset=utf-8">
+		<title>1D upwind in DG advection-diffusion - FEniCS Q&amp;A</title>
+		<meta name="description" content="Hello, I am trying to write a 1D code for the advection-diffusion equation using DG method. I was  ...  find it out. What's wrong? Thanks in advance">
+		<meta name="keywords" content="advection,discontinuous-galerkin,1d,upwind">
+		<link rel="stylesheet" type="text/css" href="../../qa-theme/Snow/qa-styles.css">
+		<link rel="canonical" href="http://fenicsproject.org/qa/13129/1d-upwind-in-dg-advection-diffusion">
+		<script type="text/x-mathjax-config">
+  MathJax.Hub.Config({
+    extensions: ["tex2jax.js"],
+    jax: ["input/TeX","output/HTML-CSS"],
+    tex2jax: {inlineMath: [["$","$"],["\\(","\\)"]]},
+    TeX: { extensions: ["AMSmath.js","AMSsymbols.js"]}
+  });
+</script>
+<script type="text/javascript" src="../../mathjax/MathJax.js"></script>
+		<script src="../../jquery-1.7.2.min.js" type="text/javascript"></script>
+		<script src="../../highlight.min.js"></script>
+<script type="text/javascript">
+$(function(){
+	$('.wmd-input').keypress(function(){
+		window.clearTimeout(hljs.Timeout);
+		hljs.Timeout = window.setTimeout(function() {
+			hljs.initHighlighting.called = false;
+			hljs.initHighlighting();
+		}, 500);
+	});
+	window.setTimeout(function() {
+		hljs.initHighlighting.called = false;
+		hljs.initHighlighting();
+	}, 500);
+});
+</script>
+
+
+	</head>
+	<body class="qa-template-question qa-body-js-off">
+		<div class="qa-body-wrapper">
+			
+			<div class="qa-header">
+				<div class="qa-logo">
+					<a href="../../" class="qa-logo-link" title="FEniCS Q&amp;A"><img src="../../qa-theme/fenics_qa.png" border="0" alt="FEniCS Q&amp;A"></a>
+				</div>
+				<div class="qa-header-clear">
+				</div>
+			</div> <!-- END qa-header -->
+			
+			<div class="qa-main-shadow">
+				
+				<div class="qa-main-wrapper">
+					
+					<div class="qa-sidepanel">
+						<div class="qa-sidebar">
+							This is a read only copy of the old FEniCS QA forum. Please visit the <a href="https://www.allanswered.com/community/s/fenics-project/">new QA forum</a> to ask questions
+						</div>
+						
+					</div>
+					
+					<div class="qa-main">
+						<h1>
+							<span class="entry-title">1D upwind in DG advection-diffusion</span>
+						</h1>
+						<div class="qa-part-q-view">
+							<div class="qa-q-view  hentry question" id="q13129">
+								<form method="post" action="../../13129/1d-upwind-in-dg-advection-diffusion">
+									<div class="qa-q-view-stats">
+										<div class="qa-voting qa-voting-net" id="voting_13129">
+											<div class="qa-vote-count qa-vote-count-net">
+												<span class="qa-netvote-count">
+													<span class="qa-netvote-count-data">+1<span class="votes-up"><span class="value-title" title="1"></span></span><span class="votes-down"><span class="value-title" title="0"></span></span></span><span class="qa-netvote-count-pad"> vote</span>
+												</span>
+											</div>
+											<div class="qa-vote-clear">
+											</div>
+										</div>
+									</div>
+									<input type="hidden" name="code" value="0-1516467854-fff720831f9b963d68ee57ddabba573e777f85da">
+								</form>
+								<div class="qa-q-view-main">
+									<form method="post" action="../../13129/1d-upwind-in-dg-advection-diffusion">
+										<div class="qa-q-view-content">
+											<a name="13129"></a><div class="entry-content"><p>Hello,</p>
+
+<p>I am trying to write a 1D code for the advection-diffusion equation using DG method. <br>
+I was looking at the demo </p>
+
+<p><a rel="nofollow" href="https://github.com/FEniCS/dolfin/blob/master/demo/undocumented/dg-advection-diffusion/python/demo_dg-advection-diffusion.py">https://github.com/FEniCS/dolfin/blob/master/demo/undocumented/dg-advection-diffusion/python/demo_dg-advection-diffusion.py</a></p>
+
+<p>trying to modify it. <br>
+I changed the dimensions and defined my velocity field as a constant:</p>
+
+<pre><code>from dolfin import *
+
+# Dirichlet boundary
+class DirichletBoundary(SubDomain):
+    def inside(self, x, on_boundary):
+        return on_boundary and near(x[0]*(1 - x[0]), 0)
+
+# Mesh
+mesh = UnitIntervalMesh(50)
+
+# Function spaces
+V_dg = FunctionSpace(mesh, "DG", 1)
+V_cg = FunctionSpace(mesh, "CG", 1)
+V_u  = FunctionSpace(mesh, "CG", 2) 
+
+# Velocity 
+u_const = Constant(0.5)
+u = interpolate(u_const, V_u)
+
+# Test and trial functions
+v   = TestFunction(V_dg)
+phi = TrialFunction(V_dg)
+
+# Diffusivity
+kappa = Constant(0.0)
+
+# Source term
+f = Constant(0.0)
+
+# Penalty term
+alpha = Constant(5.0)
+
+# Mesh-related functions
+n = FacetNormal(mesh)
+h = CellSize(mesh)
+h_avg = (h('+') + h('-'))/2
+
+# Upwind 
+un = (u*n - abs(u*n))/2
+
+# Mark facets of the mesh
+boundaries = FacetFunction('size_t', mesh, 0)
+DirichletBoundary().mark(boundaries, 1)
+
+#Bilinear form
+a_int = inner(v.dx(0), kappa*phi.dx(0) - u*phi)*dx \
+
+
+a_fac = kappa*(alpha/h('+'))*inner(jump(v, n), jump(phi, n))*dS \
+         - kappa*inner(avg(grad(v)), jump(phi, n))*dS \
+         - kappa*inner(jump(v, n), avg(grad(phi)))*dS 
+
+
+a_vel = jump(v)* (un('+')*phi('+') - un('-')*phi('-'))*dS  + (v*un*phi)*ds
+</code></pre>
+
+<p>When i try to run it, I have the error message</p>
+
+<blockquote>
+  <p>Can only integrate scalar expressions. The integrand is a tensor expression with value shape (1,) and free indices with labels ().<br>
+  Traceback (most recent call last):<br>
+    File "dg-advection-diffusion.py", line 62, in <br>
+      a_vel = jump(v)* (un('+')<em>phi('+') - un('-')</em>phi('-'))<em>dS  + (v</em>un<em>phi)</em>ds<br>
+    File "/usr/lib/python2.7/dist-packages/ufl/measure.py", line 429, in <strong>rmul</strong><br>
+      (integrand.ufl_shape, integrand.ufl_free_indices))<br>
+    File "/usr/lib/python2.7/dist-packages/ufl/log.py", line 171, in error<br>
+      raise self._exception_type(self._format_raw(*message))<br>
+  ufl.log.UFLException: Can only integrate scalar expressions. The integrand is a tensor expression with value shape (1,) and free indices with labels ().</p>
+</blockquote>
+
+<p>I think it's a problem with the upwind, but I'm not able to find it out.</p>
+
+<p>What's wrong?</p>
+
+<p>Thanks in advance</p>
+</div>
+										</div>
+										<div class="qa-q-view-tags">
+											<ul class="qa-q-view-tag-list">
+												<li class="qa-q-view-tag-item"><a href="../../tag/advection" rel="tag" class="qa-tag-link">advection</a></li>
+												<li class="qa-q-view-tag-item"><a href="../../tag/discontinuous-galerkin" rel="tag" class="qa-tag-link">discontinuous-galerkin</a></li>
+												<li class="qa-q-view-tag-item"><a href="../../tag/1d" rel="tag" class="qa-tag-link">1d</a></li>
+												<li class="qa-q-view-tag-item"><a href="../../tag/upwind" rel="tag" class="qa-tag-link">upwind</a></li>
+											</ul>
+										</div>
+										<span class="qa-q-view-avatar-meta">
+											<span class="qa-q-view-meta">
+												<a href="../../13129/1d-upwind-in-dg-advection-diffusion" class="qa-q-view-what">asked</a>
+												<span class="qa-q-view-when">
+													<span class="qa-q-view-when-data"><span class="published"><span class="value-title" title="2017-04-19T13:40:56+0000"></span>Apr 19, 2017</span></span>
+												</span>
+												<span class="qa-q-view-who">
+													<span class="qa-q-view-who-pad">by </span>
+													<span class="qa-q-view-who-data"><span class="vcard author"><a href="../../user/sara_89" class="qa-user-link url nickname">sara_89</a></span></span>
+													<span class="qa-q-view-who-title">FEniCS Novice</span>
+													<span class="qa-q-view-who-points">
+														<span class="qa-q-view-who-points-pad">(</span><span class="qa-q-view-who-points-data">230</span><span class="qa-q-view-who-points-pad"> points)</span>
+													</span>
+												</span>
+											</span>
+										</span>
+										<div class="qa-q-view-buttons">
+										</div>
+										
+										<div class="qa-q-view-c-list" style="display:none;" id="c13129_list">
+										</div> <!-- END qa-c-list -->
+										
+										<input type="hidden" name="code" value="0-1516467854-22e62f86a42fccd5645de0ee5d689155b2124154">
+										<input type="hidden" name="qa_click" value="">
+									</form>
+									<div class="qa-c-form">
+									</div> <!-- END qa-c-form -->
+									
+								</div> <!-- END qa-q-view-main -->
+								<div class="qa-q-view-clear">
+								</div>
+							</div> <!-- END qa-q-view -->
+							
+						</div>
+						<div class="qa-part-a-list">
+							<h2 id="a_list_title">1 Answer</h2>
+							<div class="qa-a-list" id="a_list">
+								
+								<div class="qa-a-list-item  hentry answer answer-selected qa-a-list-item-selected" id="a13133">
+									<form method="post" action="../../13129/1d-upwind-in-dg-advection-diffusion">
+										<div class="qa-voting qa-voting-net" id="voting_13133">
+											<div class="qa-vote-count qa-vote-count-net">
+												<span class="qa-netvote-count">
+													<span class="qa-netvote-count-data">+2<span class="votes-up"><span class="value-title" title="2"></span></span><span class="votes-down"><span class="value-title" title="0"></span></span></span><span class="qa-netvote-count-pad"> votes</span>
+												</span>
+											</div>
+											<div class="qa-vote-clear">
+											</div>
+										</div>
+										<input type="hidden" name="code" value="0-1516467854-fff720831f9b963d68ee57ddabba573e777f85da">
+									</form>
+									<div class="qa-a-item-main">
+										<form method="post" action="../../13129/1d-upwind-in-dg-advection-diffusion">
+											<div class="qa-a-item-selected">
+												<div class="qa-a-selection">
+													<div class="qa-a-selected">&#160;</div>
+													<div class="qa-a-selected-text">Best answer</div>
+												</div>
+												<div class="qa-a-item-content">
+													<a name="13133"></a><div class="entry-content"><p>Hi, </p>
+
+<p>the problem is that 'un' has rank 1 (i.e. it is a vector, since you are using the FacetNormal vector when defining 'un') whereas 'v' and 'phi' are scalar quantities.<br>
+I guess your code won't return an error when using</p>
+
+<pre><code>uv = as_vector((u,))
+un = (dot(uv,n) - abs(dot(uv,n)) )/2
+</code></pre>
+
+<p>Now 'un' will be a scalar quantity and your form will compile (without any other guarantees of the correctness of your formulation).</p>
+
+<p>Hope this helps?</p>
+</div>
+												</div>
+												<span class="qa-a-item-avatar-meta">
+													<span class="qa-a-item-meta">
+														<a href="../../13129/1d-upwind-in-dg-advection-diffusion?show=13133#a13133" class="qa-a-item-what">answered</a>
+														<span class="qa-a-item-when">
+															<span class="qa-a-item-when-data"><span class="published"><span class="value-title" title="2017-04-19T15:42:24+0000"></span>Apr 19, 2017</span></span>
+														</span>
+														<span class="qa-a-item-who">
+															<span class="qa-a-item-who-pad">by </span>
+															<span class="qa-a-item-who-data"><span class="vcard author"><a href="../../user/jmmal" class="qa-user-link url nickname">jmmal</a></span></span>
+															<span class="qa-a-item-who-title">FEniCS User</span>
+															<span class="qa-a-item-who-points">
+																<span class="qa-a-item-who-points-pad">(</span><span class="qa-a-item-who-points-data">5,890</span><span class="qa-a-item-who-points-pad"> points)</span>
+															</span>
+														</span>
+														<br>
+														<span class="qa-a-item-what">selected</span>
+														<span class="qa-a-item-when">
+															<span class="qa-a-item-when-data"><span class="updated"><span class="value-title" title="2017-04-20T13:43:39+0000"></span>Apr 20, 2017</span></span>
+														</span>
+														<span class="qa-a-item-who">
+															<span class="qa-a-item-who-pad">by </span><span class="qa-a-item-who-data"><a href="../../user/sara_89" class="qa-user-link url nickname">sara_89</a></span>
+														</span>
+													</span>
+												</span>
+											</div>
+											<div class="qa-a-item-buttons">
+												</div>
+											
+											<div class="qa-a-item-c-list" id="c13133_list">
+												<div class="qa-c-list-item  hentry comment" id="c13141">
+													<div class="qa-c-item-content">
+														<a name="13141"></a><div class="entry-content"><p>Yes, thanks! Now it works </p>
+</div>
+													</div>
+													<div class="qa-c-item-footer">
+														<span class="qa-c-item-avatar-meta">
+															<span class="qa-c-item-meta">
+																<a href="../../13129/1d-upwind-in-dg-advection-diffusion?show=13141#c13141" class="qa-c-item-what">commented</a>
+																<span class="qa-c-item-when">
+																	<span class="qa-c-item-when-data"><span class="published"><span class="value-title" title="2017-04-20T13:44:37+0000"></span>Apr 20, 2017</span></span>
+																</span>
+																<span class="qa-c-item-who">
+																	<span class="qa-c-item-who-pad">by </span>
+																	<span class="qa-c-item-who-data"><span class="vcard author"><a href="../../user/sara_89" class="qa-user-link url nickname">sara_89</a></span></span>
+																	<span class="qa-c-item-who-title">FEniCS Novice</span>
+																	<span class="qa-c-item-who-points">
+																		<span class="qa-c-item-who-points-pad">(</span><span class="qa-c-item-who-points-data">230</span><span class="qa-c-item-who-points-pad"> points)</span>
+																	</span>
+																</span>
+															</span>
+														</span>
+														<div class="qa-c-item-buttons">
+														</div>
+													</div>
+													<div class="qa-c-item-clear">
+													</div>
+												</div> <!-- END qa-c-item -->
+											</div> <!-- END qa-c-list -->
+											
+											<input type="hidden" name="code" value="0-1516467854-018a4565653297dca9a56e51eb0327f6f95303db">
+											<input type="hidden" name="qa_click" value="">
+										</form>
+										<div class="qa-c-form">
+										</div> <!-- END qa-c-form -->
+										
+									</div> <!-- END qa-a-item-main -->
+									<div class="qa-a-item-clear">
+									</div>
+								</div> <!-- END qa-a-list-item -->
+								
+							</div> <!-- END qa-a-list -->
+							
+						</div>
+					</div> <!-- END qa-main -->
+					
+				</div> <!-- END main-wrapper -->
+			</div> <!-- END main-shadow -->
+		</div> <!-- END body-wrapper -->
+		<!-- END footer-bottom-group -->
+		
+		<div style="position:absolute; left:-9999px; top:-9999px;">
+			<span id="qa-waiting-template" class="qa-waiting">...</span>
+		</div>
+	
+	
+
+</body><!-- Powered by Question2Answer - http://www.question2answer.org/ --></html>

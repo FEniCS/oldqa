@@ -1,0 +1,309 @@
+<html><!-- Powered by Question2Answer - http://www.question2answer.org/ --><head>
+		<meta http-equiv="content-type" content="text/html; charset=utf-8">
+		<title>Coefficient defined by two functions, one for each subdomain (with a piecewise function to identify domains) - FEniCS Q&amp;A</title>
+		<meta name="description" content="Hello people, I try to define a variable D so that D=f(x,C) with x the spatial  ... incorrect at the interface Any help would be greatly appreciate.">
+		<meta name="keywords" content="piecewise-function">
+		<link rel="stylesheet" type="text/css" href="../../qa-theme/Snow/qa-styles.css">
+		<link rel="canonical" href="http://fenicsproject.org/qa/14016/coefficient-functions-subdomain-piecewise-function-identify">
+		<script type="text/x-mathjax-config">
+  MathJax.Hub.Config({
+    extensions: ["tex2jax.js"],
+    jax: ["input/TeX","output/HTML-CSS"],
+    tex2jax: {inlineMath: [["$","$"],["\\(","\\)"]]},
+    TeX: { extensions: ["AMSmath.js","AMSsymbols.js"]}
+  });
+</script>
+<script type="text/javascript" src="../../mathjax/MathJax.js"></script>
+		<script src="../../jquery-1.7.2.min.js" type="text/javascript"></script>
+		<script src="../../highlight.min.js"></script>
+<script type="text/javascript">
+$(function(){
+	$('.wmd-input').keypress(function(){
+		window.clearTimeout(hljs.Timeout);
+		hljs.Timeout = window.setTimeout(function() {
+			hljs.initHighlighting.called = false;
+			hljs.initHighlighting();
+		}, 500);
+	});
+	window.setTimeout(function() {
+		hljs.initHighlighting.called = false;
+		hljs.initHighlighting();
+	}, 500);
+});
+</script>
+
+
+	</head>
+	<body class="qa-template-question qa-body-js-off">
+		<div class="qa-body-wrapper">
+			
+			<div class="qa-header">
+				<div class="qa-logo">
+					<a href="../../" class="qa-logo-link" title="FEniCS Q&amp;A"><img src="../../qa-theme/fenics_qa.png" border="0" alt="FEniCS Q&amp;A"></a>
+				</div>
+				<div class="qa-header-clear">
+				</div>
+			</div> <!-- END qa-header -->
+			
+			<div class="qa-main-shadow">
+				
+				<div class="qa-main-wrapper">
+					
+					<div class="qa-sidepanel">
+						<div class="qa-sidebar">
+							This is a read only copy of the old FEniCS QA forum. Please visit the <a href="https://www.allanswered.com/community/s/fenics-project/">new QA forum</a> to ask questions
+						</div>
+						
+					</div>
+					
+					<div class="qa-main">
+						<h1>
+							<span class="entry-title">Coefficient defined by two functions, one for each subdomain (with a piecewise function to identify domains)</span>
+						</h1>
+						<div class="qa-part-q-view">
+							<div class="qa-q-view  hentry question" id="q14016">
+								<form method="post" action="../../14016/coefficient-functions-subdomain-piecewise-function-identify">
+									<div class="qa-q-view-stats">
+										<div class="qa-voting qa-voting-net" id="voting_14016">
+											<div class="qa-vote-count qa-vote-count-net">
+												<span class="qa-netvote-count">
+													<span class="qa-netvote-count-data">0<span class="votes-up"><span class="value-title" title="0"></span></span><span class="votes-down"><span class="value-title" title="0"></span></span></span><span class="qa-netvote-count-pad"> votes</span>
+												</span>
+											</div>
+											<div class="qa-vote-clear">
+											</div>
+										</div>
+									</div>
+									<input type="hidden" name="code" value="0-1516466503-607205add563b0efd78c4b320f837de2a223a15d">
+								</form>
+								<div class="qa-q-view-main">
+									<form method="post" action="../../14016/coefficient-functions-subdomain-piecewise-function-identify">
+										<div class="qa-q-view-content">
+											<a name="14016"></a><div class="entry-content"><p>Hello people,<br>
+I try to define a variable D so that D=f(x,C) with x the spatial location and C a field variable<br>
+So far, i have defined two different functions: <br>
+D = Da(C) <br>
+D = Db(C)<br>
+Also i have a piece wise function I(x) which is equal to 1 for cells within mesh A, and equal to 0 for cells within mesh B<br>
+then i do:<br>
+result = I(x)<em>Da(C) + [1-I(x)]</em>Db(C)</p>
+
+<p>It works, except for nodes that belong to both mesh A and mesh B.</p>
+
+<p>Here is a minimum code of my problem (Fenics 2016.1)</p>
+
+<pre><code># Impose / is the decimal division (must be at the start of the code)
+from __future__ import division
+
+# Dolfin library
+from dolfin import *
+# Numpy library
+import numpy as np
+
+# Current version of FEniCS
+print "The current version of FEniCS is",dolfin.dolfin_version()
+
+# Mesh
+mesh = BoxMesh(Point(0.0, 0.0, 0.0), Point(10, 10, 10), 20, 20, 20)
+
+# Create subdomains object
+subdomains_mesh = MeshFunction('size_t', mesh, 3)
+
+# Defines subdomains
+class OmegaA(SubDomain):
+    def inside(self, x, on_boundary):
+        return True if x[0] &lt;= 5 else False 
+class OmegaB(SubDomain):
+    def inside(self, x, on_boundary):
+        return True if x[0] &gt;= 5 else False
+
+# Mark subdomains
+id_meshA = 10
+id_meshB = 20
+OmegaA().mark(subdomains_mesh, id_meshA)
+OmegaB().mark(subdomains_mesh, id_meshB)
+
+# Field that indicates if the cell are within the mesh A or within the mesh B
+# Create function space
+V_identify = FunctionSpace(mesh, 'DG', 0)
+# Then, we define a function on this finite element function space
+Identify_=Function(V_identify)
+# Values are set (within the mesh A =1, within the mesh B =0)
+Localtion_ = np.zeros(1000)
+Localtion_[id_meshA]=1
+Localtion_[id_meshB]=0
+# Attribute value locally on each cell
+# We perform a loop on each cells of the all the subdomain
+for cell_number in range(len(subdomains_mesh.array())): # Select cell
+    subdomain_number = subdomains_mesh.array()[cell_number] # Get the id of the subdomain that contains the cell
+    Identify_.vector()[cell_number]=Localtion_[subdomain_number] # Attribute function value on each cell (piecewise constant function)
+plot(Identify_, title='Within meshA (=1) or meshB (=0)', interactive=True)  
+
+# Define functions: value of D we want for the mesh A and for the mesh B
+def D_A(C):
+    D=C
+    return(D) 
+def D_B(C):
+    D=C/2
+    return(D)
+
+# Define function: value of D that change depending on if the cell are within mesh A or mesh B
+def DA_DB (Identify, C):
+    # Calculate the two variable field
+    field_DA = D_A(C)
+    field_DB = D_B(C)
+    # Attribute spatially C
+    # Identify = 1 if within mesh A, =0 if within mesh B
+    # So that, DD = D_A(C) for cell within mesh A
+    # So that, DD = D_B(C) for cell within mesh B
+    # AND FOR NODES THAT BELONGS BOTH TO MESH A AND B ? HERE IS MY ISSUE.
+    # I WOULD LIKE DD = (D_A(C)+D_B(C))/2 for nodes at the interface between mesh A and B
+    DD = Identify*field_DA + (1-Identify)*field_DB
+    # Calculate the flux
+    return DD       
+
+# Create variable field C
+C_scalar=10
+
+# Set function space for the variable field C
+V = FunctionSpace(mesh, 'Lagrange', 1)
+
+# Project C on the function space
+C_field = project(C_scalar,V)
+plot(C_field, title='C',interactive=True) # Value display is correct
+
+# Calculate
+field_DA = D_A(C_field)
+field_DB = D_B(C_field)
+plot(field_DA, title='D with expression we want only for mesh A',interactive=True) # Value display is correct
+plot(field_DB, title='D with expression we want only for mesh B',interactive=True) # Value display is correct
+
+# Calculate
+DD_ = DA_DB(Identify_,C_field) # WRONG
+plot(DD_, title='D with expression both for mesh A and B',interactive=True) # Value display is incorrect at the interface
+</code></pre>
+
+<p>Any help would be greatly appreciate.</p>
+</div>
+										</div>
+										<div class="qa-q-view-tags">
+											<ul class="qa-q-view-tag-list">
+												<li class="qa-q-view-tag-item"><a href="../../tag/piecewise-function" rel="tag" class="qa-tag-link">piecewise-function</a></li>
+											</ul>
+										</div>
+										<span class="qa-q-view-avatar-meta">
+											<span class="qa-q-view-meta">
+												<a href="../../14016/coefficient-functions-subdomain-piecewise-function-identify" class="qa-q-view-what">asked</a>
+												<span class="qa-q-view-when">
+													<span class="qa-q-view-when-data"><span class="published"><span class="value-title" title="2017-06-16T22:31:21+0000"></span>Jun 17, 2017</span></span>
+												</span>
+												<span class="qa-q-view-who">
+													<span class="qa-q-view-who-pad">by </span>
+													<span class="qa-q-view-who-data"><span class="vcard author"><a href="../../user/fussegli" class="qa-user-link url nickname">fussegli</a></span></span>
+													<span class="qa-q-view-who-title">FEniCS Novice</span>
+													<span class="qa-q-view-who-points">
+														<span class="qa-q-view-who-points-pad">(</span><span class="qa-q-view-who-points-data">700</span><span class="qa-q-view-who-points-pad"> points)</span>
+													</span>
+												</span>
+											</span>
+										</span>
+										<div class="qa-q-view-buttons">
+										</div>
+										
+										<div class="qa-q-view-c-list" id="c14016_list">
+											<div class="qa-c-list-item  hentry comment" id="c14020">
+												<div class="qa-c-item-content">
+													<a name="14020"></a><div class="entry-content"><p>Okay,  i have found another way to solve my problem</p>
+
+<p>Instead of using a piece wise function that FEniCS (and me) doesnt hand well, i have done this:</p>
+
+<pre><code># Get spatial coordinnates
+x_mod = SpatialCoordinate(mesh)
+
+# Create x0 function
+x0_coordinate_function = project(x_mod[0],V)
+plot(x0_coordinate_function, title='x0_coordinate_function',interactive=True)
+# The function is converted in an array
+x0_array = x0_coordinate_function.vector().array()
+# Apply a mask
+np.place(x0_array, x0_array&lt;=4.9, 1) # half the length minus a tolerance (to avoid to be on a node)
+np.place(x0_array, x0_array&gt;1, 0)
+# Insert the new array in the fuction
+x0_coordinate_function.vector()[:] = x0_array   
+
+# Define function: value of D that change depening on if the cell are within mesh A or mesh B
+def DA_DB_x (C, x):
+    # Calculate the two variable field
+    field_DA = D_A(C)
+    field_DB = D_B(C)
+    # Attribute spatially C
+    DD = x*field_DA + (1-x)*field_DB
+    # Calculate the flux
+    return DD       
+
+# Calculate
+DD_ = DA_DB_x(C_field,x0_coordinate_function)
+plot(DD_, title='D with expression both for mesh A and B',interactive=True) # Value display is incorrect at the interface
+</code></pre>
+
+<p>Although, if you know to do it with the piece wise function...</p>
+</div>
+												</div>
+												<div class="qa-c-item-footer">
+													<span class="qa-c-item-avatar-meta">
+														<span class="qa-c-item-meta">
+															<a href="../../14016/coefficient-functions-subdomain-piecewise-function-identify?show=14020#c14020" class="qa-c-item-what">commented</a>
+															<span class="qa-c-item-when">
+																<span class="qa-c-item-when-data"><span class="published"><span class="value-title" title="2017-06-17T00:25:49+0000"></span>Jun 17, 2017</span></span>
+															</span>
+															<span class="qa-c-item-who">
+																<span class="qa-c-item-who-pad">by </span>
+																<span class="qa-c-item-who-data"><span class="vcard author"><a href="../../user/fussegli" class="qa-user-link url nickname">fussegli</a></span></span>
+																<span class="qa-c-item-who-title">FEniCS Novice</span>
+																<span class="qa-c-item-who-points">
+																	<span class="qa-c-item-who-points-pad">(</span><span class="qa-c-item-who-points-data">700</span><span class="qa-c-item-who-points-pad"> points)</span>
+																</span>
+															</span>
+														</span>
+													</span>
+													<div class="qa-c-item-buttons">
+													</div>
+												</div>
+												<div class="qa-c-item-clear">
+												</div>
+											</div> <!-- END qa-c-item -->
+										</div> <!-- END qa-c-list -->
+										
+										<input type="hidden" name="code" value="0-1516466503-bbe423d7ed4b6643ed5e3e1c4fddce003fdeec78">
+										<input type="hidden" name="qa_click" value="">
+									</form>
+									<div class="qa-c-form">
+									</div> <!-- END qa-c-form -->
+									
+								</div> <!-- END qa-q-view-main -->
+								<div class="qa-q-view-clear">
+								</div>
+							</div> <!-- END qa-q-view -->
+							
+						</div>
+						<div class="qa-part-a-list">
+							<h2 id="a_list_title" style="display:none;"></h2>
+							<div class="qa-a-list" id="a_list">
+								
+							</div> <!-- END qa-a-list -->
+							
+						</div>
+					</div> <!-- END qa-main -->
+					
+				</div> <!-- END main-wrapper -->
+			</div> <!-- END main-shadow -->
+		</div> <!-- END body-wrapper -->
+		<!-- END footer-bottom-group -->
+		
+		<div style="position:absolute; left:-9999px; top:-9999px;">
+			<span id="qa-waiting-template" class="qa-waiting">...</span>
+		</div>
+	
+	
+
+</body><!-- Powered by Question2Answer - http://www.question2answer.org/ --></html>

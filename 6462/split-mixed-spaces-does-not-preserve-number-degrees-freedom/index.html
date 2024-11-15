@@ -1,0 +1,330 @@
+<html><!-- Powered by Question2Answer - http://www.question2answer.org/ --><head>
+		<meta http-equiv="content-type" content="text/html; charset=utf-8">
+		<title>Split of mixed spaces does not preserve number of degrees of freedom in v1.5 - FEniCS Q&amp;A</title>
+		<meta name="description" content="I have a code that was working fine in version 1.4. I have now upgraded to version 1.5 and  ...  before. Did something change? Or this is a bug?">
+		<link rel="stylesheet" type="text/css" href="../../qa-theme/Snow/qa-styles.css">
+		<link rel="canonical" href="http://fenicsproject.org/qa/6462/split-mixed-spaces-does-not-preserve-number-degrees-freedom">
+		<script type="text/x-mathjax-config">
+  MathJax.Hub.Config({
+    extensions: ["tex2jax.js"],
+    jax: ["input/TeX","output/HTML-CSS"],
+    tex2jax: {inlineMath: [["$","$"],["\\(","\\)"]]},
+    TeX: { extensions: ["AMSmath.js","AMSsymbols.js"]}
+  });
+</script>
+<script type="text/javascript" src="../../mathjax/MathJax.js"></script>
+		<script src="../../jquery-1.7.2.min.js" type="text/javascript"></script>
+		<script src="../../highlight.min.js"></script>
+<script type="text/javascript">
+$(function(){
+	$('.wmd-input').keypress(function(){
+		window.clearTimeout(hljs.Timeout);
+		hljs.Timeout = window.setTimeout(function() {
+			hljs.initHighlighting.called = false;
+			hljs.initHighlighting();
+		}, 500);
+	});
+	window.setTimeout(function() {
+		hljs.initHighlighting.called = false;
+		hljs.initHighlighting();
+	}, 500);
+});
+</script>
+
+
+	</head>
+	<body class="qa-template-question qa-body-js-off">
+		<div class="qa-body-wrapper">
+			
+			<div class="qa-header">
+				<div class="qa-logo">
+					<a href="../../" class="qa-logo-link" title="FEniCS Q&amp;A"><img src="../../qa-theme/fenics_qa.png" border="0" alt="FEniCS Q&amp;A"></a>
+				</div>
+				<div class="qa-header-clear">
+				</div>
+			</div> <!-- END qa-header -->
+			
+			<div class="qa-main-shadow">
+				
+				<div class="qa-main-wrapper">
+					
+					<div class="qa-sidepanel">
+						<div class="qa-sidebar">
+							This is a read only copy of the old FEniCS QA forum. Please visit the <a href="https://www.allanswered.com/community/s/fenics-project/">new QA forum</a> to ask questions
+						</div>
+						
+					</div>
+					
+					<div class="qa-main">
+						<h1>
+							<span class="entry-title">Split of mixed spaces does not preserve number of degrees of freedom in v1.5</span>
+						</h1>
+						<div class="qa-part-q-view">
+							<div class="qa-q-view  hentry question" id="q6462">
+								<form method="post" action="../../6462/split-mixed-spaces-does-not-preserve-number-degrees-freedom">
+									<div class="qa-q-view-stats">
+										<div class="qa-voting qa-voting-net" id="voting_6462">
+											<div class="qa-vote-count qa-vote-count-net">
+												<span class="qa-netvote-count">
+													<span class="qa-netvote-count-data">+4<span class="votes-up"><span class="value-title" title="4"></span></span><span class="votes-down"><span class="value-title" title="0"></span></span></span><span class="qa-netvote-count-pad"> votes</span>
+												</span>
+											</div>
+											<div class="qa-vote-clear">
+											</div>
+										</div>
+									</div>
+									<input type="hidden" name="code" value="0-1516468071-366c65b011b6edabf3008a898cc84e6e8871b4e9">
+								</form>
+								<div class="qa-q-view-main">
+									<form method="post" action="../../6462/split-mixed-spaces-does-not-preserve-number-degrees-freedom">
+										<div class="qa-q-view-content">
+											<a name="6462"></a><div class="entry-content"><p>I have a code that was working fine in version 1.4. I have now upgraded to version 1.5 and my code does not work anymore. I have narrowed it down to the following simple working example.</p>
+
+<p>See the following example:</p>
+
+<pre><code>import dolfin
+
+mesh = dolfin.UnitSquareMesh(2,2)
+
+# Sub domain for Periodic boundary condition. Define periodic boundary conditions.
+class PeriodicBoundary(dolfin.SubDomain):
+
+    # Left boundary is "target domain" G
+    def inside(self, x, on_boundary):
+        # return True if on left or bottom boundary AND NOT on one of the two corners (0, 1) and (1, 0)
+        return bool((dolfin.near(x[0], 0) or dolfin.near(x[1], 0)) and 
+            (not ((dolfin.near(x[0], 0) and dolfin.near(x[1], 1)) or 
+                    (dolfin.near(x[0], 1) and dolfin.near(x[1], 0)))) and on_boundary)
+
+    def map(self, x, y):
+         if dolfin.near(x[0], 1) and dolfin.near(x[1], 1):
+            y[0] = x[0] - 1.
+            y[1] = x[1] - 1.
+         elif dolfin.near(x[0], 1):
+            y[0] = x[0] - 1.
+            y[1] = x[1]
+        else:   # near(x[1], 1)
+            y[0] = x[0]
+            y[1] = x[1] - 1.
+
+box_periodic_bc = PeriodicBoundary()
+
+# define the two functional spaces that make up the mixed one
+S = dolfin.FunctionSpace(mesh,'CG',1,constrained_domain=box_periodic_bc)    # a scalar CG space
+C = dolfin.FunctionSpace(mesh, "R", 0,constrained_domain=box_periodic_bc)   # a real space
+
+# construct the mixed function space
+M = dolfin.MixedFunctionSpace([S,C])
+
+# generate a function from the scalar CG space
+psi = dolfin.Function(S)
+
+print "Number of degrees of freedom in psi before assign: ", psi.vector().array().shape[0]
+
+# generate a function from the mixed space
+m = dolfin.Function(M)
+
+# split the solutions
+psi_mixed,c_mixed = m.split(deepcopy=True)
+
+# assign the one from the mixed, they should be the same size
+psi.assign(psi_mixed)
+
+print "Number of degrees of freedom in psi before assign: ", psi.vector().array().shape[0]
+</code></pre>
+
+<p>Essentially, I have periodic boundary conditions and when I try to get one of the functions out of the mixed solution. Since I have periodic boundary conditions and this is a 2x2 mesh with CG of order one elements, I should get 4 dofs instead of the typical 9. This is the case for psi that is generated directly from S. Now, if I create a function from the mixed space and try to extract the psi part. This function has 9 dofs. Therefore if I do an assign my original psi will change the number of degrees of freedom. This was not happening before. Did something change? Or this is a bug?</p>
+</div>
+										</div>
+										<span class="qa-q-view-avatar-meta">
+											<span class="qa-q-view-meta">
+												<a href="../../6462/split-mixed-spaces-does-not-preserve-number-degrees-freedom" class="qa-q-view-what">asked</a>
+												<span class="qa-q-view-when">
+													<span class="qa-q-view-when-data"><span class="published"><span class="value-title" title="2015-02-06T14:38:41+0000"></span>Feb 6, 2015</span></span>
+												</span>
+												<span class="qa-q-view-who">
+													<span class="qa-q-view-who-pad">by </span>
+													<span class="qa-q-view-who-data"><span class="vcard author"><a href="../../user/apalha" class="qa-user-link url nickname">apalha</a></span></span>
+													<span class="qa-q-view-who-title">FEniCS Novice</span>
+													<span class="qa-q-view-who-points">
+														<span class="qa-q-view-who-points-pad">(</span><span class="qa-q-view-who-points-data">440</span><span class="qa-q-view-who-points-pad"> points)</span>
+													</span>
+												</span>
+											</span>
+										</span>
+										<div class="qa-q-view-buttons">
+										</div>
+										
+										<div class="qa-q-view-c-list" id="c6462_list">
+											<div class="qa-c-list-item  hentry comment" id="c6464">
+												<div class="qa-c-item-content">
+													<a name="6464"></a><div class="entry-content"><p>I found a fix for this, but I do not think this is the way to go.</p>
+
+<pre><code>psi.vector()[:] = m.vector()[self.M.sub(0).dofmap().dofs()]
+</code></pre>
+
+<p>As opposed o using:</p>
+
+<pre><code>psi_mixed,c_mixed = m.split(deepcopy=True)
+psi.assign(psi_mixed)
+</code></pre>
+</div>
+												</div>
+												<div class="qa-c-item-footer">
+													<span class="qa-c-item-avatar-meta">
+														<span class="qa-c-item-meta">
+															<a href="../../6462/split-mixed-spaces-does-not-preserve-number-degrees-freedom?show=6464#c6464" class="qa-c-item-what">commented</a>
+															<span class="qa-c-item-when">
+																<span class="qa-c-item-when-data"><span class="published"><span class="value-title" title="2015-02-06T15:22:05+0000"></span>Feb 6, 2015</span></span>
+															</span>
+															<span class="qa-c-item-who">
+																<span class="qa-c-item-who-pad">by </span>
+																<span class="qa-c-item-who-data"><span class="vcard author"><a href="../../user/apalha" class="qa-user-link url nickname">apalha</a></span></span>
+																<span class="qa-c-item-who-title">FEniCS Novice</span>
+																<span class="qa-c-item-who-points">
+																	<span class="qa-c-item-who-points-pad">(</span><span class="qa-c-item-who-points-data">440</span><span class="qa-c-item-who-points-pad"> points)</span>
+																</span>
+															</span>
+														</span>
+													</span>
+													<div class="qa-c-item-buttons">
+													</div>
+												</div>
+												<div class="qa-c-item-clear">
+												</div>
+											</div> <!-- END qa-c-item -->
+										</div> <!-- END qa-c-list -->
+										
+										<input type="hidden" name="code" value="0-1516468071-27ce9124e951048dcb3b060abd3458b67004b628">
+										<input type="hidden" name="qa_click" value="">
+									</form>
+									<div class="qa-c-form">
+									</div> <!-- END qa-c-form -->
+									
+								</div> <!-- END qa-q-view-main -->
+								<div class="qa-q-view-clear">
+								</div>
+							</div> <!-- END qa-q-view -->
+							
+						</div>
+						<div class="qa-part-a-list">
+							<h2 id="a_list_title">1 Answer</h2>
+							<div class="qa-a-list" id="a_list">
+								
+								<div class="qa-a-list-item  hentry answer answer-selected qa-a-list-item-selected" id="a6470">
+									<form method="post" action="../../6462/split-mixed-spaces-does-not-preserve-number-degrees-freedom">
+										<div class="qa-voting qa-voting-net" id="voting_6470">
+											<div class="qa-vote-count qa-vote-count-net">
+												<span class="qa-netvote-count">
+													<span class="qa-netvote-count-data">+3<span class="votes-up"><span class="value-title" title="3"></span></span><span class="votes-down"><span class="value-title" title="0"></span></span></span><span class="qa-netvote-count-pad"> votes</span>
+												</span>
+											</div>
+											<div class="qa-vote-clear">
+											</div>
+										</div>
+										<input type="hidden" name="code" value="0-1516468071-366c65b011b6edabf3008a898cc84e6e8871b4e9">
+									</form>
+									<div class="qa-a-item-main">
+										<form method="post" action="../../6462/split-mixed-spaces-does-not-preserve-number-degrees-freedom">
+											<div class="qa-a-item-selected">
+												<div class="qa-a-selection">
+													<div class="qa-a-selected">&#160;</div>
+													<div class="qa-a-selected-text">Best answer</div>
+												</div>
+												<div class="qa-a-item-content">
+													<a name="6470"></a><div class="entry-content"><p>This is a known bug in version 1.5:<br>
+<a rel="nofollow" href="https://bitbucket.org/fenics-project/dolfin/issue/405">https://bitbucket.org/fenics-project/dolfin/issue/405</a></p>
+
+<p>You can work around it using</p>
+
+<pre><code>assign(psi, psi_mixed.sub(0))
+</code></pre>
+</div>
+												</div>
+												<span class="qa-a-item-avatar-meta">
+													<span class="qa-a-item-meta">
+														<a href="../../6462/split-mixed-spaces-does-not-preserve-number-degrees-freedom?show=6470#a6470" class="qa-a-item-what">answered</a>
+														<span class="qa-a-item-when">
+															<span class="qa-a-item-when-data"><span class="published"><span class="value-title" title="2015-02-07T20:51:13+0000"></span>Feb 7, 2015</span></span>
+														</span>
+														<span class="qa-a-item-who">
+															<span class="qa-a-item-who-pad">by </span>
+															<span class="qa-a-item-who-data"><span class="vcard author"><a href="../../user/cevito" class="qa-user-link url nickname">cevito</a></span></span>
+															<span class="qa-a-item-who-title">FEniCS User</span>
+															<span class="qa-a-item-who-points">
+																<span class="qa-a-item-who-points-pad">(</span><span class="qa-a-item-who-points-data">5,550</span><span class="qa-a-item-who-points-pad"> points)</span>
+															</span>
+														</span>
+														<br>
+														<span class="qa-a-item-what">selected</span>
+														<span class="qa-a-item-when">
+															<span class="qa-a-item-when-data"><span class="updated"><span class="value-title" title="2015-02-07T22:13:42+0000"></span>Feb 7, 2015</span></span>
+														</span>
+														<span class="qa-a-item-who">
+															<span class="qa-a-item-who-pad">by </span><span class="qa-a-item-who-data"><a href="../../user/apalha" class="qa-user-link url nickname">apalha</a></span>
+														</span>
+													</span>
+												</span>
+											</div>
+											<div class="qa-a-item-buttons">
+												</div>
+											
+											<div class="qa-a-item-c-list" id="c6470_list">
+												<div class="qa-c-list-item  hentry comment" id="c6473">
+													<div class="qa-c-item-content">
+														<a name="6473"></a><div class="entry-content"><p>Thank you Cevito!</p>
+</div>
+													</div>
+													<div class="qa-c-item-footer">
+														<span class="qa-c-item-avatar-meta">
+															<span class="qa-c-item-meta">
+																<a href="../../6462/split-mixed-spaces-does-not-preserve-number-degrees-freedom?show=6473#c6473" class="qa-c-item-what">commented</a>
+																<span class="qa-c-item-when">
+																	<span class="qa-c-item-when-data"><span class="published"><span class="value-title" title="2015-02-08T11:32:23+0000"></span>Feb 8, 2015</span></span>
+																</span>
+																<span class="qa-c-item-who">
+																	<span class="qa-c-item-who-pad">by </span>
+																	<span class="qa-c-item-who-data"><span class="vcard author"><a href="../../user/apalha" class="qa-user-link url nickname">apalha</a></span></span>
+																	<span class="qa-c-item-who-title">FEniCS Novice</span>
+																	<span class="qa-c-item-who-points">
+																		<span class="qa-c-item-who-points-pad">(</span><span class="qa-c-item-who-points-data">440</span><span class="qa-c-item-who-points-pad"> points)</span>
+																	</span>
+																</span>
+															</span>
+														</span>
+														<div class="qa-c-item-buttons">
+														</div>
+													</div>
+													<div class="qa-c-item-clear">
+													</div>
+												</div> <!-- END qa-c-item -->
+											</div> <!-- END qa-c-list -->
+											
+											<input type="hidden" name="code" value="0-1516468071-ada4111d4332e3ebbcc3a9af90a8f3f9707e51b0">
+											<input type="hidden" name="qa_click" value="">
+										</form>
+										<div class="qa-c-form">
+										</div> <!-- END qa-c-form -->
+										
+									</div> <!-- END qa-a-item-main -->
+									<div class="qa-a-item-clear">
+									</div>
+								</div> <!-- END qa-a-list-item -->
+								
+							</div> <!-- END qa-a-list -->
+							
+						</div>
+					</div> <!-- END qa-main -->
+					
+				</div> <!-- END main-wrapper -->
+			</div> <!-- END main-shadow -->
+		</div> <!-- END body-wrapper -->
+		<!-- END footer-bottom-group -->
+		
+		<div style="position:absolute; left:-9999px; top:-9999px;">
+			<span id="qa-waiting-template" class="qa-waiting">...</span>
+		</div>
+	
+	
+
+</body><!-- Powered by Question2Answer - http://www.question2answer.org/ --></html>
